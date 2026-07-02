@@ -6,6 +6,8 @@
 #include <optional>
 #include <string>
 
+#include "camera_iq/cfa_stats.hpp"
+
 namespace camera_iq {
 
 // Metadata extracted from a RAW file via LibRaw. Exposure fields mirror the
@@ -60,5 +62,18 @@ std::array<double, 4> effective_black_levels(
 // Reads metadata from a RAW file. Returns std::nullopt if the file does not
 // exist or LibRaw cannot parse it. Never throws.
 std::optional<RawMeta> read_raw_metadata(const std::filesystem::path& raw);
+
+// RAW metadata plus per-CFA-channel statistics over the black-subtracted mosaic.
+struct RawCfaReport {
+  RawMeta meta;
+  std::array<ChannelStats, 4> planes;
+};
+
+// Unpacks a RAW file and computes per-CFA-channel statistics over the raw Bayer
+// mosaic, black-subtracted with the effective black levels. Returns nullopt if
+// the file cannot be opened/unpacked or has no Bayer `raw_image` (X-Trans,
+// Foveon and already-demosaiced formats are unsupported this phase). Never
+// throws. Assumes a zero-margin sensor (see effective_black_levels()).
+std::optional<RawCfaReport> read_raw_cfa_stats(const std::filesystem::path& raw);
 
 }  // namespace camera_iq

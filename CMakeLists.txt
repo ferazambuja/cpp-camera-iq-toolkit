@@ -27,7 +27,9 @@ add_library(camera_iq_core STATIC
   src/json_writer.cpp
   src/manifest.cpp
   src/raw_meta.cpp
-  src/cmd_manifest.cpp)
+  src/cfa_stats.cpp
+  src/cmd_manifest.cpp
+  src/cmd_raw_stats.cpp)
 target_include_directories(camera_iq_core PUBLIC include)
 target_compile_definitions(camera_iq_core PUBLIC
   CAMERA_IQ_VERSION="${PROJECT_VERSION}")
@@ -53,3 +55,4 @@ camera_iq_add_test(test_manifest_scan tests/test_manifest_scan.cpp)
 camera_iq_add_test(test_exposure_series tests/test_exposure_series.cpp)
 camera_iq_add_test(test_raw_meta tests/test_raw_meta.cpp)
 camera_iq_add_test(test_manifest_json tests/test_manifest_json.cpp)
+camera_iq_add_test(test_cfa_stats tests/test_cfa_stats.cpp)

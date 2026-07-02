@@ -24,9 +24,9 @@ void print_usage() {
       "  camera_iq <command> [options]\n\n"
       "Commands:\n"
       "  manifest    Enumerate a dataset folder and emit a JSON manifest\n"
+      "  raw-stats   Per-CFA-channel statistics for a raw capture\n"
       "\n"
       "Commands (planned):\n"
-      "  raw-stats   Report raw-CFA channel statistics for a capture\n"
       "  patches     Extract ColorChecker patch statistics\n"
       "  ccm         Fit and apply a color-correction matrix, report deltaE\n"
       "  noise       Read noise / DSNU / PRNU summaries\n\n"
@@ -54,6 +54,9 @@ int run(int argc, char** argv) {
   }
   if (arg == "manifest") {
     return cmd_manifest(argc - 2, argv + 2);
+  }
+  if (arg == "raw-stats") {
+    return cmd_raw_stats(argc - 2, argv + 2);
   }
 
   std::cerr << "camera_iq: command '" << arg

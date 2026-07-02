@@ -48,12 +48,11 @@ std::array<double, 4> effective_black_levels(
   return out;
 }
 
-std::optional<RawMeta> read_raw_metadata(const std::filesystem::path& raw) {
-  LibRaw processor;
-  if (processor.open_file(raw.string().c_str()) != LIBRAW_SUCCESS) {
-    return std::nullopt;
-  }
+namespace {
 
+// Fills RawMeta from an already-opened LibRaw processor. Metadata (including the
+// cblack tile and COLOR() layout) is available after open_file(); no unpack.
+RawMeta meta_from_processor(LibRaw& processor) {
   const auto& idata = processor.imgdata.idata;
   const auto& other = processor.imgdata.other;
   const auto& sizes = processor.imgdata.sizes;
@@ -105,6 +104,48 @@ std::optional<RawMeta> read_raw_metadata(const std::filesystem::path& raw) {
   meta.cfa_pattern = cfa_pattern_string(idata.cdesc, color_at_position);
 
   return meta;
+}
+
+}  // namespace
+
+std::optional<RawMeta> read_raw_metadata(const std::filesystem::path& raw) {
+  LibRaw processor;
+  if (processor.open_file(raw.string().c_str()) != LIBRAW_SUCCESS) {
+    return std::nullopt;
+  }
+  return meta_from_processor(processor);
+}
+
+std::optional<RawCfaReport> read_raw_cfa_stats(
+    const std::filesystem::path& raw) {
+  LibRaw processor;
+  if (processor.open_file(raw.string().c_str()) != LIBRAW_SUCCESS) {
+    return std::nullopt;
+  }
+  RawCfaReport report;
+  report.meta = meta_from_processor(processor);
+
+  if (processor.unpack() != LIBRAW_SUCCESS) {
+    return std::nullopt;
+  }
+  const std::uint16_t* image = processor.imgdata.rawdata.raw_image;
+  if (image == nullptr) {
+    return std::nullopt;  // no Bayer mosaic (X-Trans/Foveon/demosaiced input)
+  }
+
+  const auto& sizes = processor.imgdata.sizes;
+  const auto& color = processor.imgdata.color;
+  const std::array<int, 4> color_at_position = {
+      processor.COLOR(0, 0), processor.COLOR(0, 1),
+      processor.COLOR(1, 0), processor.COLOR(1, 1)};
+
+  // Statistics over the full raw mosaic (zero-margin sensor assumed, as for the
+  // black level), black-subtracted with the effective per-position black.
+  report.planes = cfa_plane_stats(
+      image, sizes.raw_width, sizes.raw_height, color_at_position,
+      processor.imgdata.idata.cdesc, report.meta.black_per_channel,
+      static_cast<double>(color.maximum));
+  return report;
 }
 
 }  // namespace camera_iq
