@@ -2,6 +2,8 @@
 
 #include <libraw/libraw.h>
 
+#include <array>
+#include <cstddef>
 #include <cstdio>
 #include <ctime>
 
@@ -16,6 +18,34 @@ std::string cfa_pattern_string(std::string_view cdesc,
     pattern += cdesc[static_cast<size_t>(idx)];
   }
   return pattern;
+}
+
+std::array<double, 4> effective_black_levels(
+    unsigned black, const unsigned* cblack, std::size_t cblack_len,
+    const std::array<int, 4>& color_at_position) {
+  // Tile dimensions live in cblack[4] (rows) and cblack[5] (cols); the tile
+  // values start at cblack[6]. Positions (0,0)(0,1)(1,0)(1,1) in row/col terms.
+  static constexpr int kRow[4] = {0, 0, 1, 1};
+  static constexpr int kCol[4] = {0, 1, 0, 1};
+  const unsigned bh = cblack_len > 4 ? cblack[4] : 0;
+  const unsigned bw = cblack_len > 5 ? cblack[5] : 0;
+
+  std::array<double, 4> out{0, 0, 0, 0};
+  for (int p = 0; p < 4; ++p) {
+    double eff = static_cast<double>(black);
+    const int ch = color_at_position[static_cast<size_t>(p)];
+    if (ch >= 0 && static_cast<std::size_t>(ch) < cblack_len) {
+      eff += static_cast<double>(cblack[static_cast<size_t>(ch)]);
+    }
+    if (bh > 0 && bw > 0) {
+      const std::size_t idx = 6u +
+          (static_cast<unsigned>(kRow[p]) % bh) * bw +
+          (static_cast<unsigned>(kCol[p]) % bw);
+      if (idx < cblack_len) eff += static_cast<double>(cblack[idx]);
+    }
+    out[static_cast<size_t>(p)] = eff;
+  }
+  return out;
 }
 
 std::optional<RawMeta> read_raw_metadata(const std::filesystem::path& raw) {
@@ -38,10 +68,22 @@ std::optional<RawMeta> read_raw_metadata(const std::filesystem::path& raw) {
   meta.focal_length_mm = other.focal_len;
   meta.raw_width = sizes.raw_width;
   meta.raw_height = sizes.raw_height;
-  meta.black_level = color.black;
-  for (int i = 0; i < 4; ++i) {
-    meta.black_per_channel[static_cast<size_t>(i)] = color.cblack[i];
-  }
+
+  // COLOR() index of each top-left 2x2 position (accounts for crop margins);
+  // reused for both the CFA string and the effective black computation.
+  const std::array<int, 4> color_at_position = {
+      processor.COLOR(0, 0), processor.COLOR(0, 1),
+      processor.COLOR(1, 0), processor.COLOR(1, 1)};
+
+  // Effective black must combine the scalar `black`, per-channel cblack[0..3],
+  // and the cblack[6..] tile — the X-T100 stores its ~1024 DN pedestal in the
+  // tile and leaves the scalar at 0, so reading `color.black` alone yields 0.
+  meta.black_per_channel = effective_black_levels(
+      color.black, color.cblack,
+      sizeof(color.cblack) / sizeof(color.cblack[0]), color_at_position);
+  meta.black_level = (meta.black_per_channel[0] + meta.black_per_channel[1] +
+                      meta.black_per_channel[2] + meta.black_per_channel[3]) /
+                     4.0;
   meta.white_level = color.maximum;
 
   if (other.timestamp != 0) {
@@ -55,11 +97,9 @@ std::optional<RawMeta> read_raw_metadata(const std::filesystem::path& raw) {
     }
   }
 
-  // CFA pattern of the visible-area top-left 2x2, via LibRaw's COLOR()
-  // (which already accounts for the sensor crop margins).
-  meta.cfa_pattern = cfa_pattern_string(
-      idata.cdesc, {processor.COLOR(0, 0), processor.COLOR(0, 1),
-                    processor.COLOR(1, 0), processor.COLOR(1, 1)});
+  // CFA pattern of the visible-area top-left 2x2, from the COLOR() indices
+  // computed above (which already account for the sensor crop margins).
+  meta.cfa_pattern = cfa_pattern_string(idata.cdesc, color_at_position);
 
   return meta;
 }

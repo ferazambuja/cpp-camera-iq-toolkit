@@ -7,6 +7,7 @@
 
 namespace fs = std::filesystem;
 using camera_iq::cfa_pattern_string;
+using camera_iq::effective_black_levels;
 using camera_iq::read_raw_metadata;
 using test::check;
 
@@ -20,6 +21,44 @@ void TESTS() {
         "cfa: out-of-range index rejected");
   check(cfa_pattern_string("", {0, 0, 0, 0}).empty(),
         "cfa: empty descriptor rejected");
+
+  // Effective black — the Fuji X-T100 case: scalar black and cblack[0..3] are 0,
+  // the real ~1024 DN pedestal lives in the 2x2 cblack[6..] tile. Reading the
+  // scalar alone would report 0 (the bug this exercises).
+  {
+    unsigned cb[16] = {0};
+    cb[4] = 2;  // tile rows
+    cb[5] = 2;  // tile cols
+    cb[6] = cb[7] = cb[8] = cb[9] = 1024;
+    const auto b = effective_black_levels(0, cb, 16, {0, 1, 3, 2});
+    check(b[0] == 1024 && b[1] == 1024 && b[2] == 1024 && b[3] == 1024,
+          "black: tile pedestal recovered (1024, not 0)");
+  }
+  // Scalar + per-channel offsets, no tile (bh=bw=0).
+  {
+    unsigned cb[16] = {0};
+    cb[0] = 10; cb[1] = 20; cb[2] = 30; cb[3] = 40;
+    const auto b = effective_black_levels(100, cb, 16, {0, 1, 2, 3});
+    check(b[0] == 110 && b[1] == 120 && b[2] == 130 && b[3] == 140,
+          "black: scalar + per-channel, no tile");
+  }
+  // Non-uniform 2x2 tile mapped through COLOR() indices.
+  {
+    unsigned cb[16] = {0};
+    cb[4] = 2; cb[5] = 2;
+    cb[6] = 500; cb[7] = 501; cb[8] = 510; cb[9] = 511;  // per-position
+    const auto b = effective_black_levels(0, cb, 16, {0, 1, 2, 3});
+    check(b[0] == 500 && b[1] == 501 && b[2] == 510 && b[3] == 511,
+          "black: non-uniform tile per position");
+  }
+  // Out-of-range tile dimensions must not read past the buffer.
+  {
+    unsigned cb[16] = {0};
+    cb[4] = 2; cb[5] = 1000;  // (1,*) tile index would be ~1006 >> 16
+    const auto b = effective_black_levels(5, cb, 16, {0, 1, 2, 3});
+    check(b[0] == 5 && b[1] == 5 && b[2] == 5 && b[3] == 5,
+          "black: out-of-range tile ignored (no OOB read)");
+  }
 
   check(!read_raw_metadata("/nonexistent/file.RAF").has_value(),
         "missing file yields nullopt");

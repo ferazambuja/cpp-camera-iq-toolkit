@@ -64,11 +64,15 @@ within 0.11, ISO exact). Filename-encoded exposure metadata is trustworthy.
 1. **Camera clock is wrong.** EXIF timestamps span 2020-03-09 → 2020-03-20 for
    a 2023 course capture. Relative ordering within a session is usable;
    absolute dates are not.
-2. **LibRaw black level is 0 for this camera** (`black` and `cblack[0..3]` all
-   zero, before and after `unpack()`), but a sampled dark frame shows a real
-   pedestal: mean ≈ **1024 DN** (min 1005) on
-   `Dark_Frame_f8.0_1:1000_DSCF0437.RAF`. Evidence black subtraction must be
-   derived from the 21 dark frames, not from LibRaw metadata.
+2. **LibRaw black level needed the `cblack` *tile*, not the scalar** (resolved).
+   `color.black` and `cblack[0..3]` are all zero on this camera, but the real
+   pedestal lives in LibRaw's repeating black tile: `cblack[4]=2, cblack[5]=2`
+   (a 2×2 block) with `cblack[6..9] = 1024`. The manifest reader now combines
+   `black + cblack[color] + cblack[6 + (r%bh)*bw + (c%bw)]` and reports
+   **black = 1024 DN** across all four RGGB positions. A sampled dark frame
+   (`Dark_Frame_f8.0_1:1000_DSCF0437.RAF`, mean ≈ **1024 DN**, min 1005)
+   independently confirms it. Evidence can subtract the LibRaw-derived pedestal
+   directly; the 21 dark frames remain a cross-check, not the sole source.
 3. **`PRD_SPD_all.csv` has 46 rows for 45 measurements** — the last row is an
    exact duplicate of row 45 (`PRD_47`). `XYZ_all.csv` (45 rows) is consistent.
    The `.mat` files are the source of truth; the combined CSVs are derived and
@@ -139,6 +143,6 @@ catalogued, nothing more.
 
 ## Next (Evidence)
 
-LibRaw unpack path, raw-CFA plane statistics with dark-frame-derived black
-level (~1024 DN pedestal confirmed above), and the first hand-written demosaic
-(bilinear), per the project plan.
+LibRaw unpack path, raw-CFA plane statistics using the LibRaw-derived black
+pedestal (1024 DN, tile-recovered above, dark-frame cross-checked), and the
+first hand-written demosaic (bilinear), per the project plan.
