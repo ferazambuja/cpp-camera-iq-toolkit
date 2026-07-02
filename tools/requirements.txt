@@ -1,0 +1,4 @@
+# Dependencies for tools/verify_ccsg_vs_xrite.py (MAT/PRD reproducibility probe).
+# Install: pip install -r tools/requirements.txt
+numpy>=1.24
+scipy>=1.10

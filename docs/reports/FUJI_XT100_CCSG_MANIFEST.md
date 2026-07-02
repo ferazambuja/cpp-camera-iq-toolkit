@@ -128,14 +128,18 @@ spectroradiometer readings: patches 1–15 measured in triplicate (duplicate for
 7–9), averaged by `Old/load_all.m` into `Old/SPD_all.csv` (wl header + 15 rows)
 and `Old/XYZ_all.csv` (16 rows; Y ≈ 165–692 cd/m²; the 16th row's provenance is
 unclear — `Old/prd/` now holds a single file although the script expects pairs).
-**Identity resolved: earlier PRD scene trials, not a chart.** `Old/Old code/
-patch_data.m` loads `patch_<N>trail_<M>.mat` as `prd_*` and averages the trials
-into `prd_avg` — the PRD-scene averaging workflow. `patch_7trail_1` correlates
-**0.974** with a PRD scene (`PRD1scene24`) over the same 380–780 nm scene-radiance
-axis (`tools/verify_ccsg_vs_xrite.py --old-patch`). So `Old/patch_*` is a **superseded
-15-scene iteration of the PRD scene measurements**, not a ColorChecker/paint
-reference chart and not Reference-B candidate data. Exact old→final scene
-correspondence is not established (numbering differs); it is prior-run PRD data.
+**PRD-like scene-domain data, not a reference chart.** Primary evidence is
+measured, not inferred from scripts: `patch_7trail_1` correlates **0.97** with a
+PRD scene (`PRD1scene24`) over the identical 380–780 nm @ 2 nm axis, and every
+trail carries the PRD `measurements` struct (radiance/wl/XYZ). Adjacent scripts
+corroborate: `load_all.m` averages the `patch_<N>trail_<M>` trials into
+`SPD_all.csv`/`XYZ_all.csv`, and `Old/Old code/patch_data.m` builds a `prd_avg`
+from `prd_1.mat`/`prd_2.mat` with a **commented** `% prd_3 =
+load("patch_15trail_3.mat")` line — the author treated a patch trail as
+interchangeable with a PRD input. So `Old/patch_*` is an earlier scene-radiance
+set (15 scenes), **not** a ColorChecker/paint reference chart and not Reference-B
+data. Exact scene identity vs the final PRD set is unresolved (numbering differs).
+Reproduce with `tools/verify_ccsg_vs_xrite.py --old-patch`.
 
 ## Reproducibility
 
@@ -145,7 +149,8 @@ Every claim above is regenerable from the raw dataset:
   `camera_iq manifest "<Project Camera>" --out out/clrs589_manifest.json`.
   Regenerated after `ac5ac35`; `black_level` is now **1024** for all 480 RAF.
 - MAT/PRD claims (wavelength axis, scene→numbered mapping over **all 45** files,
-  CSV duplicate row, Old/patch reclassification):
+  CSV duplicate row, Old/patch reclassification): install deps with
+  `pip install -r tools/requirements.txt` (numpy, scipy), then
   `python3 tools/verify_ccsg_vs_xrite.py --root "<Project Camera>" --old-patch` → 5/5 pass.
 
 `out/` is git-ignored (derived output over a private dataset path) — regenerate
