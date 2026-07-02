@@ -20,7 +20,8 @@ noise/SNR, OECF/linearity, and reproducible CSV/JSON/Markdown reports.
 
 ## Build
 
-Requires a C++20 compiler and CMake ≥ 3.20.
+Requires a C++20 compiler, CMake ≥ 3.20, and LibRaw
+(`brew install libraw` / `apt-get install libraw-dev`).
 
 ```bash
 cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
@@ -32,7 +33,15 @@ ctest --test-dir build --output-on-failure
 
 ```bash
 ./build/camera_iq --help
+
+# Enumerate a dataset folder into a JSON manifest:
+#   file inventory, filename-encoded exposure metadata, LibRaw EXIF + CFA
+#   pattern, CSV shape probes, and candidate exposure series.
+./build/camera_iq manifest /path/to/dataset --out out/manifest.json
 ```
+
+Implemented commands: `manifest`. Evidence reports for completed phases live
+under [docs/reports/](docs/reports/).
 
 ## Data
 

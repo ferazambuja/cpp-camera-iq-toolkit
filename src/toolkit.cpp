@@ -4,6 +4,8 @@
 #include <string>
 #include <string_view>
 
+#include "camera_iq/commands.hpp"
+
 #ifndef CAMERA_IQ_VERSION
 #define CAMERA_IQ_VERSION "0.0.0"
 #endif
@@ -20,8 +22,10 @@ void print_usage() {
       "Camera image-quality analysis toolkit.\n\n"
       "Usage:\n"
       "  camera_iq <command> [options]\n\n"
-      "Commands (planned):\n"
+      "Commands:\n"
       "  manifest    Enumerate a dataset folder and emit a JSON manifest\n"
+      "\n"
+      "Commands (planned):\n"
       "  raw-stats   Report raw-CFA channel statistics for a capture\n"
       "  patches     Extract ColorChecker patch statistics\n"
       "  ccm         Fit and apply a color-correction matrix, report deltaE\n"
@@ -47,6 +51,9 @@ int run(int argc, char** argv) {
   if (arg == "-v" || arg == "--version") {
     std::cout << version() << "\n";
     return 0;
+  }
+  if (arg == "manifest") {
+    return cmd_manifest(argc - 2, argv + 2);
   }
 
   std::cerr << "camera_iq: command '" << arg

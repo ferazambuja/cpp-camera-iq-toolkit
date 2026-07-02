@@ -15,19 +15,41 @@ endif()
 
 add_compile_options(-Wall -Wextra -Wpedantic)
 
+# LibRaw — RAW decode/metadata. Homebrew (macOS) and libraw-dev (Linux CI)
+# both ship a pkg-config file.
+find_package(PkgConfig REQUIRED)
+pkg_check_modules(LIBRAW REQUIRED IMPORTED_TARGET libraw)
+
 # Core library (algorithms live here; the CLI and tests link against it)
 add_library(camera_iq_core STATIC
-  src/toolkit.cpp)
+  src/toolkit.cpp
+  src/filename_meta.cpp
+  src/json_writer.cpp
+  src/manifest.cpp
+  src/raw_meta.cpp
+  src/cmd_manifest.cpp)
 target_include_directories(camera_iq_core PUBLIC include)
 target_compile_definitions(camera_iq_core PUBLIC
   CAMERA_IQ_VERSION="${PROJECT_VERSION}")
+target_link_libraries(camera_iq_core PUBLIC PkgConfig::LIBRAW)
 
 # CLI executable
 add_executable(camera_iq src/main.cpp)
 target_link_libraries(camera_iq PRIVATE camera_iq_core)
 
-# Tests
+# Tests — one executable per unit, all registered with CTest.
 enable_testing()
-add_executable(camera_iq_tests tests/test_validation.cpp)
-target_link_libraries(camera_iq_tests PRIVATE camera_iq_core)
-add_test(NAME validation COMMAND camera_iq_tests)
+
+function(camera_iq_add_test name source)
+  add_executable(${name} ${source})
+  target_link_libraries(${name} PRIVATE camera_iq_core)
+  add_test(NAME ${name} COMMAND ${name})
+endfunction()
+
+camera_iq_add_test(camera_iq_tests tests/test_validation.cpp)
+camera_iq_add_test(test_filename_meta tests/test_filename_meta.cpp)
+camera_iq_add_test(test_json_writer tests/test_json_writer.cpp)
+camera_iq_add_test(test_manifest_scan tests/test_manifest_scan.cpp)
+camera_iq_add_test(test_exposure_series tests/test_exposure_series.cpp)
+camera_iq_add_test(test_raw_meta tests/test_raw_meta.cpp)
+camera_iq_add_test(test_manifest_json tests/test_manifest_json.cpp)
