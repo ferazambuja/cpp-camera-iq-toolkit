@@ -129,9 +129,10 @@ spectroradiometer readings: patches 1–15 measured in triplicate (duplicate for
 and `Old/XYZ_all.csv` (16 rows; Y ≈ 165–692 cd/m²; the 16th row's provenance is
 unclear — `Old/prd/` now holds a single file although the script expects pairs).
 **PRD-like scene-domain data, not a reference chart.** Primary evidence is
-measured, not inferred from scripts: `patch_7trail_1` correlates **0.97** with a
-PRD scene (`PRD1scene24`) over the identical 380–780 nm @ 2 nm axis, and every
-trail carries the PRD `measurements` struct (radiance/wl/XYZ). Adjacent scripts
+measured, not inferred from scripts: **all 42** `patch_<N>trail_<M>` trials
+best-match a PRD scene with correlation **≥ 0.97** (weakest 0.9695 @
+`patch_10trail_3`) over the identical 380–780 nm @ 2 nm axis, and every trail
+carries the PRD `measurements` struct (radiance/wl/XYZ). Adjacent scripts
 corroborate: `load_all.m` averages the `patch_<N>trail_<M>` trials into
 `SPD_all.csv`/`XYZ_all.csv`, and `Old/Old code/patch_data.m` builds a `prd_avg`
 from `prd_1.mat`/`prd_2.mat` with a **commented** `% prd_3 =
