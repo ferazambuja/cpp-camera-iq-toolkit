@@ -128,10 +128,38 @@ spectroradiometer readings: patches 1–15 measured in triplicate (duplicate for
 7–9), averaged by `Old/load_all.m` into `Old/SPD_all.csv` (wl header + 15 rows)
 and `Old/XYZ_all.csv` (16 rows; Y ≈ 165–692 cd/m²; the 16th row's provenance is
 unclear — `Old/prd/` now holds a single file although the script expects pairs).
-**Identity of "patches 1–15" is unverified** (which chart, which patches).
-This is candidate reference material for the color-characterization phase and
-must be identified against chart geometry before any use. Until then it is
-catalogued, nothing more.
+**Identity resolved: earlier PRD scene trials, not a chart.** `Old/Old code/
+patch_data.m` loads `patch_<N>trail_<M>.mat` as `prd_*` and averages the trials
+into `prd_avg` — the PRD-scene averaging workflow. `patch_7trail_1` correlates
+**0.974** with a PRD scene (`PRD1scene24`) over the same 380–780 nm scene-radiance
+axis (`tools/verify_ccsg_vs_xrite.py --old-patch`). So `Old/patch_*` is a **superseded
+15-scene iteration of the PRD scene measurements**, not a ColorChecker/paint
+reference chart and not Reference-B candidate data. Exact old→final scene
+correspondence is not established (numbering differs); it is prior-run PRD data.
+
+## Reproducibility
+
+Every claim above is regenerable from the raw dataset:
+
+- Manifest (RAW EXIF, CFA, **black level**, CSV shape, exposure series):
+  `camera_iq manifest "<Project Camera>" --out out/clrs589_manifest.json`.
+  Regenerated after `ac5ac35`; `black_level` is now **1024** for all 480 RAF.
+- MAT/PRD claims (wavelength axis, scene→numbered mapping over **all 45** files,
+  CSV duplicate row, Old/patch reclassification):
+  `python3 tools/verify_ccsg_vs_xrite.py --root "<Project Camera>" --old-patch` → 5/5 pass.
+
+`out/` is git-ignored (derived output over a private dataset path) — regenerate
+locally. The black-level logic is independently proven in CI by `test_raw_meta`
+(synthetic `cblack` tile → 1024), needing no dataset.
+
+## Manifest tool notes
+
+- Group classification is **filename-only**. `Images/Dark Frame/DSCF0497.RAF`
+  has a bare name (no `Dark_Frame_` prefix), so it is fully enumerated
+  (directory + size + EXIF) but its `filename_meta.group` is null — the group
+  census reports 20 dark frames though the folder holds 21. The physical count
+  (21) stands; directory-fallback grouping is a candidate refinement, not a data
+  gap.
 
 ## Not claimed
 

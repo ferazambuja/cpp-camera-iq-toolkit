@@ -78,6 +78,9 @@ std::optional<RawMeta> read_raw_metadata(const std::filesystem::path& raw) {
   // Effective black must combine the scalar `black`, per-channel cblack[0..3],
   // and the cblack[6..] tile — the X-T100 stores its ~1024 DN pedestal in the
   // tile and leaves the scalar at 0, so reading `color.black` alone yields 0.
+  // Tile phase assumes a zero-margin sensor (sizes.top_margin/left_margin == 0,
+  // true for the X-T100); see effective_black_levels() for the cropped-sensor
+  // caveat before trusting this on other cameras.
   meta.black_per_channel = effective_black_levels(
       color.black, color.cblack,
       sizeof(color.cblack) / sizeof(color.cblack[0]), color_at_position);

@@ -46,6 +46,13 @@ std::string cfa_pattern_string(std::string_view cdesc,
 // cblack[6] onward. `color_at_position` holds the COLOR() channel index (0..3)
 // for each of the four positions. `cblack_len` bounds every array access, so an
 // out-of-range tile index simply contributes no tile term (never reads OOB).
+//
+// LIMITATION: the tile phase (r,c) is taken relative to the visible-area origin.
+// That is exact only when the visible area starts at the raw origin — i.e. zero
+// crop margin (validated on the Fuji X-T100, top/left margin 0). For a sensor
+// whose visible area is offset inside the raw frame, the tile index must be
+// shifted by the raw (top_margin,left_margin). Until validated against such a
+// sensor, treat non-zero-margin RAWs as UNVERIFIED for this helper.
 std::array<double, 4> effective_black_levels(
     unsigned black, const unsigned* cblack, std::size_t cblack_len,
     const std::array<int, 4>& color_at_position);
