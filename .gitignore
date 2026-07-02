@@ -1,0 +1,32 @@
+# Build output
+build/
+out/
+cmake-build-*/
+*.o
+*.a
+*.so
+*.dylib
+
+# RAW / large image data — kept out of git for size + reproducibility
+*.RAF
+*.NEF
+*.ARW
+*.CR2
+*.CR3
+*.IIQ
+*.dng
+*.DNG
+*.tif
+*.tiff
+# ...but allow tiny committed sample fixtures back in
+!data/samples/**
+
+# Private datasets and local machine config
+data/private/
+configs/datasets.local.json
+
+# IDE / OS junk
+.DS_Store
+.vscode/
+.idea/
+*.swp

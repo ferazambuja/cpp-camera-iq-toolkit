@@ -1,0 +1,14 @@
+{
+  "_comment": "Copy to datasets.local.json (gitignored) and set paths to your own dataset roots. The toolkit reads local config so no image bytes enter the repo.",
+  "datasets": {
+    "clrs589_project_camera": {
+      "root": "/absolute/path/to/CLRS-589 Project Camera",
+      "description": "Fujifilm X-T100 ColorChecker-SG / dark / flat / sphere / validation captures",
+      "reference_sg_cgats": "/absolute/path/to/SG1_1_CGATS.txt"
+    },
+    "monochromator_2016": {
+      "root": "/absolute/path/to/2016_Monochromator",
+      "description": "Multi-camera monochromator spectral-sensitivity captures"
+    }
+  }
+}

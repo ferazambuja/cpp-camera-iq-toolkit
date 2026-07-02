@@ -1,0 +1,58 @@
+#include "camera_iq/toolkit.hpp"
+
+#include <iostream>
+#include <string>
+#include <string_view>
+
+#ifndef CAMERA_IQ_VERSION
+#define CAMERA_IQ_VERSION "0.0.0"
+#endif
+
+namespace camera_iq {
+
+std::string version() { return CAMERA_IQ_VERSION; }
+
+namespace {
+
+void print_usage() {
+  std::cout <<
+      "camera_iq " << version() << "\n"
+      "Camera image-quality analysis toolkit.\n\n"
+      "Usage:\n"
+      "  camera_iq <command> [options]\n\n"
+      "Commands (planned):\n"
+      "  manifest    Enumerate a dataset folder and emit a JSON manifest\n"
+      "  raw-stats   Report raw-CFA channel statistics for a capture\n"
+      "  patches     Extract ColorChecker patch statistics\n"
+      "  ccm         Fit and apply a color-correction matrix, report deltaE\n"
+      "  noise       Read noise / DSNU / PRNU summaries\n\n"
+      "Options:\n"
+      "  -h, --help       Show this help\n"
+      "  -v, --version    Show version\n";
+}
+
+}  // namespace
+
+int run(int argc, char** argv) {
+  if (argc < 2) {
+    print_usage();
+    return 0;
+  }
+
+  const std::string_view arg = argv[1];
+  if (arg == "-h" || arg == "--help") {
+    print_usage();
+    return 0;
+  }
+  if (arg == "-v" || arg == "--version") {
+    std::cout << version() << "\n";
+    return 0;
+  }
+
+  std::cerr << "camera_iq: command '" << arg
+            << "' is not implemented yet.\n"
+               "Run 'camera_iq --help' for the planned command list.\n";
+  return 2;
+}
+
+}  // namespace camera_iq
