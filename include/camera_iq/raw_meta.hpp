@@ -5,6 +5,7 @@
 #include <filesystem>
 #include <optional>
 #include <string>
+#include <vector>
 
 #include "camera_iq/cfa_stats.hpp"
 
@@ -85,11 +86,28 @@ struct RawCfaReport {
   std::array<ChannelStats, 4> planes;
 };
 
+// Active, black-subtracted Bayer mosaic copied out of LibRaw after unpack().
+// `samples` is row-major with `row_stride_pixels == width`; values are signed
+// residuals and may be below zero.
+struct RawCfaImage {
+  RawMeta meta;
+  int width = 0;
+  int height = 0;
+  int row_stride_pixels = 0;
+  std::array<int, 4> color_at_position{0, 1, 2, 3};
+  std::string cdesc;
+  std::vector<double> samples;
+};
+
 // Unpacks a RAW file and computes per-CFA-channel statistics over the raw Bayer
 // mosaic, black-subtracted with the effective black levels. Returns nullopt if
 // the file cannot be opened/unpacked, is not an ordinary 2x2 Bayer layout, or
 // has no Bayer `raw_image` (X-Trans, Foveon, monochrome/full-color and
 // already-demosaiced formats are unsupported this phase). Never throws.
 std::optional<RawCfaReport> read_raw_cfa_stats(const std::filesystem::path& raw);
+
+// Unpacks a RAW file and returns the active Bayer mosaic as signed
+// black-subtracted samples. Same unsupported-format rules as read_raw_cfa_stats().
+std::optional<RawCfaImage> read_raw_cfa_image(const std::filesystem::path& raw);
 
 }  // namespace camera_iq

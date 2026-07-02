@@ -42,9 +42,12 @@ ctest --test-dir build --output-on-failure
 
 # Compute signed black-subtracted per-CFA-position stats for one RAW file:
 ./build/camera_iq raw-stats /path/to/capture.RAF --out out/raw-stats.json
+
+# Compute hand-written bilinear demosaic summary stats for one RAW file:
+./build/camera_iq demosaic /path/to/capture.RAF --out out/demosaic.json
 ```
 
-Implemented commands: `manifest`, `raw-stats`. Evidence reports for completed phases live
+Implemented commands: `manifest`, `raw-stats`, `demosaic`. Evidence reports for completed phases live
 under [docs/reports/](docs/reports/).
 
 ## Data

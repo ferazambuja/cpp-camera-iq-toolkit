@@ -6,6 +6,7 @@
 #include <cstddef>
 #include <cstdio>
 #include <ctime>
+#include <vector>
 
 namespace camera_iq {
 
@@ -189,6 +190,68 @@ std::optional<RawCfaReport> read_raw_cfa_stats(
       processor.imgdata.idata.cdesc, report.meta.black_per_channel,
       static_cast<double>(color.maximum));
   return report;
+}
+
+std::optional<RawCfaImage> read_raw_cfa_image(const std::filesystem::path& raw) {
+  LibRaw processor;
+  if (processor.open_file(raw.string().c_str()) != LIBRAW_SUCCESS) {
+    return std::nullopt;
+  }
+  if (!is_supported_bayer_filter(processor.imgdata.idata.filters)) {
+    return std::nullopt;
+  }
+  if (processor.unpack() != LIBRAW_SUCCESS) {
+    return std::nullopt;
+  }
+
+  const std::uint16_t* image = processor.imgdata.rawdata.raw_image;
+  if (image == nullptr) {
+    return std::nullopt;
+  }
+
+  const auto& sizes = processor.imgdata.sizes;
+  if (sizes.width <= 0 || sizes.height <= 0) {
+    return std::nullopt;
+  }
+  const int raw_stride_pixels =
+      effective_raw_stride_pixels(sizes.raw_pitch, sizes.raw_width);
+  if (raw_stride_pixels <= 0 ||
+      static_cast<int>(sizes.left_margin) + static_cast<int>(sizes.width) >
+          raw_stride_pixels ||
+      static_cast<int>(sizes.top_margin) + static_cast<int>(sizes.height) >
+          static_cast<int>(sizes.raw_height)) {
+    return std::nullopt;
+  }
+
+  RawCfaImage out;
+  out.meta = meta_from_processor(processor);
+  out.width = sizes.width;
+  out.height = sizes.height;
+  out.row_stride_pixels = sizes.width;
+  out.color_at_position = {processor.COLOR(0, 0), processor.COLOR(0, 1),
+                           processor.COLOR(1, 0), processor.COLOR(1, 1)};
+  out.cdesc = processor.imgdata.idata.cdesc;
+  out.samples.resize(static_cast<std::size_t>(out.width) *
+                     static_cast<std::size_t>(out.height));
+
+  const std::uint16_t* active =
+      image + static_cast<std::size_t>(sizes.top_margin) *
+                  static_cast<std::size_t>(raw_stride_pixels) +
+      static_cast<std::size_t>(sizes.left_margin);
+  for (int r = 0; r < out.height; ++r) {
+    const std::size_t src_row = static_cast<std::size_t>(r) *
+                                static_cast<std::size_t>(raw_stride_pixels);
+    const std::size_t dst_row = static_cast<std::size_t>(r) *
+                                static_cast<std::size_t>(out.row_stride_pixels);
+    for (int c = 0; c < out.width; ++c) {
+      const std::size_t pos = static_cast<std::size_t>((r & 1) * 2 + (c & 1));
+      const double raw_value =
+          static_cast<double>(active[src_row + static_cast<std::size_t>(c)]);
+      out.samples[dst_row + static_cast<std::size_t>(c)] =
+          raw_value - out.meta.black_per_channel[pos];
+    }
+  }
+  return out;
 }
 
 }  // namespace camera_iq

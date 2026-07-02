@@ -10,6 +10,7 @@ using camera_iq::cfa_pattern_string;
 using camera_iq::effective_black_levels;
 using camera_iq::effective_raw_stride_pixels;
 using camera_iq::is_supported_bayer_filter;
+using camera_iq::read_raw_cfa_image;
 using camera_iq::read_raw_metadata;
 using test::check;
 
@@ -90,6 +91,8 @@ void TESTS() {
 
   check(!read_raw_metadata("/nonexistent/file.RAF").has_value(),
         "missing file yields nullopt");
+  check(!read_raw_cfa_image("/nonexistent/file.RAF").has_value(),
+        "missing file yields no CFA image");
 
   const fs::path garbage = fs::temp_directory_path() / "camera_iq_garbage.RAF";
   {
@@ -97,5 +100,7 @@ void TESTS() {
     os << "this is not a raw file";
   }
   check(!read_raw_metadata(garbage).has_value(), "garbage file yields nullopt");
+  check(!read_raw_cfa_image(garbage).has_value(),
+        "garbage file yields no CFA image");
   fs::remove(garbage);
 }

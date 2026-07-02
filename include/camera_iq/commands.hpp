@@ -6,5 +6,6 @@ namespace camera_iq {
 // subcommand word itself.
 int cmd_manifest(int argc, char** argv);
 int cmd_raw_stats(int argc, char** argv);
+int cmd_demosaic(int argc, char** argv);
 
 }  // namespace camera_iq
