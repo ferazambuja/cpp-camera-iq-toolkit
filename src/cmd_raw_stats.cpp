@@ -35,12 +35,26 @@ void write_report_json(std::ostream& os, const std::string& file,
   w.value(r.meta.aperture);
   w.key("black_level");
   w.value(r.meta.black_level);
+  w.key("black_per_channel");
+  w.begin_array();
+  for (double b : r.meta.black_per_channel) w.value(b);
+  w.end_array();
   w.key("white_level");
   w.value(r.meta.white_level);
   w.key("raw_width");
   w.value(r.meta.raw_width);
   w.key("raw_height");
   w.value(r.meta.raw_height);
+  w.key("visible_width");
+  w.value(r.meta.visible_width);
+  w.key("visible_height");
+  w.value(r.meta.visible_height);
+  w.key("top_margin");
+  w.value(r.meta.top_margin);
+  w.key("left_margin");
+  w.value(r.meta.left_margin);
+  w.key("raw_pitch_bytes");
+  w.value(r.meta.raw_pitch_bytes);
   w.end_object();
 
   w.key("planes");
@@ -59,6 +73,8 @@ void write_report_json(std::ostream& os, const std::string& file,
     w.value(p.mean);
     w.key("stddev");
     w.value(p.stddev);
+    w.key("below_black_fraction");
+    w.value(p.below_black_fraction);
     w.key("saturated_fraction");
     w.value(p.saturated_fraction);
     w.end_object();

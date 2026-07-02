@@ -36,11 +36,15 @@ ctest --test-dir build --output-on-failure
 
 # Enumerate a dataset folder into a JSON manifest:
 #   file inventory, filename-encoded exposure metadata, LibRaw EXIF + CFA
-#   pattern, CSV shape probes, and candidate exposure series.
+#   pattern, CSV shape probes, and candidate exposure series. This is a
+#   metadata-only pass; some makers finalize black/pitch only during unpack().
 ./build/camera_iq manifest /path/to/dataset --out out/manifest.json
+
+# Compute signed black-subtracted per-CFA-position stats for one RAW file:
+./build/camera_iq raw-stats /path/to/capture.RAF --out out/raw-stats.json
 ```
 
-Implemented commands: `manifest`. Evidence reports for completed phases live
+Implemented commands: `manifest`, `raw-stats`. Evidence reports for completed phases live
 under [docs/reports/](docs/reports/).
 
 ## Data

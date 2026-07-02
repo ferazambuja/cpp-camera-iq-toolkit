@@ -6,6 +6,7 @@
 #include "harness.hpp"
 
 using camera_iq::cfa_plane_stats;
+using camera_iq::cfa_plane_stats_strided;
 using camera_iq::channel_labels;
 using test::check;
 using test::check_near;
@@ -43,13 +44,15 @@ void TESTS() {
     check(s[0].saturated_fraction == 0, "2x2: nothing saturated");
   }
 
-  // --- clamping: raw below black subtracts to 0, not negative ---
+  // --- signed residuals: raw below black is preserved, not clamped ---
   {
     std::vector<std::uint16_t> data = {500, 1024, 1024, 1024};  // R=500<black
     const auto s = cfa_plane_stats(data.data(), 2, 2, kRGGB, kCdesc, kBlack,
                                    16383);
-    check_near(s[0].mean, 0, 1e-9, "clamp: 500-1024 -> 0, not negative");
-    check(s[0].min == 0, "clamp: min floored at 0");
+    check_near(s[0].mean, -524, 1e-9, "signed: 500-1024 -> -524");
+    check_near(s[0].min, -524, 1e-9, "signed: min keeps below-black residual");
+    check_near(s[0].below_black_fraction, 1.0, 1e-9,
+               "signed: below-black fraction recorded");
   }
 
   // --- saturation: RAW >= white counts, tested pre-subtraction ---
@@ -84,5 +87,28 @@ void TESTS() {
   {
     const auto s = cfa_plane_stats(nullptr, 0, 0, kRGGB, kCdesc, kBlack, 16383);
     check(s[0].count == 0 && s[0].mean == 0, "empty: no crash, zero stats");
+  }
+
+  // --- active-area crop via stride: masked border pixels are excluded ---
+  {
+    // 4x4 raw buffer with a 2x2 active area at row=1,col=1. Border pixels are
+    // deliberately extreme; stats must see only the active area through stride.
+    std::vector<std::uint16_t> data = {
+        9999, 9999, 9999, 9999,
+        9999, 10,   20,   9999,
+        9999, 30,   40,   9999,
+        9999, 9999, 9999, 9999,
+    };
+    const std::array<double, 4> zero_black = {0, 0, 0, 0};
+    const auto s = cfa_plane_stats_strided(data.data() + 5, 2, 2, 4, kRGGB,
+                                           kCdesc, zero_black, 1000);
+    check(s[0].count == 1 && s[1].count == 1 && s[2].count == 1 &&
+              s[3].count == 1,
+          "stride: active 2x2 only, one sample per CFA position");
+    check_near(s[0].mean, 10, 1e-9, "stride: R from active origin");
+    check_near(s[1].mean, 20, 1e-9, "stride: G1 from active origin");
+    check_near(s[2].mean, 30, 1e-9, "stride: G2 from active origin");
+    check_near(s[3].mean, 40, 1e-9, "stride: B from active origin");
+    check(s[0].saturated_fraction == 0, "stride: masked border not saturated");
   }
 }

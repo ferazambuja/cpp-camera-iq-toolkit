@@ -19,6 +19,17 @@ add_compile_options(-Wall -Wextra -Wpedantic)
 # both ship a pkg-config file.
 find_package(PkgConfig REQUIRED)
 pkg_check_modules(LIBRAW REQUIRED IMPORTED_TARGET libraw)
+if(APPLE)
+  # Homebrew's libraw.pc currently advertises -lstdc++; AppleClang already links
+  # libc++ as the C++ runtime, so passing it through creates duplicate-runtime
+  # linker warnings on macOS without adding a needed dependency.
+  get_target_property(_libraw_links PkgConfig::LIBRAW INTERFACE_LINK_LIBRARIES)
+  if(_libraw_links)
+    list(REMOVE_ITEM _libraw_links stdc++)
+    set_target_properties(PkgConfig::LIBRAW PROPERTIES
+      INTERFACE_LINK_LIBRARIES "${_libraw_links}")
+  endif()
+endif()
 
 # Core library (algorithms live here; the CLI and tests link against it)
 add_library(camera_iq_core STATIC

@@ -23,6 +23,11 @@ struct RawMeta {
   std::string cfa_pattern;  // top-left 2x2, e.g. "RGGB" — derived, never hardcoded
   int raw_width = 0;
   int raw_height = 0;
+  int visible_width = 0;   // LibRaw sizes.width: active/meaningful image area
+  int visible_height = 0;  // LibRaw sizes.height: active/meaningful image area
+  int top_margin = 0;     // active-area origin inside the raw frame
+  int left_margin = 0;
+  int raw_pitch_bytes = 0;  // row stride for rawdata.raw_image, in bytes
   double black_level = 0;  // mean effective black across the four positions
   // Effective black for the top-left 2x2 mosaic positions (0,0)(0,1)(1,0)(1,1),
   // aligned with `cfa_pattern`. Combines LibRaw's scalar `black`, per-channel
@@ -41,26 +46,37 @@ struct RawMeta {
 std::string cfa_pattern_string(std::string_view cdesc,
                                const std::array<int, 4>& color_indices);
 
-// Computes the effective black level for the four top-left mosaic positions
-// (0,0)(0,1)(1,0)(1,1) from LibRaw's additive black representation:
-//   effective = black + cblack[color] + cblack[6 + (r % bh)*bw + (c % bw)]
+// Computes the effective black level for the four active-area top-left mosaic
+// positions (0,0)(0,1)(1,0)(1,1) from LibRaw's additive black representation:
+//   effective = black + cblack[color] +
+//               cblack[6 + (r % bh)*bw + (c % bw)]
 // where bh = cblack[4], bw = cblack[5] describe a repeating tile stored from
 // cblack[6] onward. `color_at_position` holds the COLOR() channel index (0..3)
 // for each of the four positions. `cblack_len` bounds every array access, so an
 // out-of-range tile index simply contributes no tile term (never reads OOB).
 //
-// LIMITATION: the tile phase (r,c) is taken relative to the visible-area origin.
-// That is exact only when the visible area starts at the raw origin — i.e. zero
-// crop margin (validated on the Fuji X-T100, top/left margin 0). For a sensor
-// whose visible area is offset inside the raw frame, the tile index must be
-// shifted by the raw (top_margin,left_margin). Until validated against such a
-// sensor, treat non-zero-margin RAWs as UNVERIFIED for this helper.
+// The cblack tile phase is active-area-local. This matches LibRaw's
+// subtract_black/raw2image convention: raw access adds margins to locate active
+// pixels, but black-tile row/column indices are visible-image coordinates.
 std::array<double, 4> effective_black_levels(
     unsigned black, const unsigned* cblack, std::size_t cblack_len,
     const std::array<int, 4>& color_at_position);
 
-// Reads metadata from a RAW file. Returns std::nullopt if the file does not
-// exist or LibRaw cannot parse it. Never throws.
+// True only for ordinary 2x2 Bayer masks represented by LibRaw's filters bitmask.
+// Special values below 1000 include full-color/monochrome, Leaf 16x16 and Fuji
+// X-Trans; Evidence raw-stats intentionally rejects those layouts.
+bool is_supported_bayer_filter(unsigned filters);
+
+// Converts LibRaw raw_pitch bytes to uint16 pixel stride. Some unpackers leave
+// raw_pitch unset; for tightly packed Bayer raw_image buffers, raw_width is then
+// the effective stride. Returns 0 for invalid odd byte pitches.
+int effective_raw_stride_pixels(unsigned raw_pitch_bytes, unsigned raw_width);
+
+// Reads metadata available after LibRaw open_file(). Returns std::nullopt if the
+// file does not exist or LibRaw cannot parse it. Never throws.
+//
+// Note: some makers finalize black level / pitch during unpack(); use
+// read_raw_cfa_stats() when scientifically correct black subtraction is needed.
 std::optional<RawMeta> read_raw_metadata(const std::filesystem::path& raw);
 
 // RAW metadata plus per-CFA-channel statistics over the black-subtracted mosaic.
@@ -71,9 +87,9 @@ struct RawCfaReport {
 
 // Unpacks a RAW file and computes per-CFA-channel statistics over the raw Bayer
 // mosaic, black-subtracted with the effective black levels. Returns nullopt if
-// the file cannot be opened/unpacked or has no Bayer `raw_image` (X-Trans,
-// Foveon and already-demosaiced formats are unsupported this phase). Never
-// throws. Assumes a zero-margin sensor (see effective_black_levels()).
+// the file cannot be opened/unpacked, is not an ordinary 2x2 Bayer layout, or
+// has no Bayer `raw_image` (X-Trans, Foveon, monochrome/full-color and
+// already-demosaiced formats are unsupported this phase). Never throws.
 std::optional<RawCfaReport> read_raw_cfa_stats(const std::filesystem::path& raw);
 
 }  // namespace camera_iq

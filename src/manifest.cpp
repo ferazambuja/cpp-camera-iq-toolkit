@@ -284,6 +284,16 @@ void write_manifest_json(std::ostream& os, std::string_view root_label,
       w.value(r.raw_width);
       w.key("raw_height");
       w.value(r.raw_height);
+      w.key("visible_width");
+      w.value(r.visible_width);
+      w.key("visible_height");
+      w.value(r.visible_height);
+      w.key("top_margin");
+      w.value(r.top_margin);
+      w.key("left_margin");
+      w.value(r.left_margin);
+      w.key("raw_pitch_bytes");
+      w.value(r.raw_pitch_bytes);
       w.key("black_level");
       w.value(r.black_level);
       w.key("black_per_channel");
