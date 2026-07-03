@@ -27,6 +27,9 @@ while IFS= read -r -d '' path; do
       fi
       ;;
   esac
-done < <(find data/samples -type f -print0)
+# Scan tracked files only: what is committed is what ships publicly, and this
+# avoids false positives from untracked local RAWs a dev may drop under
+# data/samples/. In CI (fresh clone) this equals the on-disk set.
+done < <(git ls-files -z -- data/samples)
 
 exit "$fail"
