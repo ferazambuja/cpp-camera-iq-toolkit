@@ -78,3 +78,5 @@ camera_iq_add_test(test_exposure_response tests/test_exposure_response.cpp)
 
 add_test(NAME check_public_paths
   COMMAND bash ${CMAKE_SOURCE_DIR}/tools/check_public_paths.sh)
+add_test(NAME check_sample_fixtures
+  COMMAND bash ${CMAKE_SOURCE_DIR}/tools/check_sample_fixtures.sh)

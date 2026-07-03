@@ -20,6 +20,27 @@ cmake-build-*/
 *.tiff
 # ...but allow tiny committed sample fixtures back in
 !data/samples/**
+# Keep new sample RAW-like files ignored by default; the checked-in
+# manifest_fixture placeholders are tiny text files and CI enforces that.
+data/samples/**/*.RAF
+data/samples/**/*.raf
+data/samples/**/*.NEF
+data/samples/**/*.nef
+data/samples/**/*.ARW
+data/samples/**/*.arw
+data/samples/**/*.CR2
+data/samples/**/*.cr2
+data/samples/**/*.CR3
+data/samples/**/*.cr3
+data/samples/**/*.IIQ
+data/samples/**/*.iiq
+data/samples/**/*.dng
+data/samples/**/*.DNG
+data/samples/**/*.tif
+data/samples/**/*.TIF
+data/samples/**/*.tiff
+data/samples/**/*.TIFF
+!data/samples/manifest_fixture/**/*.RAF
 
 # Private datasets and local machine config
 data/private/
