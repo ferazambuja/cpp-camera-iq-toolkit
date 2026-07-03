@@ -48,8 +48,10 @@ std::array<ChannelStats, 4> cfa_plane_stats_strided(
     const std::array<double, 4>& black_at_position, double white) {
   const auto labels = channel_labels(cdesc, color_at_position);
 
+  // Welford online mean/M2 per CFA position — stable when the pedestal-relative
+  // signal is small against a large-DN plane, unlike sumsq/n - mean^2.
   struct Acc {
-    double sum = 0.0, sumsq = 0.0, mn = 0.0, mx = 0.0;
+    double mean = 0.0, m2 = 0.0, mn = 0.0, mx = 0.0;
     std::size_t n = 0, below_black = 0, sat = 0;
     bool init = false;
   };
@@ -68,9 +70,10 @@ std::array<ChannelStats, 4> cfa_plane_stats_strided(
                                                     static_cast<std::size_t>(c)]);
         double v = raw - black_at_position[pos];
         Acc& a = acc[pos];
-        a.sum += v;
-        a.sumsq += v * v;
         ++a.n;
+        const double delta = v - a.mean;
+        a.mean += delta / static_cast<double>(a.n);
+        a.m2 += delta * (v - a.mean);
         if (v < 0.0) ++a.below_black;
         if (!a.init) {
           a.mn = a.mx = v;
@@ -92,8 +95,8 @@ std::array<ChannelStats, 4> cfa_plane_stats_strided(
     s.count = a.n;
     if (a.n > 0) {
       const double n = static_cast<double>(a.n);
-      s.mean = a.sum / n;
-      const double var = a.sumsq / n - s.mean * s.mean;
+      s.mean = a.mean;
+      const double var = a.m2 / n;
       s.stddev = var > 0.0 ? std::sqrt(var) : 0.0;
       s.min = a.mn;
       s.max = a.mx;

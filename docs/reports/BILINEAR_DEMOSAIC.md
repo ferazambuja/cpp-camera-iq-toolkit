@@ -21,6 +21,17 @@ This slice adds the first hand-written demosaic:
 - Input CFA samples are copied after LibRaw `unpack()`, cropped to
   `sizes.width` / `sizes.height`, and black-subtracted with the same effective
   per-position black levels used by `raw-stats`.
+- **Black-level source (deviation from the Evidence plan).** Evidence anticipated
+  deriving black from the 21 dark frames after finding LibRaw's *scalar* `black`
+  reports 0 for the X-T100. This slice instead reads the LibRaw `cblack` **tile**
+  via `effective_black_levels()`, which correctly recovers the ~1024 DN pedestal
+  the scalar hides (Fuji matches the Evidence dark-frame mean of 1023.99). This is
+  adequate for a DN-space demosaic preview but is *not* a substitute for measured
+  dark-frame black in the objective-IQ phases: the Nikon D800 above reports black
+  `[0,0,0,0]`, which is not yet confirmed to be a true zero pedestal versus a
+  LibRaw under-report. A dark-frame-vs-metadata black cross-check is a
+  prerequisite for the OECF / noise / dynamic-range work, where black error maps
+  directly into the result.
 - Demosaic operates in sensor DN residual space. There is no white balance,
   color matrix, gamma, exposure scaling, clipping, or output color-space
   conversion.
@@ -141,7 +152,15 @@ mean error on all three makers. Canon and Nikon are within rounding tolerance
 at every checked pixel. Fuji has a few larger differences, so this report does
 not claim bit-exact LibRaw equivalence for every camera; it claims a transparent
 hand-written bilinear demosaic whose behavior is defined by the synthetic tests
-above and sanity-checked against LibRaw.
+above and sanity-checked against LibRaw. The consistent ~0.19–0.22 DN mean
+offset is systematic uint16 truncation in LibRaw's unsigned `image` buffer, not
+random disagreement.
+
+Scope of this agreement: because LibRaw's buffer is unsigned, the comparison
+clips this tool's signed residuals to zero. It therefore validates only the
+non-negative region — it does **not** exercise the negative-residual behavior
+that is this tool's actual point of difference from LibRaw. Negative residual
+handling is covered by the synthetic tests, not by the LibRaw comparison.
 
 ## Validation
 
@@ -159,3 +178,13 @@ Current local result: 9/9 tests passed, clean build output.
 - No colorimetric output claim.
 - No white balance, CCM, gamma, tone curve, or perceptual image quality claim.
 - No X-Trans or non-2x2 Bayer demosaic support.
+
+## Known Limitations (carried forward)
+
+- **Memory.** `camera_iq demosaic` materializes the entire RGB image
+  (~872 MB for a 36 MP Nikon frame, plus the CFA sample copy) only to emit
+  three channel summaries. Acceptable one-shot; the batch runner in a later
+  phase should stream per-pixel statistics instead of holding the full image.
+- **Black-level provenance.** See "Scientific Handling" — metadata `cblack`
+  tile is used here; measured dark-frame black must be reconciled before the
+  objective-IQ (OECF / noise / DR) phases rely on it.

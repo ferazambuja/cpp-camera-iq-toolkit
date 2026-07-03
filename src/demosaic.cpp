@@ -102,25 +102,28 @@ std::array<ChannelStats, 3> rgb_image_stats(const std::vector<RgbPixel>& image) 
     s.count = image.size();
     if (image.empty()) continue;
 
-    double sum = 0.0;
-    double sumsq = 0.0;
-    bool init = false;
+    // Welford online mean/M2: avoids the catastrophic cancellation of
+    // sumsq/n - mean^2 when the DN level dwarfs the variance (e.g. a 12k-DN
+    // green plane over tens of millions of pixels).
+    double mean = 0.0;
+    double m2 = 0.0;
+    std::size_t k = 0;
     for (const RgbPixel& p : image) {
       const double v = component_value(p, component);
-      sum += v;
-      sumsq += v * v;
-      if (!init) {
+      ++k;
+      const double delta = v - mean;
+      mean += delta / static_cast<double>(k);
+      m2 += delta * (v - mean);
+      if (k == 1) {
         s.min = s.max = v;
-        init = true;
       } else {
         if (v < s.min) s.min = v;
         if (v > s.max) s.max = v;
       }
     }
 
-    const double n = static_cast<double>(image.size());
-    s.mean = sum / n;
-    const double var = sumsq / n - s.mean * s.mean;
+    s.mean = mean;
+    const double var = m2 / static_cast<double>(image.size());
     s.stddev = var > 0.0 ? std::sqrt(var) : 0.0;
   }
   return out;
