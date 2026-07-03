@@ -121,6 +121,18 @@ void TESTS() {
                 report->measurement_roi->width == 4 &&
                 report->measurement_roi->height == 2,
             "roi stats: stored ROI is the CFA-balanced actual region");
+      check(report->planes[0].label == "R" && report->planes[1].label == "G1" &&
+                report->planes[2].label == "G2" &&
+                report->planes[3].label == "B",
+            "roi stats: odd-origin snap preserves CFA labels");
+      check_near(report->planes[0].mean, 35.0, 1e-12,
+                 "roi stats: odd-origin snap keeps R samples on R plane");
+      check_near(report->planes[1].mean, 20.0, 1e-12,
+                 "roi stats: odd-origin snap keeps G1 samples on G1 plane");
+      check_near(report->planes[2].mean, 100.0, 1e-12,
+                 "roi stats: odd-origin snap keeps G2 samples on G2 plane");
+      check_near(report->planes[3].mean, 448.5, 1e-12,
+                 "roi stats: odd-origin snap keeps B samples on B plane");
     }
   }
 }

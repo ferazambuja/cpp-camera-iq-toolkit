@@ -53,6 +53,13 @@ RawCfaReport report_sat(double mean, double saturated_fraction) {
   return out;
 }
 
+RawCfaReport roi_report(double mean, double spatial_stddev) {
+  RawCfaReport out = report(mean, mean, mean, mean);
+  out.measurement_roi = camera_iq::RoiRect{2, 4, 20, 22};
+  for (auto& p : out.planes) p.stddev = spatial_stddev;
+  return out;
+}
+
 bool contains(const std::string& hay, const std::string& needle) {
   return hay.find(needle) != std::string::npos;
 }
@@ -183,6 +190,10 @@ void TESTS() {
   check(contains(doc, "\"max_mean_fraction_of_range\""),
         "json range headroom metric");
   check(contains(doc, "\"missing_reports\":1"), "json missing count");
+  check(contains(doc, "\"roi_uniformity_checked\":false"),
+        "json records full-frame ROI uniformity not checked");
+  check(contains(doc, "\"roi_uniform\":null"),
+        "json does not imply full-frame ROI uniformity passed");
 
   auto roi_reports = reports;
   roi_reports["Sphere_f8.0_1:100_DSCF0001.RAF"].measurement_roi =
@@ -196,4 +207,29 @@ void TESTS() {
         "json records ROI measurement region");
   check(contains(roi_doc, "\"x\":2") && contains(roi_doc, "\"height\":22"),
         "json records ROI coordinates");
+
+  const std::map<std::string, RawCfaReport> nonuniform_roi_reports = {
+      {"Sphere_f8.0_1:100_DSCF0001.RAF", roi_report(8000, 1500)},
+      {"Sphere_f8.0_1:50_DSCF0002.RAF", roi_report(8000, 1500)},
+      {"Sphere_f8.0_1:25_DSCF0003.RAF", roi_report(8000, 1500)},
+      {"Sphere_f8.0_1:25_DSCF0004.RAF", roi_report(8000, 1500)},
+  };
+  const auto nonuniform_roi =
+      summarize_exposure_response(series, entries, nonuniform_roi_reports);
+  check(nonuniform_roi.usable_oecf_points == 0,
+        "non-uniform ROI points are not usable OECF points");
+  check(!nonuniform_roi.oecf_candidate,
+        "non-uniform ROI ladder is not candidate-ready");
+
+  std::ostringstream nonuniform_json;
+  write_exposure_response_json(nonuniform_json, "fixture-root",
+                               {nonuniform_roi});
+  const std::string nonuniform_doc = nonuniform_json.str();
+  check(contains(nonuniform_doc, "\"roi_uniformity_checked\":true"),
+        "json records ROI uniformity gate was checked");
+  check(contains(nonuniform_doc, "\"roi_uniform\":false"),
+        "json records ROI uniformity failure");
+  check(contains(nonuniform_doc,
+                 "\"max_spatial_stddev_fraction_of_range\""),
+        "json records ROI spatial stddev fraction");
 }

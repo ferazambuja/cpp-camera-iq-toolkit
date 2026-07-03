@@ -35,13 +35,19 @@ metric.
   bounds, and rounds inward to an even origin and even dimensions so every
   selected region contains complete 2x2 Bayer blocks. The actual ROI is recorded
   in each frame's JSON as `measurement_roi`.
+- ROI mode applies a coarse uniformity readiness gate:
+  `max_spatial_stddev_fraction_of_range <= 0.05`, where the denominator is the
+  black-subtracted sensor range for each CFA plane. This prevents an obviously
+  textured or gradient ROI from being promoted as OECF-ready before chart/patch
+  detection exists. It is **not** an ISO uniformity/conformance threshold.
 - `oecf_candidate` is only a readiness flag. It requires all selected frames to
   read successfully, at least three shutter points, and at least three usable
   points. A usable point must have positive signal above black, max mean signal
   below 98% of the black-subtracted white range, and less than 1% saturated
-  pixels. The lower bound prevents at/below-black frames from being counted as
-  usable just because they are far from white; the saturation veto catches
-  non-uniform highlight clipping that a spatial mean can hide.
+  pixels, and must pass the ROI uniformity gate when measured over an ROI. The
+  lower bound prevents at/below-black frames from being counted as usable just
+  because they are far from white; the saturation veto catches non-uniform
+  highlight clipping that a spatial mean can hide.
 - Readable frames must also share EXIF make/model/CFA/ISO/aperture controls;
   shutter is the intended varying field.
 - `ptc_candidate` remains false. Photon-transfer/read-noise validation needs
@@ -131,6 +137,8 @@ Result summary:
 | Actual ROI | x=1000, y=1000, width=500, height=500 |
 | First point | 1:1000, max fraction 0.005123 |
 | Last point | 1:13, max fraction 0.386026 |
+| ROI uniformity checked | true |
+| Max ROI stddev / range | 0.021073 |
 
 This proves the ROI plumbing and provenance path on real RAFs. It is still not
 an OECF fit: the ROI is a manual active-area rectangle, not an identified chart
@@ -171,8 +179,9 @@ Targeted local checks during implementation:
 - `test_filename_meta`, `test_exposure_series`, `test_roi`,
   `test_exposure_response`
   passed after red/green tests for NEF parsing, RAW-extension series discovery,
-  CFA-balanced ROI handling, JSON serialization, missing-frame handling, and
-  near-white plateau rejection.
+  CFA-balanced ROI handling, odd-origin CFA phase preservation, ROI uniformity
+  gating, JSON serialization, missing-frame handling, and near-white plateau
+  rejection.
 - Real-data validation outputs were written under `out/`, not tracked in git.
 
 ## Not Claimed

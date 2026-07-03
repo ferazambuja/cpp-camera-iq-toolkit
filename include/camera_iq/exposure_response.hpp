@@ -39,6 +39,10 @@ struct ExposureResponsePoint {
   bool has_valid_signal_range = false;
   double max_mean_fraction_of_range = 0;
   double max_saturated_fraction = 0;
+  // ROI-only readiness fields. Null in JSON when no ROI was measured.
+  bool roi_uniformity_checked = false;
+  bool roi_uniform = true;
+  double max_spatial_stddev_fraction_of_range = 0;
 };
 
 // Scientifically conservative readiness summary for the next OECF/PTC work.

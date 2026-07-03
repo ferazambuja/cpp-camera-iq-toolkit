@@ -21,6 +21,10 @@ constexpr double kOecfNearWhiteMeanFraction = 0.98;
 // looks unsaturated, so the measured saturated fraction is a stricter guard
 // than the mean-of-range proxy alone.
 constexpr double kOecfMaxSaturatedFraction = 0.01;
+// Coarse readiness gate for manually selected ROIs. This is deliberately not an
+// ISO conformance threshold; it prevents an obviously textured/gradient ROI from
+// being promoted as OECF-ready before chart/patch detection exists.
+constexpr double kOecfMaxRoiStddevFractionOfRange = 0.05;
 
 const ManifestEntry* find_entry(const std::vector<ManifestEntry>& entries,
                                 const std::string& path) {
@@ -46,9 +50,15 @@ void recompute_point_averages(ExposureResponsePoint& point) {
   point.has_valid_signal_range = false;
   point.max_mean_fraction_of_range = 0;
   point.max_saturated_fraction = 0;
+  point.roi_uniformity_checked = false;
+  point.roi_uniform = true;
+  point.max_spatial_stddev_fraction_of_range = 0;
   if (point.frames.empty()) return;
 
+  bool all_frames_have_roi = true;
   for (const auto& frame : point.frames) {
+    all_frames_have_roi =
+        all_frames_have_roi && frame.measurement_roi.has_value();
     for (std::size_t i = 0; i < point.mean_signal_by_plane.size(); ++i) {
       point.mean_signal_by_plane[i] += frame.planes[i].mean;
       point.mean_spatial_stddev_by_plane[i] += frame.planes[i].stddev;
@@ -59,8 +69,18 @@ void recompute_point_averages(ExposureResponsePoint& point) {
         point.has_valid_signal_range = true;
         point.max_mean_fraction_of_range = std::max(
             point.max_mean_fraction_of_range, frame.planes[i].mean / range);
+        if (frame.measurement_roi) {
+          point.max_spatial_stddev_fraction_of_range = std::max(
+              point.max_spatial_stddev_fraction_of_range,
+              frame.planes[i].stddev / range);
+        }
       }
     }
+  }
+  point.roi_uniformity_checked = all_frames_have_roi;
+  if (point.roi_uniformity_checked) {
+    point.roi_uniform = point.max_spatial_stddev_fraction_of_range <=
+                        kOecfMaxRoiStddevFractionOfRange;
   }
   const double n = static_cast<double>(point.frames.size());
   for (std::size_t i = 0; i < point.mean_signal_by_plane.size(); ++i) {
@@ -183,7 +203,8 @@ ExposureResponseSummary summarize_exposure_response(
     if (point.has_valid_signal_range &&
         point.max_mean_fraction_of_range > 0.0 &&
         point.max_mean_fraction_of_range < kOecfNearWhiteMeanFraction &&
-        point.max_saturated_fraction < kOecfMaxSaturatedFraction) {
+        point.max_saturated_fraction < kOecfMaxSaturatedFraction &&
+        (!point.roi_uniformity_checked || point.roi_uniform)) {
       ++summary.usable_oecf_points;
     }
     summary.points.push_back(std::move(point));
@@ -208,7 +229,8 @@ ExposureResponseSummary summarize_exposure_response(
     summary.limitations.push_back(
         "OECF candidate flag is false because fewer than three shutter points "
         "carry usable signal: each usable point must be above black, below 98% "
-        "of the black-subtracted white range, and below 1% saturated pixels.");
+        "of the black-subtracted white range, below 1% saturated pixels, and "
+        "spatially uniform when measured over an ROI.");
   }
   if (!summary.exif_consistent) {
     summary.limitations.push_back(
@@ -287,6 +309,20 @@ void write_exposure_response_json(
       w.value(p.max_mean_fraction_of_range);
       w.key("max_saturated_fraction");
       w.value(p.max_saturated_fraction);
+      w.key("roi_uniformity_checked");
+      w.value(p.roi_uniformity_checked);
+      w.key("roi_uniform");
+      if (p.roi_uniformity_checked) {
+        w.value(p.roi_uniform);
+      } else {
+        w.null();
+      }
+      w.key("max_spatial_stddev_fraction_of_range");
+      if (p.roi_uniformity_checked) {
+        w.value(p.max_spatial_stddev_fraction_of_range);
+      } else {
+        w.null();
+      }
 
       w.key("frames");
       w.begin_array();
