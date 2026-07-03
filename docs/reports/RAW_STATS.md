@@ -162,7 +162,8 @@ cmake --build build --parallel
 ctest --test-dir build --output-on-failure
 ```
 
-Current local result: 8/8 tests passed, clean build output.
+Current repository gate after later Evidence and data-privacy hardening:
+13/13 CTest tests passed, including public-path and sample-fixture guards.
 
 ## Not Claimed
 

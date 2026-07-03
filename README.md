@@ -79,6 +79,8 @@ config:
   bodies; large RAW sets are kept out of git for size and reproducibility, not
   licensing. A small sample under `data/samples/` lets `build → test` run with no
   private data.
+- CTest runs public-path and sample-fixture guards so tracked docs avoid local
+  absolute paths and tracked samples stay tiny synthetic placeholders.
 - See [docs/DATASETS.md](docs/DATASETS.md) for the local-cache policy.
 
 ## Method references

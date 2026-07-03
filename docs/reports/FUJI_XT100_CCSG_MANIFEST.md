@@ -71,8 +71,9 @@ within 0.11, ISO exact). Filename-encoded exposure metadata is trustworthy.
    `black + cblack[color] + cblack[6 + (r%bh)*bw + (c%bw)]` and reports
    **black = 1024 DN** across all four RGGB positions. A sampled dark frame
    (`Dark_Frame_f8.0_1:1000_DSCF0437.RAF`, mean ≈ **1024 DN**, min 1005)
-   independently confirms it. Evidence can subtract the LibRaw-derived pedestal
-   directly; the 21 dark frames remain a cross-check, not the sole source.
+   independently confirms it. The Evidence `raw-stats` and `demosaic` paths now
+   subtract the LibRaw-derived pedestal directly; the 21 dark frames remain a
+   cross-check, not the sole source.
 3. **`PRD_SPD_all.csv` has 46 rows for 45 measurements** — the last row is an
    exact duplicate of row 45 (`PRD_47`). `XYZ_all.csv` (45 rows) is consistent.
    The `.mat` files are the source of truth; the combined CSVs are derived and
@@ -175,8 +176,18 @@ locally. The black-level logic is independently proven in CI by `test_raw_meta`
 - No claim of authorship over the original 2023 group capture campaign; this
   project reprocesses the raw data with new, independently written code.
 
-## Next (Evidence)
+## Status after Evidence slices
 
-LibRaw unpack path, raw-CFA plane statistics using the LibRaw-derived black
-pedestal (1024 DN, tile-recovered above, dark-frame cross-checked), and the
-first hand-written demosaic (bilinear), per the project plan.
+Completed follow-on slices now cover:
+
+- LibRaw `unpack()` raw-CFA plane statistics over the active Bayer area.
+- Post-`unpack()` black/pitch metadata for maker-dependent RAW formats.
+- Active-area-local `cblack` tile handling, matching LibRaw's black subtraction
+  convention.
+- First hand-written bilinear demosaic summary command.
+- Exposure-response readiness grouping with conservative OECF candidate gates.
+
+Remaining objective-IQ work starts from the exposure-response candidates and
+still needs measured black reconciliation, ROI/patch selection, OECF fitting,
+PTC/read-noise handling, and color-reference pairing before any final camera-IQ
+metric is claimed.
