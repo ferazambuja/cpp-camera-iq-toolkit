@@ -232,4 +232,27 @@ void TESTS() {
   check(contains(nonuniform_doc,
                  "\"max_spatial_stddev_fraction_of_range\""),
         "json records ROI spatial stddev fraction");
+
+  // Accept-path complement to the non-uniform reject above. Without this, a
+  // regression that over-rejects uniform ROIs in ROI mode (tighter threshold or
+  // wrong comparison direction) would pass every other test: the full-frame
+  // candidate test is not ROI mode, and the non-uniform test expects zero usable
+  // either way. A spatially uniform ROI ladder must still be promoted.
+  const std::map<std::string, RawCfaReport> uniform_roi_reports = {
+      {"Sphere_f8.0_1:100_DSCF0001.RAF", roi_report(100, 50)},
+      {"Sphere_f8.0_1:50_DSCF0002.RAF", roi_report(200, 50)},
+      {"Sphere_f8.0_1:25_DSCF0003.RAF", roi_report(400, 50)},
+      {"Sphere_f8.0_1:25_DSCF0004.RAF", roi_report(420, 50)},
+  };
+  const auto uniform_roi =
+      summarize_exposure_response(series, entries, uniform_roi_reports);
+  check(uniform_roi.usable_oecf_points == 3,
+        "uniform ROI ladder: all three shutter points usable");
+  check(uniform_roi.oecf_candidate,
+        "uniform ROI ladder is candidate-ready");
+
+  std::ostringstream uniform_json;
+  write_exposure_response_json(uniform_json, "fixture-root", {uniform_roi});
+  check(contains(uniform_json.str(), "\"roi_uniform\":true"),
+        "json records uniform ROI passed the gate");
 }
