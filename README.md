@@ -38,18 +38,25 @@ ctest --test-dir build --output-on-failure
 #   file inventory, filename-encoded exposure metadata, LibRaw EXIF + CFA
 #   pattern, CSV shape probes, and candidate exposure series. This is a
 #   metadata-only pass; some makers finalize black/pitch only during unpack().
-./build/camera_iq manifest /path/to/dataset --out out/manifest.json
+./build/camera_iq manifest clrs589_project_camera --out out/manifest.json
 
 # Compute signed black-subtracted per-CFA-position stats for one RAW file:
-./build/camera_iq raw-stats /path/to/capture.RAF --out out/raw-stats.json
+./build/camera_iq raw-stats --dataset clrs589_project_camera \
+  "Images/CCSG/CCSG_f9.0_1:100_ISO200_DSCF0299.RAF" \
+  --out out/raw-stats.json
 
 # Compute hand-written bilinear demosaic summary stats for one RAW file:
-./build/camera_iq demosaic /path/to/capture.RAF --out out/demosaic.json
+./build/camera_iq demosaic --dataset clrs589_project_camera \
+  "Images/CCSG/CCSG_f9.0_1:100_ISO200_DSCF0299.RAF" \
+  --out out/demosaic.json
 
 # Group black-subtracted CFA stats by detected exposure series:
 #   this is a readiness/response summary, not a final ISO OECF/PTC metric.
-./build/camera_iq exposure-response /path/to/dataset --series-min 3 \
+./build/camera_iq exposure-response clrs589_project_camera --series-min 3 \
   --out out/exposure-response.json
+
+# Public no-private-data demo:
+./build/camera_iq manifest data/samples/manifest_fixture --no-exif
 ```
 
 Implemented commands: `manifest`, `raw-stats`, `demosaic`, and
@@ -58,16 +65,21 @@ Implemented commands: `manifest`, `raw-stats`, `demosaic`, and
 
 ## Data
 
-This repository contains **code, a tiny sample fixture, and generated results** —
+This repository contains **code and tiny public fixtures** —
 **not** the source image datasets. Datasets (RAW captures, measured references) live
-outside the repo and are referenced by a local config:
+in a gitignored private cache or outside the repo and are referenced by a local
+config:
 
 - Copy `configs/datasets.example.json` to `configs/datasets.local.json` (gitignored)
-  and set the paths to your own dataset roots.
+  and set the paths to your own dataset roots or local mirrors under
+  `data/private/datasets/<dataset_id>/`.
+- Public docs and JSON labels use stable dataset IDs such as
+  `clrs589_project_camera`, never machine-specific absolute paths.
 - All captures used by the author were shot by the author on standard DSLR / camera
   bodies; large RAW sets are kept out of git for size and reproducibility, not
   licensing. A small sample under `data/samples/` lets `build → test` run with no
   private data.
+- See [docs/DATASETS.md](docs/DATASETS.md) for the local-cache policy.
 
 ## Method references
 

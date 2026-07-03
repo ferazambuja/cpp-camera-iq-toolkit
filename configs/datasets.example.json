@@ -1,14 +1,18 @@
 {
-  "_comment": "Copy to datasets.local.json (gitignored) and set paths to your own dataset roots. The toolkit reads local config so no image bytes enter the repo.",
+  "_comment": "Copy to datasets.local.json (gitignored). Keep RAW files under data/private/datasets/<dataset_id>/ or point roots at your own local mirrors. Public docs should use dataset IDs, not absolute machine paths.",
   "datasets": {
     "clrs589_project_camera": {
-      "root": "/absolute/path/to/CLRS-589 Project Camera",
+      "root": "data/private/datasets/clrs589_project_camera",
       "description": "Fujifilm X-T100 ColorChecker-SG / dark / flat / sphere / validation captures",
-      "reference_sg_cgats": "/absolute/path/to/SG1_1_CGATS.txt"
+      "reference_sg_cgats": "data/private/datasets/clrs589_project_camera/reference/SG1_1_CGATS.txt"
     },
-    "monochromator_2016": {
-      "root": "/absolute/path/to/2016_Monochromator",
-      "description": "Multi-camera monochromator spectral-sensitivity captures"
+    "canon_5d2_repro": {
+      "root": "data/private/datasets/canon_5d2_repro",
+      "description": "Canon EOS 5D Mark II reproduction / white-frame validation subset"
+    },
+    "d800_oecf_2016": {
+      "root": "data/private/datasets/d800_oecf_2016",
+      "description": "Nikon D800 OECF/noise-chart archive mirror"
     }
   }
 }

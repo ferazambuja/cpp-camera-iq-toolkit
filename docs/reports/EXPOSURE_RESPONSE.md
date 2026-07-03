@@ -43,9 +43,10 @@ metric.
 
 ```bash
 ./build/camera_iq exposure-response \
-  "dataset:clrs589_project_camera/2023/CLRS-589.689 Lighting Technology & Perception/Project Camera/Images/Sphere" \
+  clrs589_project_camera \
+  --subdir "Images/Sphere" \
   --series-min 3 --series-limit 1 \
-  --out /tmp/camera_iq_sphere_exposure_response.json
+  --out out/sphere_exposure_response.json
 ```
 
 Result summary:
@@ -69,9 +70,10 @@ near-white plateau is not promoted as OECF-candidate-ready.
 
 ```bash
 ./build/camera_iq exposure-response \
-  "dataset:clrs589_project_camera/2023/CLRS-589.689 Lighting Technology & Perception/Project Camera/Images/Non_Unifform_f8" \
+  clrs589_project_camera \
+  --subdir "Images/Non_Unifform_f8" \
   --series-min 3 --series-limit 1 \
-  --out /tmp/camera_iq_nonuniform_exposure_response.json
+  --out out/nonuniform_exposure_response.json
 ```
 
 Result summary:
@@ -96,9 +98,9 @@ curve or standard metric is claimed.
 
 ```bash
 ./build/camera_iq manifest \
-  "dataset:archive_backup/Fernando/2_Archive/Disk_2/2016_esensi_images/2016_12_10_D800_OECF" \
+  d800_oecf_2016 \
   --no-exif --series-min 3 \
-  --out /tmp/camera_iq_d800_manifest_noexif.json
+  --out out/d800_manifest_noexif.json
 ```
 
 Result summary:
@@ -127,7 +129,7 @@ Targeted local checks during implementation:
 - `test_filename_meta`, `test_exposure_series`, `test_exposure_response`
   passed after red/green tests for NEF parsing, RAW-extension series discovery,
   JSON serialization, missing-frame handling, and near-white plateau rejection.
-- Real-data validation outputs were written under `/tmp`, not tracked in git.
+- Real-data validation outputs were written under `out/`, not tracked in git.
 
 ## Not Claimed
 

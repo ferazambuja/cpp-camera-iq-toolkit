@@ -36,6 +36,7 @@ add_library(camera_iq_core STATIC
   src/toolkit.cpp
   src/filename_meta.cpp
   src/json_writer.cpp
+  src/dataset_config.cpp
   src/manifest.cpp
   src/raw_meta.cpp
   src/cfa_stats.cpp
@@ -65,6 +66,7 @@ endfunction()
 
 camera_iq_add_test(camera_iq_tests tests/test_validation.cpp)
 camera_iq_add_test(test_filename_meta tests/test_filename_meta.cpp)
+camera_iq_add_test(test_dataset_config tests/test_dataset_config.cpp)
 camera_iq_add_test(test_json_writer tests/test_json_writer.cpp)
 camera_iq_add_test(test_manifest_scan tests/test_manifest_scan.cpp)
 camera_iq_add_test(test_exposure_series tests/test_exposure_series.cpp)
@@ -73,3 +75,6 @@ camera_iq_add_test(test_manifest_json tests/test_manifest_json.cpp)
 camera_iq_add_test(test_cfa_stats tests/test_cfa_stats.cpp)
 camera_iq_add_test(test_demosaic tests/test_demosaic.cpp)
 camera_iq_add_test(test_exposure_response tests/test_exposure_response.cpp)
+
+add_test(NAME check_public_paths
+  COMMAND bash ${CMAKE_SOURCE_DIR}/tools/check_public_paths.sh)

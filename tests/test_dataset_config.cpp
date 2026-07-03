@@ -1,0 +1,85 @@
+#include "camera_iq/dataset_config.hpp"
+
+#include <filesystem>
+#include <fstream>
+#include <string>
+
+#include "harness.hpp"
+
+namespace fs = std::filesystem;
+
+using camera_iq::dataset_file_label;
+using camera_iq::dataset_root_label;
+using camera_iq::read_dataset_config;
+using camera_iq::resolve_dataset_root;
+using test::check;
+
+namespace {
+
+void write_file(const fs::path& path, const std::string& text) {
+  fs::create_directories(path.parent_path());
+  std::ofstream os(path, std::ios::binary);
+  os << text;
+}
+
+}  // namespace
+
+void TESTS() {
+  const fs::path root = fs::temp_directory_path() / "camera_iq_dataset_config";
+  fs::remove_all(root);
+  fs::create_directories(root / "clrs");
+
+  const fs::path config = root / "datasets.local.json";
+  write_file(config, R"json({
+    "_comment": "test config",
+    "datasets": {
+      "clrs589_project_camera": {
+        "root": ")json" + (root / "clrs").string() + R"json(",
+        "description": "CLRS fixture"
+      },
+      "relative_fixture": {
+        "root": "data/private/datasets/relative_fixture",
+        "description": "relative path fixture"
+      }
+    }
+  })json");
+
+  const auto datasets = read_dataset_config(config);
+  check(datasets.size() == 2, "config: two datasets parsed");
+  check(datasets.at("clrs589_project_camera").root == root / "clrs",
+        "config: absolute root parsed");
+  check(datasets.at("relative_fixture").root ==
+            fs::path("data/private/datasets/relative_fixture"),
+        "config: relative root preserved");
+
+  const auto by_id = resolve_dataset_root("clrs589_project_camera", config);
+  check(by_id.has_value(), "resolve: dataset id");
+  if (by_id) {
+    check(by_id->id == "clrs589_project_camera", "resolve: id retained");
+    check(by_id->root == root / "clrs", "resolve: root from config");
+    check(by_id->label == "dataset:clrs589_project_camera",
+          "resolve: redacted dataset label");
+    check(by_id->from_config, "resolve: marked from config");
+  }
+
+  const auto by_path = resolve_dataset_root((root / "clrs").string(), config);
+  check(by_path.has_value(), "resolve: direct path");
+  if (by_path) {
+    check(!by_path->from_config, "resolve: direct path not config");
+    check(by_path->label == (root / "clrs").string(),
+          "resolve: direct path label unchanged");
+  }
+
+  check(!resolve_dataset_root("missing_dataset", config).has_value(),
+        "resolve: missing id is empty");
+
+  check(dataset_root_label("clrs589_project_camera") ==
+            "dataset:clrs589_project_camera",
+        "label: dataset root");
+  check(dataset_file_label("clrs589_project_camera",
+                           fs::path("Images/CCSG/file.RAF")) ==
+            "dataset:clrs589_project_camera/Images/CCSG/file.RAF",
+        "label: dataset file");
+
+  fs::remove_all(root);
+}

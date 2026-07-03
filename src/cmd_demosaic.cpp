@@ -7,6 +7,7 @@
 #include <string>
 #include <string_view>
 
+#include "camera_iq/dataset_config.hpp"
 #include "camera_iq/demosaic.hpp"
 #include "camera_iq/json_writer.hpp"
 #include "camera_iq/raw_meta.hpp"
@@ -106,6 +107,8 @@ void write_report_json(std::ostream& os, const std::string& file,
 
 int cmd_demosaic(int argc, char** argv) {
   std::filesystem::path file;
+  std::string dataset_id;
+  std::filesystem::path config = default_dataset_config_path();
   std::filesystem::path out;
 
   for (int i = 0; i < argc; ++i) {
@@ -116,6 +119,18 @@ int cmd_demosaic(int argc, char** argv) {
         return 2;
       }
       out = argv[++i];
+    } else if (arg == "--dataset") {
+      if (i + 1 >= argc) {
+        std::cerr << "camera_iq demosaic: --dataset requires an id\n";
+        return 2;
+      }
+      dataset_id = argv[++i];
+    } else if (arg == "--config") {
+      if (i + 1 >= argc) {
+        std::cerr << "camera_iq demosaic: --config requires a path\n";
+        return 2;
+      }
+      config = argv[++i];
     } else if (file.empty()) {
       file = arg;
     } else {
@@ -124,13 +139,31 @@ int cmd_demosaic(int argc, char** argv) {
     }
   }
   if (file.empty()) {
-    std::cerr << "Usage: camera_iq demosaic <raw-file> [--out FILE]\n";
+    std::cerr << "Usage: camera_iq demosaic <raw-file> [--dataset ID]"
+                 " [--config FILE] [--out FILE]\n";
     return 2;
   }
 
-  const auto cfa = read_raw_cfa_image(file);
+  std::filesystem::path actual_file = file;
+  std::string file_label = file.string();
+  if (!dataset_id.empty()) {
+    const auto resolved = resolve_dataset_root(dataset_id, config);
+    if (!resolved || !resolved->from_config) {
+      std::cerr << "camera_iq demosaic: dataset id '" << dataset_id
+                << "' not found in " << config << "\n";
+      return 1;
+    }
+    if (file.is_absolute()) {
+      std::cerr << "camera_iq demosaic: --dataset requires a relative file\n";
+      return 2;
+    }
+    actual_file = resolved->root / file;
+    file_label = dataset_file_label(dataset_id, file);
+  }
+
+  const auto cfa = read_raw_cfa_image(actual_file);
   if (!cfa) {
-    std::cerr << "camera_iq demosaic: cannot read/unpack " << file << "\n";
+    std::cerr << "camera_iq demosaic: cannot read/unpack " << file_label << "\n";
     return 1;
   }
   const auto rgb = demosaic_bilinear(cfa->samples.data(), cfa->width,
@@ -138,13 +171,13 @@ int cmd_demosaic(int argc, char** argv) {
                                      cfa->color_at_position, cfa->cdesc);
   if (rgb.empty()) {
     std::cerr << "camera_iq demosaic: unsupported CFA descriptor for "
-              << file << "\n";
+              << file_label << "\n";
     return 1;
   }
   const auto stats = rgb_image_stats(rgb);
 
   if (out.empty()) {
-    write_report_json(std::cout, file.string(), *cfa, stats);
+    write_report_json(std::cout, file_label, *cfa, stats);
     std::cout << "\n";
   } else {
     std::ofstream os(out, std::ios::binary);
@@ -152,7 +185,7 @@ int cmd_demosaic(int argc, char** argv) {
       std::cerr << "camera_iq demosaic: cannot write " << out << "\n";
       return 1;
     }
-    write_report_json(os, file.string(), *cfa, stats);
+    write_report_json(os, file_label, *cfa, stats);
     os << "\n";
     std::cerr << "demosaic summary written to " << out << "\n";
   }

@@ -59,7 +59,8 @@ This slice adds the first hand-written demosaic:
 
 ```bash
 ./build/camera_iq demosaic \
-  "dataset:clrs589_project_camera/2023/CLRS-589.689 Lighting Technology & Perception/Project Camera/Images/CCSG/CCSG_f9.0_1:100_ISO200_DSCF0299.RAF" \
+  --dataset clrs589_project_camera \
+  "Images/CCSG/CCSG_f9.0_1:100_ISO200_DSCF0299.RAF" \
   --out out/ccsg_f9_1_100_demosaic.json
 ```
 
@@ -81,7 +82,8 @@ This slice adds the first hand-written demosaic:
 
 ```bash
 ./build/camera_iq demosaic \
-  "dataset:archive_backup/Fernando/2_Archive/Disk_2/2016_IS_Reproduction/Capture/DSLR_White.CR2" \
+  --dataset canon_5d2_repro \
+  "Capture/DSLR_White.CR2" \
   --out out/canon_5d2_white_demosaic.json
 ```
 
@@ -104,7 +106,8 @@ This slice adds the first hand-written demosaic:
 
 ```bash
 ./build/camera_iq demosaic \
-  "dataset:archive_backup/Fernando/2_Archive/Disk_2/2016_esensi_images/2016_12_10_D800_OECF/NIKON D800_i100_s1-40_8.NEF" \
+  --dataset d800_oecf_2016 \
+  "NIKON D800_i100_s1-40_8.NEF" \
   --out out/nikon_d800_i100_s1_40_8_demosaic.json
 ```
 

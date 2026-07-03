@@ -6,6 +6,7 @@
 #include <string>
 #include <string_view>
 
+#include "camera_iq/dataset_config.hpp"
 #include "camera_iq/json_writer.hpp"
 #include "camera_iq/raw_meta.hpp"
 
@@ -87,6 +88,8 @@ void write_report_json(std::ostream& os, const std::string& file,
 
 int cmd_raw_stats(int argc, char** argv) {
   std::filesystem::path file;
+  std::string dataset_id;
+  std::filesystem::path config = default_dataset_config_path();
   std::filesystem::path out;
 
   for (int i = 0; i < argc; ++i) {
@@ -97,6 +100,18 @@ int cmd_raw_stats(int argc, char** argv) {
         return 2;
       }
       out = argv[++i];
+    } else if (arg == "--dataset") {
+      if (i + 1 >= argc) {
+        std::cerr << "camera_iq raw-stats: --dataset requires an id\n";
+        return 2;
+      }
+      dataset_id = argv[++i];
+    } else if (arg == "--config") {
+      if (i + 1 >= argc) {
+        std::cerr << "camera_iq raw-stats: --config requires a path\n";
+        return 2;
+      }
+      config = argv[++i];
     } else if (file.empty()) {
       file = arg;
     } else {
@@ -105,18 +120,36 @@ int cmd_raw_stats(int argc, char** argv) {
     }
   }
   if (file.empty()) {
-    std::cerr << "Usage: camera_iq raw-stats <raw-file> [--out FILE]\n";
+    std::cerr << "Usage: camera_iq raw-stats <raw-file> [--dataset ID]"
+                 " [--config FILE] [--out FILE]\n";
     return 2;
   }
 
-  const auto report = read_raw_cfa_stats(file);
+  std::filesystem::path actual_file = file;
+  std::string file_label = file.string();
+  if (!dataset_id.empty()) {
+    const auto resolved = resolve_dataset_root(dataset_id, config);
+    if (!resolved || !resolved->from_config) {
+      std::cerr << "camera_iq raw-stats: dataset id '" << dataset_id
+                << "' not found in " << config << "\n";
+      return 1;
+    }
+    if (file.is_absolute()) {
+      std::cerr << "camera_iq raw-stats: --dataset requires a relative file\n";
+      return 2;
+    }
+    actual_file = resolved->root / file;
+    file_label = dataset_file_label(dataset_id, file);
+  }
+
+  const auto report = read_raw_cfa_stats(actual_file);
   if (!report) {
-    std::cerr << "camera_iq raw-stats: cannot read/unpack " << file << "\n";
+    std::cerr << "camera_iq raw-stats: cannot read/unpack " << file_label << "\n";
     return 1;
   }
 
   if (out.empty()) {
-    write_report_json(std::cout, file.string(), *report);
+    write_report_json(std::cout, file_label, *report);
     std::cout << "\n";
   } else {
     std::ofstream os(out, std::ios::binary);
@@ -124,7 +157,7 @@ int cmd_raw_stats(int argc, char** argv) {
       std::cerr << "camera_iq raw-stats: cannot write " << out << "\n";
       return 1;
     }
-    write_report_json(os, file.string(), *report);
+    write_report_json(os, file_label, *report);
     os << "\n";
     std::cerr << "raw-stats written to " << out << "\n";
   }
