@@ -183,4 +183,17 @@ void TESTS() {
   check(contains(doc, "\"max_mean_fraction_of_range\""),
         "json range headroom metric");
   check(contains(doc, "\"missing_reports\":1"), "json missing count");
+
+  auto roi_reports = reports;
+  roi_reports["Sphere_f8.0_1:100_DSCF0001.RAF"].measurement_roi =
+      camera_iq::RoiRect{2, 4, 20, 22};
+  const auto roi_summary =
+      summarize_exposure_response(series, entries, roi_reports);
+  std::ostringstream roi_json;
+  write_exposure_response_json(roi_json, "fixture-root", {roi_summary});
+  const std::string roi_doc = roi_json.str();
+  check(contains(roi_doc, "\"measurement_roi\""),
+        "json records ROI measurement region");
+  check(contains(roi_doc, "\"x\":2") && contains(roi_doc, "\"height\":22"),
+        "json records ROI coordinates");
 }

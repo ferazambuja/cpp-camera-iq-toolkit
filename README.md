@@ -53,6 +53,7 @@ ctest --test-dir build --output-on-failure
 # Group black-subtracted CFA stats by detected exposure series:
 #   this is a readiness/response summary, not a final ISO OECF/PTC metric.
 ./build/camera_iq exposure-response clrs589_project_camera --series-min 3 \
+  --roi 1000,1000,500,500 \
   --out out/exposure-response.json
 
 # Public no-private-data demo:

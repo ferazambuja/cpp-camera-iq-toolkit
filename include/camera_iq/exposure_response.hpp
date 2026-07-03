@@ -4,6 +4,7 @@
 #include <cstddef>
 #include <iosfwd>
 #include <map>
+#include <optional>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -23,6 +24,7 @@ struct ExposureResponseFrame {
   std::array<ChannelStats, 4> planes;
   std::array<double, 4> black_per_channel{0, 0, 0, 0};
   double white_level = 0;
+  std::optional<RoiRect> measurement_roi;
 };
 
 // One shutter point in a fixed-series response summary. Means/stddevs here are

@@ -8,6 +8,7 @@
 #include <vector>
 
 #include "camera_iq/cfa_stats.hpp"
+#include "camera_iq/roi.hpp"
 
 namespace camera_iq {
 
@@ -83,6 +84,7 @@ std::optional<RawMeta> read_raw_metadata(const std::filesystem::path& raw);
 // RAW metadata plus per-CFA-channel statistics over the black-subtracted mosaic.
 struct RawCfaReport {
   RawMeta meta;
+  std::optional<RoiRect> measurement_roi;
   std::array<ChannelStats, 4> planes;
 };
 
@@ -109,5 +111,11 @@ std::optional<RawCfaReport> read_raw_cfa_stats(const std::filesystem::path& raw)
 // Unpacks a RAW file and returns the active Bayer mosaic as signed
 // black-subtracted samples. Same unsupported-format rules as read_raw_cfa_stats().
 std::optional<RawCfaImage> read_raw_cfa_image(const std::filesystem::path& raw);
+
+// Computes a RawCfaReport over a CFA-balanced ROI from an already unpacked
+// signed residual mosaic. The requested ROI is clipped and rounded inward by
+// cfa_balanced_roi(); the actual ROI is stored in RawCfaReport::measurement_roi.
+std::optional<RawCfaReport> raw_cfa_report_for_roi(const RawCfaImage& image,
+                                                   const RoiRect& requested);
 
 }  // namespace camera_iq

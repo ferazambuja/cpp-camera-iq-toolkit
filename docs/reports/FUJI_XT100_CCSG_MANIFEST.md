@@ -188,6 +188,6 @@ Completed follow-on slices now cover:
 - Exposure-response readiness grouping with conservative OECF candidate gates.
 
 Remaining objective-IQ work starts from the exposure-response candidates and
-still needs measured black reconciliation, ROI/patch selection, OECF fitting,
-PTC/read-noise handling, and color-reference pairing before any final camera-IQ
-metric is claimed.
+still needs measured black reconciliation, chart/patch selection beyond manual
+ROI coordinates, OECF fitting, PTC/read-noise handling, and color-reference
+pairing before any final camera-IQ metric is claimed.

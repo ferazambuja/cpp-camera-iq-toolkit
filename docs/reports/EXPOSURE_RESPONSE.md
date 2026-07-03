@@ -13,8 +13,10 @@ This slice adds the first objective-IQ series layer:
   extensions, not only RAF.
 - Parse the Nikon D800 archive pattern
   `NIKON D800_i100_s1-40_8.NEF` as group / ISO / shutter / frame metadata.
-- Run `read_raw_cfa_stats()` for each selected series frame.
+- Run full-frame or ROI raw-CFA statistics for each selected series frame.
 - Emit black-subtracted per-shutter CFA response summaries.
+- Optionally restrict the response summary to a CFA-balanced active-area ROI
+  with `--roi x,y,width,height`.
 
 This is not a final OECF fit, PTC, read-noise, dynamic-range, or ISO conformance
 metric.
@@ -29,6 +31,10 @@ metric.
   at the same shutter.
 - `mean_spatial_stddev_by_plane` is named as spatial stddev. It is not temporal
   noise and must not be used as PTC/read-noise evidence.
+- ROI mode uses active-area coordinates, clips the requested rectangle to image
+  bounds, and rounds inward to an even origin and even dimensions so every
+  selected region contains complete 2x2 Bayer blocks. The actual ROI is recorded
+  in each frame's JSON as `measurement_roi`.
 - `oecf_candidate` is only a readiness flag. It requires all selected frames to
   read successfully, at least three shutter points, and at least three usable
   points. A usable point must have positive signal above black, max mean signal
@@ -97,8 +103,38 @@ Result summary:
 | Last point | 1:13, max fraction 0.397036 |
 
 This is a candidate response ladder only. The scene is non-uniform, so the next
-OECF step still needs ROI/patch selection and reference handling before any
+OECF step still needs chart/patch selection and reference handling before any
 curve or standard metric is claimed.
+
+### Accepted non-uniform f8 response ladder, manual ROI
+
+```bash
+./build/camera_iq exposure-response \
+  clrs589_project_camera \
+  --subdir "Images/Non_Unifform_f8" \
+  --series-min 3 --series-limit 1 \
+  --roi 1000,1000,500,500 \
+  --out out/nonuniform_f8_roi_exposure_response.json
+```
+
+Result summary:
+
+| Field | Value |
+|---|---:|
+| Series | Non_unifform, f8 |
+| Distinct shutters | 16 |
+| Readable frames | 16 / 16 |
+| Usable OECF points | 16 |
+| EXIF consistent | true |
+| OECF candidate | true |
+| PTC candidate | false |
+| Actual ROI | x=1000, y=1000, width=500, height=500 |
+| First point | 1:1000, max fraction 0.005123 |
+| Last point | 1:13, max fraction 0.386026 |
+
+This proves the ROI plumbing and provenance path on real RAFs. It is still not
+an OECF fit: the ROI is a manual active-area rectangle, not an identified chart
+patch or measured reflectance target.
 
 ### Nikon D800 archive parse check
 
@@ -132,9 +168,11 @@ ctest --test-dir build --output-on-failure
 
 Targeted local checks during implementation:
 
-- `test_filename_meta`, `test_exposure_series`, `test_exposure_response`
+- `test_filename_meta`, `test_exposure_series`, `test_roi`,
+  `test_exposure_response`
   passed after red/green tests for NEF parsing, RAW-extension series discovery,
-  JSON serialization, missing-frame handling, and near-white plateau rejection.
+  CFA-balanced ROI handling, JSON serialization, missing-frame handling, and
+  near-white plateau rejection.
 - Real-data validation outputs were written under `out/`, not tracked in git.
 
 ## Not Claimed
@@ -143,3 +181,4 @@ Targeted local checks during implementation:
 - No PTC, temporal noise, read noise, DSNU, PRNU, or dynamic-range result.
 - No claim that full-frame spatial stddev is a noise metric.
 - No dark-frame-vs-metadata black reconciliation yet.
+- No automatic chart/patch detection or color-reference pairing yet.

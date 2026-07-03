@@ -112,6 +112,19 @@ void write_double_array(JsonWriter& w, const std::array<double, 4>& values) {
   w.end_array();
 }
 
+void write_roi(JsonWriter& w, const RoiRect& roi) {
+  w.begin_object();
+  w.key("x");
+  w.value(static_cast<std::int64_t>(roi.x));
+  w.key("y");
+  w.value(static_cast<std::int64_t>(roi.y));
+  w.key("width");
+  w.value(static_cast<std::int64_t>(roi.width));
+  w.key("height");
+  w.value(static_cast<std::int64_t>(roi.height));
+  w.end_object();
+}
+
 }  // namespace
 
 ExposureResponseSummary summarize_exposure_response(
@@ -154,6 +167,7 @@ ExposureResponseSummary summarize_exposure_response(
     frame.planes = report_it->second.planes;
     frame.black_per_channel = report_it->second.meta.black_per_channel;
     frame.white_level = report_it->second.meta.white_level;
+    frame.measurement_roi = report_it->second.measurement_roi;
     point.frames.push_back(std::move(frame));
     ++summary.readable_frames;
   }
@@ -284,6 +298,10 @@ void write_exposure_response_json(
         w.value(f.shutter_s);
         w.key("shutter_str");
         w.value(f.shutter_str);
+        if (f.measurement_roi) {
+          w.key("measurement_roi");
+          write_roi(w, *f.measurement_roi);
+        }
         w.key("planes");
         w.begin_array();
         for (const auto& plane : f.planes) write_plane_stats(w, plane);

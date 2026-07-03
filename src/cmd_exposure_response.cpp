@@ -4,6 +4,7 @@
 #include <fstream>
 #include <iostream>
 #include <map>
+#include <optional>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -20,6 +21,7 @@ int cmd_exposure_response(int argc, char** argv) {
   std::filesystem::path config = default_dataset_config_path();
   std::filesystem::path subdir;
   std::filesystem::path out;
+  std::optional<RoiRect> roi;
   std::size_t series_min = 3;
   std::size_t series_limit = 0;  // 0 means all detected series.
 
@@ -58,6 +60,18 @@ int cmd_exposure_response(int argc, char** argv) {
         return 2;
       }
       series_limit = static_cast<std::size_t>(std::stoul(argv[++i]));
+    } else if (arg == "--roi") {
+      if (i + 1 >= argc) {
+        std::cerr
+            << "camera_iq exposure-response: --roi requires x,y,width,height\n";
+        return 2;
+      }
+      roi = parse_roi_spec(argv[++i]);
+      if (!roi) {
+        std::cerr << "camera_iq exposure-response: invalid --roi; expected "
+                     "non-negative x,y and positive width,height\n";
+        return 2;
+      }
     } else if (root_or_id.empty()) {
       root_or_id = arg;
     } else {
@@ -70,7 +84,8 @@ int cmd_exposure_response(int argc, char** argv) {
   if (root_or_id.empty()) {
     std::cerr << "Usage: camera_iq exposure-response <dataset-root>"
                  " [--out FILE] [--config FILE] [--subdir REL]"
-                 " [--series-min N] [--series-limit N]\n";
+                 " [--series-min N] [--series-limit N]"
+                 " [--roi x,y,width,height]\n";
     return 2;
   }
 
@@ -108,7 +123,13 @@ int cmd_exposure_response(int argc, char** argv) {
     for (const auto& s : series) {
       std::map<std::string, RawCfaReport> reports;
       for (const auto& rel : s.paths) {
-        const auto report = read_raw_cfa_stats(scan_root / rel);
+        std::optional<RawCfaReport> report;
+        if (roi) {
+          const auto image = read_raw_cfa_image(scan_root / rel);
+          if (image) report = raw_cfa_report_for_roi(*image, *roi);
+        } else {
+          report = read_raw_cfa_stats(scan_root / rel);
+        }
         if (report) {
           reports.emplace(rel, *report);
         } else {

@@ -40,6 +40,7 @@ add_library(camera_iq_core STATIC
   src/manifest.cpp
   src/raw_meta.cpp
   src/cfa_stats.cpp
+  src/roi.cpp
   src/demosaic.cpp
   src/exposure_response.cpp
   src/cmd_manifest.cpp
@@ -73,6 +74,7 @@ camera_iq_add_test(test_exposure_series tests/test_exposure_series.cpp)
 camera_iq_add_test(test_raw_meta tests/test_raw_meta.cpp)
 camera_iq_add_test(test_manifest_json tests/test_manifest_json.cpp)
 camera_iq_add_test(test_cfa_stats tests/test_cfa_stats.cpp)
+camera_iq_add_test(test_roi tests/test_roi.cpp)
 camera_iq_add_test(test_demosaic tests/test_demosaic.cpp)
 camera_iq_add_test(test_exposure_response tests/test_exposure_response.cpp)
 
