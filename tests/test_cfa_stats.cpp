@@ -83,7 +83,13 @@ void TESTS() {
     check_near(s[0].max, 300, 1e-9, "4x2: R max 300");
   }
 
-  // --- numerical stability: high DN, tiny spread ---
+  // --- correctness: high DN, tiny spread ---
+  // Not a cancellation guard: raw values are uint16, so sumsq stays well within
+  // double's exact-integer range at any realistic sensor size and the naive
+  // form would pass this too. It exists to check mean/stddev correctness in the
+  // high-DN/small-spread corner. The Welford recurrence's cancellation
+  // resistance (which matters for 16-bit-class accumulation) is genuinely
+  // exercised by the 1e8-scale double test in test_demosaic.
   {
     std::vector<std::uint16_t> data = {
         12000, 13000,
@@ -94,9 +100,9 @@ void TESTS() {
     const std::array<double, 4> zero_black = {0, 0, 0, 0};
     const auto s = cfa_plane_stats(data.data(), 2, 4, kRGGB, kCdesc,
                                    zero_black, 16383);
-    check(s[0].count == 2, "stable: R sampled twice");
-    check_near(s[0].mean, 12000.5, 1e-12, "stable: high-DN mean");
-    check_near(s[0].stddev, 0.5, 1e-12, "stable: high-DN small stddev");
+    check(s[0].count == 2, "hi-DN: R sampled twice");
+    check_near(s[0].mean, 12000.5, 1e-12, "hi-DN: mean");
+    check_near(s[0].stddev, 0.5, 1e-12, "hi-DN: small stddev");
   }
 
   // --- empty / null guard ---

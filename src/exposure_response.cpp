@@ -15,6 +15,12 @@ namespace camera_iq {
 namespace {
 
 constexpr double kOecfNearWhiteMeanFraction = 0.98;
+// A usable OECF point must also not clip: reject a point where more than this
+// fraction of pixels sits at/above white, even if the mean still reads
+// mid-range. A non-uniform frame can clip its highlights while the spatial mean
+// looks unsaturated, so the measured saturated fraction is a stricter guard
+// than the mean-of-range proxy alone.
+constexpr double kOecfMaxSaturatedFraction = 0.01;
 
 const ManifestEntry* find_entry(const std::vector<ManifestEntry>& entries,
                                 const std::string& path) {
@@ -156,8 +162,14 @@ ExposureResponseSummary summarize_exposure_response(
   for (auto& [shutter, point] : points_by_shutter) {
     (void)shutter;
     recompute_point_averages(point);
+    // Usable = real signal above black (fraction > 0), below the near-white
+    // plateau, and below the per-pixel clipping tolerance. The lower bound is
+    // what makes the flag conservative at the dark end: a point at or below
+    // black carries no OECF information and must not be counted.
     if (point.has_valid_signal_range &&
-        point.max_mean_fraction_of_range < kOecfNearWhiteMeanFraction) {
+        point.max_mean_fraction_of_range > 0.0 &&
+        point.max_mean_fraction_of_range < kOecfNearWhiteMeanFraction &&
+        point.max_saturated_fraction < kOecfMaxSaturatedFraction) {
       ++summary.usable_oecf_points;
     }
     summary.points.push_back(std::move(point));
@@ -181,7 +193,8 @@ ExposureResponseSummary summarize_exposure_response(
   if (summary.points.size() >= 3 && summary.usable_oecf_points < 3) {
     summary.limitations.push_back(
         "OECF candidate flag is false because fewer than three shutter points "
-        "have mean signal below 98% of the black-subtracted white range.");
+        "carry usable signal: each usable point must be above black, below 98% "
+        "of the black-subtracted white range, and below 1% saturated pixels.");
   }
   if (!summary.exif_consistent) {
     summary.limitations.push_back(

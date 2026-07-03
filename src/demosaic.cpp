@@ -103,8 +103,10 @@ std::array<ChannelStats, 3> rgb_image_stats(const std::vector<RgbPixel>& image) 
     if (image.empty()) continue;
 
     // Welford online mean/M2: avoids the catastrophic cancellation of
-    // sumsq/n - mean^2 when the DN level dwarfs the variance (e.g. a 12k-DN
-    // green plane over tens of millions of pixels).
+    // sumsq/n - mean^2 when a small variance rides on a large mean (a bright,
+    // near-flat field at 16-bit-class magnitudes). Note the opposite corner --
+    // read noise on a ~0 black-subtracted mean -- is the safe case for the
+    // naive form, so this is not about read-noise accuracy.
     double mean = 0.0;
     double m2 = 0.0;
     std::size_t k = 0;

@@ -124,15 +124,23 @@ void TESTS() {
   }
 
   {
+    // Numerical-stability guard. At 1e8-scale magnitudes the textbook
+    // sumsq/n - mean^2 form loses the entire variance to catastrophic
+    // cancellation (naive stddev collapses to 0.0), while the Welford recurrence
+    // in rgb_image_stats keeps the true 0.5. This test FAILS on the pre-Welford
+    // implementation, so it actually guards the fix rather than passing on both.
+    // (rgb_image_stats takes doubles, so it can reach the cancellation regime;
+    // cfa_plane_stats_strided shares the same recurrence but is uint16-bounded.)
+    const double base = 1.0e8;
     std::vector<RgbPixel> rgb = {
-        {12000, 15000, 9000},
-        {12001, 15001, 9001},
+        {base, base, base},
+        {base + 1.0, base + 1.0, base + 1.0},
     };
     const auto stats = rgb_image_stats(rgb);
-    check_near(stats[0].mean, 12000.5, 1e-12, "stats stable: R mean");
-    check_near(stats[0].stddev, 0.5, 1e-12, "stats stable: R stddev");
-    check_near(stats[1].stddev, 0.5, 1e-12, "stats stable: G stddev");
-    check_near(stats[2].stddev, 0.5, 1e-12, "stats stable: B stddev");
+    check_near(stats[0].mean, base + 0.5, 1e-6, "stats stable: R mean at 1e8");
+    check_near(stats[0].stddev, 0.5, 1e-9, "stats stable: R stddev at 1e8");
+    check_near(stats[1].stddev, 0.5, 1e-9, "stats stable: G stddev at 1e8");
+    check_near(stats[2].stddev, 0.5, 1e-9, "stats stable: B stddev at 1e8");
   }
 
   check(cmd_demosaic(0, nullptr) == 2, "cli: demosaic requires raw file");

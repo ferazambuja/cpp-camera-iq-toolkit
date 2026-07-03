@@ -48,8 +48,11 @@ std::array<ChannelStats, 4> cfa_plane_stats_strided(
     const std::array<double, 4>& black_at_position, double white) {
   const auto labels = channel_labels(cdesc, color_at_position);
 
-  // Welford online mean/M2 per CFA position — stable when the pedestal-relative
-  // signal is small against a large-DN plane, unlike sumsq/n - mean^2.
+  // Welford online mean/M2 per CFA position. For <=14-bit raw the sumsq/n -
+  // mean^2 form is already exact (sums stay under 2^53), so this is a no-op
+  // there; it earns its keep for 16-bit-class raw where a bright, near-flat
+  // plane over millions of pixels would otherwise lose the variance to
+  // cancellation.
   struct Acc {
     double mean = 0.0, m2 = 0.0, mn = 0.0, mx = 0.0;
     std::size_t n = 0, below_black = 0, sat = 0;

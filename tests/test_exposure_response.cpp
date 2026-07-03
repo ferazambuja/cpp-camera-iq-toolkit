@@ -45,6 +45,14 @@ RawCfaReport report(double r, double g1, double b, double g2) {
   return out;
 }
 
+// Same as report() but with a per-plane saturated fraction, for testing the
+// clipping veto independently of the mean-of-range proxy.
+RawCfaReport report_sat(double mean, double saturated_fraction) {
+  RawCfaReport out = report(mean, mean, mean, mean);
+  for (auto& p : out.planes) p.saturated_fraction = saturated_fraction;
+  return out;
+}
+
 bool contains(const std::string& hay, const std::string& needle) {
   return hay.find(needle) != std::string::npos;
 }
@@ -131,6 +139,33 @@ void TESTS() {
   check(!inconsistent.exif_consistent, "changed ISO breaks EXIF consistency");
   check(!inconsistent.oecf_candidate,
         "EXIF-inconsistent series is not candidate-ready");
+
+  // Lower-bound guard: frames at/below black are nowhere near white, but they
+  // carry no OECF signal and must not be promoted to usable points.
+  const std::map<std::string, RawCfaReport> dark_reports = {
+      {"Sphere_f8.0_1:100_DSCF0001.RAF", report(-3, -3, -3, -3)},
+      {"Sphere_f8.0_1:50_DSCF0002.RAF", report(-3, -3, -3, -3)},
+      {"Sphere_f8.0_1:25_DSCF0003.RAF", report(-3, -3, -3, -3)},
+      {"Sphere_f8.0_1:25_DSCF0004.RAF", report(-3, -3, -3, -3)},
+  };
+  const auto dark = summarize_exposure_response(series, entries, dark_reports);
+  check(dark.usable_oecf_points == 0,
+        "below-black frames are not usable OECF points");
+  check(!dark.oecf_candidate, "below-black ladder is not candidate-ready");
+
+  // Clipping veto: mid-range mean would pass the near-white proxy, but heavy
+  // measured saturation must reject the point (non-uniform highlight clipping).
+  const std::map<std::string, RawCfaReport> clipped_by_fraction = {
+      {"Sphere_f8.0_1:100_DSCF0001.RAF", report_sat(8000, 0.20)},
+      {"Sphere_f8.0_1:50_DSCF0002.RAF", report_sat(8000, 0.20)},
+      {"Sphere_f8.0_1:25_DSCF0003.RAF", report_sat(8000, 0.20)},
+      {"Sphere_f8.0_1:25_DSCF0004.RAF", report_sat(8000, 0.20)},
+  };
+  const auto sat =
+      summarize_exposure_response(series, entries, clipped_by_fraction);
+  check(sat.usable_oecf_points == 0,
+        "heavy saturated fraction rejects points despite mid-range mean");
+  check(!sat.oecf_candidate, "clipped-by-fraction ladder is not candidate-ready");
 
   std::ostringstream json;
   write_exposure_response_json(json, "fixture-root",
