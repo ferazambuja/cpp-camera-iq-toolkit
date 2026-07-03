@@ -36,6 +36,12 @@ bool looks_numeric(std::string_view field) {
   }
 }
 
+// RAW extensions the toolkit attempts to read with LibRaw.
+bool is_raw_extension(std::string_view ext) {
+  return ext == "raf" || ext == "nef" || ext == "arw" || ext == "cr2" ||
+         ext == "iiq" || ext == "dng";
+}
+
 std::string generic_relative(const std::filesystem::path& p,
                              const std::filesystem::path& base) {
   // generic_string() guarantees forward slashes on every platform.
@@ -126,7 +132,7 @@ std::vector<ExposureSeries> find_exposure_series(
   std::map<std::string, Bucket> buckets;
 
   for (const auto& e : entries) {
-    if (e.extension != "raf") continue;
+    if (!is_raw_extension(e.extension)) continue;
     const auto& m = e.filename_meta;
     if (!m.shutter_s) continue;
 
@@ -166,12 +172,6 @@ std::vector<ExposureSeries> find_exposure_series(
 }
 
 namespace {
-
-// RAW extensions the toolkit attempts to read with LibRaw.
-bool is_raw_extension(std::string_view ext) {
-  return ext == "raf" || ext == "nef" || ext == "arw" || ext == "cr2" ||
-         ext == "iiq" || ext == "dng";
-}
 
 void write_optional(JsonWriter& w, const std::optional<double>& v) {
   if (v) w.value(*v); else w.null();

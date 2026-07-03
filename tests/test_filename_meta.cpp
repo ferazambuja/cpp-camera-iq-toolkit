@@ -66,4 +66,15 @@ void TESTS() {
     const auto m = parse_capture_filename("DSCF0500.raf");
     check(m.frame == 500, "lowercase extension: frame parsed");
   }
+  {
+    const auto m = parse_capture_filename("NIKON D800_i100_s1-40_8.NEF");
+    check(m.group == "NIKON D800", "nikon oecf name: group");
+    check(m.iso == 100, "nikon oecf name: iso");
+    check(m.shutter_str == "s1-40", "nikon oecf name: shutter string");
+    check(m.shutter_s.has_value(), "nikon oecf name: shutter present");
+    if (m.shutter_s) {
+      check_near(*m.shutter_s, 0.025, 1e-12, "nikon oecf name: shutter seconds");
+    }
+    check(m.frame == 8, "nikon oecf name: frame");
+  }
 }

@@ -11,6 +11,9 @@ namespace camera_iq {
 // The CLRS-589 capture campaign encodes exposure in filenames:
 //   <Group>_f<aperture>_1:<denominator>[_ISO<iso>]_DSCF<frame>.RAF
 // e.g. "CCSG_f9.0_1:100_ISO200_DSCF0299.RAF", "Dark_Frame_f8.0_1:10_DSCF0439.RAF"
+// The Nikon D800 OECF archive also encodes exposure:
+//   <Group>_i<iso>_s<numerator>-<denominator>_<frame>.NEF
+// e.g. "NIKON D800_i100_s1-40_8.NEF".
 // Plain camera names ("DSCF0193.RAF") carry only the frame index.
 //
 // All fields are optional: absent means "not encoded in the filename".

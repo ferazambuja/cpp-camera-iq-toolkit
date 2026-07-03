@@ -45,10 +45,16 @@ ctest --test-dir build --output-on-failure
 
 # Compute hand-written bilinear demosaic summary stats for one RAW file:
 ./build/camera_iq demosaic /path/to/capture.RAF --out out/demosaic.json
+
+# Group black-subtracted CFA stats by detected exposure series:
+#   this is a readiness/response summary, not a final ISO OECF/PTC metric.
+./build/camera_iq exposure-response /path/to/dataset --series-min 3 \
+  --out out/exposure-response.json
 ```
 
-Implemented commands: `manifest`, `raw-stats`, `demosaic`. Evidence reports for completed phases live
-under [docs/reports/](docs/reports/).
+Implemented commands: `manifest`, `raw-stats`, `demosaic`, and
+`exposure-response`. Evidence reports for completed phases live under
+[docs/reports/](docs/reports/).
 
 ## Data
 

@@ -1,0 +1,151 @@
+#include "camera_iq/exposure_response.hpp"
+
+#include <map>
+#include <sstream>
+#include <string>
+#include <vector>
+
+#include "harness.hpp"
+
+using camera_iq::ChannelStats;
+using camera_iq::ExposureSeries;
+using camera_iq::ManifestEntry;
+using camera_iq::RawCfaReport;
+using camera_iq::summarize_exposure_response;
+using camera_iq::write_exposure_response_json;
+using test::check;
+using test::check_near;
+
+namespace {
+
+ManifestEntry raf(const std::string& name) {
+  ManifestEntry e;
+  e.relative_path = name;
+  e.extension = "raf";
+  e.filename_meta = camera_iq::parse_capture_filename(name);
+  return e;
+}
+
+RawCfaReport report(double r, double g1, double b, double g2) {
+  RawCfaReport out;
+  out.meta.make = "Fujifilm";
+  out.meta.model = "X-T100";
+  out.meta.iso = 200;
+  out.meta.aperture = 8;
+  out.meta.cfa_pattern = "RGGB";
+  out.meta.black_per_channel = {1024, 1024, 1024, 1024};
+  out.meta.black_level = 1024;
+  out.meta.white_level = 16383;
+  out.planes = {
+      ChannelStats{"R", 4, r - 1, r + 1, r, 0.5, 0.0, 0.0},
+      ChannelStats{"G1", 4, g1 - 1, g1 + 1, g1, 0.6, 0.0, 0.0},
+      ChannelStats{"B", 4, b - 1, b + 1, b, 0.7, 0.0, 0.0},
+      ChannelStats{"G2", 4, g2 - 1, g2 + 1, g2, 0.8, 0.0, 0.0},
+  };
+  return out;
+}
+
+bool contains(const std::string& hay, const std::string& needle) {
+  return hay.find(needle) != std::string::npos;
+}
+
+}  // namespace
+
+void TESTS() {
+  std::vector<ManifestEntry> entries = {
+      raf("Sphere_f8.0_1:100_DSCF0001.RAF"),
+      raf("Sphere_f8.0_1:50_DSCF0002.RAF"),
+      raf("Sphere_f8.0_1:25_DSCF0003.RAF"),
+      // Duplicate shutter: should aggregate into the same exposure point.
+      raf("Sphere_f8.0_1:25_DSCF0004.RAF"),
+  };
+
+  ExposureSeries series;
+  series.group = "Sphere";
+  series.aperture = 8.0;
+  series.paths = {
+      "Sphere_f8.0_1:100_DSCF0001.RAF",
+      "Sphere_f8.0_1:50_DSCF0002.RAF",
+      "Sphere_f8.0_1:25_DSCF0003.RAF",
+      "Sphere_f8.0_1:25_DSCF0004.RAF",
+  };
+  series.distinct_shutters = 3;
+
+  const std::map<std::string, RawCfaReport> reports = {
+      {"Sphere_f8.0_1:100_DSCF0001.RAF", report(100, 101, 102, 103)},
+      {"Sphere_f8.0_1:50_DSCF0002.RAF", report(200, 201, 202, 203)},
+      {"Sphere_f8.0_1:25_DSCF0003.RAF", report(400, 401, 402, 403)},
+      {"Sphere_f8.0_1:25_DSCF0004.RAF", report(420, 421, 422, 423)},
+  };
+
+  const auto summary = summarize_exposure_response(series, entries, reports);
+
+  check(summary.readable_frames == 4, "all frames readable");
+  check(summary.missing_reports == 0, "no missing reports");
+  check(summary.exif_consistent, "exif controls consistent");
+  check(summary.points.size() == 3, "three shutter points");
+  check(summary.oecf_candidate, "three-point fixed series is OECF candidate");
+  check(!summary.ptc_candidate, "PTC is not claimed from summary stats");
+  check(!summary.limitations.empty(), "PTC limitation is explicit");
+
+  if (summary.points.size() == 3) {
+    check_near(summary.points[0].shutter_s, 0.01, 1e-12, "points sorted fast to slow");
+    check(summary.points[0].shutter_str == "1:100", "first shutter label");
+    check_near(summary.points[1].mean_signal_by_plane[0], 200.0, 1e-12,
+               "single-frame mean preserved");
+    check(summary.points[2].frames.size() == 2, "duplicate shutter grouped");
+    check_near(summary.points[2].mean_signal_by_plane[0], 410.0, 1e-12,
+               "duplicate shutter mean averaged");
+    check_near(summary.points[2].mean_spatial_stddev_by_plane[3], 0.8, 1e-12,
+               "per-plane spatial stddev averaged, not called temporal noise");
+  }
+
+  const std::map<std::string, RawCfaReport> missing_one = {
+      {"Sphere_f8.0_1:100_DSCF0001.RAF", report(100, 101, 102, 103)},
+      {"Sphere_f8.0_1:50_DSCF0002.RAF", report(200, 201, 202, 203)},
+      {"Sphere_f8.0_1:25_DSCF0003.RAF", report(400, 401, 402, 403)},
+  };
+  const auto incomplete =
+      summarize_exposure_response(series, entries, missing_one);
+  check(incomplete.readable_frames == 3, "readable count excludes failures");
+  check(incomplete.missing_reports == 1, "missing report counted");
+  check(!incomplete.oecf_candidate, "incomplete series is not candidate-ready");
+
+  const std::map<std::string, RawCfaReport> clipped_reports = {
+      {"Sphere_f8.0_1:100_DSCF0001.RAF", report(15357, 15357, 15357, 15357)},
+      {"Sphere_f8.0_1:50_DSCF0002.RAF", report(15357, 15357, 15357, 15357)},
+      {"Sphere_f8.0_1:25_DSCF0003.RAF", report(15357, 15357, 15357, 15357)},
+      {"Sphere_f8.0_1:25_DSCF0004.RAF", report(15357, 15357, 15357, 15357)},
+  };
+  const auto clipped =
+      summarize_exposure_response(series, entries, clipped_reports);
+  check(clipped.usable_oecf_points == 0,
+        "near-white plateau has zero usable OECF points");
+  check(!clipped.oecf_candidate,
+        "near-white plateau is not candidate-ready");
+
+  auto changed_iso = reports;
+  changed_iso["Sphere_f8.0_1:50_DSCF0002.RAF"].meta.iso = 400;
+  const auto inconsistent =
+      summarize_exposure_response(series, entries, changed_iso);
+  check(!inconsistent.exif_consistent, "changed ISO breaks EXIF consistency");
+  check(!inconsistent.oecf_candidate,
+        "EXIF-inconsistent series is not candidate-ready");
+
+  std::ostringstream json;
+  write_exposure_response_json(json, "fixture-root",
+                               {summary, incomplete, clipped, inconsistent});
+  const std::string doc = json.str();
+  check(contains(doc, "\"mode\":\"exposure-response\""), "json mode");
+  check(contains(doc, "\"root\":\"fixture-root\""), "json root");
+  check(contains(doc, "\"oecf_candidate\":true"), "json oecf candidate");
+  check(contains(doc, "\"exif_consistent\":false"), "json exif gate");
+  check(contains(doc, "\"ptc_candidate\":false"), "json ptc limitation flag");
+  check(contains(doc, "\"mean_signal_by_plane\""), "json signal means");
+  check(contains(doc, "\"mean_spatial_stddev_by_plane\""),
+        "json spatial stddev named honestly");
+  check(contains(doc, "\"usable_oecf_points\":3"), "json usable point count");
+  check(contains(doc, "\"max_mean_fraction_of_range\""),
+        "json range headroom metric");
+  check(contains(doc, "\"missing_reports\":1"), "json missing count");
+}

@@ -83,6 +83,22 @@ void TESTS() {
     check_near(s[0].max, 300, 1e-9, "4x2: R max 300");
   }
 
+  // --- numerical stability: high DN, tiny spread ---
+  {
+    std::vector<std::uint16_t> data = {
+        12000, 13000,
+        13000, 13000,
+        12001, 13000,
+        13000, 13000,
+    };
+    const std::array<double, 4> zero_black = {0, 0, 0, 0};
+    const auto s = cfa_plane_stats(data.data(), 2, 4, kRGGB, kCdesc,
+                                   zero_black, 16383);
+    check(s[0].count == 2, "stable: R sampled twice");
+    check_near(s[0].mean, 12000.5, 1e-12, "stable: high-DN mean");
+    check_near(s[0].stddev, 0.5, 1e-12, "stable: high-DN small stddev");
+  }
+
   // --- empty / null guard ---
   {
     const auto s = cfa_plane_stats(nullptr, 0, 0, kRGGB, kCdesc, kBlack, 16383);

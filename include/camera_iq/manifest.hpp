@@ -55,7 +55,7 @@ struct ExposureSeries {
   std::size_t distinct_shutters = 0;
 };
 
-// Finds candidate exposure series among RAF entries whose filenames carry a
+// Finds candidate exposure series among RAW entries whose filenames carry a
 // shutter value. Series with fewer than `min_distinct` distinct shutter
 // values are dropped. Output sorted by (directory, group, aperture).
 std::vector<ExposureSeries> find_exposure_series(

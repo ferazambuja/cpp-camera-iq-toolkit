@@ -123,5 +123,17 @@ void TESTS() {
     check_near(stats[2].stddev, 6.531972647421808, 1e-12, "stats: B stddev");
   }
 
+  {
+    std::vector<RgbPixel> rgb = {
+        {12000, 15000, 9000},
+        {12001, 15001, 9001},
+    };
+    const auto stats = rgb_image_stats(rgb);
+    check_near(stats[0].mean, 12000.5, 1e-12, "stats stable: R mean");
+    check_near(stats[0].stddev, 0.5, 1e-12, "stats stable: R stddev");
+    check_near(stats[1].stddev, 0.5, 1e-12, "stats stable: G stddev");
+    check_near(stats[2].stddev, 0.5, 1e-12, "stats stable: B stddev");
+  }
+
   check(cmd_demosaic(0, nullptr) == 2, "cli: demosaic requires raw file");
 }

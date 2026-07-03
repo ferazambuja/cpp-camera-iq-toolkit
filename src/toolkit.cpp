@@ -26,6 +26,8 @@ void print_usage() {
       "  manifest    Enumerate a dataset folder and emit a JSON manifest\n"
       "  raw-stats   Per-CFA-channel statistics for a raw capture\n"
       "  demosaic    Bilinear demosaic summary for a raw capture\n"
+      "  exposure-response\n"
+      "              Black-subtracted CFA summaries grouped by exposure series\n"
       "\n"
       "Commands (planned):\n"
       "  patches     Extract ColorChecker patch statistics\n"
@@ -61,6 +63,9 @@ int run(int argc, char** argv) {
   }
   if (arg == "demosaic") {
     return cmd_demosaic(argc - 2, argv + 2);
+  }
+  if (arg == "exposure-response") {
+    return cmd_exposure_response(argc - 2, argv + 2);
   }
 
   std::cerr << "camera_iq: command '" << arg

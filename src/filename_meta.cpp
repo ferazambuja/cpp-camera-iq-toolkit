@@ -18,6 +18,11 @@ bool iequals(std::string_view a, std::string_view b) {
   return true;
 }
 
+bool is_raw_extension(std::string_view ext) {
+  return iequals(ext, "raf") || iequals(ext, "nef") || iequals(ext, "arw") ||
+         iequals(ext, "cr2") || iequals(ext, "iiq") || iequals(ext, "dng");
+}
+
 bool all_digits(std::string_view s) {
   if (s.empty()) return false;
   for (char c : s) {
@@ -68,21 +73,31 @@ std::optional<double> parse_aperture_token(std::string_view tok) {
   return to_double(tok.substr(1));
 }
 
-// "1:100" -> 0.01 s (numerator:denominator, as written by the capture campaign;
-// ':' stands in for '/' because '/' is not a legal filename character)
+// "1:100" or "s1-40" -> seconds. ':' and '-' stand in for '/' because '/' is
+// not a legal filename character; the Nikon OECF archive prefixes shutter with s.
 std::optional<double> parse_shutter_token(std::string_view tok) {
-  const size_t colon = tok.find(':');
-  if (colon == std::string_view::npos) return std::nullopt;
-  const auto num = to_double(tok.substr(0, colon));
-  const auto den = to_double(tok.substr(colon + 1));
+  std::string_view body = tok;
+  if (body.size() >= 2 && body[0] == 's' &&
+      std::isdigit(static_cast<unsigned char>(body[1]))) {
+    body.remove_prefix(1);
+  }
+  size_t sep = body.find(':');
+  if (sep == std::string_view::npos) sep = body.find('-');
+  if (sep == std::string_view::npos) return std::nullopt;
+  const auto num = to_double(body.substr(0, sep));
+  const auto den = to_double(body.substr(sep + 1));
   if (!num || !den || *den == 0.0) return std::nullopt;
   return *num / *den;
 }
 
-// "ISO200" -> 200
+// "ISO200" or "i100" -> integer ISO.
 std::optional<int> parse_iso_token(std::string_view tok) {
-  if (tok.size() < 4 || tok.substr(0, 3) != "ISO") return std::nullopt;
-  return to_int(tok.substr(3));
+  if (tok.size() >= 4 && tok.substr(0, 3) == "ISO") return to_int(tok.substr(3));
+  if (tok.size() >= 2 && tok[0] == 'i' &&
+      std::isdigit(static_cast<unsigned char>(tok[1]))) {
+    return to_int(tok.substr(1));
+  }
+  return std::nullopt;
 }
 
 // "DSCF0299" -> 299
@@ -98,7 +113,7 @@ FilenameMeta parse_capture_filename(std::string_view filename) {
 
   const size_t dot = filename.rfind('.');
   if (dot == std::string_view::npos) return meta;
-  if (!iequals(filename.substr(dot + 1), "RAF")) return meta;
+  if (!is_raw_extension(filename.substr(dot + 1))) return meta;
 
   const std::string_view stem = filename.substr(0, dot);
   const auto tokens = split(stem, '_');
@@ -133,6 +148,12 @@ FilenameMeta parse_capture_filename(std::string_view filename) {
         meta.frame = fr;
         first_exposure_token = std::min(first_exposure_token, i);
         continue;
+      }
+      if (first_exposure_token < i) {
+        if (const auto fr = to_int(tok)) {
+          meta.frame = fr;
+          continue;
+        }
       }
     }
   }
