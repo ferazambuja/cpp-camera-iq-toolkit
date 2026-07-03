@@ -31,7 +31,11 @@ metric.
   noise and must not be used as PTC/read-noise evidence.
 - `oecf_candidate` is only a readiness flag. It requires all selected frames to
   read successfully, at least three shutter points, and at least three usable
-  points whose max mean signal is below 98% of the black-subtracted white range.
+  points. A usable point must have positive signal above black, max mean signal
+  below 98% of the black-subtracted white range, and less than 1% saturated
+  pixels. The lower bound prevents at/below-black frames from being counted as
+  usable just because they are far from white; the saturation veto catches
+  non-uniform highlight clipping that a spatial mean can hide.
 - Readable frames must also share EXIF make/model/CFA/ISO/aperture controls;
   shutter is the intended varying field.
 - `ptc_candidate` remains false. Photon-transfer/read-noise validation needs
@@ -64,7 +68,9 @@ Result summary:
 | Last point headroom metric | 0.999870 |
 
 This run is the important negative control: the ladder is reported, but the
-near-white plateau is not promoted as OECF-candidate-ready.
+near-white plateau is not promoted as OECF-candidate-ready. The same readiness
+gate also rejects at/below-black points and heavily clipped points, covered by
+synthetic tests.
 
 ### Accepted non-uniform f8 response ladder
 
