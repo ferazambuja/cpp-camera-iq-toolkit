@@ -189,5 +189,7 @@ Targeted local checks during implementation:
 - No ISO 14524 OECF fit or conformance result.
 - No PTC, temporal noise, read noise, DSNU, PRNU, or dynamic-range result.
 - No claim that full-frame spatial stddev is a noise metric.
-- No dark-frame-vs-metadata black reconciliation yet.
+- CLRS-589 dark-frame-vs-metadata black reconciliation now exists in
+  `DARK_CALIBRATION.md`; this exposure-response slice still does not
+  compute dark-current, temporal-noise, PTC, or dynamic-range metrics.
 - No automatic chart/patch detection or color-reference pairing yet.

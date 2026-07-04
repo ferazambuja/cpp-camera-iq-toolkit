@@ -50,6 +50,11 @@ ctest --test-dir build --output-on-failure
   "Images/CCSG/CCSG_f9.0_1:100_ISO200_DSCF0299.RAF" \
   --out out/demosaic.json
 
+# Reconcile metadata black against measured dark frames:
+./build/camera_iq dark-calibration clrs589_project_camera \
+  --subdir "Images/Dark Frame" \
+  --out out/dark-calibration.json
+
 # Group black-subtracted CFA stats by detected exposure series:
 #   this is a readiness/response summary, not a final ISO OECF/PTC metric.
 ./build/camera_iq exposure-response clrs589_project_camera --series-min 3 \
@@ -60,9 +65,9 @@ ctest --test-dir build --output-on-failure
 ./build/camera_iq manifest data/samples/manifest_fixture --no-exif
 ```
 
-Implemented commands: `manifest`, `raw-stats`, `demosaic`, and
-`exposure-response`. Evidence reports for completed phases live under
-[docs/reports/](docs/reports/).
+Implemented commands: `manifest`, `raw-stats`, `demosaic`,
+`dark-calibration`, and `exposure-response`. Evidence reports for completed
+phases live under [docs/reports/](docs/reports/).
 
 ## Data
 

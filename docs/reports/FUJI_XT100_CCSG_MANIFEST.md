@@ -185,9 +185,12 @@ Completed follow-on slices now cover:
 - Active-area-local `cblack` tile handling, matching LibRaw's black subtraction
   convention.
 - First hand-written bilinear demosaic summary command.
+- Dark-frame-vs-metadata black reconciliation for the CLRS-589 X-T100 dark
+  folder: 20/21 candidates agree with the 1024 DN pedestal within 2 DN, with one
+  outlier preserved for provenance review.
 - Exposure-response readiness grouping with conservative OECF candidate gates.
 
 Remaining objective-IQ work starts from the exposure-response candidates and
-still needs measured black reconciliation, chart/patch selection beyond manual
-ROI coordinates, OECF fitting, PTC/read-noise handling, and color-reference
+still needs chart/patch selection beyond manual ROI coordinates, OECF fitting,
+dark-current/noise modeling, PTC/read-noise handling, and color-reference
 pairing before any final camera-IQ metric is claimed.

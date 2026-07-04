@@ -42,10 +42,12 @@ add_library(camera_iq_core STATIC
   src/cfa_stats.cpp
   src/roi.cpp
   src/demosaic.cpp
+  src/dark_calibration.cpp
   src/exposure_response.cpp
   src/cmd_manifest.cpp
   src/cmd_raw_stats.cpp
   src/cmd_demosaic.cpp
+  src/cmd_dark_calibration.cpp
   src/cmd_exposure_response.cpp)
 target_include_directories(camera_iq_core PUBLIC include)
 target_compile_definitions(camera_iq_core PUBLIC
@@ -76,6 +78,7 @@ camera_iq_add_test(test_manifest_json tests/test_manifest_json.cpp)
 camera_iq_add_test(test_cfa_stats tests/test_cfa_stats.cpp)
 camera_iq_add_test(test_roi tests/test_roi.cpp)
 camera_iq_add_test(test_demosaic tests/test_demosaic.cpp)
+camera_iq_add_test(test_dark_calibration tests/test_dark_calibration.cpp)
 camera_iq_add_test(test_exposure_response tests/test_exposure_response.cpp)
 
 add_test(NAME check_public_paths

@@ -26,12 +26,11 @@ This slice adds the first hand-written demosaic:
   reports 0 for the X-T100. This slice instead reads the LibRaw `cblack` **tile**
   via `effective_black_levels()`, which correctly recovers the ~1024 DN pedestal
   the scalar hides (Fuji matches the Evidence dark-frame mean of 1023.99). This is
-  adequate for a DN-space demosaic preview but is *not* a substitute for measured
-  dark-frame black in the objective-IQ phases: the Nikon D800 above reports black
-  `[0,0,0,0]`, which is not yet confirmed to be a true zero pedestal versus a
-  LibRaw under-report. A dark-frame-vs-metadata black cross-check is a
-  prerequisite for the OECF / noise / dynamic-range work, where black error maps
-  directly into the result.
+  adequate for a DN-space demosaic preview, and the later dark-calibration slice
+  reconciles it against the CLRS-589 X-T100 dark frames. It is still not a
+  substitute for camera-by-camera dark-current/noise modeling: the Nikon D800
+  above reports black `[0,0,0,0]`, which is not validated by this CLRS-only dark
+  reconciliation.
 - Demosaic operates in sensor DN residual space. There is no white balance,
   color matrix, gamma, exposure scaling, clipping, or output color-space
   conversion.
@@ -174,7 +173,7 @@ ctest --test-dir build --output-on-failure
 ```
 
 Current repository gate after later Evidence and data-privacy hardening:
-14/14 CTest tests passed, including public-path and sample-fixture guards.
+15/15 CTest tests passed, including public-path and sample-fixture guards.
 
 ## Not Claimed
 
@@ -189,6 +188,6 @@ Current repository gate after later Evidence and data-privacy hardening:
   (~872 MB for a 36 MP Nikon frame, plus the CFA sample copy) only to emit
   three channel summaries. Acceptable one-shot; the batch runner in a later
   phase should stream per-pixel statistics instead of holding the full image.
-- **Black-level provenance.** See "Scientific Handling" — metadata `cblack`
-  tile is used here; measured dark-frame black must be reconciled before the
-  objective-IQ (OECF / noise / DR) phases rely on it.
+- **Black-level provenance.** See `DARK_CALIBRATION.md` for the CLRS-589
+  dark-frame reconciliation. Camera-by-camera dark-current/noise modeling still
+  belongs to later objective-IQ phases.
