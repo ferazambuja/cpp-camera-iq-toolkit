@@ -18,8 +18,10 @@ This slice adds the first objective-IQ series layer:
 - Optionally restrict the response summary to a CFA-balanced active-area ROI
   with `--roi x,y,width,height`.
 
-This is not a final OECF fit, PTC, read-noise, dynamic-range, or ISO conformance
-metric.
+This report is the readiness layer, not a final OECF, PTC, read-noise,
+dynamic-range, or ISO conformance metric. A later slice adds a relative-exposure
+linearity fit in `OECF_FIT.md`, still explicitly outside ISO 14524
+conformance.
 
 ## Scientific Handling
 
@@ -42,12 +44,13 @@ metric.
   detection exists. It is **not** an ISO uniformity/conformance threshold.
 - `oecf_candidate` is only a readiness flag. It requires all selected frames to
   read successfully, at least three shutter points, and at least three usable
-  points. A usable point must have positive signal above black, max mean signal
-  below 98% of the black-subtracted white range, and less than 1% saturated
-  pixels, and must pass the ROI uniformity gate when measured over an ROI. The
-  lower bound prevents at/below-black frames from being counted as usable just
-  because they are far from white; the saturation veto catches non-uniform
-  highlight clipping that a spatial mean can hide.
+  points. A usable point must have positive mean signal above black in every
+  CFA plane, max mean signal below 98% of the black-subtracted white range, and
+  less than 1% saturated pixels, and must pass the ROI uniformity gate when
+  measured over an ROI. The lower bound prevents any at/below-black CFA plane
+  from being counted as usable just because another plane is above black; the
+  saturation veto catches non-uniform highlight clipping that a spatial mean can
+  hide.
 - Readable frames must also share EXIF make/model/CFA/ISO/aperture controls;
   shutter is the intended varying field.
 - `ptc_candidate` remains false. Photon-transfer/read-noise validation needs
@@ -140,9 +143,9 @@ Result summary:
 | ROI uniformity checked | true |
 | Max ROI stddev / range | 0.021073 |
 
-This proves the ROI plumbing and provenance path on real RAFs. It is still not
-an OECF fit: the ROI is a manual active-area rectangle, not an identified chart
-patch or measured reflectance target.
+This proves the ROI plumbing and provenance path on real RAFs. It is still only
+a manually selected active-area rectangle, not an identified chart patch or
+measured reflectance target.
 
 ### Nikon D800 archive parse check
 
@@ -186,7 +189,8 @@ Targeted local checks during implementation:
 
 ## Not Claimed
 
-- No ISO 14524 OECF fit or conformance result.
+- No ISO 14524 OECF conformance result. The first non-ISO relative-exposure
+  linearity fit is reported separately in `OECF_FIT.md`.
 - No PTC, temporal noise, read noise, DSNU, PRNU, or dynamic-range result.
 - No claim that full-frame spatial stddev is a noise metric.
 - CLRS-589 dark-frame-vs-metadata black reconciliation now exists in

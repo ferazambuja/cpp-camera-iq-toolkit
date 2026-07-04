@@ -44,11 +44,13 @@ add_library(camera_iq_core STATIC
   src/demosaic.cpp
   src/dark_calibration.cpp
   src/exposure_response.cpp
+  src/oecf_fit.cpp
   src/cmd_manifest.cpp
   src/cmd_raw_stats.cpp
   src/cmd_demosaic.cpp
   src/cmd_dark_calibration.cpp
-  src/cmd_exposure_response.cpp)
+  src/cmd_exposure_response.cpp
+  src/cmd_oecf_fit.cpp)
 target_include_directories(camera_iq_core PUBLIC include)
 target_compile_definitions(camera_iq_core PUBLIC
   CAMERA_IQ_VERSION="${PROJECT_VERSION}")
@@ -80,6 +82,7 @@ camera_iq_add_test(test_roi tests/test_roi.cpp)
 camera_iq_add_test(test_demosaic tests/test_demosaic.cpp)
 camera_iq_add_test(test_dark_calibration tests/test_dark_calibration.cpp)
 camera_iq_add_test(test_exposure_response tests/test_exposure_response.cpp)
+camera_iq_add_test(test_oecf_fit tests/test_oecf_fit.cpp)
 
 add_test(NAME check_public_paths
   COMMAND bash ${CMAKE_SOURCE_DIR}/tools/check_public_paths.sh)

@@ -48,14 +48,17 @@ void recompute_point_averages(ExposureResponsePoint& point) {
   point.mean_signal_by_plane = {0, 0, 0, 0};
   point.mean_spatial_stddev_by_plane = {0, 0, 0, 0};
   point.has_valid_signal_range = false;
+  point.min_mean_fraction_of_range = 0;
   point.max_mean_fraction_of_range = 0;
   point.max_saturated_fraction = 0;
+  point.usable_oecf = false;
   point.roi_uniformity_checked = false;
   point.roi_uniform = true;
   point.max_spatial_stddev_fraction_of_range = 0;
   if (point.frames.empty()) return;
 
   bool all_frames_have_roi = true;
+  bool have_fraction = false;
   for (const auto& frame : point.frames) {
     all_frames_have_roi =
         all_frames_have_roi && frame.measurement_roi.has_value();
@@ -66,9 +69,17 @@ void recompute_point_averages(ExposureResponsePoint& point) {
           point.max_saturated_fraction, frame.planes[i].saturated_fraction);
       const double range = frame.white_level - frame.black_per_channel[i];
       if (range > 0) {
+        const double mean_fraction = frame.planes[i].mean / range;
         point.has_valid_signal_range = true;
+        if (!have_fraction) {
+          point.min_mean_fraction_of_range = mean_fraction;
+          have_fraction = true;
+        } else {
+          point.min_mean_fraction_of_range = std::min(
+              point.min_mean_fraction_of_range, mean_fraction);
+        }
         point.max_mean_fraction_of_range = std::max(
-            point.max_mean_fraction_of_range, frame.planes[i].mean / range);
+            point.max_mean_fraction_of_range, mean_fraction);
         if (frame.measurement_roi) {
           point.max_spatial_stddev_fraction_of_range = std::max(
               point.max_spatial_stddev_fraction_of_range,
@@ -196,15 +207,18 @@ ExposureResponseSummary summarize_exposure_response(
   for (auto& [shutter, point] : points_by_shutter) {
     (void)shutter;
     recompute_point_averages(point);
-    // Usable = real signal above black (fraction > 0), below the near-white
-    // plateau, and below the per-pixel clipping tolerance. The lower bound is
-    // what makes the flag conservative at the dark end: a point at or below
-    // black carries no OECF information and must not be counted.
-    if (point.has_valid_signal_range &&
-        point.max_mean_fraction_of_range > 0.0 &&
+    // Usable = every CFA plane has real signal above black, the brightest plane
+    // remains below the near-white plateau, and the frame stays below the
+    // per-pixel clipping tolerance. The lower bound is what makes the flag
+    // conservative at the dark end: if any plane is at or below black, that
+    // plane carries no OECF information and the shutter point must not be
+    // counted.
+    point.usable_oecf = point.has_valid_signal_range &&
+        point.min_mean_fraction_of_range > 0.0 &&
         point.max_mean_fraction_of_range < kOecfNearWhiteMeanFraction &&
         point.max_saturated_fraction < kOecfMaxSaturatedFraction &&
-        (!point.roi_uniformity_checked || point.roi_uniform)) {
+        (!point.roi_uniformity_checked || point.roi_uniform);
+    if (point.usable_oecf) {
       ++summary.usable_oecf_points;
     }
     summary.points.push_back(std::move(point));
@@ -305,10 +319,14 @@ void write_exposure_response_json(
       write_double_array(w, p.mean_spatial_stddev_by_plane);
       w.key("has_valid_signal_range");
       w.value(p.has_valid_signal_range);
+      w.key("min_mean_fraction_of_range");
+      w.value(p.min_mean_fraction_of_range);
       w.key("max_mean_fraction_of_range");
       w.value(p.max_mean_fraction_of_range);
       w.key("max_saturated_fraction");
       w.value(p.max_saturated_fraction);
+      w.key("usable_oecf");
+      w.value(p.usable_oecf);
       w.key("roi_uniformity_checked");
       w.value(p.roi_uniformity_checked);
       w.key("roi_uniform");

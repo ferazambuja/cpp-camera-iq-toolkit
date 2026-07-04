@@ -30,6 +30,8 @@ void print_usage() {
       "              Reconcile metadata black against measured dark frames\n"
       "  exposure-response\n"
       "              Black-subtracted CFA summaries grouped by exposure series\n"
+      "  oecf-fit\n"
+      "              Relative-exposure linearity fit over usable OECF points\n"
       "\n"
       "Commands (planned):\n"
       "  patches     Extract ColorChecker patch statistics\n"
@@ -71,6 +73,9 @@ int run(int argc, char** argv) {
   }
   if (arg == "exposure-response") {
     return cmd_exposure_response(argc - 2, argv + 2);
+  }
+  if (arg == "oecf-fit") {
+    return cmd_oecf_fit(argc - 2, argv + 2);
   }
 
   std::cerr << "camera_iq: command '" << arg

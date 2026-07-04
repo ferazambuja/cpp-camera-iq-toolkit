@@ -113,6 +113,7 @@ void TESTS() {
                "duplicate shutter mean averaged");
     check_near(summary.points[2].mean_spatial_stddev_by_plane[3], 0.8, 1e-12,
                "per-plane spatial stddev averaged, not called temporal noise");
+    check(summary.points[0].usable_oecf, "point records usable OECF gate");
   }
 
   const std::map<std::string, RawCfaReport> missing_one = {
@@ -160,6 +161,21 @@ void TESTS() {
         "below-black frames are not usable OECF points");
   check(!dark.oecf_candidate, "below-black ladder is not candidate-ready");
 
+  // Per-plane lower-bound guard: a point where only some planes are above black
+  // is not usable for a per-CFA-plane OECF fit.
+  const std::map<std::string, RawCfaReport> mixed_dark_reports = {
+      {"Sphere_f8.0_1:100_DSCF0001.RAF", report(-3, 100, 100, 100)},
+      {"Sphere_f8.0_1:50_DSCF0002.RAF", report(-3, 200, 200, 200)},
+      {"Sphere_f8.0_1:25_DSCF0003.RAF", report(-3, 400, 400, 400)},
+      {"Sphere_f8.0_1:25_DSCF0004.RAF", report(-3, 420, 420, 420)},
+  };
+  const auto mixed_dark =
+      summarize_exposure_response(series, entries, mixed_dark_reports);
+  check(mixed_dark.usable_oecf_points == 0,
+        "any below-black CFA plane rejects an OECF point");
+  check(!mixed_dark.oecf_candidate,
+        "mixed below-black ladder is not candidate-ready");
+
   // Clipping veto: mid-range mean would pass the near-white proxy, but heavy
   // measured saturation must reject the point (non-uniform highlight clipping).
   const std::map<std::string, RawCfaReport> clipped_by_fraction = {
@@ -189,6 +205,10 @@ void TESTS() {
   check(contains(doc, "\"usable_oecf_points\":3"), "json usable point count");
   check(contains(doc, "\"max_mean_fraction_of_range\""),
         "json range headroom metric");
+  check(contains(doc, "\"min_mean_fraction_of_range\""),
+        "json lower-bound signal metric");
+  check(contains(doc, "\"usable_oecf\":true"),
+        "json records per-point usable OECF gate");
   check(contains(doc, "\"missing_reports\":1"), "json missing count");
   check(contains(doc, "\"roi_uniformity_checked\":false"),
         "json records full-frame ROI uniformity not checked");

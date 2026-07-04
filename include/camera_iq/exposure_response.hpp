@@ -37,8 +37,10 @@ struct ExposureResponsePoint {
   std::array<double, 4> mean_signal_by_plane{0, 0, 0, 0};
   std::array<double, 4> mean_spatial_stddev_by_plane{0, 0, 0, 0};
   bool has_valid_signal_range = false;
+  double min_mean_fraction_of_range = 0;
   double max_mean_fraction_of_range = 0;
   double max_saturated_fraction = 0;
+  bool usable_oecf = false;
   // ROI-only readiness fields. Null in JSON when no ROI was measured.
   bool roi_uniformity_checked = false;
   bool roi_uniform = true;

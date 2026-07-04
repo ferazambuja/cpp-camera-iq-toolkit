@@ -61,13 +61,20 @@ ctest --test-dir build --output-on-failure
   --roi 1000,1000,500,500 \
   --out out/exposure-response.json
 
+# Fit relative-exposure sensor linearity over usable OECF points:
+#   this is not ISO 14524 conformance and does not compute PTC/noise/DR.
+./build/camera_iq oecf-fit clrs589_project_camera --series-min 3 \
+  --subdir "Images/Non_Unifform_f8" --series-limit 1 \
+  --roi 1000,1000,500,500 \
+  --out out/oecf-fit.json
+
 # Public no-private-data demo:
 ./build/camera_iq manifest data/samples/manifest_fixture --no-exif
 ```
 
 Implemented commands: `manifest`, `raw-stats`, `demosaic`,
-`dark-calibration`, and `exposure-response`. Evidence reports for completed
-phases live under [docs/reports/](docs/reports/).
+`dark-calibration`, `exposure-response`, and `oecf-fit`. Evidence reports for
+completed phases live under [docs/reports/](docs/reports/).
 
 ## Data
 

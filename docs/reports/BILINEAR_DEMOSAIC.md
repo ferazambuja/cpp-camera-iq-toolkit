@@ -173,7 +173,7 @@ ctest --test-dir build --output-on-failure
 ```
 
 Current repository gate after later Evidence and data-privacy hardening:
-15/15 CTest tests passed, including public-path and sample-fixture guards.
+16/16 CTest tests passed, including public-path and sample-fixture guards.
 
 ## Not Claimed
 

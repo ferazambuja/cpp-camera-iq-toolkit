@@ -26,6 +26,12 @@ int main() {
           "dark-calibration command is routed");
   }
   {
+    const char* args[] = {"camera_iq", "oecf-fit",
+                          "/definitely/not/a/camera_iq/dataset"};
+    check(camera_iq::run(3, const_cast<char**>(args)) == 1,
+          "oecf-fit command is routed");
+  }
+  {
     const char* args[] = {"camera_iq", "dark-calibration",
                           "/definitely/not/a/camera_iq/dataset",
                           "--residual-tolerance", "bad"};

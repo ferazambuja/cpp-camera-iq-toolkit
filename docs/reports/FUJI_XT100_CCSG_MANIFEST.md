@@ -189,8 +189,9 @@ Completed follow-on slices now cover:
   folder: 20/21 candidates agree with the 1024 DN pedestal within 2 DN, with one
   outlier preserved for provenance review.
 - Exposure-response readiness grouping with conservative OECF candidate gates.
+- First relative-exposure OECF linearity fit over usable ROI response points.
 
 Remaining objective-IQ work starts from the exposure-response candidates and
-still needs chart/patch selection beyond manual ROI coordinates, OECF fitting,
-dark-current/noise modeling, PTC/read-noise handling, and color-reference
-pairing before any final camera-IQ metric is claimed.
+still needs chart/patch selection beyond manual ROI coordinates, ISO 14524
+OECF conformance work, dark-current/noise modeling, PTC/read-noise handling,
+and color-reference pairing before any final camera-IQ metric is claimed.
