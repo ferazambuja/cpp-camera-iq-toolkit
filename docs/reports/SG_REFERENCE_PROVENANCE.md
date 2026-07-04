@@ -41,7 +41,7 @@ Build pipeline confirmed by `Old/load_all.m` + `PRD measurments/create_single_fi
 
 | Claim | Method | Result |
 |---|---|---|
-| All measured spectra are neutral | chromaticity (x,y) of all 134 `.mat` | max chroma radius **0.011** (ramp) / **0.004** (PRD); Y varies 163→679 on ramp → grayscale, not color |
+| All measured spectra are neutral | chromaticity (x,y) of all 150 `.mat` (134 raw `measurements` structs + 16 legacy averaged in `Old/Old code/`) | max chroma radius **0.011** (ramp) / **0.004** (PRD); averaged rows Y 166→679, raw trials Y 131→679, x,y ≈ const → grayscale, not color |
 | Reference XYZ is a derived view of the SPD | recompute `683.017·∫ SPD·CMF₂°·2nm` | scale k = **683.017** across all 16 rows × 3 channels, **zero variance** (683 = Km) |
 | Ramp rows 1–15 = trial averages | mean of `patch_Ntrail_M.mat` XYZ vs xlsx | max\|Δ\| ≈ **4e-13** every row |
 | Row 16 = mean(prd_1, prd_2), not a chart patch | mean of `prd_{1,2}.mat` XYZ vs xlsx row 16 | max\|Δ\| = **4.55e-13**; no `patch_16*` file exists |
@@ -83,8 +83,14 @@ unit, white_reference }`. No hardcoded reference table.
   gate manufacturer-patch pairing on a **proven** row order (cross-check against
   the RawDigger export's A1… labels, chart-orientation evidence, or a saved
   mapping file) before computing any per-cell ΔE.
-- **White point** from the PRD readings and/or the `Sphere` illuminant SPD;
-  needed to normalize absolute radiance to relative colorimetry / Lab.
+- **White point — condition-matched only.** The PRD is the standard reflectance
+  reference, but the local PRD readings sit at ~5510 K (numbered/copy) / ~5612 K
+  (`Old/prd`) while the ramp is ~5984 K — different illuminant conditions. Do not
+  treat "PRD = white point" blindly. The white point for the SG camera color
+  slice must come from the illuminant **under the same capture condition** —
+  prefer the `Sphere` illuminant SPD (the flat-field/vignetting source actually
+  used on the CCSG capture) or a proven neutral/white measured under that
+  condition. Use PRD only when paired to a matching condition.
 - **Neutral validation (buildable now):** the 15-step ramp is an
   instrument-traceable **grayscale tone / neutrality** anchor — usable for OECF /
   white-balance / gray-axis ΔE without any colored reference.
