@@ -73,6 +73,8 @@ DarkCalibrationSummary summarize_dark_calibration(
         frame.max_abs_mean_residual <= summary.residual_tolerance_dn;
     if (frame.within_residual_tolerance) {
       ++summary.frames_within_tolerance;
+      add_arrays(summary.mean_in_tolerance_metadata_black_by_plane,
+                 frame.metadata_black_by_plane);
       add_arrays(summary.mean_in_tolerance_residual_by_plane,
                  frame.mean_residual_by_plane);
       add_arrays(summary.mean_in_tolerance_measured_dark_raw_by_plane,
@@ -101,13 +103,26 @@ DarkCalibrationSummary summarize_dark_calibration(
   divide_array(summary.mean_spatial_stddev_by_plane, readable);
   const double in_tolerance =
       static_cast<double>(summary.frames_within_tolerance);
+  divide_array(summary.mean_in_tolerance_metadata_black_by_plane, in_tolerance);
   divide_array(summary.mean_in_tolerance_residual_by_plane, in_tolerance);
   divide_array(summary.mean_in_tolerance_measured_dark_raw_by_plane,
                in_tolerance);
 
-  summary.metadata_black_consistent_with_dark =
+  summary.all_dark_frames_within_tolerance =
       summary.readable_frames > 0 && summary.missing_reports == 0 &&
       summary.outlier_frames == 0;
+  summary.in_tolerance_supports_metadata_black =
+      summary.frames_within_tolerance > 0;
+  for (std::size_t i = 0;
+       i < summary.mean_in_tolerance_metadata_black_by_plane.size(); ++i) {
+    const double delta = std::abs(
+        summary.mean_in_tolerance_measured_dark_raw_by_plane[i] -
+        summary.mean_in_tolerance_metadata_black_by_plane[i]);
+    if (delta > summary.residual_tolerance_dn) {
+      summary.in_tolerance_supports_metadata_black = false;
+      break;
+    }
+  }
 
   if (summary.missing_reports != 0) {
     summary.limitations.push_back(
@@ -147,8 +162,10 @@ void write_dark_calibration_json(std::ostream& os, std::string_view root_label,
   w.value(static_cast<std::int64_t>(summary.missing_reports));
   w.key("residual_tolerance_dn");
   w.value(summary.residual_tolerance_dn);
-  w.key("metadata_black_consistent_with_dark");
-  w.value(summary.metadata_black_consistent_with_dark);
+  w.key("all_dark_frames_within_tolerance");
+  w.value(summary.all_dark_frames_within_tolerance);
+  w.key("in_tolerance_supports_metadata_black");
+  w.value(summary.in_tolerance_supports_metadata_black);
   w.key("max_abs_mean_residual");
   w.value(summary.max_abs_mean_residual);
   w.key("mean_metadata_black_by_plane");
@@ -159,6 +176,8 @@ void write_dark_calibration_json(std::ostream& os, std::string_view root_label,
   write_double_array(w, summary.mean_measured_dark_raw_by_plane);
   w.key("mean_spatial_stddev_by_plane");
   write_double_array(w, summary.mean_spatial_stddev_by_plane);
+  w.key("mean_in_tolerance_metadata_black_by_plane");
+  write_double_array(w, summary.mean_in_tolerance_metadata_black_by_plane);
   w.key("mean_in_tolerance_residual_by_plane");
   write_double_array(w, summary.mean_in_tolerance_residual_by_plane);
   w.key("mean_in_tolerance_measured_dark_raw_by_plane");

@@ -37,10 +37,12 @@ struct DarkCalibrationSummary {
   std::array<double, 4> mean_residual_by_plane{0, 0, 0, 0};
   std::array<double, 4> mean_measured_dark_raw_by_plane{0, 0, 0, 0};
   std::array<double, 4> mean_spatial_stddev_by_plane{0, 0, 0, 0};
+  std::array<double, 4> mean_in_tolerance_metadata_black_by_plane{0, 0, 0, 0};
   std::array<double, 4> mean_in_tolerance_residual_by_plane{0, 0, 0, 0};
   std::array<double, 4> mean_in_tolerance_measured_dark_raw_by_plane{0, 0, 0, 0};
   double max_abs_mean_residual = 0.0;
-  bool metadata_black_consistent_with_dark = false;
+  bool all_dark_frames_within_tolerance = false;
+  bool in_tolerance_supports_metadata_black = false;
   std::vector<std::string> limitations;
 };
 

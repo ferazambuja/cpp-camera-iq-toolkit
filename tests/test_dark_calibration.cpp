@@ -77,8 +77,10 @@ void TESTS() {
         "small-residual frames are counted within tolerance");
   check(summary.outlier_frames == 0, "small-residual frames are not outliers");
   check(summary.missing_reports == 1, "missing report counted");
-  check(!summary.metadata_black_consistent_with_dark,
-        "missing reports prevent set-level consistency");
+  check(!summary.all_dark_frames_within_tolerance,
+        "missing reports prevent strict all-frame pass");
+  check(summary.in_tolerance_supports_metadata_black,
+        "readable in-tolerance consensus can still support metadata black");
   check_near(summary.mean_residual_by_plane[0], 0.0, 1e-12,
              "mean R residual averages signed values");
   check_near(summary.mean_residual_by_plane[1], 0.25, 1e-12,
@@ -105,8 +107,10 @@ void TESTS() {
   };
   const DarkCalibrationSummary biased =
       summarize_dark_calibration(entries, biased_reports, 2.0);
-  check(!biased.metadata_black_consistent_with_dark,
-        "large dark residuals fail metadata-black reconciliation");
+  check(!biased.all_dark_frames_within_tolerance,
+        "large dark residuals fail strict all-frame pass");
+  check(!biased.in_tolerance_supports_metadata_black,
+        "no in-tolerance frames cannot support metadata black");
   check(biased.frames_within_tolerance == 0,
         "large-residual frames are excluded from tolerance count");
   check(biased.outlier_frames == 3, "large-residual frames are counted outliers");
@@ -121,18 +125,39 @@ void TESTS() {
   };
   const DarkCalibrationSummary complete =
       summarize_dark_calibration(complete_entries, reports, 2.0);
-  check(complete.metadata_black_consistent_with_dark,
-        "complete small-residual set is consistent with metadata black");
+  check(complete.all_dark_frames_within_tolerance,
+        "complete small-residual set passes strict all-frame flag");
+  check(complete.in_tolerance_supports_metadata_black,
+        "complete small-residual set supports metadata black");
+
+  const std::map<std::string, RawCfaReport> outlier_reports = {
+      {"Dark_Frame_f8.0_1:60_ISO200_DSCF0269.RAF",
+       dark_report({0.1, 0.2, 0.2, 0.1})},
+      {"Dark_Frame_f8.0_1:125_ISO200_DSCF0272.RAF",
+       dark_report({0.0, 0.2, 0.2, 0.1})},
+      {"Dark_Frame_f8.0_1:250_ISO200_DSCF0273.RAF",
+       dark_report({40, 80, 80, 50})},
+  };
+  const DarkCalibrationSummary one_outlier =
+      summarize_dark_calibration(entries, outlier_reports, 2.0);
+  check(!one_outlier.all_dark_frames_within_tolerance,
+        "one outlier fails strict all-frame flag");
+  check(one_outlier.in_tolerance_supports_metadata_black,
+        "in-tolerance consensus supports metadata black despite one outlier");
 
   std::ostringstream json;
   write_dark_calibration_json(json, "dataset:fixture/Images/Dark Frame",
-                              complete);
+                              one_outlier);
   const std::string doc = json.str();
   check(contains(doc, "\"mode\":\"dark-calibration\""), "json mode");
   check(contains(doc, "\"root\":\"dataset:fixture/Images/Dark Frame\""),
         "json uses dataset label");
-  check(contains(doc, "\"metadata_black_consistent_with_dark\":true"),
-        "json consistency flag");
+  check(contains(doc, "\"all_dark_frames_within_tolerance\":false"),
+        "json strict all-frame flag");
+  check(contains(doc, "\"in_tolerance_supports_metadata_black\":true"),
+        "json consensus support flag");
+  check(!contains(doc, "\"metadata_black_consistent_with_dark\""),
+        "json removes ambiguous old flag");
   check(contains(doc, "\"frames_within_tolerance\":2"),
         "json tolerance count");
   check(contains(doc, "\"mean_measured_dark_raw_by_plane\""),
