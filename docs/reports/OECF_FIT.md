@@ -34,6 +34,10 @@ dynamic-range, reflectance, or color accuracy analysis.
 - Relative exposure is anchored at the fastest usable shutter in the selected
   series. The fit intercept is left free and reported as a black-subtraction
   sanity check; it is not forced to zero.
+- The fit assumes constant illumination and scene radiance across the selected
+  shutter ladder. The tool cannot verify light-source stability; illumination
+  drift is mathematically indistinguishable from sensor nonlinearity in this
+  relative fit.
 - `max_nonlinearity_pct` is `max(abs(residual)) / fitted_signal_range * 100`
   over the usable fit points for that plane.
 - The JSON carries both `oecf_candidate` from the readiness layer and
@@ -45,38 +49,41 @@ dynamic-range, reflectance, or color accuracy analysis.
 ```bash
 ./build/camera_iq oecf-fit \
   clrs589_project_camera \
-  --subdir "Images/Non_Unifform_f8" \
-  --series-min 3 --series-limit 1 \
+  --subdir "Images/Sphere" \
+  --series-min 3 --series-limit 3 \
   --roi 1000,1000,500,500 \
-  --out out/nonuniform_f8_roi_oecf_fit.json
+  --out out/sphere_roi_oecf_fit.json
 ```
 
 Result summary:
 
 | Field | Value |
 |---|---:|
-| Series | Non_unifform, f8 |
-| Readable frames | 16 / 16 |
-| Usable OECF points | 16 |
+| Series | Sphere, f8 |
+| Readable frames | 21 / 21 |
+| Usable OECF points | 4 |
 | EXIF consistent | true |
 | OECF candidate | true |
 | Fit candidate | true |
-| Relative exposure span | 1.0 to 76.9231 |
+| Relative exposure span | 1.0 to 4.0 |
 
 Per-plane fit:
 
 | Channel | Slope | Intercept | R-squared | Max nonlinearity |
 |---|---:|---:|---:|---:|
-| R | 42.8188 | -3.5021 | 0.999669 | 1.4700% |
-| G1 | 77.6469 | -6.5990 | 0.999677 | 1.4758% |
-| G2 | 77.7836 | -6.5474 | 0.999673 | 1.4855% |
-| B | 47.9627 | -3.7047 | 0.999672 | 1.4781% |
+| R | 1964.8393 | 137.0960 | 0.999785 | 0.9337% |
+| G1 | 3613.0653 | 279.1564 | 0.999739 | 1.0293% |
+| G2 | 3618.2810 | 280.4354 | 0.999736 | 1.0362% |
+| B | 1948.4849 | 137.7033 | 0.999849 | 0.7237% |
 
 The free intercepts sit near zero relative to the full fitted signal span, which
 is a useful sanity check for the 1024 DN black subtraction. The high R-squared
 and low percent residuals are a relative-linearity result for this manually
-selected ROI only. They are not an ISO OECF result because the ROI is not an
-identified standard chart patch with reflectance/illumination controls.
+selected sphere ROI only. The same run keeps the f5.6 and f9 sphere series out
+of the fit because they have zero usable points after the readiness gates. This
+is still not an ISO OECF result because the ROI is not an identified standard
+chart patch with reflectance/illumination controls, and the tool does not
+independently prove illumination stability.
 
 ## Validation
 
@@ -103,4 +110,5 @@ Targeted checks:
 - No PTC, temporal noise, read noise, DSNU, PRNU, dark-current, or dynamic-range
   metric.
 - No automatic chart/patch detection or reflectance pairing.
+- No independent illumination-stability validation.
 - No colorimetric or perceptual image-quality claim.

@@ -262,5 +262,7 @@ void TESTS() {
           "json headline linearity metric");
     check(contains(doc, "\"r_squared\""), "json r squared metric");
     check(contains(doc, "not ISO 14524"), "json non-ISO limitation");
+    check(contains(doc, "constant illumination"),
+          "json records constant-illumination assumption");
   }
 }

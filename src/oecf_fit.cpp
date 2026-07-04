@@ -21,6 +21,10 @@ void add_standard_limitations(std::vector<std::string>& limitations) {
   limitations.push_back(
       "PTC/read-noise/dynamic-range not computed: this fit uses per-shutter "
       "mean signal only, not temporal variance or dark-current modeling.");
+  limitations.push_back(
+      "constant illumination is assumed: relative exposure is computed from "
+      "shutter ratio, so drifting light or scene radiance changes are "
+      "confounded with sensor nonlinearity.");
 }
 
 std::string plane_label(const ExposureResponsePoint& point,

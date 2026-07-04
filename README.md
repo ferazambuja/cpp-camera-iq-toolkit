@@ -62,9 +62,9 @@ ctest --test-dir build --output-on-failure
   --out out/exposure-response.json
 
 # Fit relative-exposure sensor linearity over usable OECF points:
-#   this is not ISO 14524 conformance and does not compute PTC/noise/DR.
+#   assumes constant illumination; not ISO 14524; no PTC/noise/DR.
 ./build/camera_iq oecf-fit clrs589_project_camera --series-min 3 \
-  --subdir "Images/Non_Unifform_f8" --series-limit 1 \
+  --subdir "Images/Sphere" --series-limit 3 \
   --roi 1000,1000,500,500 \
   --out out/oecf-fit.json
 
