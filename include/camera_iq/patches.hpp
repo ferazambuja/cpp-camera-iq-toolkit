@@ -4,6 +4,7 @@
 #include <cstddef>
 #include <filesystem>
 #include <iosfwd>
+#include <optional>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -12,6 +13,8 @@
 #include "camera_iq/demosaic.hpp"
 
 namespace camera_iq {
+
+struct RawMeta;
 
 struct PatchCoord {
   double x = 0;
@@ -108,5 +111,19 @@ PatchComparison compare_patch_means_to_rgb(
 
 void write_camera_rgb_csv(std::ostream& os,
                           const std::vector<PatchMean>& patches);
+
+std::string_view flat_field_normalization_policy();
+double flat_field_near_ceiling_threshold_fraction();
+
+void write_patch_report_json(
+    std::ostream& os, std::string_view file_label,
+    std::string_view coords_label, std::string_view coordinate_source_format,
+    const RawMeta& meta, int width, int height, std::string_view flat_label,
+    const std::optional<FlatFieldCorrectionSummary>& flat,
+    const std::optional<WhiteBalanceGains>& wb, std::string_view wb_policy,
+    const std::vector<PatchMean>& patches,
+    const std::vector<std::string>& sample_names,
+    const std::optional<PatchComparison>& comparison,
+    std::string_view reference_label);
 
 }  // namespace camera_iq

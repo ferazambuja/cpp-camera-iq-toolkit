@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstdint>
 #include <fstream>
 #include <iomanip>
 #include <map>
@@ -11,8 +12,15 @@
 #include <string_view>
 #include <vector>
 
+#include "camera_iq/json_writer.hpp"
+#include "camera_iq/raw_meta.hpp"
+
 namespace camera_iq {
 namespace {
+
+constexpr std::string_view kFlatFieldNormalizationPolicy =
+    "per_channel_mean_valid_samples";
+constexpr double kFlatNearCeilingFraction = 0.98;
 
 std::string trim_cr(std::string s) {
   if (!s.empty() && s.back() == '\r') s.pop_back();
@@ -76,6 +84,148 @@ double rgb_component(const CameraRgbPatch& rgb, int component) {
 double flat_denominator(double value, double floor_value) {
   if (!std::isfinite(value) || value <= floor_value) return floor_value;
   return value;
+}
+
+void write_rgb(JsonWriter& w, const CameraRgbPatch& rgb) {
+  w.begin_object();
+  w.key("r");
+  w.value(rgb.r);
+  w.key("g");
+  w.value(rgb.g);
+  w.key("b");
+  w.value(rgb.b);
+  w.end_object();
+}
+
+void write_coord(JsonWriter& w, const PatchCoord& coord) {
+  w.begin_object();
+  w.key("x");
+  w.value(coord.x);
+  w.key("y");
+  w.value(coord.y);
+  w.key("width");
+  w.value(coord.width);
+  w.key("height");
+  w.value(coord.height);
+  w.end_object();
+}
+
+void write_patch(JsonWriter& w, const PatchMean& patch, std::size_t index,
+                 const std::vector<std::string>& sample_names) {
+  w.begin_object();
+  w.key("index");
+  w.value(static_cast<std::int64_t>(index));
+  if (index < sample_names.size()) {
+    w.key("sample_name");
+    w.value(sample_names[index]);
+  }
+  w.key("source_coord");
+  write_coord(w, patch.source_coord);
+  w.key("actual_roi");
+  w.begin_object();
+  w.key("x");
+  w.value(patch.x);
+  w.key("y");
+  w.value(patch.y);
+  w.key("width");
+  w.value(patch.width);
+  w.key("height");
+  w.value(patch.height);
+  w.end_object();
+  w.key("sample_count");
+  w.value(static_cast<std::int64_t>(patch.sample_count));
+  w.key("rgb_mean");
+  write_rgb(w, patch.rgb);
+  w.end_object();
+}
+
+void write_corrections(JsonWriter& w, std::string_view flat_label,
+                       const std::optional<FlatFieldCorrectionSummary>& flat,
+                       const std::optional<WhiteBalanceGains>& wb,
+                       std::string_view wb_policy) {
+  w.begin_object();
+  w.key("flat_field");
+  if (flat) {
+    w.begin_object();
+    w.key("path");
+    w.value(flat_label);
+    w.key("source");
+    w.value("bilinear_demosaic_black_subtracted_raw");
+    w.key("normalization");
+    w.value(kFlatFieldNormalizationPolicy);
+    w.key("normalizer");
+    write_rgb(w, flat->normalizer);
+    w.key("floor_value");
+    w.value(flat->floor_value);
+    w.key("pixel_count");
+    w.value(static_cast<std::int64_t>(flat->pixel_count));
+    w.key("valid_sample_count");
+    w.value(static_cast<std::int64_t>(flat->valid_sample_count));
+    w.key("clamped_sample_count");
+    w.value(static_cast<std::int64_t>(flat->clamped_sample_count));
+    w.key("near_ceiling_sample_count");
+    w.value(static_cast<std::int64_t>(flat->near_ceiling_sample_count));
+    w.key("near_ceiling_fraction");
+    w.value(flat->near_ceiling_fraction);
+    w.key("near_ceiling_threshold_fraction");
+    w.value(kFlatNearCeilingFraction);
+    w.key("max_allowed_near_ceiling_fraction");
+    w.value(flat->max_allowed_near_ceiling_fraction);
+    w.end_object();
+  } else {
+    w.null();
+  }
+
+  w.key("white_balance");
+  if (wb) {
+    w.begin_object();
+    w.key("policy");
+    w.value(wb_policy);
+    w.key("gains");
+    write_rgb(w, {wb->r, wb->g, wb->b});
+    w.end_object();
+  } else {
+    w.begin_object();
+    w.key("policy");
+    w.value("none");
+    w.end_object();
+  }
+  w.end_object();
+}
+
+void write_comparison(JsonWriter& w, const PatchComparison& comparison,
+                      std::string_view reference_label) {
+  w.begin_object();
+  w.key("reference_rgb_path");
+  w.value(reference_label);
+  w.key("patch_count");
+  w.value(static_cast<std::int64_t>(comparison.patch_count));
+  w.key("method");
+  w.value("per_channel_pearson_direct_error_and_affine_fit");
+  w.key("channels");
+  w.begin_array();
+  for (const auto& c : comparison.channels) {
+    w.begin_object();
+    w.key("channel");
+    w.value(c.channel);
+    w.key("correlation");
+    w.value(c.correlation);
+    w.key("slope");
+    w.value(c.slope);
+    w.key("intercept");
+    w.value(c.intercept);
+    w.key("mean_error_before_affine");
+    w.value(c.mean_error_before_affine);
+    w.key("rmse_before_affine");
+    w.value(c.rmse_before_affine);
+    w.key("max_abs_error_before_affine");
+    w.value(c.max_abs_error_before_affine);
+    w.key("rmse_after_affine");
+    w.value(c.rmse_after_affine);
+    w.end_object();
+  }
+  w.end_array();
+  w.end_object();
 }
 
 PatchChannelComparison compare_channel(const std::vector<PatchMean>& patches,
@@ -440,6 +590,93 @@ void write_camera_rgb_csv(std::ostream& os,
   for (const auto& patch : patches) {
     os << patch.rgb.r << ',' << patch.rgb.g << ',' << patch.rgb.b << '\n';
   }
+}
+
+std::string_view flat_field_normalization_policy() {
+  return kFlatFieldNormalizationPolicy;
+}
+
+double flat_field_near_ceiling_threshold_fraction() {
+  return kFlatNearCeilingFraction;
+}
+
+void write_patch_report_json(
+    std::ostream& os, std::string_view file_label,
+    std::string_view coords_label, std::string_view coordinate_source_format,
+    const RawMeta& meta, int width, int height, std::string_view flat_label,
+    const std::optional<FlatFieldCorrectionSummary>& flat,
+    const std::optional<WhiteBalanceGains>& wb, std::string_view wb_policy,
+    const std::vector<PatchMean>& patches,
+    const std::vector<std::string>& sample_names,
+    const std::optional<PatchComparison>& comparison,
+    std::string_view reference_label) {
+  JsonWriter w(os);
+  w.begin_object();
+  w.key("file");
+  w.value(file_label);
+  w.key("coords_path");
+  w.value(coords_label);
+  w.key("coordinate_source_format");
+  w.value(coordinate_source_format);
+  w.key("extraction_coordinate_convention");
+  w.value("one_based_top_left_rectangles_after_source_conversion");
+  w.key("rgb_source");
+  w.value("bilinear_demosaic_black_subtracted_raw");
+  w.key("corrections");
+  write_corrections(w, flat_label, flat, wb, wb_policy);
+  w.key("camera");
+  w.begin_object();
+  w.key("make");
+  w.value(meta.make);
+  w.key("model");
+  w.value(meta.model);
+  w.key("cfa_pattern");
+  w.value(meta.cfa_pattern);
+  w.key("black_level");
+  w.value(meta.black_level);
+  w.key("white_level");
+  w.value(meta.white_level);
+  w.end_object();
+  w.key("image");
+  w.begin_object();
+  w.key("width");
+  w.value(width);
+  w.key("height");
+  w.value(height);
+  w.key("algorithm");
+  w.value("bilinear");
+  w.end_object();
+  w.key("patch_count");
+  w.value(static_cast<std::int64_t>(patches.size()));
+  w.key("patches");
+  w.begin_array();
+  for (std::size_t i = 0; i < patches.size(); ++i) {
+    write_patch(w, patches[i], i, sample_names);
+  }
+  w.end_array();
+  w.key("comparison");
+  if (comparison) {
+    write_comparison(w, *comparison, reference_label);
+  } else {
+    w.null();
+  }
+  w.key("limitations");
+  w.begin_array();
+  w.value("Bilinear demosaic only; not LibRaw/AHD or production ISP color");
+  if (!flat) {
+    w.value("No sphere flat-field correction was applied");
+  }
+  if (!wb) {
+    w.value("No white-balance gains were applied");
+  }
+  if (comparison && (flat || wb)) {
+    w.value(
+        "Reference RGB comparison uses caller-supplied values; they must match "
+        "the applied correction state");
+  }
+  w.value("Reference RGB comparison is affine/correlation validation, not DeltaE");
+  w.end_array();
+  w.end_object();
 }
 
 }  // namespace camera_iq

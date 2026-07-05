@@ -2,25 +2,32 @@
 
 #include <filesystem>
 #include <fstream>
+#include <optional>
 #include <sstream>
 #include <stdexcept>
 #include <vector>
 
 #include "camera_iq/demosaic.hpp"
+#include "camera_iq/raw_meta.hpp"
 #include "harness.hpp"
 
 using camera_iq::CameraRgbPatch;
 using camera_iq::FlatFieldCorrectionSummary;
 using camera_iq::PatchChannelComparison;
 using camera_iq::PatchCoord;
+using camera_iq::PatchMean;
+using camera_iq::RawMeta;
 using camera_iq::WhiteBalanceGains;
 using camera_iq::apply_flat_field;
 using camera_iq::apply_white_balance;
 using camera_iq::compare_patch_means_to_rgb;
 using camera_iq::extract_patch_means;
+using camera_iq::flat_field_near_ceiling_threshold_fraction;
+using camera_iq::flat_field_normalization_policy;
 using camera_iq::read_patch_coords_csv;
 using camera_iq::read_rawdigger_patch_table;
 using camera_iq::write_camera_rgb_csv;
+using camera_iq::write_patch_report_json;
 using camera_iq::white_balance_gains_from_flat_field;
 using test::check;
 using test::check_near;
@@ -125,6 +132,45 @@ void TESTS() {
   check_near(flat_wb.r, 12.5, 1e-12, "wb: flat-derived red gain");
   check_near(flat_wb.g, 1.0, 1e-12, "wb: flat-derived green anchor");
   check_near(flat_wb.b, 0.1, 1e-12, "wb: flat-derived blue gain");
+
+  check(flat_field_normalization_policy() ==
+            "per_channel_mean_valid_samples",
+        "flat report: normalization policy constant");
+  check_near(flat_field_near_ceiling_threshold_fraction(), 0.98, 1e-12,
+             "flat report: near-ceiling threshold constant");
+  flat_summary.near_ceiling_sample_count = 0;
+  flat_summary.near_ceiling_fraction = 0.0;
+  flat_summary.max_allowed_near_ceiling_fraction = 0.01;
+  RawMeta meta;
+  meta.make = "Fixture";
+  meta.model = "Synthetic";
+  meta.cfa_pattern = "RGGB";
+  meta.black_level = 1024.0;
+  meta.white_level = 16383.0;
+  PatchMean report_patch;
+  report_patch.source_coord = PatchCoord{1, 2, 3, 4};
+  report_patch.x = 0;
+  report_patch.y = 1;
+  report_patch.width = 3;
+  report_patch.height = 4;
+  report_patch.sample_count = 12;
+  report_patch.rgb = CameraRgbPatch{1, 2, 3};
+  std::ostringstream patch_json;
+  write_patch_report_json(
+      patch_json, "dataset:fixture/raw.RAF", "dataset:fixture/coords.csv",
+      "rawdigger_csv_zero_based_left_top", meta, 2, 2,
+      "dataset:fixture/flat.RAF", flat_summary, flat_wb,
+      "flat_field_green_anchor", {report_patch}, {"A1"}, std::nullopt, "");
+  const std::string patch_doc = patch_json.str();
+  check(patch_doc.find("\"normalization\":\"per_channel_mean_valid_samples\"") !=
+            std::string::npos,
+        "flat report: JSON records normalization policy");
+  check(patch_doc.find("\"near_ceiling_threshold_fraction\":0.98") !=
+            std::string::npos,
+        "flat report: JSON records near-ceiling threshold");
+  check(patch_doc.find("\"white_balance\":{\"policy\":\"flat_field_green_anchor\"") !=
+            std::string::npos,
+        "flat report: JSON records flat-derived WB policy");
 
   const auto wb_corrected =
       apply_white_balance(flat_corrected, WhiteBalanceGains{0.5, 1.0, 2.0});
