@@ -124,6 +124,14 @@ ceiling. The correction scale is recorded in JSON as
 `normalization: "per_channel_mean_valid_samples"`: each RGB channel uses the
 mean of flat samples above the denominator floor, not the flat image maximum.
 
+Flat-field coverage is aperture-limited in the local CLRS-589 cache. The f/8
+sphere set has usable same-aperture candidates (`1:500`, two `1:1000` frames,
+and `1:1600`; the validation commands use `Sphere_f8.0_1:1000_DSCF0387.RAF`). The
+f/9 sphere set has 13 frames from `1:10` through `1:180`, and every one is
+rejected by the near-ceiling guard. Therefore the flat-fielded RAW color path is
+scoped to the f/8 CCSG series unless a cross-aperture approximation is chosen
+and labeled explicitly.
+
 ## Guardrail
 
 `check_public_paths` runs in CTest and fails if tracked files contain private

@@ -137,11 +137,22 @@ ceiling and preserve spatial variation. The command now rejects
 `Sphere_f8.0_1:10_DSCF0369.RAF` with `flat-field RAW is too close to the sensor
 ceiling for correction`.
 
+Same-aperture flat coverage is not available for the f/9 CCSG series in the
+local cache. The f/9 sphere folder contains 13 frames (`1:10` through `1:180`);
+all 13 are rejected by the near-ceiling guard, including the shortest
+exposure, `Sphere_f9.0_1:180_DSCF0400.RAF`. The f/8 folder has usable
+same-aperture candidates (`1:500`, two `1:1000` frames, and `1:1600`). This
+means the current flat-fielded RAW patch extraction evidence is scoped to
+`Images/CCSG_f8`; using an f/8 flat on the f/9 CCSG series would be a
+cross-aperture approximation, not a measured same-aperture correction.
+
 ## Scientific Boundaries
 
 - The command uses bilinear demosaic only.
 - Flat-field correction is multiplicative image-domain correction, not a full
   ISP shading model.
+- Flat-field validity assumes a suitable flat for the target optical state; the
+  local CLRS-589 cache has usable same-aperture sphere flats for f/8 CCSG only.
 - White balance is explicit: either caller-provided gains or the documented
   flat-field green-anchor policy.
 - `--rawdigger-csv` validates RAW-space rectangle extraction against RawDigger

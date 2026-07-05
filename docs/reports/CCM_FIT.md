@@ -138,6 +138,13 @@ matrix. The value of this slice is not the final DeltaE number; it is that the
 RAW patch extraction path now has explicit flat-field/WB provenance and can feed
 the same CCM fitter as the historical MATLAB table.
 
+The corrected RAW-patch validation is intentionally scoped to the f/8 CCSG capture.
+The local f/9 sphere set has 13 frames from `1:10` through `1:180`, and every
+frame is rejected by the flat-field near-ceiling guard. There is no usable
+same-aperture f/9 sphere flat in the local cache. Applying the f/8 flat to f/9
+CCSG frames would be a labeled cross-aperture approximation, not the evidence
+used for this result.
+
 ## Scientific Boundaries
 
 - The result is labeled **vs compatible SG spectral reference**, not exact
@@ -150,6 +157,8 @@ the same CCM fitter as the historical MATLAB table.
   dependency.
 - The command uses the supplied illuminant SPD and cannot verify illumination
   stability during the chart capture.
+- Corrected RAW-patch CCM evidence currently covers the f/8 CCSG series only;
+  f/9 lacks a usable same-aperture flat in the local dataset cache.
 
 ## Next Risks
 
