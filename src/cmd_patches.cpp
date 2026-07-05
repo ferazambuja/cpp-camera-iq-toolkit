@@ -24,6 +24,8 @@ namespace {
 
 constexpr double kFlatNearCeilingFraction = 0.98;
 constexpr double kMaxFlatNearCeilingFraction = 0.01;
+constexpr std::string_view kFlatFieldNormalizationPolicy =
+    "per_channel_mean_valid_samples";
 
 struct Args {
   std::filesystem::path raw_file;
@@ -196,6 +198,8 @@ void write_corrections(JsonWriter& w, const std::string& flat_label,
     w.value(flat_label);
     w.key("source");
     w.value("bilinear_demosaic_black_subtracted_raw");
+    w.key("normalization");
+    w.value(kFlatFieldNormalizationPolicy);
     w.key("normalizer");
     write_rgb(w, flat->normalizer);
     w.key("floor_value");
@@ -210,6 +214,8 @@ void write_corrections(JsonWriter& w, const std::string& flat_label,
     w.value(static_cast<std::int64_t>(flat->near_ceiling_sample_count));
     w.key("near_ceiling_fraction");
     w.value(flat->near_ceiling_fraction);
+    w.key("near_ceiling_threshold_fraction");
+    w.value(kFlatNearCeilingFraction);
     w.key("max_allowed_near_ceiling_fraction");
     w.value(flat->max_allowed_near_ceiling_fraction);
     w.end_object();

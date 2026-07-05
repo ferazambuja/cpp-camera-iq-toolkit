@@ -40,10 +40,14 @@ convention:
 - Optional image-domain flat-field correction from a local RAW flat/sphere
   capture: black-subtracted bilinear RGB is multiplied by
   `channel_mean(flat) / flat_pixel`, with an explicit denominator floor and
-  clamped-sample count in JSON.
+  clamped-sample count in JSON. The flat normalizer is the per-channel mean of
+  valid samples, not the original MATLAB max-based normalization; this avoids a
+  single hot or near-clipped sample defining the correction scale. JSON records
+  this as `normalization: "per_channel_mean_valid_samples"`.
 - Flat-field RAWs are rejected if more than 1% of demosaiced channel samples
   are above 98% of that channel's black-subtracted sensor ceiling, preventing
   clipped/near-clipped flats from producing authoritative-looking corrections.
+  JSON records both the measured fraction and the 98% threshold.
 - Optional white-balance policy: explicit `--wb-gains R,G,B`, or
   `--wb-from-flat-field`, which anchors the flat/sphere green normalizer and
   scales red/blue to match it.
@@ -114,6 +118,7 @@ Result:
 | Field | Value |
 |---|---:|
 | patch rows | 140 |
+| flat normalization | per-channel mean of valid samples |
 | flat normalizer R/G/B | 3240.165 / 5979.162 / 3199.320 DN |
 | flat clamped samples | 0 |
 | flat near-ceiling samples | 0 / 72.43M |

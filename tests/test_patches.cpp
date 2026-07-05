@@ -109,7 +109,7 @@ void TESTS() {
   const auto flat_corrected =
       apply_flat_field(chart_image, flat_image, 2, 2, 1.0, &flat_summary);
   check_near(flat_summary.normalizer.r, 20.0, 1e-12,
-             "flat: red normalizer from valid pixels");
+             "flat: red normalizer is valid-pixel mean, not max");
   check_near(flat_summary.normalizer.g, 250.0, 1e-12,
              "flat: green normalizer");
   check(flat_summary.clamped_sample_count == 1,

@@ -53,6 +53,9 @@ struct RawDiggerPatchTable {
 };
 
 struct FlatFieldCorrectionSummary {
+  // Per-channel mean of flat samples above floor_value. This intentionally uses
+  // the valid-sample mean, not the image maximum, so one hot/near-clipped sample
+  // cannot define the correction scale.
   CameraRgbPatch normalizer;
   double floor_value = 0;
   std::size_t pixel_count = 0;

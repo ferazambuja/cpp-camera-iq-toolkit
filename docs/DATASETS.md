@@ -120,7 +120,9 @@ current CLRS-589 f/8 SG validation run, the `1:10` through roughly `1:200` spher
 frames sit too close to the flat maximum; `Sphere_f8.0_1:1000_DSCF0387.RAF`
 preserves usable spatial variation. The command rejects flats when more than
 1% of demosaiced channel samples sit above 98% of the black-subtracted sensor
-ceiling.
+ceiling. The correction scale is recorded in JSON as
+`normalization: "per_channel_mean_valid_samples"`: each RGB channel uses the
+mean of flat samples above the denominator floor, not the flat image maximum.
 
 ## Guardrail
 
