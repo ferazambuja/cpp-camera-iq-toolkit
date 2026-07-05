@@ -82,6 +82,13 @@ Inspect the configured reference with:
 ./build/camera_iq reference-info monochromator_2016_color_checker
 ```
 
+Fit the first linear CCM with an explicit local illuminant SPD:
+
+```bash
+./build/camera_iq ccm-fit clrs589_project_camera \
+  --illuminant-spd "data/private/datasets/clrs589_project_camera/Sphere measurments/fernando_ff2.csv"
+```
+
 ## Guardrail
 
 `check_public_paths` runs in CTest and fails if tracked files contain private

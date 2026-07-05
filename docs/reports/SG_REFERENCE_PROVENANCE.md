@@ -2,9 +2,10 @@
 
 Date: 2026-07-04
 Purpose: establish what colorimetric ground truth exists for the SG color slice
-(white balance → CCM → ΔE) BEFORE any of it is built. All source data is private
-and gitignored (`data/private/datasets/clrs589_project_camera/`); this report
-records provenance and numbers only, not the data.
+(white balance -> CCM -> DeltaE) before broadening the color pipeline beyond the
+first linear CCM. All source data is private and gitignored
+(`data/private/datasets/clrs589_project_camera/`); this report records
+provenance and numbers only, not the data.
 
 ## Summary
 
@@ -81,6 +82,9 @@ D50.**
 **R0 — reference ingestion + typed provenance (before any CCM/ΔE):**
 `ColorReference { source, illuminant, observer, patch_count, numbering_order,
 unit, white_reference }`. No hardcoded reference table.
+
+Status: R0 is implemented by `reference-info`; the first bounded linear CCM
+slice is implemented by `ccm-fit` and reported in `CCM_FIT.md`.
 
 - **Primary colored spectral demo reference:** ingest local
   `ccsg_2019_workbook/ccsg_2_FIXED_ref.csv`, exported from `ccsg.xlsx` sheet

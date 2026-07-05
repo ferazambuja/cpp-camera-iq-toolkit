@@ -34,10 +34,11 @@ void print_usage() {
       "              Relative-exposure linearity fit over usable OECF points\n"
       "  reference-info\n"
       "              Inspect configured ColorChecker spectral reference metadata\n"
+      "  ccm-fit\n"
+      "              Fit a linear RGB-to-XYZ CCM against a spectral SG reference\n"
       "\n"
       "Commands (planned):\n"
       "  patches     Extract ColorChecker patch statistics\n"
-      "  ccm         Fit and apply a color-correction matrix, report deltaE\n"
       "  noise       Read noise / DSNU / PRNU summaries\n\n"
       "Options:\n"
       "  -h, --help       Show this help\n"
@@ -81,6 +82,9 @@ int run(int argc, char** argv) {
   }
   if (arg == "reference-info") {
     return cmd_reference_info(argc - 2, argv + 2);
+  }
+  if (arg == "ccm-fit") {
+    return cmd_ccm_fit(argc - 2, argv + 2);
   }
 
   std::cerr << "camera_iq: command '" << arg

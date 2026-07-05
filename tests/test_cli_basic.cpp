@@ -32,6 +32,12 @@ int main() {
           "oecf-fit command is routed");
   }
   {
+    const char* args[] = {"camera_iq", "ccm-fit", "missing_dataset",
+                          "--illuminant-spd", "/definitely/not/a/spectrum.csv"};
+    check(camera_iq::run(5, const_cast<char**>(args)) == 1,
+          "ccm-fit command is routed");
+  }
+  {
     const char* args[] = {"camera_iq", "dark-calibration",
                           "/definitely/not/a/camera_iq/dataset",
                           "--residual-tolerance", "bad"};
