@@ -59,7 +59,7 @@ Build pipeline confirmed by `Old/load_all.m` + `PRD measurments/create_single_fi
 | `ccsg.xlsx` order matches camera extraction | corr(`ccsg_matlab.csv` green, workbook luminance proxies) | L*-proxy **0.915**, Y-proxy **0.972**, 550/560-nm proxy **0.963** |
 | RawDigger and MATLAB extraction agree | corr(`CCSG_rawdigger.csv` Gavg, `ccsg_matlab.csv` green) in current row order | **0.99984** for f/8 `1:10`; confirms RawDigger values are faithful to the MATLAB patch order |
 | RawDigger label convention is transposed relative to reference IDs | compare RawDigger labels and workbook labels | RawDigger row order `A1,A2,...A14,B1...` maps to reference order `A1,B1,...N1,A2...`; literal label matching over shared IDs gives only **0.407** corr, while current physical order gives **0.958** corr against 560-nm proxy |
-| SG orientation sanity check | current physical order vs reference-grid column flip, row flip, and 180° rotation, using RawDigger green vs 560-nm proxy | current **0.958**; reference-grid column/row/180 flips **0.433 / 0.327 / 0.353** — the current sweep direction is the only plausible orientation |
+| SG orientation sanity check | current physical order vs reference-grid column flip, row flip, and 180° rotation, using RawDigger green vs 560-nm proxy | current **0.958**; reference-grid column/row/180 flips **0.327 / 0.433 / 0.353** — the current sweep direction is the only plausible orientation |
 | Local `spectral-diversity-toolkit` exports checked | inspect CSV headers and source fields | `ccsg_measured_140patch_spectral.csv` and subsets cite `source_file=ccsg.xlsx`, `source_sheet=ccsg_2_FIXED_ref`; they are derivative order/subset exports, not missed newer measurements |
 | C++ ingestion path | `tools/export_ccsg_xlsx.py` → `camera_iq reference-info clrs589_project_camera` | validates 140 patches × 36 bands; A1..N10; 380-730 nm; emits typed provenance |
 | C++ pairing gate | `reference-info` broadband proxy correlations against `Images/ccsg_matlab.csv` | luminance **0.9775**, red-green **0.9498**, blue-green **0.9617**; configured gate passes |
@@ -85,6 +85,9 @@ D50.**
    camera extraction order, but RawDigger's grid labels are transposed relative
    to workbook/reference patch IDs. Report `ccm-fit` exclusions as
    **reference patch IDs**, not RawDigger grid labels.
+   Standalone `spectral-diversity-toolkit` columns named `patch_row` and
+   `patch_col` are parsed from the reference label text and should not be treated
+   as authoritative physical SG geometry.
 
 ## Recommendation for the color slice
 

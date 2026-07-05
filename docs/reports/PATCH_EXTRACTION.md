@@ -104,11 +104,14 @@ order starts `A1,A2,...A14,B1...`; the reference workbook order starts
 `A1,B1,...N1,A2...`. The current row-order pairing is still the correct
 physical sweep: RawDigger green vs MATLAB green corr is **0.99984**, and
 RawDigger green vs the reference 560-nm proxy is **0.958** in the current
-orientation versus **0.433 / 0.327 / 0.353** for reference-grid column flip,
+orientation versus **0.327 / 0.433 / 0.353** for reference-grid column flip,
 reference-grid row flip, and 180-degree rotation. Literal RawDigger-label
 matching is wrong for this
 chart pairing (shared-label corr only **0.407**). Downstream reports therefore
 name excluded patches by **reference patch ID**, not RawDigger grid label.
+Standalone `spectral-diversity-toolkit` columns named `patch_row` and
+`patch_col` are parsed from reference label text and are not authoritative
+physical SG geometry.
 
 ## Corrected RAW Patch Table Validation
 
