@@ -34,6 +34,7 @@ from __future__ import annotations
 
 import argparse
 import csv
+import re
 import sys
 from pathlib import Path
 
@@ -142,12 +143,45 @@ def column_mirror(patch_id: str) -> str:
     return LETTERS[13 - LETTERS.index(letter)] + num
 
 
+def check_layout_key(path: Path) -> bool:
+    """Prove letter=column, number=row from the SpectraShop physical layout key,
+    independently of any Lab/spectral value. Reads PATCH_LEFT (horizontal) and
+    PATCH_TOP (vertical) for each patch and asserts LEFT is a strictly increasing
+    function of the letter (A..N) and TOP a strictly increasing function of the
+    number (1..10). Records may use legacy CR line endings, so parse the whole
+    blob by regex rather than line-by-line."""
+    text = path.read_text(errors="replace")
+    rows = re.findall(r'"([A-N])(\d+)"\s+"[^"]*"\s+([-\d.]+)\s+([-\d.]+)', text)
+    if len(rows) != 140:
+        print(f"  parsed {len(rows)} patches (expected 140) -- layout check inconclusive")
+        return False
+    left_by_letter: dict[str, set] = {}
+    top_by_number: dict[int, set] = {}
+    for letter, num, left, top in rows:
+        left_by_letter.setdefault(letter, set()).add(round(float(left), 3))
+        top_by_number.setdefault(int(num), set()).add(round(float(top), 3))
+    single_left = all(len(v) == 1 for v in left_by_letter.values())
+    single_top = all(len(v) == 1 for v in top_by_number.values())
+    lefts = [next(iter(left_by_letter[l])) for l in LETTERS]
+    tops = [next(iter(top_by_number[n])) for n in range(1, 11)]
+    left_mono = all(lefts[i] < lefts[i + 1] for i in range(13))
+    top_mono = all(tops[i] < tops[i + 1] for i in range(9))
+    print(f"  letter A..N -> PATCH_LEFT {lefts[0]:.2f}..{lefts[-1]:.2f} "
+          f"(one-per-letter={single_left}, monotonic={left_mono})  => letter = COLUMN")
+    print(f"  number 1..10 -> PATCH_TOP {tops[0]:.2f}..{tops[-1]:.2f} "
+          f"(one-per-number={single_top}, monotonic={top_mono})  => number = ROW")
+    return single_left and single_top and left_mono and top_mono
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--ours", default="data/private/references/ccsg_2019_workbook/ccsg_2_FIXED_ref.csv")
     base = "data/private/references/xrite_colorchecker_sg_2016_zenodo/extracted"
     ap.add_argument("--xrite-after", default=f"{base}/ColorCheckerSG_After_Nov2014.txt")
     ap.add_argument("--xrite-before", default=f"{base}/ColorCheckerSG_Before_Nov2014.txt")
+    ap.add_argument("--layout-key",
+                    default="data/private/references/sg_2016_archive/color_management_color/"
+                            "ColorChecker SG by rows.txt")
     ap.add_argument("--self-check-tol", type=float, default=2.5,
                     help="max |ours-Xrite| L for the neutral self-check patches")
     args = ap.parse_args()
@@ -185,10 +219,24 @@ def main() -> int:
     # axis. If labels are physically meaningful this must be far worse than direct.
     shared = [p for p in ours if column_mirror(p) in xr_after]
     flip = [delta_e_76(ours[p], xr_after[column_mirror(p)]) for p in shared]
-    print(f"\n=== ORIENTATION CONTROL (labels vs X-Rite column-mirrored, n={len(flip)}) ===")
+    print(f"\n=== ORIENTATION PROOF 1: column-mirror control (labels vs X-Rite mirrored, n={len(flip)}) ===")
     print(f"  mean dE76={sum(flip) / len(flip):.2f}  (must be >> the direct-align mean)")
+
+    # Second, independent orientation proof: the physical geometry key. This makes
+    # the doc's "proven two independent ways" fully regenerable, not half-manual.
+    print("\n=== ORIENTATION PROOF 2: SpectraShop physical layout key ===")
+    geom_ok = None
+    if Path(args.layout_key).is_file():
+        geom_ok = check_layout_key(Path(args.layout_key))
+        print(f"  layout-key geometry proof: {'PASS' if geom_ok else 'FAIL'}")
+    else:
+        print(f"  layout key not found ({args.layout_key}); geometry proof not regenerated")
+
     print("\nConclusion: our ccsg.xlsx is manufacturer-accurate SG reference data,")
     print("and its A1..N10 labels are physically correct (letter=column, number=row).")
+    if geom_ok is False:
+        print("WARNING: layout-key geometry proof did not pass; investigate.", file=sys.stderr)
+        return 4
     return 0
 
 
