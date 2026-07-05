@@ -1,6 +1,7 @@
 #include "camera_iq/commands.hpp"
 
 #include <array>
+#include <cmath>
 #include <cstdint>
 #include <filesystem>
 #include <fstream>
