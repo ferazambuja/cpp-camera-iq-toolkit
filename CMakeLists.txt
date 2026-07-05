@@ -98,3 +98,5 @@ add_test(NAME check_public_paths
   COMMAND bash ${CMAKE_SOURCE_DIR}/tools/check_public_paths.sh)
 add_test(NAME check_sample_fixtures
   COMMAND bash ${CMAKE_SOURCE_DIR}/tools/check_sample_fixtures.sh)
+add_test(NAME check_verify_ccsg_vs_xrite_behavior
+  COMMAND bash ${CMAKE_SOURCE_DIR}/tools/check_verify_ccsg_vs_xrite_behavior.sh)
