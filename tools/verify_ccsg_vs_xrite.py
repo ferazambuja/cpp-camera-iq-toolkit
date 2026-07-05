@@ -182,6 +182,10 @@ def main() -> int:
     ap.add_argument("--layout-key",
                     default="data/private/references/sg_2016_archive/color_management_color/"
                             "ColorChecker SG by rows.txt")
+    ap.add_argument("--allow-missing-layout-key", action="store_true",
+                    help="run the Lab + mirror proofs only when the layout key is "
+                         "absent (default: a missing layout key is a hard error, so "
+                         "the 'both proofs regenerated' claim cannot silently pass)")
     ap.add_argument("--self-check-tol", type=float, default=2.5,
                     help="max |ours-Xrite| L for the neutral self-check patches")
     args = ap.parse_args()
@@ -224,19 +228,42 @@ def main() -> int:
 
     # Second, independent orientation proof: the physical geometry key. This makes
     # the doc's "proven two independent ways" fully regenerable, not half-manual.
+    # A missing key is a hard error by default so the "both proofs" claim cannot
+    # silently pass; --allow-missing-layout-key opts into a degraded, honestly
+    # labeled single-proof run.
     print("\n=== ORIENTATION PROOF 2: SpectraShop physical layout key ===")
-    geom_ok = None
     if Path(args.layout_key).is_file():
         geom_ok = check_layout_key(Path(args.layout_key))
         print(f"  layout-key geometry proof: {'PASS' if geom_ok else 'FAIL'}")
+    elif args.allow_missing_layout_key:
+        geom_ok = None
+        print(f"  layout key not found ({args.layout_key}); "
+              "skipped via --allow-missing-layout-key")
     else:
-        print(f"  layout key not found ({args.layout_key}); geometry proof not regenerated")
+        print(f"ERROR: layout key not found: {args.layout_key}", file=sys.stderr)
+        print("  the geometry proof cannot be regenerated; pass "
+              "--allow-missing-layout-key to run the Lab+mirror proofs only.",
+              file=sys.stderr)
+        return 2
 
-    print("\nConclusion: our ccsg.xlsx is manufacturer-accurate SG reference data,")
-    print("and its A1..N10 labels are physically correct (letter=column, number=row).")
     if geom_ok is False:
-        print("WARNING: layout-key geometry proof did not pass; investigate.", file=sys.stderr)
+        print("FAIL: layout-key geometry proof did not pass; "
+              "labels NOT confirmed by geometry.", file=sys.stderr)
         return 4
+
+    print("\nConclusion:")
+    print("  ccsg.xlsx is manufacturer-accurate SG reference data "
+          "(mean ΔE76 ~1.34 vs X-Rite nominal).")
+    if geom_ok is True:
+        print("  A1..N10 labels are physically correct (letter=column, number=row), "
+              "confirmed BOTH ways:")
+        print("  the column-mirror control and the SpectraShop geometry key.")
+        return 0
+    # degraded: only the mirror control ran; do not claim "both proofs".
+    print("  A1..N10 label orientation is supported by the column-mirror control "
+          "ONLY;")
+    print("  the geometry-key proof was skipped, so this run does not regenerate "
+          "both proofs.")
     return 0
 
 
