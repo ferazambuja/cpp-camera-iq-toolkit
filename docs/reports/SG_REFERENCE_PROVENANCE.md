@@ -21,9 +21,11 @@ extraction order. R0 exports that workbook to `ccsg_2_FIXED_ref.csv`, the stable
 text format consumed by the C++ toolkit.
 
 Honest scope: `ccsg.xlsx` is a compatible/standard full-gamut SG reflectance
-reference, not yet proven as a per-unit measurement of the exact physical SG
-chart used in the CLRS-589 Fuji capture. Do not call it exact chart ground truth
-unless that identity is proven.
+reference. As of 2026-07-05 it is **verified accurate to the X-Rite manufacturer
+nominal at mean ΔE76 1.34** (see "Verification vs X-Rite manufacturer reference"
+below), but that proves manufacturer accuracy, **not** a per-unit measurement of
+the exact physical SG chart used in the CLRS-589 Fuji capture. Do not call it
+exact per-unit chart ground truth unless that identity is proven.
 
 ## Inventory
 
@@ -39,6 +41,7 @@ unless that identity is proven.
 | Compatible colored SG reference | `data/private/references/ccsg_2019_workbook/ccsg.xlsx`, sheet `ccsg_2_FIXED_ref`; exported to `ccsg_2_FIXED_ref.csv` | **140 patches** | colored | spectral reflectance, 380-730 nm @ 10 nm, cell-labeled A1..N10 |
 | Derived compatible-reference exports checked | local `spectral-diversity-toolkit/data/ccsg_*_spectral.csv` | 24 / 96 / 140 / multi-measure subsets | colored | same `ccsg.xlsx` source, sometimes reordered/subsetted; not a newer or independent chart measurement |
 | Worked color-pipeline precedent | `data/private/references/clrs601_hw12_ccsg_pipeline/{Xopt.mat,mask_ccsg.tif,*.png,ImageOutput_sRGB.jpg}` | 140-patch workflow artifacts | colored | prior MATLAB CCM / ΔE-style pipeline artifacts for validation precedent |
+| Manufacturer nominal SG reference (edition-split) | `data/private/references/xrite_colorchecker_sg_2016_zenodo/extracted/ColorCheckerSG_{Before,After}_Nov2014.txt`; layout key `.../sg_2016_archive/color_management_color/ColorChecker SG by rows.txt` | **140 patches** each | colored | X-Rite official Lab (i1Pro 2, M0); SpectraShop geometry key proves letter=column, number=row |
 
 Build pipeline confirmed by `Old/load_all.m` + `PRD measurments/create_single_file.m`
 (per-folder averaging/merge) and `Images/patch_extract.m`
@@ -69,6 +72,54 @@ Illuminant conditions (verified): ramp trials (n=42) **CCT mean 5984 K
 (the `Old/prd` pair reads ~5612 K). PRD is a distinct condition from the ramp.
 Absolute radiance XYZ (Y in cd/m²) — needs a white point to reach Lab/ΔE. **Not
 D50.**
+
+## Verification vs X-Rite manufacturer reference (2026-07-05)
+
+The compatible-scope claim was independently tested against the X-Rite official
+ColorChecker-SG nominal Lab tables (Zenodo mirror, i1Pro 2 / M0), which ship both
+the `Before_Nov2014` and `After_Nov2014` pigment editions. Our
+`ccsg_2_FIXED_ref.csv` reflectance was rendered to CIELAB (D50 / CIE 1931 2°,
+perfect-diffuser white Y=100) and compared **by label** to the manufacturer Lab.
+Reproduce with `tools/verify_ccsg_vs_xrite.py` (self-contained; hardcoded CMF/D50;
+no external deps).
+
+**Render self-check (validates the tables before trusting any chromatic number):**
+the column-A neutral border renders L = 96.5 / 8.9 / 50.8 (A1/A2/A3) vs X-Rite
+96.7 / 8.1 / 49.8, a,b within ~1 unit of zero. The render pipeline is sound.
+
+| Comparison | mean ΔE76 | median | max (worst patch) |
+|---|---|---|---|
+| ours vs X-Rite **After_Nov2014** | **1.34** | 1.03 | 11.35 (B4) |
+| ours vs X-Rite **Before_Nov2014** | **1.36** | 1.09 | 7.84 (B4) |
+| ours vs X-Rite **column-mirrored** (orientation control) | **47.49** | — | — |
+
+**Findings:**
+
+1. **Data is manufacturer-accurate.** Mean ΔE76 1.34 across all 140 patches vs the
+   manufacturer nominal sits at the floor set by lot + measurement + 10-nm sampling
+   noise. `ccsg.xlsx` is genuinely accurate SG reference data, not merely
+   "compatible." Only the saturated violet B4 misses (11.4 After / 7.8 Before) —
+   the one patch where the two editions diverge, i.e. edition/lot sensitivity, not
+   a data error; every other patch is < 5.6, median ~1.
+2. **Labels are physically correct and correctly oriented** (letter = column,
+   number = row). Proven two independent ways: (a) the SpectraShop geometry key
+   `ColorChecker SG by rows.txt` places `A1` at LEFT=0/TOP=0, `B1` one column
+   right, `A10` at bottom-left — letter tracks horizontal position (column),
+   number tracks vertical (row); (b) the column-mirror control scores ΔE76 47.49,
+   35× the direct-align 1.34. A transposed or mis-oriented label set could not
+   produce that separation.
+3. **Edition indeterminate at this precision.** After (1.34) ≈ Before (1.36); B4
+   leans Before but weakly. The physical CLRS-589 chart is one of these editions;
+   this comparison cannot split them.
+
+**Caveat preserved.** 1.34 ΔE76 to the manufacturer **nominal** proves our data is
+accurate SG reference data; it does **not** prove it is the exact 2020 physical
+CLRS-589 chart per-unit (lot variation ~1-2 ΔE is plausible). The
+`compatible_sg_spectral_not_exact_per_unit` scope stays — but "compatible" now
+means "manufacturer-accurate," not "unverified." This also strengthens the
+dark-patch flare finding in `CCM_FIT.md`: the reference darks (A2/A5, L≈8)
+are now verified accurate to ~1 ΔE, so the camera reading them 2.5–17× brighter is
+unambiguously capture veiling glare, not a bad reference.
 
 ## Consequences
 
