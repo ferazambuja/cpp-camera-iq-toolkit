@@ -35,11 +35,27 @@ void TESTS() {
     "datasets": {
       "clrs589_project_camera": {
         "root": ")json" + (root / "clrs").string() + R"json(",
-        "description": "CLRS fixture"
+        "description": "CLRS fixture",
+        "color_reference": {
+          "id": "ccsg_2019_workbook",
+          "role": "compatible_sg_spectral",
+          "format": "camera_iq_spectral_csv",
+          "path": "data/private/references/ccsg_2019_workbook/ccsg_2_FIXED_ref.csv",
+          "source_xlsx": "data/private/references/ccsg_2019_workbook/ccsg.xlsx",
+          "source_sheet": "ccsg_2_FIXED_ref",
+          "selection_basis": "project_provenance_not_camera_date"
+        }
       },
       "relative_fixture": {
         "root": "data/private/datasets/relative_fixture",
-        "description": "relative path fixture"
+        "description": "relative path fixture",
+        "color_reference": {
+          "id": "sg_2016_i1pro_m0",
+          "role": "representative_measured_sg",
+          "format": "cgats_spectral",
+          "path": "data/private/references/sg_2016_archive/color_management_color/Patch-Reader_chart_10Rx14C_2016-04-20_11h57_M0.txt",
+          "selection_basis": "project_provenance_not_camera_date"
+        }
       }
     }
   })json");
@@ -51,6 +67,23 @@ void TESTS() {
   check(datasets.at("relative_fixture").root ==
             fs::path("data/private/datasets/relative_fixture"),
         "config: relative root preserved");
+  check(datasets.at("clrs589_project_camera").color_reference.has_value(),
+        "config: clrs reference parsed");
+  check(datasets.at("clrs589_project_camera").color_reference->id ==
+            "ccsg_2019_workbook",
+        "config: clrs uses 2019 workbook reference");
+  check(datasets.at("clrs589_project_camera").color_reference->format ==
+            "camera_iq_spectral_csv",
+        "config: clrs uses supported spectral csv");
+  check(datasets.at("clrs589_project_camera")
+            .color_reference->selection_basis ==
+        "project_provenance_not_camera_date",
+        "config: selection does not use camera dates");
+  check(datasets.at("relative_fixture").color_reference.has_value(),
+        "config: old reference parsed");
+  check(datasets.at("relative_fixture").color_reference->id ==
+            "sg_2016_i1pro_m0",
+        "config: old archive can use 2016 reference");
 
   const auto by_id = resolve_dataset_root("clrs589_project_camera", config);
   check(by_id.has_value(), "resolve: dataset id");

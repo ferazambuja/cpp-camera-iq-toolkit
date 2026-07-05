@@ -8,10 +8,21 @@
 
 namespace camera_iq {
 
+struct ColorReferenceSpec {
+  std::string id;
+  std::string role;
+  std::string format;
+  std::filesystem::path path;
+  std::filesystem::path source_xlsx;
+  std::string source_sheet;
+  std::string selection_basis;
+};
+
 struct DatasetSpec {
   std::string id;
   std::filesystem::path root;
   std::string description;
+  std::optional<ColorReferenceSpec> color_reference;
 };
 
 struct ResolvedDataset {

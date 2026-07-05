@@ -107,6 +107,35 @@ class JsonCursor {
   std::size_t pos_ = 0;
 };
 
+ColorReferenceSpec parse_color_reference_object(JsonCursor& cur) {
+  ColorReferenceSpec spec;
+  cur.expect('{');
+  if (cur.consume('}')) return spec;
+  do {
+    const std::string key = cur.string();
+    cur.expect(':');
+    if (key == "id") {
+      spec.id = cur.string();
+    } else if (key == "role") {
+      spec.role = cur.string();
+    } else if (key == "format") {
+      spec.format = cur.string();
+    } else if (key == "path") {
+      spec.path = cur.string();
+    } else if (key == "source_xlsx") {
+      spec.source_xlsx = cur.string();
+    } else if (key == "source_sheet") {
+      spec.source_sheet = cur.string();
+    } else if (key == "selection_basis") {
+      spec.selection_basis = cur.string();
+    } else {
+      cur.skip_value();
+    }
+  } while (cur.consume(','));
+  cur.expect('}');
+  return spec;
+}
+
 DatasetSpec parse_dataset_object(std::string_view id, JsonCursor& cur) {
   DatasetSpec spec;
   spec.id = std::string(id);
@@ -119,6 +148,8 @@ DatasetSpec parse_dataset_object(std::string_view id, JsonCursor& cur) {
       spec.root = cur.string();
     } else if (key == "description") {
       spec.description = cur.string();
+    } else if (key == "color_reference") {
+      spec.color_reference = parse_color_reference_object(cur);
     } else {
       cur.skip_value();
     }

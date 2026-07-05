@@ -32,6 +32,8 @@ void print_usage() {
       "              Black-subtracted CFA summaries grouped by exposure series\n"
       "  oecf-fit\n"
       "              Relative-exposure linearity fit over usable OECF points\n"
+      "  reference-info\n"
+      "              Inspect configured ColorChecker spectral reference metadata\n"
       "\n"
       "Commands (planned):\n"
       "  patches     Extract ColorChecker patch statistics\n"
@@ -76,6 +78,9 @@ int run(int argc, char** argv) {
   }
   if (arg == "oecf-fit") {
     return cmd_oecf_fit(argc - 2, argv + 2);
+  }
+  if (arg == "reference-info") {
+    return cmd_reference_info(argc - 2, argv + 2);
   }
 
   std::cerr << "camera_iq: command '" << arg
