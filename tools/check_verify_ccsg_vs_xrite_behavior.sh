@@ -97,3 +97,77 @@ if ! grep -q "confirmed BOTH ways" "$present_output"; then
   cat "$present_output" >&2
   exit 1
 fi
+
+# Explicit opt-out on a missing layout key: must exit 0 with an honest degraded
+# conclusion, and must NOT claim both proofs were regenerated.
+optout_output="$tmp_dir/optout-output.txt"
+set +e
+python3 "$verify_script" \
+  --ours "$ours_csv" \
+  --xrite-after "$xrite_after" \
+  --xrite-before "$xrite_before" \
+  --layout-key "$missing_layout_key" \
+  --allow-missing-layout-key \
+  > "$optout_output" 2>&1
+optout_status=$?
+set -e
+
+if [[ "$optout_status" -ne 0 ]]; then
+  echo "expected --allow-missing-layout-key to exit 0, got $optout_status" >&2
+  cat "$optout_output" >&2
+  exit 1
+fi
+if grep -q "confirmed BOTH ways" "$optout_output"; then
+  echo "opt-out degraded run must NOT claim both proofs were regenerated" >&2
+  cat "$optout_output" >&2
+  exit 1
+fi
+if ! grep -q "column-mirror control ONLY" "$optout_output"; then
+  echo "expected degraded single-proof conclusion under --allow-missing-layout-key" >&2
+  cat "$optout_output" >&2
+  exit 1
+fi
+
+# Malformed layout key (columns reversed so PATCH_LEFT is non-monotonic in the
+# letter): the geometry proof must FAIL and the tool must exit 4, not silently
+# pass. Guards check_layout_key's discrimination, not just its happy path.
+bad_layout_key="${tmp_dir}/bad-layout.txt"
+{
+  letters=(A B C D E F G H I J K L M N)
+  for number in $(seq 1 10); do
+    col=0
+    for letter in "${letters[@]}"; do
+      printf '"%s%s" "synthetic" %d %d\n' "$letter" "$number" "$((13 - col))" "$((number - 1))"
+      col=$((col + 1))
+    done
+  done
+} > "$bad_layout_key"
+
+bad_output="$tmp_dir/bad-output.txt"
+set +e
+python3 "$verify_script" \
+  --ours "$ours_csv" \
+  --xrite-after "$xrite_after" \
+  --xrite-before "$xrite_before" \
+  --layout-key "$bad_layout_key" \
+  > "$bad_output" 2>&1
+bad_status=$?
+set -e
+
+if [[ "$bad_status" -ne 4 ]]; then
+  echo "expected malformed layout to exit 4, got $bad_status" >&2
+  cat "$bad_output" >&2
+  exit 1
+fi
+if grep -q "confirmed BOTH ways" "$bad_output"; then
+  echo "malformed-layout run must not print the physical-label conclusion" >&2
+  cat "$bad_output" >&2
+  exit 1
+fi
+if ! grep -q "geometry proof: FAIL" "$bad_output"; then
+  echo "expected explicit geometry-proof FAIL diagnostic for malformed layout" >&2
+  cat "$bad_output" >&2
+  exit 1
+fi
+
+echo "all verify-tool behavior checks passed"
