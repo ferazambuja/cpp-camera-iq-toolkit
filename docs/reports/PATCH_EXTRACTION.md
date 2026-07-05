@@ -19,6 +19,14 @@ Two coordinate sources are supported:
   the extractor's one-based coordinate convention. `Sample_Name` is emitted as
   `sample_name` in JSON.
 
+JSON separates the original coordinate source from the normalized extraction
+convention:
+
+- `coordinate_source_format`: e.g. `rawdigger_csv_zero_based_left_top` or
+  `checker2colors_csv_one_based_top_left`.
+- `extraction_coordinate_convention`:
+  `one_based_top_left_rectangles_after_source_conversion`.
+
 ## Implemented
 
 - `read_patch_coords_csv()` for simple checker2colors coordinate tables.

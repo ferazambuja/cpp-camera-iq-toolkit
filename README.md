@@ -68,13 +68,29 @@ ctest --test-dir build --output-on-failure
   --roi 1000,1000,500,500 \
   --out out/oecf-fit.json
 
+# Inspect the configured ColorChecker-SG spectral reference and pairing gate:
+./build/camera_iq reference-info clrs589_project_camera --out out/reference-info.json
+
+# Fit a first linear RGB-to-XYZ CCM under an explicit illuminant SPD:
+./build/camera_iq ccm-fit clrs589_project_camera \
+  --illuminant-spd "data/private/datasets/clrs589_project_camera/Sphere measurments/fernando_ff2.csv" \
+  --out out/ccm-fit.json
+
+# Extract RAW-space SG patch means from a RawDigger coordinate export:
+./build/camera_iq patches \
+  "Images/CCSG_f8/CCSG_f8.0_1:10_DSCF0402.RAF" \
+  --dataset clrs589_project_camera \
+  --rawdigger-csv Images/CCSG_rawdigger.csv \
+  --out out/patches.json
+
 # Public no-private-data demo:
 ./build/camera_iq manifest data/samples/manifest_fixture --no-exif
 ```
 
 Implemented commands: `manifest`, `raw-stats`, `demosaic`,
-`dark-calibration`, `exposure-response`, and `oecf-fit`. Evidence reports for
-completed phases live under [docs/reports/](docs/reports/).
+`dark-calibration`, `exposure-response`, `oecf-fit`, `reference-info`,
+`ccm-fit`, and `patches`. Evidence reports for completed phases live under
+[docs/reports/](docs/reports/).
 
 ## Data
 

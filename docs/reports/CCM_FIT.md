@@ -96,8 +96,10 @@ negative interpolated value on the actual 380-730 nm target axis.
 - This is DeltaE76 only, not CIEDE2000.
 - This is a linear 3x3 CCM only; root-polynomial and exposure-normalized color
   models are future work.
-- The command consumes an existing patch RGB table. RAW-to-patch extraction is
-  still a future slice.
+- The command consumes an existing patch RGB table. `camera_iq patches` now
+  provides RAW-space patch means, but flat-field and white-balance policy still
+  need to be made explicit before those means replace `ccsg_matlab.csv` as the
+  CCM input.
 - The command uses the supplied illuminant SPD and cannot verify illumination
   stability during the chart capture.
 

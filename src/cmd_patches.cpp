@@ -138,7 +138,9 @@ void write_comparison(JsonWriter& w, const PatchComparison& comparison,
 }
 
 void write_report(std::ostream& os, const std::string& file_label,
-                  const std::string& coords_label, const RawCfaImage& cfa,
+                  const std::string& coords_label,
+                  const std::string& coordinate_source_format,
+                  const RawCfaImage& cfa,
                   const std::vector<PatchMean>& patches,
                   const std::vector<std::string>& sample_names,
                   const std::optional<PatchComparison>& comparison,
@@ -149,8 +151,10 @@ void write_report(std::ostream& os, const std::string& file_label,
   w.value(file_label);
   w.key("coords_path");
   w.value(coords_label);
-  w.key("coordinate_origin");
-  w.value("matlab_checker2colors_one_based_top_left");
+  w.key("coordinate_source_format");
+  w.value(coordinate_source_format);
+  w.key("extraction_coordinate_convention");
+  w.value("one_based_top_left_rectangles_after_source_conversion");
   w.key("rgb_source");
   w.value("bilinear_demosaic_black_subtracted_raw");
   w.key("camera");
@@ -267,6 +271,8 @@ int cmd_patches(int argc, char** argv) {
     std::string file_label = args.raw_file.string();
     std::filesystem::path actual_coords = args.coords;
     std::string coords_label = args.coords.string();
+    std::string coordinate_source_format =
+        "checker2colors_csv_one_based_top_left";
     std::filesystem::path actual_rawdigger_csv;
     std::string rawdigger_label;
     std::filesystem::path actual_reference_rgb;
@@ -298,6 +304,7 @@ int cmd_patches(int argc, char** argv) {
         actual_rawdigger_csv = resolved_rawdigger.actual;
         rawdigger_label = resolved_rawdigger.label;
         coords_label = rawdigger_label;
+        coordinate_source_format = "rawdigger_csv_zero_based_left_top";
       }
 
       if (args.reference_rgb.empty() && args.rawdigger_csv.empty()) {
@@ -314,6 +321,7 @@ int cmd_patches(int argc, char** argv) {
       actual_rawdigger_csv = args.rawdigger_csv;
       rawdigger_label = args.rawdigger_csv.string();
       coords_label = rawdigger_label;
+      coordinate_source_format = "rawdigger_csv_zero_based_left_top";
     }
 
     if (!args.reference_rgb.empty()) {
@@ -369,8 +377,10 @@ int cmd_patches(int argc, char** argv) {
     }
 
     if (args.out.empty()) {
-      write_report(std::cout, file_label, coords_label, *cfa, patches,
-                   sample_names, comparison, reference_label);
+      write_report(std::cout, file_label, coords_label,
+                   coordinate_source_format, *cfa, patches, sample_names,
+                   comparison,
+                   reference_label);
       std::cout << "\n";
     } else {
       std::ofstream os(args.out, std::ios::binary);
@@ -378,8 +388,8 @@ int cmd_patches(int argc, char** argv) {
         std::cerr << "camera_iq patches: cannot write " << args.out << "\n";
         return 1;
       }
-      write_report(os, file_label, coords_label, *cfa, patches, sample_names,
-                   comparison, reference_label);
+      write_report(os, file_label, coords_label, coordinate_source_format, *cfa,
+                   patches, sample_names, comparison, reference_label);
       os << "\n";
       std::cerr << "patch means written to " << args.out << "\n";
     }
