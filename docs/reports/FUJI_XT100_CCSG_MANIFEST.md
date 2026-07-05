@@ -20,11 +20,13 @@ No color-correction, noise, or image-quality numbers are claimed here.
 # runtime ≈ 0.4 s (metadata-only LibRaw open, no pixel unpack)
 ```
 
-The manifest records, per file: relative path, size, filename-encoded exposure
-metadata (`<Group>_f<aperture>_1:<shutter-denominator>[_ISO<iso>]_DSCF<frame>.RAF`),
-LibRaw EXIF (make/model/ISO/shutter/aperture/timestamp), derived CFA pattern,
-black/white levels, and CSV shape probes. Supplementary `.mat` inspection was
-done with a Python/scipy helper (analysis-side, per plan; results below).
+The manifest records, per file: relative path, size, filesystem mtime from the
+local/imported file copy, filename-encoded exposure metadata
+(`<Group>_f<aperture>_1:<shutter-denominator>[_ISO<iso>]_DSCF<frame>.RAF`),
+LibRaw EXIF (make/model/ISO/shutter/aperture/camera-clock timestamp), derived
+CFA pattern, black/white levels, and CSV shape probes. Supplementary `.mat`
+inspection was done with a Python/scipy helper (analysis-side, per plan; results
+below).
 
 ## Enumeration (exit criterion 1: complete)
 
@@ -61,9 +63,12 @@ within 0.11, ISO exact). Filename-encoded exposure metadata is trustworthy.
 
 ## Dataset caveats found
 
-1. **Camera clock is wrong.** EXIF timestamps span 2020-03-09 → 2020-03-20 for
-   a 2023 course capture. Relative ordering within a session is usable;
-   absolute dates are not.
+1. **Camera-clock dates are not trusted.** EXIF timestamps span 2020-03-09 →
+   2020-03-20 for a 2023 course capture, and the camera clock has no provenance
+   value. Prefer `filesystem_mtime` for local file provenance and deterministic
+   file ordering, but do not call it capture date either because copy tools can
+   preserve mtimes. Use EXIF only for camera controls and rough within-session
+   ordering when independently consistent.
 2. **LibRaw black level needed the `cblack` *tile*, not the scalar** (resolved).
    `color.black` and `cblack[0..3]` are all zero on this camera, but the real
    pedestal lives in LibRaw's repeating black tile: `cblack[4]=2, cblack[5]=2`

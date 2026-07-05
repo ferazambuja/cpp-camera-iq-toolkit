@@ -25,6 +25,7 @@ struct ManifestEntry {
   std::string directory;      // relative directory ("" for root-level files)
   std::string extension;      // lowercase, without the dot
   std::uintmax_t size_bytes = 0;
+  std::string filesystem_mtime;  // UTC ISO-8601 mtime from the local file copy
   FilenameMeta filename_meta;        // populated for capture files
   std::optional<CsvShape> csv_shape; // populated for .csv files
   std::optional<RawMeta> raw_meta;   // populated by populate_raw_metadata()

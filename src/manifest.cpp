@@ -4,6 +4,8 @@
 
 #include <algorithm>
 #include <cctype>
+#include <chrono>
+#include <ctime>
 #include <fstream>
 #include <map>
 #include <set>
@@ -46,6 +48,22 @@ std::string generic_relative(const std::filesystem::path& p,
                              const std::filesystem::path& base) {
   // generic_string() guarantees forward slashes on every platform.
   return p.lexically_relative(base).generic_string();
+}
+
+std::string format_file_time_utc(std::filesystem::file_time_type ft) {
+  // C++20 has no fully portable direct file_clock -> system_clock conversion.
+  // This preserves the observed file time relative to "now" and formats UTC.
+  const auto sys_time = std::chrono::time_point_cast<std::chrono::seconds>(
+      ft - std::filesystem::file_time_type::clock::now() +
+      std::chrono::system_clock::now());
+  const std::time_t t = std::chrono::system_clock::to_time_t(sys_time);
+  std::tm tm_buf{};
+  if (gmtime_r(&t, &tm_buf) == nullptr) return {};
+  char buf[32];
+  if (std::strftime(buf, sizeof(buf), "%Y-%m-%dT%H:%M:%SZ", &tm_buf) == 0) {
+    return {};
+  }
+  return buf;
 }
 
 }  // namespace
@@ -108,6 +126,7 @@ std::vector<ManifestEntry> scan_dataset(const std::filesystem::path& root) {
     const std::string ext = it->path().extension().string();
     e.extension = ext.empty() ? "" : to_lower(ext.substr(1));
     e.size_bytes = it->file_size();
+    e.filesystem_mtime = format_file_time_utc(it->last_write_time());
     e.filename_meta = parse_capture_filename(it->path().filename().string());
     if (e.extension == "csv") {
       e.csv_shape = probe_csv(it->path());
@@ -222,6 +241,12 @@ void write_manifest_json(std::ostream& os, std::string_view root_label,
     w.value(e.extension);
     w.key("size_bytes");
     w.value(static_cast<std::int64_t>(e.size_bytes));
+    w.key("filesystem_mtime");
+    if (e.filesystem_mtime.empty()) {
+      w.null();
+    } else {
+      w.value(e.filesystem_mtime);
+    }
 
     const auto& fm = e.filename_meta;
     const bool has_filename_meta = fm.group || fm.aperture || fm.shutter_s ||

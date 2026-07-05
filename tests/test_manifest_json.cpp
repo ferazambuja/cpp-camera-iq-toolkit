@@ -39,6 +39,7 @@ void TESTS() {
   csv.directory = "Images";
   csv.extension = "csv";
   csv.size_bytes = 42;
+  csv.filesystem_mtime = "2026-07-04T12:34:56Z";
   csv.csv_shape = camera_iq::CsvShape{140, 4, false};
   entries.push_back(csv);
 
@@ -61,6 +62,8 @@ void TESTS() {
   check(contains(json, "\"root\":\"test-root\""), "root label present");
   check(contains(json, "\"file_count\":4"), "file count");
   check(contains(json, "\"path\":\"Images/coord.csv\""), "csv path present");
+  check(contains(json, "\"filesystem_mtime\":\"2026-07-04T12:34:56Z\""),
+        "filesystem mtime serialized");
   check(contains(json, "\"rows\":140"), "csv rows serialized");
   check(contains(json, "\"model\":\"X-T100\""), "exif model serialized");
   check(contains(json, "\"cfa_pattern\":\"RGGB\""), "cfa serialized");

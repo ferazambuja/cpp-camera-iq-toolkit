@@ -8,18 +8,20 @@ records provenance and numbers only, not the data.
 
 ## Summary
 
-The local spectroradiometry is **neutral-only**: a grayscale luminance ramp
-(`Old/`, 15 steps) and a Perfect Reflecting Diffuser (`PRD measurments/`, 45
-readings), under two distinct illuminant conditions. **There is no measured
-colored-patch reference anywhere in this dataset** (all 134 `.mat` measurements
-verified near-neutral). The 140-patch camera side (`Images/ccsg_matlab.csv`) is
-colored and complete, but it has no measured colored reference to pair with. A
-colored-patch ΔE / CCM therefore requires an external, edition-matched
-**manufacturer** SG reference; the local measured data anchors **white point and
-neutral tone/OECF only**, not chroma.
+The CLRS-589 spectroradiometry inside the project folder is **neutral-only**: a
+grayscale luminance ramp (`Old/`, 15 steps) and a Perfect Reflecting Diffuser
+(`PRD measurments/`, 45 readings), under two distinct illuminant conditions. That
+project folder still has no measured colored-patch SG reference. However, local
+course documents contain a compatible 2019 ColorChecker-SG workbook:
+`ccsg.xlsx`, sheet `ccsg_2_FIXED_ref`, with 140 cell-labeled A1..N10 spectral
+reflectances (380-730 nm @ 10 nm). Its native order aligns strongly with
+`Images/ccsg_matlab.csv` (`corr(camera green, luminance proxy)=0.915`), so R0 can
+use it as the colored spectral-reference input for CCM/ΔE demonstration.
 
-(Open question, unresolved: whether the SG *colored* patches were ever spectrally
-measured on a separate drive. If so those files are outside this repo snapshot.)
+Honest scope: `ccsg.xlsx` is a compatible/standard full-gamut SG reflectance
+reference, not yet proven as a per-unit measurement of the exact physical SG
+chart used in the CLRS-589 Fuji capture. Do not call it exact chart ground truth
+unless that identity is proven.
 
 ## Inventory
 
@@ -32,6 +34,8 @@ measured on a separate drive. If so those files are outside this repo snapshot.)
 | Illuminant SPD | `Sphere measurments/fernando_ff{1,2,3}.csv` | 3 | — | integrating-sphere spectral radiance (W/m²·µm·sr) |
 | Camera measurement | `Images/ccsg_matlab.csv` | **140 patches** | colored | linear camera RGB (dark-subtracted + sphere vignette-corrected) |
 | Camera measurement (alt) | `Images/CCSG_rawdigger.csv` (A1… labels), `ccsg_matlab_dark_frame_corrected.csv` | 140 | colored | RawDigger export / dark-corrected |
+| Compatible colored SG reference | `data/private/references/ccsg_2019_workbook/ccsg.xlsx`, sheet `ccsg_2_FIXED_ref` | **140 patches** | colored | spectral reflectance, 380-730 nm @ 10 nm, cell-labeled A1..N10 |
+| Worked color-pipeline precedent | `data/private/references/clrs601_hw12_ccsg_pipeline/{Xopt.mat,mask_ccsg.tif,*.png,ImageOutput_sRGB.jpg}` | 140-patch workflow artifacts | colored | prior MATLAB CCM / ΔE-style pipeline artifacts for validation precedent |
 
 Build pipeline confirmed by `Old/load_all.m` + `PRD measurments/create_single_file.m`
 (per-folder averaging/merge) and `Images/patch_extract.m`
@@ -46,6 +50,9 @@ Build pipeline confirmed by `Old/load_all.m` + `PRD measurments/create_single_fi
 | Ramp rows 1–15 = trial averages | mean of `patch_Ntrail_M.mat` XYZ vs xlsx | max\|Δ\| ≈ **4e-13** every row |
 | Row 16 = mean(prd_1, prd_2), not a chart patch | mean of `prd_{1,2}.mat` XYZ vs xlsx row 16 | max\|Δ\| = **4.55e-13**; no `patch_16*` file exists |
 | Camera order ≠ reference order | corr(camera green[:16], reference Y[:16]) | **−0.07**, ratio CV 126% |
+| `ccsg.xlsx` copies are identical | SHA-256 across 2020 HW12, 2020 HW13, 2022 CSCI-631 copies | **8c067562f16f8340b4d980e787703e250915d6c8d7b0f769c7e6154c3998a52a** |
+| `ccsg.xlsx` shape/order | openpyxl read of `ccsg_2_FIXED_ref` | 140 rows × 40 columns; labels A1..N10; 36 spectral bands, 380-730 nm @ 10 nm |
+| `ccsg.xlsx` order matches camera extraction | corr(`ccsg_matlab.csv` green, workbook luminance proxies) | L*-proxy **0.915**, Y-proxy **0.972**, 550/560-nm proxy **0.963** |
 
 Illuminant conditions (verified): ramp trials (n=42) **CCT mean 5984 K
 [5845–6157], Duv mean −0.0023**; PRD (n=45) **CCT mean ~5510 K, Duv ~−0.0009**
@@ -57,14 +64,14 @@ D50.**
 
 1. **Source of truth for neutrals is the SPD, not the XYZ file.** Regenerate XYZ
    in-code from the SPD; the xlsx XYZ carries no independent information.
-2. **No colored measured reference exists here.** Local measured data supports
-   white balance, neutral tone/OECF, and the illuminant white point — not a
-   colored CCM fit or colored ΔE.
+2. **The project spectroradiometry is neutral-only, but R0 now has a compatible
+   colored spectral reference.** Use `ccsg.xlsx` for the colored CCM/ΔE demo and
+   label it as compatible/standard until physical chart identity is proven.
 3. **PRD = white/illuminant reference** (candidate white point), not a color
    chart; the `Old/` ramp row 16 is a PRD average, not a 16th patch.
-4. **Patch identity map is missing.** The camera CSV uses `checker2colors`
-   extraction order; a naive `csv_row[N] == reference_cell[N]` join is invalid
-   (corr −0.07 against the neutral rows).
+4. **Patch identity is no longer blocked for `ccsg.xlsx`.** The neutral ramp is
+   not a 140-patch chart reference (corr −0.07 against the first 16 camera rows),
+   but the workbook is A1..N10 and aligns with the camera extraction order.
 
 ## Recommendation for the color slice
 
@@ -72,17 +79,16 @@ D50.**
 `ColorReference { source, illuminant, observer, patch_count, numbering_order,
 unit, white_reference }`. No hardcoded reference table.
 
+- **Primary colored spectral demo reference:** ingest local
+  `ccsg_2019_workbook/ccsg.xlsx` sheet `ccsg_2_FIXED_ref`. It has cell labels,
+  full spectral reflectance, and verified native-order alignment to
+  `ccsg_matlab.csv`. Report ΔE/CCM as **vs compatible SG spectral reference**,
+  not exact per-unit chart truth.
 - **Manufacturer SG reference, edition-specific.** The SG pigment set changed in
   Nov 2014, so the file must be tagged `Before_Nov2014` or `After_Nov2014` and
-  matched to the physical chart used for the 2020 capture. Public files are
+  matched to the physical chart used for the capture when known. Public files are
   **Lab / cell-reference tables, not spectral 140-patch data** — do not describe
   them as measured spectra.
-- **Do not assume cell identity.** `checker2colors([10,14])` yields a
-  deterministic extraction *order* for a given chart orientation and corner-click
-  sequence — it does **not** by itself establish X-Rite A1…J14 identity. R0 must
-  gate manufacturer-patch pairing on a **proven** row order (cross-check against
-  the RawDigger export's A1… labels, chart-orientation evidence, or a saved
-  mapping file) before computing any per-cell ΔE.
 - **White point — condition-matched only.** The PRD is the standard reflectance
   reference, but the local PRD readings sit at ~5510 K (numbered/copy) / ~5612 K
   (`Old/prd`) while the ramp is ~5984 K — different illuminant conditions. Do not
@@ -97,12 +103,17 @@ unit, white_reference }`. No hardcoded reference table.
 
 **ΔE reporting:**
 - **Coverage (colored):** fit CCM (3×3 and root-polynomial) on the 140
-  manufacturer patches, once the order is proven; report full-chart ΔE labeled
-  "vs manufacturer nominal (edition X); includes per-chart manufacturing +
-  illuminant-adaptation error."
+  `ccsg.xlsx` spectral patches rendered under the selected illuminant; report
+  full-chart ΔE labeled "vs compatible SG spectral reference; not exact per-unit
+  measured chart."
+- **Public-standard comparison:** optionally repeat against the edition-matched
+  manufacturer Lab table and label it "vs manufacturer nominal (edition X);
+  includes per-chart manufacturing + illuminant-adaptation error."
 - **Neutral spot-check (traceable):** gray-axis ΔE + neutrality against the
   measured ramp — this is the only measured-reference ΔE the dataset supports.
 
-**Do not claim** a colored measured-reference ΔE from this dataset. It supports a
-neutral (grayscale/white) measured anchor plus a colored manufacturer-nominal
-comparison.
+**Do not claim** exact measured-reference ΔE for the physical CLRS-589 chart
+unless chart identity is proven or the chart is remeasured. The current honest
+claim is stronger than before but still bounded: neutral local measurement
+anchor, compatible colored spectral SG reference, and optional manufacturer
+nominal comparison.

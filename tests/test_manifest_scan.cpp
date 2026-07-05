@@ -66,6 +66,7 @@ void TESTS() {
     check(raf->directory == "Images/CCSG", "RAF directory");
     check(raf->extension == "raf", "extension lowercased");
     check(raf->size_bytes == 7, "size recorded");
+    check(!raf->filesystem_mtime.empty(), "filesystem mtime recorded");
     check(raf->filename_meta.group == "CCSG", "filename meta populated");
     check(!raf->csv_shape.has_value(), "no csv shape on RAF");
   }

@@ -21,7 +21,7 @@ struct RawMeta {
   double shutter_s = 0;
   double aperture = 0;
   double focal_length_mm = 0;
-  std::string timestamp;    // "YYYY-MM-DD HH:MM:SS" local camera time
+  std::string timestamp;    // "YYYY-MM-DD HH:MM:SS" local camera-clock time
   std::string cfa_pattern;  // top-left 2x2, e.g. "RGGB" — derived, never hardcoded
   int raw_width = 0;
   int raw_height = 0;

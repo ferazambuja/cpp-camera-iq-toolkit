@@ -4,9 +4,11 @@
     "clrs589_project_camera": {
       "root": "data/private/datasets/clrs589_project_camera",
       "description": "Fujifilm X-T100 ColorChecker-SG / dark / flat / sphere / validation captures",
-      "_reference_note": "No local colored SG reference exists. Local spectroradiometry is neutral-only (grayscale ramp under Old/ + Perfect Reflecting Diffuser under 'PRD measurments/'). For colored CCM/deltaE use an edition-matched manufacturer SG Lab reference (external, not in repo). See docs/reports/SG_REFERENCE_PROVENANCE.md.",
+      "_reference_note": "Local CLRS-589 spectroradiometry is neutral-only, but a compatible 2019 ColorChecker-SG spectral-reflectance workbook can be used for the colored CCM/deltaE demo when copied locally. Keep all private/reference files under data/private/references/ and document whether each reference is official nominal, compatible standard, representative measured, or exact per-unit.",
       "sg_chart_edition": "after_nov2014 | before_nov2014 (set to match the physical chart)",
-      "manufacturer_sg_lab_ref": "path/to/manufacturer_SG_Lab_<edition>.csv (external; provide in datasets.local.json)"
+      "manufacturer_sg_lab_ref": "path/to/manufacturer_SG_Lab_<edition>.csv (external; provide in datasets.local.json)",
+      "compatible_sg_spectral_ref_xlsx": "data/private/references/ccsg_2019_workbook/ccsg.xlsx",
+      "compatible_sg_spectral_ref_sheet": "ccsg_2_FIXED_ref"
     },
     "canon_5d2_repro": {
       "root": "data/private/datasets/canon_5d2_repro",
