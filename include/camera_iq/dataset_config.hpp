@@ -17,6 +17,9 @@ struct ColorReferenceSpec {
   std::string source_sheet;
   std::string selection_basis;
   std::string source;
+  std::string reference_project;
+  std::string reference_year;
+  std::string physical_chart_identity;
   std::string illuminant;
   std::string observer;
   std::string unit;
@@ -37,6 +40,9 @@ struct DatasetSpec {
   std::string id;
   std::filesystem::path root;
   std::string description;
+  std::string capture_project;
+  std::string capture_year;
+  std::string timeline_note;
   std::optional<ColorReferenceSpec> color_reference;
 };
 

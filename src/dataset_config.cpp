@@ -177,6 +177,12 @@ ColorReferenceSpec parse_color_reference_object(JsonCursor& cur) {
       spec.selection_basis = cur.string();
     } else if (key == "source") {
       spec.source = cur.string();
+    } else if (key == "reference_project") {
+      spec.reference_project = cur.string();
+    } else if (key == "reference_year") {
+      spec.reference_year = cur.string();
+    } else if (key == "physical_chart_identity") {
+      spec.physical_chart_identity = cur.string();
     } else if (key == "illuminant") {
       spec.illuminant = cur.string();
     } else if (key == "observer") {
@@ -225,6 +231,12 @@ DatasetSpec parse_dataset_object(std::string_view id, JsonCursor& cur) {
       spec.root = cur.string();
     } else if (key == "description") {
       spec.description = cur.string();
+    } else if (key == "capture_project") {
+      spec.capture_project = cur.string();
+    } else if (key == "capture_year") {
+      spec.capture_year = cur.string();
+    } else if (key == "timeline_note") {
+      spec.timeline_note = cur.string();
     } else if (key == "color_reference") {
       spec.color_reference = parse_color_reference_object(cur);
     } else {

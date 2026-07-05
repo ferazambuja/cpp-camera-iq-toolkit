@@ -11,9 +11,10 @@ noise/SNR, OECF/linearity, and reproducible CSV/JSON/Markdown reports.
 
 - **RAW front-end** — LibRaw unpack, black-level subtraction, hand-written demosaic,
   raw-CFA channel statistics.
-- **Color characterization** — ColorChecker patch extraction, white balance, linear
-  and root-polynomial color-correction matrices, ΔE (76/94/2000) against a measured
-  reference.
+- **Color characterization** — ColorChecker patch extraction, white balance,
+  linear color-correction matrices, held-out diagnostics, and ΔE
+  (76/2000) against compatible or measured references. Root-polynomial models
+  are deferred until they prove held-out improvement.
 - **Objective IQ metrics** — read noise / DSNU / PRNU, photon-transfer-curve summaries,
   dynamic range, slanted-edge SFR/MTF, OECF/linearity.
 - **Reporting** — batch runner, threshold checks, CSV/JSON export, Markdown reports.
@@ -96,6 +97,13 @@ ctest --test-dir build --output-on-failure
   --illuminant-spd "data/private/datasets/clrs589_project_camera/Sphere measurments/fernando_ff2.csv" \
   --camera-rgb out/raw-flat-wb-patches.csv \
   --out out/raw-flat-wb-ccm.json
+
+# Optional, explicit dark-patch exclusion for flare-suspect SG patches:
+./build/camera_iq ccm-fit clrs589_project_camera \
+  --illuminant-spd "data/private/datasets/clrs589_project_camera/Sphere measurments/fernando_ff2.csv" \
+  --camera-rgb out/raw-flat-wb-patches.csv \
+  --exclude-ref-lightness-below 25 \
+  --out out/raw-flat-wb-ccm-kept-l25.json
 
 # Public no-private-data demo:
 ./build/camera_iq manifest data/samples/manifest_fixture --no-exif

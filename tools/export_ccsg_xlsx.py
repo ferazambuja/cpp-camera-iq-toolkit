@@ -11,7 +11,8 @@ parser. This helper is the private-data bridge:
 Expected source sheet:
   * sheet name: ccsg_2_FIXED_ref
   * 140 rows, one per ColorChecker-SG cell
-  * column B: patch ID in A1..N10 order
+  * column B: patch ID in workbook number-major order:
+    A1, B1, ... N1, A2, B2, ... N10
   * columns E..AN: reflectance bands
 
 The workbook sheet does not carry wavelength labels. The output axis is supplied
@@ -66,7 +67,9 @@ def main() -> int:
 
     labels = [str(row[1]) for row in rows]
     if labels != expected_labels():
-        sys.stderr.write("patch labels are not in expected A1..N10 order\n")
+        sys.stderr.write(
+            "patch labels are not in expected A1,B1,...N1,A2,...N10 order\n"
+        )
         return 1
     if any(PATCH_RE.match(label) is None for label in labels):
         sys.stderr.write("one or more patch labels is malformed\n")

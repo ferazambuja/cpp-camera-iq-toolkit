@@ -36,6 +36,9 @@ void TESTS() {
       "clrs589_project_camera": {
         "root": ")json" + (root / "clrs").string() + R"json(",
         "description": "CLRS fixture",
+        "capture_project": "CLRS-589 Project Camera",
+        "capture_year": "2020",
+        "timeline_note": "different project timelines",
         "color_reference": {
           "id": "ccsg_2019_workbook",
           "role": "compatible_sg_spectral",
@@ -45,10 +48,13 @@ void TESTS() {
           "source_sheet": "ccsg_2_FIXED_ref",
           "selection_basis": "project_provenance_not_camera_date",
           "source": "compatible_2019_ccsg_workbook",
+          "reference_project": "CLRS-601 Homework 12 compatible CCSG workbook",
+          "reference_year": "2019",
+          "physical_chart_identity": "compatible_reference_not_proven_same_physical_chart",
           "illuminant": "not_applicable_reflectance",
           "observer": "not_applicable_reflectance",
           "unit": "spectral_reflectance",
-          "numbering_order": "A1_to_N10_row_major",
+          "numbering_order": "workbook_number_major_A1_B1_to_N1_then_A2_to_N10",
           "expected_patch_count": 140,
           "expected_band_count": 36,
           "first_wavelength_nm": 380,
@@ -98,6 +104,15 @@ void TESTS() {
   check(datasets.at("clrs589_project_camera").color_reference->id ==
             "ccsg_2019_workbook",
         "config: clrs uses 2019 workbook reference");
+  check(datasets.at("clrs589_project_camera").capture_year == "2020",
+        "config: capture year parsed");
+  check(datasets.at("clrs589_project_camera")
+            .color_reference->reference_year == "2019",
+        "config: reference year parsed");
+  check(datasets.at("clrs589_project_camera")
+            .color_reference->physical_chart_identity ==
+        "compatible_reference_not_proven_same_physical_chart",
+        "config: physical chart identity parsed");
   check(datasets.at("clrs589_project_camera").color_reference->format ==
             "camera_iq_spectral_csv",
         "config: clrs uses supported spectral csv");

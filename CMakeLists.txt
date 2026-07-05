@@ -91,6 +91,7 @@ camera_iq_add_test(test_exposure_response tests/test_exposure_response.cpp)
 camera_iq_add_test(test_oecf_fit tests/test_oecf_fit.cpp)
 camera_iq_add_test(test_color_reference tests/test_color_reference.cpp)
 camera_iq_add_test(test_colorimetry tests/test_colorimetry.cpp)
+camera_iq_add_test(test_cmd_ccm_fit tests/test_cmd_ccm_fit.cpp)
 camera_iq_add_test(test_patches tests/test_patches.cpp)
 
 add_test(NAME check_public_paths

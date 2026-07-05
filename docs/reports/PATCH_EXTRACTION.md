@@ -98,6 +98,18 @@ Use RawDigger coordinates for RAW-space validation. Treat `ccsg_matlab.csv` as a
 historical rendered/TIFF pipeline target until the C++ tool has an explicit
 TIFF/flat-field parity path or an automatic chart-localization step.
 
+RawDigger's `Sample_Name` labels are coordinate-grid labels, not the same label
+axis as the compatible SG workbook. For the f/8 `1:10` capture, RawDigger row
+order starts `A1,A2,...A14,B1...`; the reference workbook order starts
+`A1,B1,...N1,A2...`. The current row-order pairing is still the correct
+physical sweep: RawDigger green vs MATLAB green corr is **0.99984**, and
+RawDigger green vs the reference 560-nm proxy is **0.958** in the current
+orientation versus **0.433 / 0.327 / 0.353** for reference-grid column flip,
+reference-grid row flip, and 180-degree rotation. Literal RawDigger-label
+matching is wrong for this
+chart pairing (shared-label corr only **0.407**). Downstream reports therefore
+name excluded patches by **reference patch ID**, not RawDigger grid label.
+
 ## Corrected RAW Patch Table Validation
 
 Command:
@@ -167,5 +179,6 @@ cross-aperture approximation, not a measured same-aperture correction.
 1. Decide whether to reproduce the historical TIFF workflow for parity or move
    directly to RAW-space chart localization.
 2. Replace RawDigger-coordinate dependency with automatic chart localization.
-3. Add root-polynomial / exposure-normalized color models before treating the
-   DeltaE value as the best achievable color result.
+3. Diagnose the dark-patch / neutral-axis error before adding higher-order color
+   models; root-polynomial variants need held-out evidence before they are
+   treated as an improvement.

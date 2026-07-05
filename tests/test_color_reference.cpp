@@ -44,7 +44,8 @@ void TESTS() {
   provenance.illuminant = "not_applicable_reflectance";
   provenance.observer = "not_applicable_reflectance";
   provenance.unit = "spectral_reflectance";
-  provenance.numbering_order = "A1_to_N10_row_major";
+  provenance.numbering_order =
+      "workbook_number_major_A1_B1_to_N1_then_A2_to_N10";
   const auto ref = read_spectral_reference_csv(good, "ccsg_fixture",
                                                provenance);
   check(ref.source_label == "ccsg_fixture", "reference: source label");

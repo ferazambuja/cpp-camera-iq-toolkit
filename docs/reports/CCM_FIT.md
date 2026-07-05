@@ -29,6 +29,12 @@ data/private/datasets/clrs589_project_camera/Images/ccsg_matlab.csv
 The illuminant is supplied explicitly from the local copied sphere measurements;
 it is not inferred from EXIF or camera dates.
 
+The reference and capture are cross-timeline by design: the colored SG
+reflectance comes from the compatible 2019 CLRS-601 workbook, while the Fuji
+CLRS-589 capture is a separate 2020 project. The JSON emits this as
+`timeline_provenance` and keeps `reference_scope` as
+`compatible_sg_spectral_not_exact_per_unit`.
+
 ## Implemented
 
 - `read_spectrum_csv_interpolated()` reads two-column illuminant spectra, skips
@@ -38,7 +44,21 @@ it is not inferred from EXIF or camera dates.
 - `render_reference_xyz()` integrates reflectance x illuminant x CIE 1931 2
   degree CMFs, normalizing the perfect diffuser white to `Y=100`.
 - `fit_rgb_to_xyz_ccm()` solves a least-squares 3x3 RGB to XYZ matrix and
-  reports mean, RMS, and max DeltaE76 against the rendered reference.
+  reports mean, RMS, and max DeltaE76 and CIEDE2000 against the rendered
+  reference. The CIEDE2000 implementation is locked by Sharma/Wu/Dalal
+  reference pairs.
+- `cross_validate_rgb_to_xyz_ccm()` reports deterministic row-index k-fold
+  held-out DeltaE76 and CIEDE2000 for the same linear model. This is not an
+  independent physical chart capture, but it prevents training-only model
+  comparisons from being presented as color improvement.
+- `diagnose_dark_patches()` reports the subset of target reference patches with
+  `L* < 25`, including the worst patch id. This makes the current dark-axis
+  error visible instead of hiding it inside the overall mean.
+- `--exclude-ref-lightness-below LSTAR` is an explicit opt-in fit/evaluation
+  policy for flare-suspect dark SG patches. The command still reports the
+  all-patch baseline, kept-set metrics, all-patches-with-kept-fit metrics, and
+  excluded-patch metrics, plus baseline and kept-set held-out summaries, so
+  excluded data remains visible.
 - `camera_iq ccm-fit` reuses the configured reference validation and
   camera/reference pairing gate before fitting.
 - `camera_iq patches --flat-field-raw ... --wb-from-flat-field
@@ -76,13 +96,27 @@ FF2 RGB to XYZ matrix:
 [ -15.952276,  -80.834525,  890.432263 ]
 ```
 
-FF2 DeltaE76 summary, 140 patches:
+FF2 training summary, 140 patches:
 
-| Mean | RMS | Max |
-|---:|---:|---:|
-| 7.028 | 9.643 | 39.312 |
+| Metric | Mean | RMS | Max |
+|---|---:|---:|---:|
+| DeltaE76 | 7.028 | 9.643 | 39.312 |
+| CIEDE2000 | 4.374 | 6.156 | 29.797 |
 
-The three copied sphere SPDs give stable first-slice results:
+FF2 deterministic 5-fold held-out summary, 140 patches:
+
+| Metric | Mean | RMS | Max |
+|---|---:|---:|---:|
+| DeltaE76 | 7.078 | 9.713 | 39.444 |
+| CIEDE2000 | 4.409 | 6.194 | 29.919 |
+
+FF2 dark-patch diagnostics (`L* < 25`):
+
+| Count | Worst patch | Mean DeltaE76 | Mean CIEDE2000 |
+|---:|---|---:|---:|
+| 28 | `A5` | 11.100 | 7.549 |
+
+The three copied sphere SPDs give stable first-slice DeltaE76 results:
 
 | Illuminant file | White Z | Mean DeltaE76 | RMS DeltaE76 | Max DeltaE76 |
 |---|---:|---:|---:|---:|
@@ -126,11 +160,56 @@ Pairing gate:
 | red-green proxy correlation | 0.9603 | >= 0.80 |
 | blue-green proxy correlation | 0.9611 | >= 0.90 |
 
-Corrected RAW-patch DeltaE76 summary, 140 patches:
+Corrected RAW-patch training summary, 140 patches:
 
-| Mean | RMS | Max |
-|---:|---:|---:|
-| 6.501 | 9.457 | 39.911 |
+| Metric | Mean | RMS | Max |
+|---|---:|---:|---:|
+| DeltaE76 | 6.501 | 9.457 | 39.911 |
+| CIEDE2000 | 4.099 | 6.199 | 30.350 |
+
+Corrected RAW-patch deterministic 5-fold held-out summary, 140 patches:
+
+| Metric | Mean | RMS | Max |
+|---|---:|---:|---:|
+| DeltaE76 | 6.579 | 9.533 | 39.936 |
+| CIEDE2000 | 4.134 | 6.230 | 30.373 |
+
+Corrected RAW-patch dark-patch diagnostics (`L* < 25`):
+
+| Count | Worst patch | Mean DeltaE76 | Mean CIEDE2000 |
+|---:|---|---:|---:|
+| 28 | `A5` | 11.484 | 7.890 |
+
+`A5` here is the **reference workbook patch ID**. RawDigger's displayed
+`Sample_Name` grid is transposed relative to the workbook labels; the current
+row order is nevertheless the correct physical sweep (RawDigger-vs-MATLAB green
+corr **0.99984**, current orientation vs 560-nm proxy **0.958**, literal
+label-match corr only **0.407**).
+
+Opt-in dark-patch exclusion command:
+
+```bash
+./build/camera_iq ccm-fit clrs589_project_camera \
+  --illuminant-spd "data/private/datasets/clrs589_project_camera/Sphere measurments/fernando_ff2.csv" \
+  --camera-rgb /tmp/clrs589_raw_flat_wb_patches.csv \
+  --exclude-ref-lightness-below 25 \
+  --out /tmp/clrs589_raw_flat_wb_ccm_exclude_l25.json
+```
+
+Corrected RAW-patch result with `--exclude-ref-lightness-below 25`:
+
+| Evaluation | Patches | Mean DeltaE76 | Mean CIEDE2000 | Held-out Mean DeltaE76 | Held-out Mean CIEDE2000 |
+|---|---:|---:|---:|---:|---:|
+| all-patch baseline fit | 140 | 6.501 | 4.099 | 6.579 | 4.134 |
+| kept-set fit/eval (`L* >= 25`) | 112 | 5.283 | 3.170 | 5.427 | 3.221 |
+| all patches evaluated with kept-set fit | 140 | 6.544 | 4.126 | — | — |
+| excluded patches with kept-set fit | 28 | 11.589 | 7.952 | — | — |
+
+The kept-set ΔE drop is material, but it is not a better camera model claim.
+It is a labeled flare-handling policy for patches where the camera capture and
+the contact/spectro reference are measuring different physical light. The
+excluded patches remain reported separately and are not used to claim final
+chart accuracy.
 
 The near-identical DeltaE under `--wb-from-flat-field` versus no WB is expected
 for a free 3x3 CCM: per-channel white-balance gains are absorbed by the fitted
@@ -149,9 +228,20 @@ used for this result.
 
 - The result is labeled **vs compatible SG spectral reference**, not exact
   measured-reference DeltaE for the physical CLRS-589 chart.
-- This is DeltaE76 only, not CIEDE2000.
-- This is a linear 3x3 CCM only; root-polynomial and exposure-normalized color
-  models are future work.
+- This reports DeltaE76 and CIEDE2000 side by side. CIEDE2000 changes the
+  perceptual interpretation but does not prove the camera model improved.
+- This is a linear 3x3 CCM only. Root-polynomial and other higher-order models
+  are intentionally deferred until they show held-out improvement; a
+  training-only DeltaE reduction is not acceptable evidence here.
+- Held-out metrics are deterministic row-index k-fold diagnostics, not an
+  independent validation on a second physical chart capture.
+- Dark-patch diagnostics show the current worst errors are concentrated in
+  `L* < 25` reference patches. RawDigger and MATLAB agree on those lifted dark
+  patch signals, so the likely issue is veiling glare / scene-capture physics
+  relative to the flare-free reference, not a RawDigger import bug.
+- Dark-patch exclusion is explicit and reference-lightness based. It is a
+  reporting/fit policy, not silent data deletion, and not proof that the
+  compatible 2019 reference is the exact 2020 physical chart.
 - The command consumes a patch RGB table. `camera_iq patches` can now produce a
   corrected RAW-derived table, but RawDigger coordinates are still an external
   dependency.
@@ -164,6 +254,7 @@ used for this result.
 
 1. Replace RawDigger-coordinate dependency with automatic RAW-space chart
    localization.
-2. Add root-polynomial CCM variants before treating the
-   DeltaE value as the best achievable color result.
-3. Add CIEDE2000 once the color appearance/reference scope is locked.
+2. Diagnose the dark-patch axis against the measured neutral ramp and RAW
+   black/flat-field floor before claiming a model-side color improvement.
+3. Add root-polynomial CCM variants only behind held-out/CV evidence that they
+   improve rather than overfit the compatible reference.

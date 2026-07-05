@@ -138,6 +138,51 @@ double delta_e_76(const Lab& a, const Lab& b) {
   return std::sqrt(dl * dl + da * da + db * db);
 }
 
+double degrees_to_radians(double degrees) {
+  return degrees * 3.141592653589793238462643383279502884 / 180.0;
+}
+
+double radians_to_degrees(double radians) {
+  return radians * 180.0 / 3.141592653589793238462643383279502884;
+}
+
+double square(double value) { return value * value; }
+
+double seventh_power(double value) {
+  const double squared = value * value;
+  return squared * squared * squared * value;
+}
+
+double hue_degrees(double a, double b) {
+  if (a == 0.0 && b == 0.0) return 0.0;
+  double hue = radians_to_degrees(std::atan2(b, a));
+  if (hue < 0.0) hue += 360.0;
+  return hue;
+}
+
+struct DeltaAccumulator {
+  std::size_t count = 0;
+  double sum_76 = 0;
+  double sumsq_76 = 0;
+  double max_76 = 0;
+  double sum_2000 = 0;
+  double sumsq_2000 = 0;
+  double max_2000 = 0;
+};
+
+void add_delta(DeltaAccumulator& acc, const Lab& target_lab,
+               const Lab& predicted_lab) {
+  const double de76 = delta_e_76(target_lab, predicted_lab);
+  const double de2000 = delta_e_2000(target_lab, predicted_lab);
+  ++acc.count;
+  acc.sum_76 += de76;
+  acc.sumsq_76 += de76 * de76;
+  acc.max_76 = std::max(acc.max_76, de76);
+  acc.sum_2000 += de2000;
+  acc.sumsq_2000 += de2000 * de2000;
+  acc.max_2000 = std::max(acc.max_2000, de2000);
+}
+
 std::array<double, 3> solve_3x3(std::array<std::array<double, 3>, 3> a,
                                 std::array<double, 3> b) {
   for (std::size_t col = 0; col < 3; ++col) {
@@ -169,6 +214,61 @@ std::array<double, 3> solve_3x3(std::array<std::array<double, 3>, 3> a,
 
 std::array<double, 3> rgb_array(const CameraRgbPatch& p) {
   return {p.r, p.g, p.b};
+}
+
+CcmFit fit_matrix_only(const std::vector<CameraRgbPatch>& camera_rgb,
+                       const std::vector<Xyz>& target_xyz) {
+  std::array<std::array<double, 3>, 3> normal{};
+  std::array<std::array<double, 3>, 3> rhs{};
+  for (std::size_t i = 0; i < camera_rgb.size(); ++i) {
+    const auto rgb = rgb_array(camera_rgb[i]);
+    const std::array<double, 3> xyz = {
+        target_xyz[i].x, target_xyz[i].y, target_xyz[i].z};
+    for (std::size_t row = 0; row < 3; ++row) {
+      for (std::size_t col = 0; col < 3; ++col) {
+        normal[row][col] += rgb[row] * rgb[col];
+      }
+      for (std::size_t channel = 0; channel < 3; ++channel) {
+        rhs[channel][row] += xyz[channel] * rgb[row];
+      }
+    }
+  }
+
+  CcmFit fit;
+  for (std::size_t channel = 0; channel < 3; ++channel) {
+    fit.matrix[channel] = solve_3x3(normal, rhs[channel]);
+  }
+  fit.patch_count = camera_rgb.size();
+  return fit;
+}
+
+DeltaAccumulator evaluate_matrix(
+    const std::array<std::array<double, 3>, 3>& matrix,
+    const std::vector<CameraRgbPatch>& camera_rgb,
+    const std::vector<Xyz>& target_xyz, const Xyz& white_xyz) {
+  DeltaAccumulator acc;
+  for (std::size_t i = 0; i < camera_rgb.size(); ++i) {
+    const Lab target_lab = xyz_to_lab(target_xyz[i], white_xyz);
+    const Lab predicted_lab =
+        xyz_to_lab(apply_ccm(matrix, camera_rgb[i]), white_xyz);
+    add_delta(acc, target_lab, predicted_lab);
+  }
+  return acc;
+}
+
+CcmEvaluation evaluation_from_accumulator(const DeltaAccumulator& acc) {
+  CcmEvaluation out;
+  out.patch_count = acc.count;
+  if (acc.count == 0) return out;
+  out.mean_delta_e_76 = acc.sum_76 / static_cast<double>(acc.count);
+  out.rms_delta_e_76 =
+      std::sqrt(acc.sumsq_76 / static_cast<double>(acc.count));
+  out.max_delta_e_76 = acc.max_76;
+  out.mean_delta_e_2000 = acc.sum_2000 / static_cast<double>(acc.count);
+  out.rms_delta_e_2000 =
+      std::sqrt(acc.sumsq_2000 / static_cast<double>(acc.count));
+  out.max_delta_e_2000 = acc.max_2000;
+  return out;
 }
 
 std::string trim_cr(std::string s) {
@@ -320,6 +420,76 @@ Lab xyz_to_lab(const Xyz& xyz, const Xyz& white) {
   return out;
 }
 
+double delta_e_2000(const Lab& a, const Lab& b) {
+  const double c1 = std::sqrt(a.a * a.a + a.b * a.b);
+  const double c2 = std::sqrt(b.a * b.a + b.b * b.b);
+  const double c_bar = 0.5 * (c1 + c2);
+  const double c_bar7 = seventh_power(c_bar);
+  const double g =
+      0.5 * (1.0 - std::sqrt(c_bar7 / (c_bar7 + seventh_power(25.0))));
+
+  const double a1_prime = (1.0 + g) * a.a;
+  const double a2_prime = (1.0 + g) * b.a;
+  const double c1_prime = std::sqrt(a1_prime * a1_prime + a.b * a.b);
+  const double c2_prime = std::sqrt(a2_prime * a2_prime + b.b * b.b);
+  const double h1_prime = hue_degrees(a1_prime, a.b);
+  const double h2_prime = hue_degrees(a2_prime, b.b);
+
+  const double delta_l_prime = b.l - a.l;
+  const double delta_c_prime = c2_prime - c1_prime;
+  double delta_h_prime = 0.0;
+  if (c1_prime * c2_prime != 0.0) {
+    delta_h_prime = h2_prime - h1_prime;
+    if (delta_h_prime > 180.0) {
+      delta_h_prime -= 360.0;
+    } else if (delta_h_prime < -180.0) {
+      delta_h_prime += 360.0;
+    }
+  }
+  const double delta_h_capital =
+      2.0 * std::sqrt(c1_prime * c2_prime) *
+      std::sin(degrees_to_radians(delta_h_prime * 0.5));
+
+  const double l_bar_prime = 0.5 * (a.l + b.l);
+  const double c_bar_prime = 0.5 * (c1_prime + c2_prime);
+  double h_bar_prime = h1_prime + h2_prime;
+  if (c1_prime * c2_prime != 0.0) {
+    if (std::abs(h1_prime - h2_prime) <= 180.0) {
+      h_bar_prime = 0.5 * (h1_prime + h2_prime);
+    } else if (h1_prime + h2_prime < 360.0) {
+      h_bar_prime = 0.5 * (h1_prime + h2_prime + 360.0);
+    } else {
+      h_bar_prime = 0.5 * (h1_prime + h2_prime - 360.0);
+    }
+  }
+
+  const double t =
+      1.0 - 0.17 * std::cos(degrees_to_radians(h_bar_prime - 30.0)) +
+      0.24 * std::cos(degrees_to_radians(2.0 * h_bar_prime)) +
+      0.32 * std::cos(degrees_to_radians(3.0 * h_bar_prime + 6.0)) -
+      0.20 * std::cos(degrees_to_radians(4.0 * h_bar_prime - 63.0));
+  const double delta_theta =
+      30.0 * std::exp(-square((h_bar_prime - 275.0) / 25.0));
+  const double c_bar_prime7 = seventh_power(c_bar_prime);
+  const double r_c =
+      2.0 * std::sqrt(c_bar_prime7 /
+                      (c_bar_prime7 + seventh_power(25.0)));
+  const double s_l =
+      1.0 + (0.015 * square(l_bar_prime - 50.0)) /
+                std::sqrt(20.0 + square(l_bar_prime - 50.0));
+  const double s_c = 1.0 + 0.045 * c_bar_prime;
+  const double s_h = 1.0 + 0.015 * c_bar_prime * t;
+  const double r_t = -std::sin(degrees_to_radians(2.0 * delta_theta)) * r_c;
+
+  const double l_term = delta_l_prime / s_l;
+  const double c_term = delta_c_prime / s_c;
+  const double h_term = delta_h_capital / s_h;
+  const double value =
+      l_term * l_term + c_term * c_term + h_term * h_term +
+      r_t * c_term * h_term;
+  return std::sqrt(std::max(0.0, value));
+}
+
 Xyz apply_ccm(const std::array<std::array<double, 3>, 3>& matrix,
               const CameraRgbPatch& rgb) {
   const auto r = rgb_array(rgb);
@@ -340,43 +510,140 @@ CcmFit fit_rgb_to_xyz_ccm(const std::vector<CameraRgbPatch>& camera_rgb,
     throw std::runtime_error("ccm fit: at least three patches required");
   }
 
-  std::array<std::array<double, 3>, 3> normal{};
-  std::array<std::array<double, 3>, 3> rhs{};
-  for (std::size_t i = 0; i < camera_rgb.size(); ++i) {
-    const auto rgb = rgb_array(camera_rgb[i]);
-    const std::array<double, 3> xyz = {
-        target_xyz[i].x, target_xyz[i].y, target_xyz[i].z};
-    for (std::size_t row = 0; row < 3; ++row) {
-      for (std::size_t col = 0; col < 3; ++col) {
-        normal[row][col] += rgb[row] * rgb[col];
-      }
-      for (std::size_t channel = 0; channel < 3; ++channel) {
-        rhs[channel][row] += xyz[channel] * rgb[row];
+  CcmFit fit = fit_matrix_only(camera_rgb, target_xyz);
+  const auto eval =
+      evaluate_rgb_to_xyz_ccm(fit.matrix, camera_rgb, target_xyz, white_xyz);
+  fit.mean_delta_e_76 = eval.mean_delta_e_76;
+  fit.rms_delta_e_76 = eval.rms_delta_e_76;
+  fit.max_delta_e_76 = eval.max_delta_e_76;
+  fit.mean_delta_e_2000 = eval.mean_delta_e_2000;
+  fit.rms_delta_e_2000 = eval.rms_delta_e_2000;
+  fit.max_delta_e_2000 = eval.max_delta_e_2000;
+  return fit;
+}
+
+CcmEvaluation evaluate_rgb_to_xyz_ccm(
+    const std::array<std::array<double, 3>, 3>& matrix,
+    const std::vector<CameraRgbPatch>& camera_rgb,
+    const std::vector<Xyz>& target_xyz, const Xyz& white_xyz) {
+  if (camera_rgb.size() != target_xyz.size()) {
+    throw std::runtime_error("ccm fit: camera and target patch counts differ");
+  }
+  return evaluation_from_accumulator(
+      evaluate_matrix(matrix, camera_rgb, target_xyz, white_xyz));
+}
+
+CcmCrossValidation cross_validate_rgb_to_xyz_ccm(
+    const std::vector<CameraRgbPatch>& camera_rgb,
+    const std::vector<Xyz>& target_xyz, const Xyz& white_xyz,
+    std::size_t fold_count) {
+  if (camera_rgb.size() != target_xyz.size()) {
+    throw std::runtime_error("ccm fit: camera and target patch counts differ");
+  }
+  if (camera_rgb.size() < 4) {
+    throw std::runtime_error("ccm fit: at least four patches required for CV");
+  }
+  if (fold_count < 2) {
+    throw std::runtime_error("ccm fit: at least two CV folds required");
+  }
+  fold_count = std::min(fold_count, camera_rgb.size());
+
+  DeltaAccumulator acc;
+  for (std::size_t fold = 0; fold < fold_count; ++fold) {
+    std::vector<CameraRgbPatch> train_rgb;
+    std::vector<Xyz> train_xyz;
+    std::vector<CameraRgbPatch> test_rgb;
+    std::vector<Xyz> test_xyz;
+    for (std::size_t i = 0; i < camera_rgb.size(); ++i) {
+      if (i % fold_count == fold) {
+        test_rgb.push_back(camera_rgb[i]);
+        test_xyz.push_back(target_xyz[i]);
+      } else {
+        train_rgb.push_back(camera_rgb[i]);
+        train_xyz.push_back(target_xyz[i]);
       }
     }
+    if (train_rgb.size() < 3 || test_rgb.empty()) {
+      throw std::runtime_error("ccm fit: invalid CV fold partition");
+    }
+    const auto fold_fit = fit_matrix_only(train_rgb, train_xyz);
+    const auto fold_acc =
+        evaluate_matrix(fold_fit.matrix, test_rgb, test_xyz, white_xyz);
+    acc.count += fold_acc.count;
+    acc.sum_76 += fold_acc.sum_76;
+    acc.sumsq_76 += fold_acc.sumsq_76;
+    acc.max_76 = std::max(acc.max_76, fold_acc.max_76);
+    acc.sum_2000 += fold_acc.sum_2000;
+    acc.sumsq_2000 += fold_acc.sumsq_2000;
+    acc.max_2000 = std::max(acc.max_2000, fold_acc.max_2000);
   }
 
-  CcmFit fit;
-  for (std::size_t channel = 0; channel < 3; ++channel) {
-    fit.matrix[channel] = solve_3x3(normal, rhs[channel]);
-  }
-  fit.patch_count = camera_rgb.size();
+  const auto eval = evaluation_from_accumulator(acc);
+  CcmCrossValidation out;
+  out.patch_count = eval.patch_count;
+  out.fold_count = fold_count;
+  out.mean_delta_e_76 = eval.mean_delta_e_76;
+  out.rms_delta_e_76 = eval.rms_delta_e_76;
+  out.max_delta_e_76 = eval.max_delta_e_76;
+  out.mean_delta_e_2000 = eval.mean_delta_e_2000;
+  out.rms_delta_e_2000 = eval.rms_delta_e_2000;
+  out.max_delta_e_2000 = eval.max_delta_e_2000;
+  return out;
+}
 
-  double sum = 0;
-  double sumsq = 0;
+CcmLightnessSelection select_reference_lightness(
+    const std::vector<Xyz>& target_xyz, const Xyz& white_xyz,
+    double exclude_below_lstar) {
+  if (!std::isfinite(exclude_below_lstar) || exclude_below_lstar < 0.0 ||
+      exclude_below_lstar > 100.0) {
+    throw std::runtime_error("ccm fit: lightness threshold must be in [0,100]");
+  }
+  CcmLightnessSelection out;
+  out.max_lstar = exclude_below_lstar;
+  for (std::size_t i = 0; i < target_xyz.size(); ++i) {
+    const Lab target_lab = xyz_to_lab(target_xyz[i], white_xyz);
+    if (target_lab.l < exclude_below_lstar) {
+      out.excluded_indices.push_back(i);
+    } else {
+      out.kept_indices.push_back(i);
+    }
+  }
+  return out;
+}
+
+CcmDarkPatchDiagnostics diagnose_dark_patches(
+    const std::vector<CameraRgbPatch>& camera_rgb,
+    const std::vector<Xyz>& target_xyz, const Xyz& white_xyz,
+    const std::array<std::array<double, 3>, 3>& matrix, double max_lstar) {
+  if (camera_rgb.size() != target_xyz.size()) {
+    throw std::runtime_error("ccm fit: camera and target patch counts differ");
+  }
+
+  DeltaAccumulator acc;
+  CcmDarkPatchDiagnostics out;
+  out.max_lstar = max_lstar;
   for (std::size_t i = 0; i < camera_rgb.size(); ++i) {
     const Lab target_lab = xyz_to_lab(target_xyz[i], white_xyz);
-    const Lab predicted_lab = xyz_to_lab(apply_ccm(fit.matrix, camera_rgb[i]),
-                                         white_xyz);
-    const double de = delta_e_76(target_lab, predicted_lab);
-    sum += de;
-    sumsq += de * de;
-    fit.max_delta_e_76 = std::max(fit.max_delta_e_76, de);
+    if (target_lab.l >= max_lstar) continue;
+    const Lab predicted_lab =
+        xyz_to_lab(apply_ccm(matrix, camera_rgb[i]), white_xyz);
+    const double prior_max = acc.max_76;
+    add_delta(acc, target_lab, predicted_lab);
+    if (acc.max_76 > prior_max || acc.count == 1) {
+      out.worst_patch_index = i;
+    }
   }
-  fit.mean_delta_e_76 = sum / static_cast<double>(camera_rgb.size());
-  fit.rms_delta_e_76 =
-      std::sqrt(sumsq / static_cast<double>(camera_rgb.size()));
-  return fit;
+  out.patch_count = acc.count;
+  if (acc.count == 0) return out;
+
+  const auto eval = evaluation_from_accumulator(acc);
+  out.mean_delta_e_76 = eval.mean_delta_e_76;
+  out.rms_delta_e_76 = eval.rms_delta_e_76;
+  out.max_delta_e_76 = eval.max_delta_e_76;
+  out.mean_delta_e_2000 = eval.mean_delta_e_2000;
+  out.rms_delta_e_2000 = eval.rms_delta_e_2000;
+  out.max_delta_e_2000 = eval.max_delta_e_2000;
+  return out;
 }
 
 }  // namespace camera_iq

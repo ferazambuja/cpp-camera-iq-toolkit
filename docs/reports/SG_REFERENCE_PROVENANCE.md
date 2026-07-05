@@ -14,11 +14,11 @@ grayscale luminance ramp (`Old/`, 15 steps) and a Perfect Reflecting Diffuser
 (`PRD measurments/`, 45 readings), under two distinct illuminant conditions. That
 project folder still has no measured colored-patch SG reference. However, local
 course documents contain a compatible 2019 ColorChecker-SG workbook:
-`ccsg.xlsx`, sheet `ccsg_2_FIXED_ref`, with 140 cell-labeled A1..N10 spectral
-reflectances (380-730 nm @ 10 nm). Its native order aligns strongly with
-`Images/ccsg_matlab.csv` (`corr(camera green, luminance proxy)=0.915`). R0 exports
-that workbook to `ccsg_2_FIXED_ref.csv`, the stable text format consumed by the
-C++ toolkit.
+`ccsg.xlsx`, sheet `ccsg_2_FIXED_ref`, with 140 cell-labeled spectral
+reflectances (380-730 nm @ 10 nm). Its native workbook order is
+`A1, B1, ... N1, A2, ... N10` and aligns strongly with the CLRS-589 camera
+extraction order. R0 exports that workbook to `ccsg_2_FIXED_ref.csv`, the stable
+text format consumed by the C++ toolkit.
 
 Honest scope: `ccsg.xlsx` is a compatible/standard full-gamut SG reflectance
 reference, not yet proven as a per-unit measurement of the exact physical SG
@@ -37,6 +37,7 @@ unless that identity is proven.
 | Camera measurement | `Images/ccsg_matlab.csv` | **140 patches** | colored | linear camera RGB (dark-subtracted + sphere vignette-corrected) |
 | Camera measurement (alt) | `Images/CCSG_rawdigger.csv` (A1… labels), `ccsg_matlab_dark_frame_corrected.csv` | 140 | colored | RawDigger export / dark-corrected |
 | Compatible colored SG reference | `data/private/references/ccsg_2019_workbook/ccsg.xlsx`, sheet `ccsg_2_FIXED_ref`; exported to `ccsg_2_FIXED_ref.csv` | **140 patches** | colored | spectral reflectance, 380-730 nm @ 10 nm, cell-labeled A1..N10 |
+| Derived compatible-reference exports checked | local `spectral-diversity-toolkit/data/ccsg_*_spectral.csv` | 24 / 96 / 140 / multi-measure subsets | colored | same `ccsg.xlsx` source, sometimes reordered/subsetted; not a newer or independent chart measurement |
 | Worked color-pipeline precedent | `data/private/references/clrs601_hw12_ccsg_pipeline/{Xopt.mat,mask_ccsg.tif,*.png,ImageOutput_sRGB.jpg}` | 140-patch workflow artifacts | colored | prior MATLAB CCM / ΔE-style pipeline artifacts for validation precedent |
 
 Build pipeline confirmed by `Old/load_all.m` + `PRD measurments/create_single_file.m`
@@ -53,8 +54,13 @@ Build pipeline confirmed by `Old/load_all.m` + `PRD measurments/create_single_fi
 | Row 16 = mean(prd_1, prd_2), not a chart patch | mean of `prd_{1,2}.mat` XYZ vs xlsx row 16 | max\|Δ\| = **4.55e-13**; no `patch_16*` file exists |
 | Camera order ≠ reference order | corr(camera green[:16], reference Y[:16]) | **−0.07**, ratio CV 126% |
 | `ccsg.xlsx` copies are identical | SHA-256 across 2020 HW12, 2020 HW13, 2022 CSCI-631 copies | **8c067562f16f8340b4d980e787703e250915d6c8d7b0f769c7e6154c3998a52a** |
-| `ccsg.xlsx` shape/order | openpyxl read of `ccsg_2_FIXED_ref` | 140 rows × 40 columns; labels A1..N10; 36 spectral bands, 380-730 nm @ 10 nm |
+| Additional course workbooks checked | original `all_1nm_data.xlsx` copies in 2020 HW12/HW13, 2021 CLRS-820, and 2022 CSCI-631 | CMF/illuminant/course support data; not a 140-patch SG reference and not a replacement for `ccsg.xlsx` |
+| `ccsg.xlsx` shape/order | openpyxl read of `ccsg_2_FIXED_ref` | 140 rows × 40 columns; labels `A1,B1,...N1,A2,...N10`; 36 spectral bands, 380-730 nm @ 10 nm |
 | `ccsg.xlsx` order matches camera extraction | corr(`ccsg_matlab.csv` green, workbook luminance proxies) | L*-proxy **0.915**, Y-proxy **0.972**, 550/560-nm proxy **0.963** |
+| RawDigger and MATLAB extraction agree | corr(`CCSG_rawdigger.csv` Gavg, `ccsg_matlab.csv` green) in current row order | **0.99984** for f/8 `1:10`; confirms RawDigger values are faithful to the MATLAB patch order |
+| RawDigger label convention is transposed relative to reference IDs | compare RawDigger labels and workbook labels | RawDigger row order `A1,A2,...A14,B1...` maps to reference order `A1,B1,...N1,A2...`; literal label matching over shared IDs gives only **0.407** corr, while current physical order gives **0.958** corr against 560-nm proxy |
+| SG orientation sanity check | current physical order vs reference-grid column flip, row flip, and 180° rotation, using RawDigger green vs 560-nm proxy | current **0.958**; reference-grid column/row/180 flips **0.433 / 0.327 / 0.353** — the current sweep direction is the only plausible orientation |
+| Local `spectral-diversity-toolkit` exports checked | inspect CSV headers and source fields | `ccsg_measured_140patch_spectral.csv` and subsets cite `source_file=ccsg.xlsx`, `source_sheet=ccsg_2_FIXED_ref`; they are derivative order/subset exports, not missed newer measurements |
 | C++ ingestion path | `tools/export_ccsg_xlsx.py` → `camera_iq reference-info clrs589_project_camera` | validates 140 patches × 36 bands; A1..N10; 380-730 nm; emits typed provenance |
 | C++ pairing gate | `reference-info` broadband proxy correlations against `Images/ccsg_matlab.csv` | luminance **0.9775**, red-green **0.9498**, blue-green **0.9617**; configured gate passes |
 
@@ -73,9 +79,12 @@ D50.**
    label it as compatible/standard until physical chart identity is proven.
 3. **PRD = white/illuminant reference** (candidate white point), not a color
    chart; the `Old/` ramp row 16 is a PRD average, not a 16th patch.
-4. **Patch identity is no longer blocked for `ccsg.xlsx`.** The neutral ramp is
-   not a 140-patch chart reference (corr −0.07 against the first 16 camera rows),
-   but the workbook is A1..N10 and aligns with the camera extraction order.
+4. **Patch identity is no longer blocked for `ccsg.xlsx`, but labels must be
+   read carefully.** The neutral ramp is not a 140-patch chart reference (corr
+   −0.07 against the first 16 camera rows). The workbook order aligns with the
+   camera extraction order, but RawDigger's grid labels are transposed relative
+   to workbook/reference patch IDs. Report `ccm-fit` exclusions as
+   **reference patch IDs**, not RawDigger grid labels.
 
 ## Recommendation for the color slice
 
@@ -89,10 +98,11 @@ slice is implemented by `ccm-fit` and reported in `CCM_FIT.md`.
 - **Primary colored spectral demo reference:** ingest local
   `ccsg_2019_workbook/ccsg_2_FIXED_ref.csv`, exported from `ccsg.xlsx` sheet
   `ccsg_2_FIXED_ref`. It has cell labels, full spectral reflectance, and
-  verified native-order alignment to `ccsg_matlab.csv`. Report ΔE/CCM as
+  verified native-order alignment to `ccsg_matlab.csv` and RawDigger row order.
+  Report ΔE/CCM as
   **vs compatible SG spectral reference**, not exact per-unit chart truth.
 - **Pairing acceptance gate:** do not rely only on the reference's internal
-  A1..N10 label order. The configured CLRS reference must also pass the
+  workbook label order. The configured CLRS reference must also pass the
   `reference-info` camera/reference pairing gate against `ccsg_matlab.csv`.
   The gate uses coarse broadband luminance and red-green / blue-green chroma
   proxy correlations, so it validates row pairing only; it is not a substitute
@@ -121,10 +131,14 @@ slice is implemented by `ccm-fit` and reported in `CCM_FIT.md`.
   white-balance / gray-axis ΔE without any colored reference.
 
 **ΔE reporting:**
-- **Coverage (colored):** fit CCM (3×3 and root-polynomial) on the 140
-  exported `ccsg.xlsx` spectral patches rendered under the selected illuminant;
-  report full-chart ΔE labeled "vs compatible SG spectral reference; not exact
-  per-unit measured chart."
+- **Coverage (colored):** fit the linear 3×3 CCM on the 140 exported
+  `ccsg.xlsx` spectral patches rendered under the selected illuminant; report
+  full-chart ΔE labeled "vs compatible SG spectral reference; not exact per-unit
+  measured chart."
+- **Model expansion:** add root-polynomial or exposure-normalized color models
+  only when deterministic held-out / cross-validation metrics show improvement;
+  training-only ΔE reductions against a compatible-not-exact reference are not
+  sufficient evidence.
 - **Public-standard comparison:** optionally repeat against the edition-matched
   manufacturer Lab table and label it "vs manufacturer nominal (edition X);
   includes per-chart manufacturing + illuminant-adaptation error."
