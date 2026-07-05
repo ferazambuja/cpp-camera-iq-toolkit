@@ -54,7 +54,8 @@ Build pipeline confirmed by `Old/load_all.m` + `PRD measurments/create_single_fi
 | `ccsg.xlsx` copies are identical | SHA-256 across 2020 HW12, 2020 HW13, 2022 CSCI-631 copies | **8c067562f16f8340b4d980e787703e250915d6c8d7b0f769c7e6154c3998a52a** |
 | `ccsg.xlsx` shape/order | openpyxl read of `ccsg_2_FIXED_ref` | 140 rows × 40 columns; labels A1..N10; 36 spectral bands, 380-730 nm @ 10 nm |
 | `ccsg.xlsx` order matches camera extraction | corr(`ccsg_matlab.csv` green, workbook luminance proxies) | L*-proxy **0.915**, Y-proxy **0.972**, 550/560-nm proxy **0.963** |
-| C++ ingestion path | `tools/export_ccsg_xlsx.py` → `camera_iq reference-info clrs589_project_camera` | validates 140 patches × 36 bands; A1..N10; 380-730 nm |
+| C++ ingestion path | `tools/export_ccsg_xlsx.py` → `camera_iq reference-info clrs589_project_camera` | validates 140 patches × 36 bands; A1..N10; 380-730 nm; emits typed provenance |
+| C++ pairing gate | `reference-info` broadband proxy correlations against `Images/ccsg_matlab.csv` | luminance **0.9775**, red-green **0.9498**, blue-green **0.9617**; configured gate passes |
 
 Illuminant conditions (verified): ramp trials (n=42) **CCT mean 5984 K
 [5845–6157], Duv mean −0.0023**; PRD (n=45) **CCT mean ~5510 K, Duv ~−0.0009**
@@ -86,10 +87,18 @@ unit, white_reference }`. No hardcoded reference table.
   `ccsg_2_FIXED_ref`. It has cell labels, full spectral reflectance, and
   verified native-order alignment to `ccsg_matlab.csv`. Report ΔE/CCM as
   **vs compatible SG spectral reference**, not exact per-unit chart truth.
+- **Pairing acceptance gate:** do not rely only on the reference's internal
+  A1..N10 label order. The configured CLRS reference must also pass the
+  `reference-info` camera/reference pairing gate against `ccsg_matlab.csv`.
+  The gate uses coarse broadband luminance and red-green / blue-green chroma
+  proxy correlations, so it validates row pairing only; it is not a substitute
+  for CCM residuals or DeltaE.
 - **Old archive reference policy:** 2016/2017 camera-characterization datasets
   should select the 2016 SG measurement bundle by project provenance. Do not use
   the 2019 CLRS workbook for old archives unless a specific mapping proves that
-  is the correct chart reference.
+  is the correct chart reference. The 2016 PatchTool file order is
+  `A1..A10`, then `B1..B10`, ...; any future old-archive color consumer must
+  respect or remap that order before pairing it to camera patches.
 - **Manufacturer SG reference, edition-specific.** The SG pigment set changed in
   Nov 2014, so the file must be tagged `Before_Nov2014` or `After_Nov2014` and
   matched to the physical chart used for the capture when known. Public files are

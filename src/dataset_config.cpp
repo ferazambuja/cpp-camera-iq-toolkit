@@ -1,5 +1,6 @@
 #include "camera_iq/dataset_config.hpp"
 
+#include <cmath>
 #include <cstdlib>
 #include <fstream>
 #include <stdexcept>
@@ -55,6 +56,52 @@ class JsonCursor {
       }
     }
     throw std::runtime_error("dataset config: unterminated JSON string");
+  }
+
+  double number() {
+    skip_ws();
+    const std::size_t start = pos_;
+    if (pos_ < text_.size() && text_[pos_] == '-') ++pos_;
+    while (pos_ < text_.size() && text_[pos_] >= '0' && text_[pos_] <= '9') {
+      ++pos_;
+    }
+    if (pos_ < text_.size() && text_[pos_] == '.') {
+      ++pos_;
+      while (pos_ < text_.size() && text_[pos_] >= '0' && text_[pos_] <= '9') {
+        ++pos_;
+      }
+    }
+    if (pos_ < text_.size() && (text_[pos_] == 'e' || text_[pos_] == 'E')) {
+      ++pos_;
+      if (pos_ < text_.size() && (text_[pos_] == '+' || text_[pos_] == '-')) {
+        ++pos_;
+      }
+      while (pos_ < text_.size() && text_[pos_] >= '0' && text_[pos_] <= '9') {
+        ++pos_;
+      }
+    }
+    if (start == pos_) {
+      throw std::runtime_error("dataset config: expected JSON number");
+    }
+    try {
+      std::size_t consumed = 0;
+      const std::string token{text_.substr(start, pos_ - start)};
+      const double out = std::stod(token, &consumed);
+      if (consumed != token.size() || !std::isfinite(out)) {
+        throw std::runtime_error("");
+      }
+      return out;
+    } catch (...) {
+      throw std::runtime_error("dataset config: invalid JSON number");
+    }
+  }
+
+  std::size_t unsigned_integer() {
+    const double value = number();
+    if (value < 0 || std::floor(value) != value) {
+      throw std::runtime_error("dataset config: expected unsigned integer");
+    }
+    return static_cast<std::size_t>(value);
   }
 
   void skip_value() {
@@ -128,6 +175,36 @@ ColorReferenceSpec parse_color_reference_object(JsonCursor& cur) {
       spec.source_sheet = cur.string();
     } else if (key == "selection_basis") {
       spec.selection_basis = cur.string();
+    } else if (key == "source") {
+      spec.source = cur.string();
+    } else if (key == "illuminant") {
+      spec.illuminant = cur.string();
+    } else if (key == "observer") {
+      spec.observer = cur.string();
+    } else if (key == "unit") {
+      spec.unit = cur.string();
+    } else if (key == "numbering_order") {
+      spec.numbering_order = cur.string();
+    } else if (key == "expected_patch_count") {
+      spec.expected_patch_count = cur.unsigned_integer();
+    } else if (key == "expected_band_count") {
+      spec.expected_band_count = cur.unsigned_integer();
+    } else if (key == "first_wavelength_nm") {
+      spec.first_wavelength_nm = cur.number();
+    } else if (key == "last_wavelength_nm") {
+      spec.last_wavelength_nm = cur.number();
+    } else if (key == "min_reflectance") {
+      spec.min_reflectance = cur.number();
+    } else if (key == "max_reflectance") {
+      spec.max_reflectance = cur.number();
+    } else if (key == "pairing_rgb_path") {
+      spec.pairing_rgb_path = cur.string();
+    } else if (key == "pairing_min_luminance_correlation") {
+      spec.pairing_min_luminance_correlation = cur.number();
+    } else if (key == "pairing_min_red_green_correlation") {
+      spec.pairing_min_red_green_correlation = cur.number();
+    } else if (key == "pairing_min_blue_green_correlation") {
+      spec.pairing_min_blue_green_correlation = cur.number();
     } else {
       cur.skip_value();
     }

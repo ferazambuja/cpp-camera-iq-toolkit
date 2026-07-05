@@ -45,11 +45,29 @@ never inferred from camera EXIF dates. Use project/archive provenance:
   `data/private/references/ccsg_2019_workbook/ccsg_2_FIXED_ref.csv`, generated
   from `ccsg.xlsx` sheet `ccsg_2_FIXED_ref`.
 - 2016/2017 camera-characterization archives use the contemporaneous 2016 SG
-  measurements under `data/private/references/sg_2016_archive/`.
+  measurements under `data/private/references/sg_2016_archive/`. The checked
+  example records the PatchTool file order (`A1..A10`, then `B1..B10`, ...);
+  color consumers must respect or remap that order before pairing it to camera
+  patch tables.
 - Manufacturer X-Rite/Zenodo Lab tables are optional public nominal comparisons,
   not replacements for dataset-specific reference provenance.
 
-Export the private workbook to the C++ text format with:
+The `color_reference` block carries typed provenance (`source`, `illuminant`,
+`observer`, `unit`, `numbering_order`) plus validation constraints
+(`expected_patch_count`, `expected_band_count`, wavelength endpoints, and
+reflectance range). `reference-info` rejects references that violate those
+constraints before a later CCM/DeltaE step can consume them.
+
+For CLRS-589, `reference-info` also runs a camera/reference pairing gate when
+`pairing_rgb_path` is configured. This is a coarse order sanity check, not a
+color-accuracy metric: it correlates camera green against a reference green-band
+luminance proxy, plus normalized red-green and blue-green chroma proxies. The
+gate exists because an internally well-formed A1..N10 reference can still be
+paired to the wrong camera row order.
+
+Export the private workbook to the C++ text format with an explicit wavelength
+axis. The workbook sheet stores data rows only, so the axis is supplied by the
+export command and then written into the CSV header:
 
 ```bash
 python3 tools/export_ccsg_xlsx.py \

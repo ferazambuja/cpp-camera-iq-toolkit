@@ -16,6 +16,21 @@ struct ColorReferenceSpec {
   std::filesystem::path source_xlsx;
   std::string source_sheet;
   std::string selection_basis;
+  std::string source;
+  std::string illuminant;
+  std::string observer;
+  std::string unit;
+  std::string numbering_order;
+  std::optional<std::size_t> expected_patch_count;
+  std::optional<std::size_t> expected_band_count;
+  std::optional<double> first_wavelength_nm;
+  std::optional<double> last_wavelength_nm;
+  std::optional<double> min_reflectance;
+  std::optional<double> max_reflectance;
+  std::filesystem::path pairing_rgb_path;
+  std::optional<double> pairing_min_luminance_correlation;
+  std::optional<double> pairing_min_red_green_correlation;
+  std::optional<double> pairing_min_blue_green_correlation;
 };
 
 struct DatasetSpec {

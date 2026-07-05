@@ -8,6 +8,7 @@
 #include <cmath>
 #include <fstream>
 #include <limits>
+#include <map>
 #include <optional>
 #include <stdexcept>
 #include <string>
@@ -125,6 +126,11 @@ double parse_csv_double_field(const std::string& field,
   return parse_double_field(field, context, "spectral reference CSV");
 }
 
+double parse_camera_double_field(const std::string& field,
+                                 const std::string& context) {
+  return parse_double_field(field, context, "camera RGB CSV");
+}
+
 std::optional<double> spectral_wavelength_from_field(
     const std::string& field) {
   constexpr std::string_view prefix = "SPECTRAL_NM";
@@ -140,10 +146,78 @@ std::optional<double> spectral_wavelength_from_field(
   return parse_double_field(suffix, "data format", "spectral reference CGATS");
 }
 
+std::string header_value(const std::map<std::string, std::string>& headers,
+                         const std::string& key) {
+  const auto it = headers.find(key);
+  if (it == headers.end()) return {};
+  return it->second;
+}
+
+bool near_equal(double a, double b) {
+  return std::abs(a - b) <= 1e-6;
+}
+
+double pearson_correlation(const std::vector<double>& a,
+                           const std::vector<double>& b,
+                           const std::string& label) {
+  if (a.size() != b.size() || a.size() < 2) {
+    throw std::runtime_error("reference pairing: " + label +
+                             " requires matching vectors with at least 2 rows");
+  }
+  double mean_a = 0;
+  double mean_b = 0;
+  for (std::size_t i = 0; i < a.size(); ++i) {
+    mean_a += a[i];
+    mean_b += b[i];
+  }
+  mean_a /= static_cast<double>(a.size());
+  mean_b /= static_cast<double>(b.size());
+
+  double cov = 0;
+  double var_a = 0;
+  double var_b = 0;
+  for (std::size_t i = 0; i < a.size(); ++i) {
+    const double da = a[i] - mean_a;
+    const double db = b[i] - mean_b;
+    cov += da * db;
+    var_a += da * da;
+    var_b += db * db;
+  }
+  if (var_a <= 0 || var_b <= 0) {
+    throw std::runtime_error("reference pairing: " + label +
+                             " has zero variance");
+  }
+  return cov / std::sqrt(var_a * var_b);
+}
+
+double band_mean(const SpectralReferencePatch& patch,
+                 const std::vector<double>& wavelengths_nm, double lo,
+                 double hi) {
+  double sum = 0;
+  std::size_t count = 0;
+  for (std::size_t i = 0; i < wavelengths_nm.size(); ++i) {
+    const double wl = wavelengths_nm[i];
+    if (wl < lo || wl > hi) continue;
+    sum += patch.reflectance[i];
+    ++count;
+  }
+  if (count == 0) {
+    throw std::runtime_error(
+        "reference pairing: reference lacks required spectral band");
+  }
+  return sum / static_cast<double>(count);
+}
+
+double normalized_difference(double a, double b) {
+  constexpr double eps = 1e-12;
+  return (a - b) / (std::abs(a) + std::abs(b) + eps);
+}
+
 }  // namespace
 
 SpectralReference read_spectral_reference_csv(const std::filesystem::path& path,
-                                              std::string source_label) {
+                                              std::string source_label,
+                                              SpectralReferenceProvenance provenance) {
   std::ifstream is(path, std::ios::binary);
   if (!is) {
     throw std::runtime_error("spectral reference CSV: cannot open " +
@@ -153,6 +227,7 @@ SpectralReference read_spectral_reference_csv(const std::filesystem::path& path,
   SpectralReference ref;
   ref.source_label = source_label.empty() ? path.generic_string()
                                           : std::move(source_label);
+  ref.provenance = std::move(provenance);
 
   std::string line;
   if (!std::getline(is, line)) {
@@ -211,7 +286,8 @@ SpectralReference read_spectral_reference_csv(const std::filesystem::path& path,
 }
 
 SpectralReference read_spectral_reference_cgats(
-    const std::filesystem::path& path, std::string source_label) {
+    const std::filesystem::path& path, std::string source_label,
+    SpectralReferenceProvenance provenance) {
   std::ifstream is(path, std::ios::binary);
   if (!is) {
     throw std::runtime_error("spectral reference CGATS: cannot open " +
@@ -221,6 +297,7 @@ SpectralReference read_spectral_reference_cgats(
   SpectralReference ref;
   ref.source_label = source_label.empty() ? path.generic_string()
                                           : std::move(source_label);
+  ref.provenance = std::move(provenance);
 
   std::vector<std::string> lines;
   for (std::string line; std::getline(is, line);) {
@@ -228,6 +305,7 @@ SpectralReference read_spectral_reference_cgats(
   }
 
   std::vector<std::string> fields;
+  std::map<std::string, std::string> headers;
   std::size_t data_format_end = lines.size();
   bool in_format = false;
   for (std::size_t i = 0; i < lines.size(); ++i) {
@@ -244,6 +322,9 @@ SpectralReference read_spectral_reference_cgats(
     if (in_format) {
       const auto tokens = split_cgats_fields(clean);
       fields.insert(fields.end(), tokens.begin(), tokens.end());
+    } else {
+      const auto tokens = split_cgats_fields(clean);
+      if (tokens.size() >= 2) headers.emplace(tokens[0], tokens[1]);
     }
   }
   if (fields.empty() || data_format_end == lines.size()) {
@@ -287,6 +368,18 @@ SpectralReference read_spectral_reference_cgats(
   if (spectral_indices.empty()) {
     throw std::runtime_error(
         "spectral reference CGATS: DATA_FORMAT lacks SPECTRAL_NM columns");
+  }
+  if (ref.provenance.source.empty()) {
+    ref.provenance.source = header_value(headers, "MEASUREMENT_SOURCE");
+  }
+  if (ref.provenance.illuminant.empty()) {
+    ref.provenance.illuminant = header_value(headers, "ILLUMINATION_NAME");
+  }
+  if (ref.provenance.observer.empty()) {
+    ref.provenance.observer = header_value(headers, "OBSERVER_ANGLE");
+  }
+  if (ref.provenance.unit.empty()) {
+    ref.provenance.unit = "spectral_reflectance";
   }
 
   bool in_data = false;
@@ -353,6 +446,7 @@ SpectralReferenceSummary summarize_spectral_reference(
     s.first_patch_id = ref.patches.front().id;
     s.last_patch_id = ref.patches.back().id;
   }
+  s.provenance = ref.provenance;
 
   double min_v = std::numeric_limits<double>::infinity();
   double max_v = -std::numeric_limits<double>::infinity();
@@ -365,6 +459,154 @@ SpectralReferenceSummary summarize_spectral_reference(
   if (std::isfinite(min_v)) s.min_reflectance = min_v;
   if (std::isfinite(max_v)) s.max_reflectance = max_v;
   return s;
+}
+
+void validate_spectral_reference(const SpectralReference& ref,
+                                 const SpectralReferenceValidation& rule) {
+  if (rule.expected_patch_count &&
+      ref.patches.size() != *rule.expected_patch_count) {
+    throw std::runtime_error("spectral reference validation: expected " +
+                             std::to_string(*rule.expected_patch_count) +
+                             " patches, got " +
+                             std::to_string(ref.patches.size()));
+  }
+  if (rule.expected_band_count &&
+      ref.wavelengths_nm.size() != *rule.expected_band_count) {
+    throw std::runtime_error("spectral reference validation: expected " +
+                             std::to_string(*rule.expected_band_count) +
+                             " bands, got " +
+                             std::to_string(ref.wavelengths_nm.size()));
+  }
+  if (rule.first_wavelength_nm && ref.wavelengths_nm.empty()) {
+    throw std::runtime_error(
+        "spectral reference validation: missing wavelength axis");
+  }
+  if (rule.last_wavelength_nm && ref.wavelengths_nm.empty()) {
+    throw std::runtime_error(
+        "spectral reference validation: missing wavelength axis");
+  }
+  if (rule.first_wavelength_nm &&
+      !near_equal(ref.wavelengths_nm.front(), *rule.first_wavelength_nm)) {
+    throw std::runtime_error(
+        "spectral reference validation: unexpected first wavelength");
+  }
+  if (rule.last_wavelength_nm &&
+      !near_equal(ref.wavelengths_nm.back(), *rule.last_wavelength_nm)) {
+    throw std::runtime_error(
+        "spectral reference validation: unexpected last wavelength");
+  }
+
+  for (const auto& patch : ref.patches) {
+    if (patch.reflectance.size() != ref.wavelengths_nm.size()) {
+      throw std::runtime_error(
+          "spectral reference validation: patch width mismatch");
+    }
+    for (const double v : patch.reflectance) {
+      if (!std::isfinite(v)) {
+        throw std::runtime_error(
+            "spectral reference validation: non-finite reflectance");
+      }
+      if (rule.min_reflectance && v < *rule.min_reflectance) {
+        throw std::runtime_error(
+            "spectral reference validation: reflectance below minimum");
+      }
+      if (rule.max_reflectance && v > *rule.max_reflectance) {
+        throw std::runtime_error(
+            "spectral reference validation: reflectance above maximum");
+      }
+    }
+  }
+}
+
+std::vector<CameraRgbPatch> read_camera_rgb_csv(
+    const std::filesystem::path& path) {
+  std::ifstream is(path, std::ios::binary);
+  if (!is) {
+    throw std::runtime_error("camera RGB CSV: cannot open " + path.string());
+  }
+
+  std::vector<CameraRgbPatch> out;
+  std::string line;
+  std::size_t line_no = 0;
+  while (std::getline(is, line)) {
+    ++line_no;
+    line = trim_cr(line);
+    if (line.empty()) continue;
+    const auto fields = parse_csv_line(line);
+    if (fields.size() != 3) {
+      throw std::runtime_error("camera RGB CSV: row " +
+                               std::to_string(line_no) +
+                               " must have 3 fields");
+    }
+    CameraRgbPatch patch;
+    patch.r = parse_camera_double_field(fields[0],
+                                        "row " + std::to_string(line_no));
+    patch.g = parse_camera_double_field(fields[1],
+                                        "row " + std::to_string(line_no));
+    patch.b = parse_camera_double_field(fields[2],
+                                        "row " + std::to_string(line_no));
+    out.push_back(patch);
+  }
+  if (out.empty()) {
+    throw std::runtime_error("camera RGB CSV: no patch rows");
+  }
+  return out;
+}
+
+SpectralReferencePairing evaluate_reference_pairing(
+    const SpectralReference& ref, const std::vector<CameraRgbPatch>& camera_rgb,
+    SpectralReferencePairingThresholds thresholds) {
+  if (ref.patches.size() != camera_rgb.size()) {
+    throw std::runtime_error(
+        "reference pairing: camera RGB rows and reference patches differ");
+  }
+  if (ref.patches.size() < 3) {
+    throw std::runtime_error(
+        "reference pairing: at least 3 patches are required");
+  }
+
+  std::vector<double> camera_luminance;
+  std::vector<double> camera_rg;
+  std::vector<double> camera_bg;
+  std::vector<double> ref_luminance;
+  std::vector<double> ref_rg;
+  std::vector<double> ref_bg;
+  camera_luminance.reserve(camera_rgb.size());
+  camera_rg.reserve(camera_rgb.size());
+  camera_bg.reserve(camera_rgb.size());
+  ref_luminance.reserve(camera_rgb.size());
+  ref_rg.reserve(camera_rgb.size());
+  ref_bg.reserve(camera_rgb.size());
+
+  for (std::size_t i = 0; i < ref.patches.size(); ++i) {
+    const auto& patch = ref.patches[i];
+    const double ref_r = band_mean(patch, ref.wavelengths_nm, 600.0, 700.0);
+    const double ref_g = band_mean(patch, ref.wavelengths_nm, 500.0, 580.0);
+    const double ref_b = band_mean(patch, ref.wavelengths_nm, 430.0, 490.0);
+    ref_luminance.push_back(ref_g);
+    ref_rg.push_back(normalized_difference(ref_r, ref_g));
+    ref_bg.push_back(normalized_difference(ref_b, ref_g));
+
+    const auto& rgb = camera_rgb[i];
+    camera_luminance.push_back(rgb.g);
+    camera_rg.push_back(normalized_difference(rgb.r, rgb.g));
+    camera_bg.push_back(normalized_difference(rgb.b, rgb.g));
+  }
+
+  SpectralReferencePairing out;
+  out.patch_count = ref.patches.size();
+  out.thresholds = thresholds;
+  out.luminance_correlation =
+      pearson_correlation(camera_luminance, ref_luminance, "luminance");
+  out.red_green_correlation =
+      pearson_correlation(camera_rg, ref_rg, "red-green chroma proxy");
+  out.blue_green_correlation =
+      pearson_correlation(camera_bg, ref_bg, "blue-green chroma proxy");
+  out.passes =
+      out.luminance_correlation >= thresholds.min_luminance_correlation &&
+      out.red_green_correlation >= thresholds.min_red_green_correlation &&
+      out.blue_green_correlation >= thresholds.min_blue_green_correlation;
+  return out;
 }
 
 void write_spectral_reference_summary_json(std::ostream& os,
@@ -389,6 +631,19 @@ void write_spectral_reference_summary_json(std::ostream& os,
   w.value(s.min_reflectance);
   w.key("max_reflectance");
   w.value(s.max_reflectance);
+  w.key("provenance");
+  w.begin_object();
+  w.key("source");
+  w.value(s.provenance.source);
+  w.key("illuminant");
+  w.value(s.provenance.illuminant);
+  w.key("observer");
+  w.value(s.provenance.observer);
+  w.key("unit");
+  w.value(s.provenance.unit);
+  w.key("numbering_order");
+  w.value(s.provenance.numbering_order);
+  w.end_object();
   w.end_object();
 }
 

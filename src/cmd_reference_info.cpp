@@ -16,18 +16,61 @@ namespace {
 struct Args {
   std::string target;
   std::filesystem::path config = default_dataset_config_path();
+  std::filesystem::path camera_rgb;
   std::filesystem::path out;
 };
 
 void usage() {
   std::cerr << "Usage: camera_iq reference-info <dataset-id|spectral-csv>"
-               " [--config FILE] [--out FILE]\n"
+               " [--config FILE] [--camera-rgb FILE] [--out FILE]\n"
                "Supported formats: camera_iq_spectral_csv, cgats_spectral\n";
+}
+
+SpectralReferenceProvenance provenance_from_spec(
+    const ColorReferenceSpec& spec) {
+  SpectralReferenceProvenance provenance;
+  provenance.source = spec.source;
+  provenance.illuminant = spec.illuminant;
+  provenance.observer = spec.observer;
+  provenance.unit = spec.unit;
+  provenance.numbering_order = spec.numbering_order;
+  return provenance;
+}
+
+SpectralReferenceValidation validation_from_spec(
+    const ColorReferenceSpec& spec) {
+  SpectralReferenceValidation validation;
+  validation.expected_patch_count = spec.expected_patch_count;
+  validation.expected_band_count = spec.expected_band_count;
+  validation.first_wavelength_nm = spec.first_wavelength_nm;
+  validation.last_wavelength_nm = spec.last_wavelength_nm;
+  validation.min_reflectance = spec.min_reflectance;
+  validation.max_reflectance = spec.max_reflectance;
+  return validation;
+}
+
+SpectralReferencePairingThresholds pairing_thresholds_from_spec(
+    const ColorReferenceSpec& spec) {
+  SpectralReferencePairingThresholds thresholds;
+  if (spec.pairing_min_luminance_correlation) {
+    thresholds.min_luminance_correlation =
+        *spec.pairing_min_luminance_correlation;
+  }
+  if (spec.pairing_min_red_green_correlation) {
+    thresholds.min_red_green_correlation =
+        *spec.pairing_min_red_green_correlation;
+  }
+  if (spec.pairing_min_blue_green_correlation) {
+    thresholds.min_blue_green_correlation =
+        *spec.pairing_min_blue_green_correlation;
+  }
+  return thresholds;
 }
 
 void write_report(std::ostream& os, const std::string& dataset_id,
                   const ColorReferenceSpec& spec,
-                  const SpectralReferenceSummary& summary) {
+                  const SpectralReferenceSummary& summary,
+                  const std::optional<SpectralReferencePairing>& pairing) {
   JsonWriter w(os);
   w.begin_object();
   w.key("dataset_id");
@@ -40,6 +83,19 @@ void write_report(std::ostream& os, const std::string& dataset_id,
   w.value(spec.format);
   w.key("selection_basis");
   w.value(spec.selection_basis);
+  w.key("provenance");
+  w.begin_object();
+  w.key("source");
+  w.value(summary.provenance.source);
+  w.key("illuminant");
+  w.value(summary.provenance.illuminant);
+  w.key("observer");
+  w.value(summary.provenance.observer);
+  w.key("unit");
+  w.value(summary.provenance.unit);
+  w.key("numbering_order");
+  w.value(summary.provenance.numbering_order);
+  w.end_object();
   w.key("path");
   w.value(spec.path.generic_string());
   w.key("source_xlsx");
@@ -75,6 +131,36 @@ void write_report(std::ostream& os, const std::string& dataset_id,
   w.key("max_reflectance");
   w.value(summary.max_reflectance);
   w.end_object();
+  w.key("validation");
+  w.begin_object();
+  w.key("passed");
+  w.value(true);
+  w.end_object();
+  w.key("pairing");
+  if (!pairing) {
+    w.null();
+  } else {
+    w.begin_object();
+    w.key("method");
+    w.value("broadband_luminance_and_chroma_proxy_correlation");
+    w.key("patch_count");
+    w.value(static_cast<std::int64_t>(pairing->patch_count));
+    w.key("luminance_correlation");
+    w.value(pairing->luminance_correlation);
+    w.key("red_green_correlation");
+    w.value(pairing->red_green_correlation);
+    w.key("blue_green_correlation");
+    w.value(pairing->blue_green_correlation);
+    w.key("min_luminance_correlation");
+    w.value(pairing->thresholds.min_luminance_correlation);
+    w.key("min_red_green_correlation");
+    w.value(pairing->thresholds.min_red_green_correlation);
+    w.key("min_blue_green_correlation");
+    w.value(pairing->thresholds.min_blue_green_correlation);
+    w.key("passes");
+    w.value(pairing->passes);
+    w.end_object();
+  }
   w.end_object();
 }
 
@@ -90,6 +176,12 @@ int cmd_reference_info(int argc, char** argv) {
         return 2;
       }
       args.config = argv[i];
+    } else if (arg == "--camera-rgb") {
+      if (++i >= argc) {
+        std::cerr << "camera_iq reference-info: --camera-rgb requires a path\n";
+        return 2;
+      }
+      args.camera_rgb = argv[i];
     } else if (arg == "--out") {
       if (++i >= argc) {
         std::cerr << "camera_iq reference-info: --out requires a path\n";
@@ -123,6 +215,7 @@ int cmd_reference_info(int argc, char** argv) {
       spec.format = "camera_iq_spectral_csv";
       spec.path = direct;
       spec.selection_basis = "explicit_file";
+      if (spec.unit.empty()) spec.unit = "spectral_reflectance";
     } else {
       const auto datasets = read_dataset_config(args.config);
       const auto it = datasets.find(args.target);
@@ -141,19 +234,35 @@ int cmd_reference_info(int argc, char** argv) {
     }
 
     SpectralReference ref;
+    const auto provenance = provenance_from_spec(spec);
     if (spec.format == "camera_iq_spectral_csv") {
-      ref = read_spectral_reference_csv(spec.path, spec.id);
+      ref = read_spectral_reference_csv(spec.path, spec.id, provenance);
     } else if (spec.format == "cgats_spectral") {
-      ref = read_spectral_reference_cgats(spec.path, spec.id);
+      ref = read_spectral_reference_cgats(spec.path, spec.id, provenance);
     } else {
       std::cerr << "camera_iq reference-info: unsupported reference format '"
                 << spec.format << "' for " << spec.id << "\n";
       return 1;
     }
 
+    validate_spectral_reference(ref, validation_from_spec(spec));
+    std::optional<SpectralReferencePairing> pairing;
+    const auto pairing_path = args.camera_rgb.empty() ? spec.pairing_rgb_path
+                                                      : args.camera_rgb;
+    if (!pairing_path.empty()) {
+      pairing = evaluate_reference_pairing(
+          ref, read_camera_rgb_csv(pairing_path),
+          pairing_thresholds_from_spec(spec));
+      if (!pairing->passes) {
+        std::cerr << "camera_iq reference-info: reference/camera pairing "
+                     "failed configured correlation thresholds\n";
+        return 1;
+      }
+    }
+
     const auto summary = summarize_spectral_reference(ref);
     if (args.out.empty()) {
-      write_report(std::cout, dataset_id, spec, summary);
+      write_report(std::cout, dataset_id, spec, summary, pairing);
       std::cout << "\n";
     } else {
       std::ofstream os(args.out, std::ios::binary);
@@ -162,7 +271,7 @@ int cmd_reference_info(int argc, char** argv) {
                   << "\n";
         return 1;
       }
-      write_report(os, dataset_id, spec, summary);
+      write_report(os, dataset_id, spec, summary, pairing);
       std::cerr << "reference info written to " << args.out << "\n";
     }
   } catch (const std::exception& ex) {

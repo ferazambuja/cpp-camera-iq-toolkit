@@ -12,7 +12,11 @@ Expected source sheet:
   * sheet name: ccsg_2_FIXED_ref
   * 140 rows, one per ColorChecker-SG cell
   * column B: patch ID in A1..N10 order
-  * columns E..AN: reflectance bands 380..730 nm at 10 nm
+  * columns E..AN: reflectance bands
+
+The workbook sheet does not carry wavelength labels. The output axis is supplied
+explicitly by --first-wavelength/--step-nm/--band-count and written into the CSV
+header so the C++ loader consumes an explicit axis.
 
 The output is gitignored when written under data/private/.
 """
