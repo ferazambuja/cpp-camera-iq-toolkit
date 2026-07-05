@@ -183,7 +183,9 @@ void write_report(std::ostream& os, const std::string& dataset_id,
   w.value("DeltaE76 summary, not CIEDE2000 or ISO color accuracy claim");
   w.value(
       "Uses the supplied illuminant SPD; illumination stability is not verified");
-  w.value("Camera RGB input is an existing patch table, not RAW patch extraction");
+  w.value(
+      "Camera RGB input is a patch table; upstream extraction/correction "
+      "provenance must be tracked by the producer");
   w.end_array();
   w.end_object();
 }

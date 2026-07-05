@@ -3,7 +3,9 @@
 #include <algorithm>
 #include <cmath>
 #include <fstream>
+#include <iomanip>
 #include <map>
+#include <ostream>
 #include <stdexcept>
 #include <string>
 #include <string_view>
@@ -71,6 +73,11 @@ double rgb_component(const CameraRgbPatch& rgb, int component) {
   return rgb.b;
 }
 
+double flat_denominator(double value, double floor_value) {
+  if (!std::isfinite(value) || value <= floor_value) return floor_value;
+  return value;
+}
+
 PatchChannelComparison compare_channel(const std::vector<PatchMean>& patches,
                                        const std::vector<CameraRgbPatch>& ref,
                                        int component) {
@@ -104,15 +111,29 @@ PatchChannelComparison compare_channel(const std::vector<PatchMean>& patches,
   out.slope = cov / var_x;
   out.intercept = mean_y - out.slope * mean_x;
 
-  double sumsq = 0;
+  double error_sum = 0;
+  double direct_sumsq = 0;
+  double max_abs_error = 0;
+  double affine_sumsq = 0;
   for (std::size_t i = 0; i < patches.size(); ++i) {
+    const double direct_residual = rgb_component(patches[i].rgb, component) -
+                                   rgb_component(ref[i], component);
+    error_sum += direct_residual;
+    direct_sumsq += direct_residual * direct_residual;
+    max_abs_error = std::max(max_abs_error, std::abs(direct_residual));
+
     const double predicted =
         out.slope * rgb_component(patches[i].rgb, component) + out.intercept;
     const double residual = predicted - rgb_component(ref[i], component);
-    sumsq += residual * residual;
+    affine_sumsq += residual * residual;
   }
+  out.mean_error_before_affine =
+      error_sum / static_cast<double>(patches.size());
+  out.rmse_before_affine =
+      std::sqrt(direct_sumsq / static_cast<double>(patches.size()));
+  out.max_abs_error_before_affine = max_abs_error;
   out.rmse_after_affine =
-      std::sqrt(sumsq / static_cast<double>(patches.size()));
+      std::sqrt(affine_sumsq / static_cast<double>(patches.size()));
   return out;
 }
 
@@ -291,6 +312,108 @@ std::vector<PatchMean> extract_patch_means(
   return out;
 }
 
+std::vector<RgbPixel> apply_flat_field(
+    const std::vector<RgbPixel>& image, const std::vector<RgbPixel>& flat,
+    int width, int height, double floor_value,
+    FlatFieldCorrectionSummary* summary) {
+  if (width <= 0 || height <= 0 ||
+      image.size() != static_cast<std::size_t>(width) *
+                          static_cast<std::size_t>(height) ||
+      flat.size() != image.size()) {
+    throw std::runtime_error("flat field: image dimensions mismatch");
+  }
+  if (!std::isfinite(floor_value) || floor_value <= 0) {
+    throw std::runtime_error("flat field: floor value must be positive");
+  }
+
+  double sum_r = 0;
+  double sum_g = 0;
+  double sum_b = 0;
+  std::size_t valid_r = 0;
+  std::size_t valid_g = 0;
+  std::size_t valid_b = 0;
+  std::size_t clamped = 0;
+  for (const auto& p : flat) {
+    if (std::isfinite(p.r) && p.r > floor_value) {
+      sum_r += p.r;
+      ++valid_r;
+    } else {
+      ++clamped;
+    }
+    if (std::isfinite(p.g) && p.g > floor_value) {
+      sum_g += p.g;
+      ++valid_g;
+    } else {
+      ++clamped;
+    }
+    if (std::isfinite(p.b) && p.b > floor_value) {
+      sum_b += p.b;
+      ++valid_b;
+    } else {
+      ++clamped;
+    }
+  }
+  if (valid_r == 0 || valid_g == 0 || valid_b == 0) {
+    throw std::runtime_error("flat field: no valid samples above floor");
+  }
+
+  const CameraRgbPatch normalizer{
+      sum_r / static_cast<double>(valid_r),
+      sum_g / static_cast<double>(valid_g),
+      sum_b / static_cast<double>(valid_b),
+  };
+
+  std::vector<RgbPixel> corrected;
+  corrected.reserve(image.size());
+  for (std::size_t i = 0; i < image.size(); ++i) {
+    const auto& src = image[i];
+    const auto& ff = flat[i];
+    const double denom_r = flat_denominator(ff.r, floor_value);
+    const double denom_g = flat_denominator(ff.g, floor_value);
+    const double denom_b = flat_denominator(ff.b, floor_value);
+    corrected.push_back({src.r * normalizer.r / denom_r,
+                         src.g * normalizer.g / denom_g,
+                         src.b * normalizer.b / denom_b});
+  }
+
+  if (summary != nullptr) {
+    summary->normalizer = normalizer;
+    summary->floor_value = floor_value;
+    summary->pixel_count = image.size();
+    summary->valid_sample_count = valid_r + valid_g + valid_b;
+    summary->clamped_sample_count = clamped;
+  }
+  return corrected;
+}
+
+std::vector<RgbPixel> apply_white_balance(const std::vector<RgbPixel>& image,
+                                          WhiteBalanceGains gains) {
+  if (!std::isfinite(gains.r) || !std::isfinite(gains.g) ||
+      !std::isfinite(gains.b) || gains.r <= 0 || gains.g <= 0 ||
+      gains.b <= 0) {
+    throw std::runtime_error("white balance: gains must be positive");
+  }
+  std::vector<RgbPixel> out;
+  out.reserve(image.size());
+  for (const auto& p : image) {
+    out.push_back({p.r * gains.r, p.g * gains.g, p.b * gains.b});
+  }
+  return out;
+}
+
+WhiteBalanceGains white_balance_gains_from_flat_field(
+    const FlatFieldCorrectionSummary& flat) {
+  if (!std::isfinite(flat.normalizer.r) ||
+      !std::isfinite(flat.normalizer.g) ||
+      !std::isfinite(flat.normalizer.b) || flat.normalizer.r <= 0 ||
+      flat.normalizer.g <= 0 || flat.normalizer.b <= 0) {
+    throw std::runtime_error(
+        "white balance: flat-field normalizer must be positive");
+  }
+  return {flat.normalizer.g / flat.normalizer.r, 1.0,
+          flat.normalizer.g / flat.normalizer.b};
+}
+
 PatchComparison compare_patch_means_to_rgb(
     const std::vector<PatchMean>& patches,
     const std::vector<CameraRgbPatch>& reference_rgb) {
@@ -309,6 +432,14 @@ PatchComparison compare_patch_means_to_rgb(
         compare_channel(patches, reference_rgb, component);
   }
   return out;
+}
+
+void write_camera_rgb_csv(std::ostream& os,
+                          const std::vector<PatchMean>& patches) {
+  os << std::setprecision(17);
+  for (const auto& patch : patches) {
+    os << patch.rgb.r << ',' << patch.rgb.g << ',' << patch.rgb.b << '\n';
+  }
 }
 
 }  // namespace camera_iq

@@ -98,6 +98,30 @@ Extract RAW-space SG patch means with RawDigger's local coordinate export:
   --rawdigger-csv Images/CCSG_rawdigger.csv
 ```
 
+Extract a corrected RAW-derived RGB table for `ccm-fit`:
+
+```bash
+./build/camera_iq patches \
+  "Images/CCSG_f8/CCSG_f8.0_1:10_DSCF0402.RAF" \
+  --dataset clrs589_project_camera \
+  --rawdigger-csv Images/CCSG_rawdigger.csv \
+  --flat-field-raw "Images/Sphere/Sphere_f8.0_1:1000_DSCF0387.RAF" \
+  --wb-from-flat-field \
+  --rgb-csv-out out/raw-flat-wb-patches.csv \
+  --out out/raw-flat-wb-patches.json
+
+./build/camera_iq ccm-fit clrs589_project_camera \
+  --illuminant-spd "data/private/datasets/clrs589_project_camera/Sphere measurments/fernando_ff2.csv" \
+  --camera-rgb out/raw-flat-wb-patches.csv
+```
+
+Do not use saturated sphere/flat captures for vignetting correction. For the
+current CLRS-589 f/8 SG validation run, the `1:10` through roughly `1:200` sphere
+frames sit too close to the flat maximum; `Sphere_f8.0_1:1000_DSCF0387.RAF`
+preserves usable spatial variation. The command rejects flats when more than
+1% of demosaiced channel samples sit above 98% of the black-subtracted sensor
+ceiling.
+
 ## Guardrail
 
 `check_public_paths` runs in CTest and fails if tracked files contain private

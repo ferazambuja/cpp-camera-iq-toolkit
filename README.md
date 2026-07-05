@@ -83,6 +83,20 @@ ctest --test-dir build --output-on-failure
   --rawdigger-csv Images/CCSG_rawdigger.csv \
   --out out/patches.json
 
+# Extract corrected RAW patch means and feed them into the CCM fitter:
+./build/camera_iq patches \
+  "Images/CCSG_f8/CCSG_f8.0_1:10_DSCF0402.RAF" \
+  --dataset clrs589_project_camera \
+  --rawdigger-csv Images/CCSG_rawdigger.csv \
+  --flat-field-raw "Images/Sphere/Sphere_f8.0_1:1000_DSCF0387.RAF" \
+  --wb-from-flat-field \
+  --rgb-csv-out out/raw-flat-wb-patches.csv \
+  --out out/raw-flat-wb-patches.json
+./build/camera_iq ccm-fit clrs589_project_camera \
+  --illuminant-spd "data/private/datasets/clrs589_project_camera/Sphere measurments/fernando_ff2.csv" \
+  --camera-rgb out/raw-flat-wb-patches.csv \
+  --out out/raw-flat-wb-ccm.json
+
 # Public no-private-data demo:
 ./build/camera_iq manifest data/samples/manifest_fixture --no-exif
 ```

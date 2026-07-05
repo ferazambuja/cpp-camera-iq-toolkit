@@ -3,6 +3,7 @@
 #include <array>
 #include <cstddef>
 #include <filesystem>
+#include <iosfwd>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -34,6 +35,9 @@ struct PatchChannelComparison {
   double correlation = 0;
   double slope = 0;
   double intercept = 0;
+  double mean_error_before_affine = 0;
+  double rmse_before_affine = 0;
+  double max_abs_error_before_affine = 0;
   double rmse_after_affine = 0;
 };
 
@@ -46,6 +50,23 @@ struct RawDiggerPatchTable {
   std::vector<PatchCoord> coords;
   std::vector<CameraRgbPatch> reference_rgb;
   std::vector<std::string> sample_names;
+};
+
+struct FlatFieldCorrectionSummary {
+  CameraRgbPatch normalizer;
+  double floor_value = 0;
+  std::size_t pixel_count = 0;
+  std::size_t valid_sample_count = 0;
+  std::size_t clamped_sample_count = 0;
+  std::size_t near_ceiling_sample_count = 0;
+  double near_ceiling_fraction = 0;
+  double max_allowed_near_ceiling_fraction = 0;
+};
+
+struct WhiteBalanceGains {
+  double r = 1;
+  double g = 1;
+  double b = 1;
 };
 
 // Reads checker2colors-style coord.csv rows: x,y,width,height. The coordinates
@@ -67,8 +88,22 @@ std::vector<PatchMean> extract_patch_means(
     const std::vector<RgbPixel>& image, int width, int height,
     const std::vector<PatchCoord>& coords);
 
+std::vector<RgbPixel> apply_flat_field(
+    const std::vector<RgbPixel>& image, const std::vector<RgbPixel>& flat,
+    int width, int height, double floor_value = 1.0,
+    FlatFieldCorrectionSummary* summary = nullptr);
+
+std::vector<RgbPixel> apply_white_balance(const std::vector<RgbPixel>& image,
+                                          WhiteBalanceGains gains);
+
+WhiteBalanceGains white_balance_gains_from_flat_field(
+    const FlatFieldCorrectionSummary& flat);
+
 PatchComparison compare_patch_means_to_rgb(
     const std::vector<PatchMean>& patches,
     const std::vector<CameraRgbPatch>& reference_rgb);
+
+void write_camera_rgb_csv(std::ostream& os,
+                          const std::vector<PatchMean>& patches);
 
 }  // namespace camera_iq

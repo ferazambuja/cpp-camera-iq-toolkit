@@ -36,8 +36,21 @@ convention:
 - `extract_patch_means()` over row-major `RgbPixel` images with clipping and
   sample counts.
 - `compare_patch_means_to_rgb()` with per-channel Pearson correlation, affine
-  slope/intercept, and RMSE after affine fit.
-- `camera_iq patches`, producing per-patch JSON and optional comparison output.
+  slope/intercept, direct RMSE/bias/max-error, and RMSE after affine fit.
+- Optional image-domain flat-field correction from a local RAW flat/sphere
+  capture: black-subtracted bilinear RGB is multiplied by
+  `channel_mean(flat) / flat_pixel`, with an explicit denominator floor and
+  clamped-sample count in JSON.
+- Flat-field RAWs are rejected if more than 1% of demosaiced channel samples
+  are above 98% of that channel's black-subtracted sensor ceiling, preventing
+  clipped/near-clipped flats from producing authoritative-looking corrections.
+- Optional white-balance policy: explicit `--wb-gains R,G,B`, or
+  `--wb-from-flat-field`, which anchors the flat/sphere green normalizer and
+  scales red/blue to match it.
+- Optional `--rgb-csv-out`, producing a three-column camera RGB table that
+  `camera_iq ccm-fit --camera-rgb` can consume directly.
+- `camera_iq patches`, producing per-patch JSON and optional comparison / CSV
+  output.
 
 ## Real-Data Validation
 
@@ -53,11 +66,11 @@ Command:
 
 Result against RawDigger's own exported patch averages:
 
-| Channel | Correlation | Affine slope | RMSE after affine |
-|---|---:|---:|---:|
-| R | 0.999999982 | 0.999982371 | 0.350 DN |
-| G | 1.000000000 | 1.000001748 | 0.040 DN |
-| B | 0.999999980 | 1.000013457 | 0.379 DN |
+| Channel | Correlation | Mean direct error | Direct RMSE | Max direct abs error | Affine slope | RMSE after affine |
+|---|---:|---:|---:|---:|---:|---:|
+| R | 0.999999982 | +0.015 DN | 0.352 DN | 1.224 DN | 0.999982371 | 0.350 DN |
+| G | 1.000000000 | -0.003 DN | 0.041 DN | 0.259 DN | 1.000001748 | 0.040 DN |
+| B | 0.999999980 | -0.028 DN | 0.381 DN | 1.415 DN | 1.000013457 | 0.379 DN |
 
 The first patch (`A1`) extracted by C++:
 
@@ -65,9 +78,9 @@ The first patch (`A1`) extracted by C++:
 {"r":4139.5935268265885,"g":7602.262039919428,"b":4651.185008850638}
 ```
 
-RawDigger reports `4139.45, 7602.30, 4651.25`. The sub-DN residuals are
-consistent with identical rectangles and only tiny rounding/implementation
-differences.
+RawDigger reports `4139.45, 7602.30, 4651.25`. The direct (pre-affine) RMSE is
+within 1% of the after-affine RMSE and the signed channel bias is below `0.03`
+DN, so the agreement is absolute-DN agreement, not a scale/offset artifact.
 
 ## Important Negative Finding
 
@@ -81,21 +94,62 @@ Use RawDigger coordinates for RAW-space validation. Treat `ccsg_matlab.csv` as a
 historical rendered/TIFF pipeline target until the C++ tool has an explicit
 TIFF/flat-field parity path or an automatic chart-localization step.
 
+## Corrected RAW Patch Table Validation
+
+Command:
+
+```bash
+./build/camera_iq patches \
+  "Images/CCSG_f8/CCSG_f8.0_1:10_DSCF0402.RAF" \
+  --dataset clrs589_project_camera \
+  --rawdigger-csv Images/CCSG_rawdigger.csv \
+  --flat-field-raw "Images/Sphere/Sphere_f8.0_1:1000_DSCF0387.RAF" \
+  --wb-from-flat-field \
+  --rgb-csv-out /tmp/clrs589_raw_flat_wb_patches.csv \
+  --out /tmp/clrs589_raw_flat_wb_patches.json
+```
+
+Result:
+
+| Field | Value |
+|---|---:|
+| patch rows | 140 |
+| flat normalizer R/G/B | 3240.165 / 5979.162 / 3199.320 DN |
+| flat clamped samples | 0 |
+| flat near-ceiling samples | 0 / 72.43M |
+| flat-derived WB gains R/G/B | 1.845327 / 1.000000 / 1.868886 |
+| first patch A1 corrected RGB | 7677.11 / 7639.68 / 8712.55 |
+
+`comparison` is intentionally `null` in this corrected mode unless an explicit
+corrected reference RGB table is supplied. RawDigger's `Ravg/Gavg/Bavg` values
+are uncorrected RAW rectangle means, so they are valid as a geometry/extraction
+oracle only for the uncorrected mode above.
+
+The same-aperture `Sphere_f8.0_1:10` through roughly `1:200` frames are too near
+the clipped flat maximum for meaningful vignetting correction. The validation run
+uses `Sphere_f8.0_1:1000_DSCF0387.RAF`, whose CFA means are well below the
+ceiling and preserve spatial variation. The command now rejects
+`Sphere_f8.0_1:10_DSCF0369.RAF` with `flat-field RAW is too close to the sensor
+ceiling for correction`.
+
 ## Scientific Boundaries
 
 - The command uses bilinear demosaic only.
-- No sphere flat-field/vignetting correction is applied yet.
+- Flat-field correction is multiplicative image-domain correction, not a full
+  ISP shading model.
+- White balance is explicit: either caller-provided gains or the documented
+  flat-field green-anchor policy.
 - `--rawdigger-csv` validates RAW-space rectangle extraction against RawDigger
-  patch means; it is not a DeltaE or CCM metric.
+  patch means only when no correction is applied; corrected patch tables need a
+  corrected reference or downstream CCM/DeltaE evaluation.
 - `--coords` supports MATLAB-style rectangle files, but the caller must ensure
   those coordinates belong to the same image domain as the RAW being read.
 - There is no automatic chart detection or perspective fitting yet.
 
 ## Next Risks
 
-1. Add an explicit flat-field path using sphere/dark frames before using RAW
-   patch means as the production CCM input.
-2. Decide whether to reproduce the historical TIFF workflow for parity or move
+1. Decide whether to reproduce the historical TIFF workflow for parity or move
    directly to RAW-space chart localization.
-3. Feed validated RAW-space patch means into `ccm-fit` once white balance and
-   flat-field policy are explicit.
+2. Replace RawDigger-coordinate dependency with automatic chart localization.
+3. Add root-polynomial / exposure-normalized color models before treating the
+   DeltaE value as the best achievable color result.

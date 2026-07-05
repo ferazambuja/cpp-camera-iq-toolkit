@@ -23,6 +23,9 @@ The camera RGB input is the existing 140-row MATLAB patch table:
 data/private/datasets/clrs589_project_camera/Images/ccsg_matlab.csv
 ```
 
+`camera_iq patches` can now emit a corrected RAW-derived 140-row RGB table via
+`--rgb-csv-out`; the MATLAB table remains the historical baseline input.
+
 The illuminant is supplied explicitly from the local copied sphere measurements;
 it is not inferred from EXIF or camera dates.
 
@@ -38,6 +41,8 @@ it is not inferred from EXIF or camera dates.
   reports mean, RMS, and max DeltaE76 against the rendered reference.
 - `camera_iq ccm-fit` reuses the configured reference validation and
   camera/reference pairing gate before fitting.
+- `camera_iq patches --flat-field-raw ... --wb-from-flat-field
+  --rgb-csv-out ...` now provides a corrected RAW-derived camera RGB input path.
 
 ## Real-Data Result
 
@@ -89,6 +94,50 @@ The three copied sphere SPDs give stable first-slice results:
 axis, around 991 nm. The reader ignores that unused tail and still rejects any
 negative interpolated value on the actual 380-730 nm target axis.
 
+## Corrected RAW Patch Input Validation
+
+Patch table command:
+
+```bash
+./build/camera_iq patches \
+  "Images/CCSG_f8/CCSG_f8.0_1:10_DSCF0402.RAF" \
+  --dataset clrs589_project_camera \
+  --rawdigger-csv Images/CCSG_rawdigger.csv \
+  --flat-field-raw "Images/Sphere/Sphere_f8.0_1:1000_DSCF0387.RAF" \
+  --wb-from-flat-field \
+  --rgb-csv-out /tmp/clrs589_raw_flat_wb_patches.csv \
+  --out /tmp/clrs589_raw_flat_wb_patches.json
+```
+
+CCM command:
+
+```bash
+./build/camera_iq ccm-fit clrs589_project_camera \
+  --illuminant-spd "data/private/datasets/clrs589_project_camera/Sphere measurments/fernando_ff2.csv" \
+  --camera-rgb /tmp/clrs589_raw_flat_wb_patches.csv \
+  --out /tmp/clrs589_raw_flat_wb_ccm.json
+```
+
+Pairing gate:
+
+| Metric | Value | Gate |
+|---|---:|---:|
+| luminance correlation | 0.9828 | >= 0.90 |
+| red-green proxy correlation | 0.9603 | >= 0.80 |
+| blue-green proxy correlation | 0.9611 | >= 0.90 |
+
+Corrected RAW-patch DeltaE76 summary, 140 patches:
+
+| Mean | RMS | Max |
+|---:|---:|---:|
+| 6.501 | 9.457 | 39.911 |
+
+The near-identical DeltaE under `--wb-from-flat-field` versus no WB is expected
+for a free 3x3 CCM: per-channel white-balance gains are absorbed by the fitted
+matrix. The value of this slice is not the final DeltaE number; it is that the
+RAW patch extraction path now has explicit flat-field/WB provenance and can feed
+the same CCM fitter as the historical MATLAB table.
+
 ## Scientific Boundaries
 
 - The result is labeled **vs compatible SG spectral reference**, not exact
@@ -96,18 +145,16 @@ negative interpolated value on the actual 380-730 nm target axis.
 - This is DeltaE76 only, not CIEDE2000.
 - This is a linear 3x3 CCM only; root-polynomial and exposure-normalized color
   models are future work.
-- The command consumes an existing patch RGB table. `camera_iq patches` now
-  provides RAW-space patch means, but flat-field and white-balance policy still
-  need to be made explicit before those means replace `ccsg_matlab.csv` as the
-  CCM input.
+- The command consumes a patch RGB table. `camera_iq patches` can now produce a
+  corrected RAW-derived table, but RawDigger coordinates are still an external
+  dependency.
 - The command uses the supplied illuminant SPD and cannot verify illumination
   stability during the chart capture.
 
 ## Next Risks
 
-1. Use `camera_iq patches` plus RawDigger coordinates as the RAW-space patch
-   source, then add flat-field/white-balance policy before replacing
-   `ccsg_matlab.csv` as the CCM input.
+1. Replace RawDigger-coordinate dependency with automatic RAW-space chart
+   localization.
 2. Add root-polynomial CCM variants before treating the
    DeltaE value as the best achievable color result.
 3. Add CIEDE2000 once the color appearance/reference scope is locked.

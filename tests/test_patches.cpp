@@ -2,6 +2,7 @@
 
 #include <filesystem>
 #include <fstream>
+#include <sstream>
 #include <stdexcept>
 #include <vector>
 
@@ -9,12 +10,18 @@
 #include "harness.hpp"
 
 using camera_iq::CameraRgbPatch;
+using camera_iq::FlatFieldCorrectionSummary;
 using camera_iq::PatchChannelComparison;
 using camera_iq::PatchCoord;
+using camera_iq::WhiteBalanceGains;
+using camera_iq::apply_flat_field;
+using camera_iq::apply_white_balance;
 using camera_iq::compare_patch_means_to_rgb;
 using camera_iq::extract_patch_means;
 using camera_iq::read_patch_coords_csv;
 using camera_iq::read_rawdigger_patch_table;
+using camera_iq::write_camera_rgb_csv;
+using camera_iq::white_balance_gains_from_flat_field;
 using test::check;
 using test::check_near;
 
@@ -75,10 +82,63 @@ void TESTS() {
              "compare: red slope");
   check_near(comparison.channels[0].intercept, 1.0, 1e-12,
              "compare: red intercept");
+  check_near(comparison.channels[0].mean_error_before_affine, -25.0, 1e-12,
+             "compare: red direct bias");
+  check_near(comparison.channels[0].rmse_before_affine, 29.5493936768, 1e-9,
+             "compare: red direct rmse");
+  check_near(comparison.channels[0].max_abs_error_before_affine, 45.0, 1e-12,
+             "compare: red direct max abs error");
   check_near(comparison.channels[1].correlation, -1.0, 1e-12,
              "compare: green negative correlation");
   check_near(comparison.channels[1].rmse_after_affine, 0.0, 1e-12,
              "compare: affine rmse");
+
+  const std::vector<camera_iq::RgbPixel> flat_image = {
+      {10, 100, 1000},
+      {20, 200, 2000},
+      {0.25, 300, 3000},
+      {30, 400, 4000},
+  };
+  const std::vector<camera_iq::RgbPixel> chart_image = {
+      {100, 200, 300},
+      {100, 200, 300},
+      {100, 200, 300},
+      {100, 200, 300},
+  };
+  FlatFieldCorrectionSummary flat_summary;
+  const auto flat_corrected =
+      apply_flat_field(chart_image, flat_image, 2, 2, 1.0, &flat_summary);
+  check_near(flat_summary.normalizer.r, 20.0, 1e-12,
+             "flat: red normalizer from valid pixels");
+  check_near(flat_summary.normalizer.g, 250.0, 1e-12,
+             "flat: green normalizer");
+  check(flat_summary.clamped_sample_count == 1,
+        "flat: low denominator counted");
+  check_near(flat_corrected[0].r, 200.0, 1e-12,
+             "flat: divides by local red flat");
+  check_near(flat_corrected[1].r, 100.0, 1e-12,
+             "flat: bright flat reduces signal");
+  check_near(flat_corrected[2].r, 2000.0, 1e-12,
+             "flat: floor protects low flat values");
+
+  const auto flat_wb = white_balance_gains_from_flat_field(flat_summary);
+  check_near(flat_wb.r, 12.5, 1e-12, "wb: flat-derived red gain");
+  check_near(flat_wb.g, 1.0, 1e-12, "wb: flat-derived green anchor");
+  check_near(flat_wb.b, 0.1, 1e-12, "wb: flat-derived blue gain");
+
+  const auto wb_corrected =
+      apply_white_balance(flat_corrected, WhiteBalanceGains{0.5, 1.0, 2.0});
+  check_near(wb_corrected[0].r, 100.0, 1e-12,
+             "wb: red gain applied");
+  check_near(wb_corrected[0].g, flat_corrected[0].g, 1e-12,
+             "wb: green unity gain");
+  check_near(wb_corrected[0].b, flat_corrected[0].b * 2.0, 1e-12,
+             "wb: blue gain applied");
+
+  std::ostringstream rgb_csv;
+  write_camera_rgb_csv(rgb_csv, patches);
+  check(rgb_csv.str().find("5.5,105.5,205.5\n") == 0,
+        "rgb csv: writes ccm-fit compatible rows");
 
   {
     std::ofstream os(root / "rawdigger.csv", std::ios::binary);
