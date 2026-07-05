@@ -36,9 +36,10 @@ void print_usage() {
       "              Inspect configured ColorChecker spectral reference metadata\n"
       "  ccm-fit\n"
       "              Fit a linear RGB-to-XYZ CCM against a spectral SG reference\n"
+      "  patches\n"
+      "              Extract checker ROI RGB means from a RAW capture\n"
       "\n"
       "Commands (planned):\n"
-      "  patches     Extract ColorChecker patch statistics\n"
       "  noise       Read noise / DSNU / PRNU summaries\n\n"
       "Options:\n"
       "  -h, --help       Show this help\n"
@@ -85,6 +86,9 @@ int run(int argc, char** argv) {
   }
   if (arg == "ccm-fit") {
     return cmd_ccm_fit(argc - 2, argv + 2);
+  }
+  if (arg == "patches") {
+    return cmd_patches(argc - 2, argv + 2);
   }
 
   std::cerr << "camera_iq: command '" << arg

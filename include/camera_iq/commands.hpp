@@ -12,5 +12,6 @@ int cmd_exposure_response(int argc, char** argv);
 int cmd_oecf_fit(int argc, char** argv);
 int cmd_reference_info(int argc, char** argv);
 int cmd_ccm_fit(int argc, char** argv);
+int cmd_patches(int argc, char** argv);
 
 }  // namespace camera_iq

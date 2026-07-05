@@ -38,6 +38,13 @@ int main() {
           "ccm-fit command is routed");
   }
   {
+    const char* args[] = {"camera_iq", "patches",
+                          "/definitely/not/a/camera_iq/raw.RAF",
+                          "--coords", "/definitely/not/a/coord.csv"};
+    check(camera_iq::run(5, const_cast<char**>(args)) == 1,
+          "patches command is routed");
+  }
+  {
     const char* args[] = {"camera_iq", "dark-calibration",
                           "/definitely/not/a/camera_iq/dataset",
                           "--residual-tolerance", "bad"};

@@ -89,6 +89,15 @@ Fit the first linear CCM with an explicit local illuminant SPD:
   --illuminant-spd "data/private/datasets/clrs589_project_camera/Sphere measurments/fernando_ff2.csv"
 ```
 
+Extract RAW-space SG patch means with RawDigger's local coordinate export:
+
+```bash
+./build/camera_iq patches \
+  "Images/CCSG_f8/CCSG_f8.0_1:10_DSCF0402.RAF" \
+  --dataset clrs589_project_camera \
+  --rawdigger-csv Images/CCSG_rawdigger.csv
+```
+
 ## Guardrail
 
 `check_public_paths` runs in CTest and fails if tracked files contain private

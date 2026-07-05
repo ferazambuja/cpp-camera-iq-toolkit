@@ -103,8 +103,9 @@ negative interpolated value on the actual 380-730 nm target axis.
 
 ## Next Risks
 
-1. Add RAW-driven patch extraction so `ccsg_matlab.csv` is a validation target,
-   not the long-term production input.
-2. Add white-balance policy and root-polynomial CCM variants before treating the
+1. Use `camera_iq patches` plus RawDigger coordinates as the RAW-space patch
+   source, then add flat-field/white-balance policy before replacing
+   `ccsg_matlab.csv` as the CCM input.
+2. Add root-polynomial CCM variants before treating the
    DeltaE value as the best achievable color result.
 3. Add CIEDE2000 once the color appearance/reference scope is locked.
