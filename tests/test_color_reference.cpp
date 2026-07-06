@@ -79,6 +79,31 @@ std::vector<CameraRgbPatch> column_flipped(
   return out;
 }
 
+std::vector<CameraRgbPatch> row_flipped(
+    const std::vector<CameraRgbPatch>& direct) {
+  std::vector<CameraRgbPatch> out;
+  out.reserve(direct.size());
+  for (int row = 0; row < 10; ++row) {
+    for (int col = 0; col < 14; ++col) {
+      out.push_back(direct[static_cast<std::size_t>((9 - row) * 14 + col)]);
+    }
+  }
+  return out;
+}
+
+std::vector<CameraRgbPatch> rotated_180(
+    const std::vector<CameraRgbPatch>& direct) {
+  std::vector<CameraRgbPatch> out;
+  out.reserve(direct.size());
+  for (int row = 0; row < 10; ++row) {
+    for (int col = 0; col < 14; ++col) {
+      out.push_back(
+          direct[static_cast<std::size_t>((9 - row) * 14 + (13 - col))]);
+    }
+  }
+  return out;
+}
+
 }  // namespace
 
 void TESTS() {
@@ -246,15 +271,45 @@ void TESTS() {
              "orientation: direct luminance correlation");
   check_near(orientation.scores[0].aggregate_score, 1.0, 1e-12,
              "orientation: direct aggregate score");
+  // Every control must be proven discriminating, not just column_flip. The
+  // reference gradients are monotone per axis (R-G along columns, B-G along
+  // rows), so column_flip inverts red_green, row_flip inverts blue_green, and
+  // rotate_180 inverts both. Without these, a control whose remap silently
+  // collapsed to direct-order would tie direct at 1.0 and — since direct wins
+  // ties — leave orientation_valid=true, so the suite would pass with a broken
+  // row_flip or rotate_180 control.
   check(orientation.scores[1].pairing.red_green_correlation < 0.0,
         "orientation: column-flip control is discriminating");
+  check(orientation.scores[2].orientation == "row_flip" &&
+            orientation.scores[2].pairing.blue_green_correlation < 0.0,
+        "orientation: row-flip control is discriminating");
+  check(orientation.scores[3].orientation == "rotate_180" &&
+            orientation.scores[3].aggregate_score < 0.0,
+        "orientation: rotate-180 control is discriminating");
 
+  // Reverse direction: an actually-misoriented camera must be caught, and the
+  // specific control that un-does it must be the one named. One per control so
+  // each remap is exercised end to end, not just column_flip.
   const auto flipped_orientation = evaluate_reference_orientation_controls(
       sg_ref, column_flipped(sg_camera), thresholds);
   check(!flipped_orientation.orientation_valid,
         "orientation: flipped camera order rejected");
   check(flipped_orientation.best_orientation == "column_flip",
         "orientation: column flip is named when it beats direct");
+
+  const auto row_flipped_orientation = evaluate_reference_orientation_controls(
+      sg_ref, row_flipped(sg_camera), thresholds);
+  check(!row_flipped_orientation.orientation_valid,
+        "orientation: row-flipped camera order rejected");
+  check(row_flipped_orientation.best_orientation == "row_flip",
+        "orientation: row flip is named when it beats direct");
+
+  const auto rotated_orientation = evaluate_reference_orientation_controls(
+      sg_ref, rotated_180(sg_camera), thresholds);
+  check(!rotated_orientation.orientation_valid,
+        "orientation: 180-rotated camera order rejected");
+  check(rotated_orientation.best_orientation == "rotate_180",
+        "orientation: rotate-180 is named when it beats direct");
 
   fs::remove_all(root);
 }
