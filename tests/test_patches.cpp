@@ -134,6 +134,21 @@ void TESTS() {
         "localization validation: first residual carries reference id");
   check(localization.center_residuals[1].reference_patch_id == "B1",
         "localization validation: second residual carries reference id");
+  // Pin the row/column ints. They are computed by separate index helpers than
+  // reference_patch_id (which derives row/col inline), and the report's
+  // column-bow diagnostic groups residuals by residual.column. A row/column
+  // swap or wrong divisor would leave the id correct while scrambling the
+  // spatial analysis; asserting row==0/column==1 for index 1 catches the swap
+  // (a swap would put row==1 there).
+  check(localization.center_residuals[0].row == 0 &&
+            localization.center_residuals[0].column == 0,
+        "localization validation: residual row/column map index 0 to A1 cell");
+  check(localization.center_residuals[1].row == 0 &&
+            localization.center_residuals[1].column == 1,
+        "localization validation: residual row/column map index 1 to B1 cell");
+  check(localization.center_residuals[2].row == 0 &&
+            localization.center_residuals[2].column == 2,
+        "localization validation: residual row/column map index 2 to C1 cell");
   check_near(localization.center_residuals[2].generated_center_x, 9.0, 1e-12,
              "localization validation: generated center x recorded");
   check_near(localization.center_residuals[2].oracle_center_x, 9.0, 1e-12,
