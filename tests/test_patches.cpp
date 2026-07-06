@@ -136,10 +136,11 @@ void TESTS() {
         "localization validation: second residual carries reference id");
   // Pin the row/column ints. They are computed by separate index helpers than
   // reference_patch_id (which derives row/col inline), and the report's
-  // column-bow diagnostic groups residuals by residual.column. A row/column
-  // swap or wrong divisor would leave the id correct while scrambling the
-  // spatial analysis; asserting row==0/column==1 for index 1 catches the swap
-  // (a swap would put row==1 there).
+  // column-bow diagnostic groups residuals by residual.column. Indices 0..2 all
+  // live in row 0, so these catch a row/column SWAP (a swap puts row==1 at
+  // index 1) but NOT a wrong row stride (/10 vs /14) — every index below 10
+  // maps to row 0 under either divisor. The stride is pinned by the
+  // boundary-crossing fixture below (index 13 and 14).
   check(localization.center_residuals[0].row == 0 &&
             localization.center_residuals[0].column == 0,
         "localization validation: residual row/column map index 0 to A1 cell");
@@ -161,6 +162,36 @@ void TESTS() {
         "localization validation: correlation gate");
   check(localization.mean_error_gate_passes,
         "localization validation: absolute mean gate");
+
+  // Row-stride pin: cross the SG 14-column boundary so the divisor itself is
+  // constrained. Index 13 is the last cell of row 0 (N1); index 14 is the first
+  // of row 1 (A2). A /10 stride would put index 13 at row 1 / column 3 (D2) and
+  // index 14 at column 4 (E2), so these assertions fail loudly on a wrong
+  // divisor that indices 0..2 cannot see. Labels are index-derived, so gate
+  // pass/fail is irrelevant here; a matching 15-patch grid keeps it simple.
+  RawDiggerPatchTable wide_oracle;
+  std::vector<PatchMean> wide_localized;
+  for (int i = 0; i < 15; ++i) {
+    const PatchCoord coord{1.0 + i, 1.0, 2.0, 2.0};
+    const CameraRgbPatch rgb{10.0 + i, 20.0 + 2.0 * i, 30.0 + 3.0 * i};
+    wide_oracle.coords.push_back(coord);
+    wide_oracle.reference_rgb.push_back(rgb);
+    wide_localized.push_back(PatchMean{coord, i, 0, 2, 2, 4, rgb});
+  }
+  PatchLocalizationValidationThresholds wide_thresholds;
+  wide_thresholds.expected_patch_count = 15;
+  const auto wide = validate_patch_localization_against_oracle(
+      wide_localized, wide_oracle, wide_thresholds);
+  check(wide.center_residuals.size() == 15,
+        "localization validation: wide fixture emits 15 residuals");
+  check(wide.center_residuals[13].reference_patch_id == "N1" &&
+            wide.center_residuals[13].row == 0 &&
+            wide.center_residuals[13].column == 13,
+        "localization validation: index 13 is row 0 column 13 (N1), not /10");
+  check(wide.center_residuals[14].reference_patch_id == "A2" &&
+            wide.center_residuals[14].row == 1 &&
+            wide.center_residuals[14].column == 0,
+        "localization validation: index 14 crosses to row 1 column 0 (A2)");
 
   std::vector<PatchMean> shifted = localized;
   for (auto& patch : shifted) {
@@ -384,6 +415,23 @@ void TESTS() {
         "localization report: residual reference id emitted");
   check(localization_doc.find("\"dx_px\":6") != std::string::npos,
         "localization report: residual dx emitted");
+
+  // Serialized row/column were previously unpinned. Serialize the boundary
+  // fixture with geometry/orientation omitted so the only row/column keys come
+  // from center_residuals: "row":1 (index 14) and "column":13 (index 13) each
+  // occur exactly once, proving both fields serialize and cross the row
+  // boundary as nonzero values.
+  std::ostringstream wide_json;
+  write_patch_report_json(
+      wide_json, "dataset:fixture/raw.RAF", "manual:sg-corners",
+      "colorchecker_sg_corner_seeded_projective_grid", meta, 2, 2, "",
+      std::nullopt, std::nullopt, "none", {report_patch}, {"A1"},
+      std::nullopt, "", std::nullopt, std::nullopt, wide);
+  const std::string wide_doc = wide_json.str();
+  check(wide_doc.find("\"row\":1") != std::string::npos,
+        "localization report: residual row serialized across boundary");
+  check(wide_doc.find("\"column\":13") != std::string::npos,
+        "localization report: residual column serialized across boundary");
 
   const auto wb_corrected =
       apply_white_balance(flat_corrected, WhiteBalanceGains{0.5, 1.0, 2.0});
