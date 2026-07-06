@@ -469,6 +469,10 @@ void write_independent_center_check(
   w.value(static_cast<std::int64_t>(check->repeatability_valid_count));
   w.key("repeatability_rms_px");
   w.value(check->repeatability_rms_px);
+  w.key("seed_agreement_valid_count");
+  w.value(static_cast<std::int64_t>(check->seed_agreement_valid_count));
+  w.key("seed_agreement_rms_px");
+  w.value(check->seed_agreement_rms_px);
   w.key("tracks");
   w.value(check->tracks);
   w.key("interpretation");

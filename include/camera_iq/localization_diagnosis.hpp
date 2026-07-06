@@ -28,6 +28,12 @@ LocalizationIndependentCenterCheck compare_independent_patch_centers(
     const RawDiggerPatchTable& oracle,
     const std::vector<IndependentPatchCenter>& independent);
 
+LocalizationIndependentCenterCheck compare_dual_seed_independent_patch_centers(
+    const std::vector<PatchCoord>& generated_coords,
+    const RawDiggerPatchTable& oracle,
+    const std::vector<IndependentPatchCenter>& generated_seeded,
+    const std::vector<IndependentPatchCenter>& oracle_seeded);
+
 void finalize_localization_model_comparison(
     LocalizationModelComparison& comparison,
     const LocalizationIndependentCenterCheck& independent);

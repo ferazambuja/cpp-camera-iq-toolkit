@@ -1,5 +1,6 @@
 #include "camera_iq/commands.hpp"
 
+#include <algorithm>
 #include <cmath>
 #include <cstdint>
 #include <filesystem>
@@ -635,20 +636,35 @@ int cmd_patches(int argc, char** argv) {
                       static_cast<double>(cfa->height) / 2.0});
       const auto independent_centers = estimate_patch_centers_by_color_centroid(
           rgb, cfa->width, cfa->height, coords);
+      const auto oracle_seeded_centers =
+          estimate_patch_centers_by_color_centroid(rgb, cfa->width,
+                                                   cfa->height, oracle.coords);
       const auto independent_centers_tight =
           estimate_patch_centers_by_color_centroid(rgb, cfa->width,
                                                    cfa->height, coords, 1.75);
       const auto independent_centers_wide =
           estimate_patch_centers_by_color_centroid(rgb, cfa->width,
                                                    cfa->height, coords, 3.0);
+      const auto oracle_seeded_centers_tight =
+          estimate_patch_centers_by_color_centroid(rgb, cfa->width,
+                                                   cfa->height, oracle.coords,
+                                                   1.75);
+      const auto oracle_seeded_centers_wide =
+          estimate_patch_centers_by_color_centroid(rgb, cfa->width,
+                                                   cfa->height, oracle.coords,
+                                                   3.0);
       localization_validation->independent_center_check =
-          compare_independent_patch_centers(coords, oracle, independent_centers);
-      const auto repeatability = estimate_independent_center_repeatability(
+          compare_dual_seed_independent_patch_centers(
+              coords, oracle, independent_centers, oracle_seeded_centers);
+      const auto generated_repeatability = estimate_independent_center_repeatability(
           independent_centers_tight, independent_centers_wide);
+      const auto oracle_repeatability = estimate_independent_center_repeatability(
+          oracle_seeded_centers_tight, oracle_seeded_centers_wide);
       localization_validation->independent_center_check->repeatability_valid_count =
-          repeatability.valid_count;
+          std::min(generated_repeatability.valid_count,
+                   oracle_repeatability.valid_count);
       localization_validation->independent_center_check->repeatability_rms_px =
-          repeatability.rms_px;
+          std::max(generated_repeatability.rms_px, oracle_repeatability.rms_px);
       finalize_localization_model_comparison(
           *localization_validation->model_comparison,
           *localization_validation->independent_center_check);

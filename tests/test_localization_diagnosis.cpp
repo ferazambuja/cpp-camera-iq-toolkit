@@ -16,6 +16,7 @@ using camera_iq::RgbPixel;
 using camera_iq::Point2d;
 using camera_iq::analyze_localization_residual_models;
 using camera_iq::compare_independent_patch_centers;
+using camera_iq::compare_dual_seed_independent_patch_centers;
 using camera_iq::estimate_patch_centers_by_color_centroid;
 using camera_iq::finalize_localization_model_comparison;
 using test::check;
@@ -147,6 +148,8 @@ void TESTS() {
   unresolved.valid_count = 140;
   unresolved.repeatability_valid_count = 140;
   unresolved.repeatability_rms_px = 0.75;
+  unresolved.seed_agreement_valid_count = 140;
+  unresolved.seed_agreement_rms_px = 0.25;
   unresolved.tracks = "unresolved";
   auto finalized = comparison;
   finalize_localization_model_comparison(finalized, unresolved);
@@ -183,6 +186,8 @@ void TESTS() {
   rawdigger_supported.valid_count = 140;
   rawdigger_supported.repeatability_valid_count = 140;
   rawdigger_supported.repeatability_rms_px = 0.75;
+  rawdigger_supported.seed_agreement_valid_count = 140;
+  rawdigger_supported.seed_agreement_rms_px = 0.25;
   rawdigger_supported.tracks = "rawdigger_oracle";
   auto rawdigger_resolved = comparison;
   finalize_localization_model_comparison(rawdigger_resolved,
@@ -234,10 +239,45 @@ void TESTS() {
   undercovered.patch_count = 2;
   unresolved.repeatability_valid_count = 1;
   unresolved.repeatability_rms_px = 0.75;
+  unresolved.seed_agreement_valid_count = 2;
+  unresolved.seed_agreement_rms_px = 0.25;
   finalize_localization_model_comparison(undercovered, unresolved);
   check(!undercovered.noise_floor_usable,
         "diagnosis: detector repeatability requires at least 90 percent "
         "coverage");
+
+  auto seed_undercovered = comparison;
+  seed_undercovered.patch_count = 2;
+  unresolved.repeatability_valid_count = 2;
+  unresolved.repeatability_rms_px = 0.75;
+  unresolved.seed_agreement_valid_count = 1;
+  unresolved.seed_agreement_rms_px = 0.25;
+  finalize_localization_model_comparison(seed_undercovered, unresolved);
+  check(!seed_undercovered.noise_floor_usable,
+        "diagnosis: detector seed agreement requires at least 90 percent "
+        "coverage");
+
+  auto seed_unreliable = comparison;
+  seed_unreliable.patch_count = 2;
+  unresolved.seed_agreement_valid_count = 2;
+  unresolved.seed_agreement_rms_px = 6.0;
+  finalize_localization_model_comparison(seed_unreliable, unresolved);
+  check(!seed_unreliable.noise_floor_usable,
+        "diagnosis: detector seed agreement contributes to the noise floor");
+
+  auto agreed_detection_undercovered = comparison;
+  agreed_detection_undercovered.patch_count = 2;
+  unresolved.valid_count = 1;
+  unresolved.repeatability_valid_count = 2;
+  unresolved.repeatability_rms_px = 0.75;
+  unresolved.seed_agreement_valid_count = 2;
+  unresolved.seed_agreement_rms_px = 0.25;
+  unresolved.tracks = "rawdigger_oracle";
+  finalize_localization_model_comparison(agreed_detection_undercovered,
+                                         unresolved);
+  check(!agreed_detection_undercovered.noise_floor_usable,
+        "diagnosis: usable noise floor requires enough agreed detected "
+        "centres");
 
   std::vector<PatchCenterResidual> too_few(residuals.begin(),
                                           residuals.begin() + 5);
@@ -286,6 +326,29 @@ void TESTS() {
         "independent center: comparison distinguishes closer source");
   check(independent_check.tracks == "rawdigger_oracle",
         "independent center: interpretation tracks the closer RawDigger source");
+
+  const auto dual_agree = compare_dual_seed_independent_patch_centers(
+      generated_coords, oracle,
+      {camera_iq::IndependentPatchCenter{true, 18.1, 14.0}},
+      {camera_iq::IndependentPatchCenter{true, 18.2, 14.1}});
+  check(dual_agree.method.find("dual_seed") != std::string::npos,
+        "independent center: dual-seed method is labeled as de-biased");
+  check(dual_agree.seed_agreement_valid_count == 1,
+        "independent center: dual-seed agreement counts matched detections");
+  check(dual_agree.seed_agreement_rms_px < 0.2,
+        "independent center: dual-seed agreement RMS is recorded");
+  check(dual_agree.tracks == "rawdigger_oracle",
+        "independent center: agreed dual-seed detection can arbitrate");
+
+  const auto dual_disagree = compare_dual_seed_independent_patch_centers(
+      generated_coords, oracle,
+      {camera_iq::IndependentPatchCenter{true, 17.0, 14.0}},
+      {camera_iq::IndependentPatchCenter{true, 27.0, 14.0}});
+  check(dual_disagree.tracks == "unresolved",
+        "independent center: disagreeing dual-seed detections cannot arbitrate");
+  check(dual_disagree.seed_agreement_rms_px > 5.0,
+        "independent center: dual-seed disagreement is visible to the noise "
+        "floor");
 
   const auto repeatability =
       camera_iq::estimate_independent_center_repeatability(centres_tight,

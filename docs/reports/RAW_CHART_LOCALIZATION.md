@@ -179,41 +179,37 @@ Interpretation:
   is not enough to choose a physical explanation; the comparison must be judged
   against a usable independent center noise floor and model parsimony.
 
-The command also emits an `independent_center_check` using a color-similarity
-centroid from the bilinear RAW RGB image as a third source. On this capture it
-finds 140 valid centroids, but the detector is not repeatable enough to act as
-the required noise floor. Tight-vs-wide search windows differ by `69.620 px`
-RMS, and the centroids are similarly far from both coordinate sources
-(`69.555 px` RMS to the generated grid, `71.438 px` RMS to RawDigger).
+The command also emits an `independent_center_check` using a dual-seeded
+color-similarity centroid from the bilinear RAW RGB image as a third source. It
+seeds the detector once from the generated grid and once from the RawDigger
+oracle, then only arbitrates with centres where both seedings agree. This blocks
+the previous generated-grid anchoring asymmetry: a `generated_grid` verdict is
+not trusted unless the RawDigger-seeded detector reaches the same centre.
 
-This detector is RawDigger-independent (RawDigger coordinates never enter it),
-but it is not fully independent of the generated grid: both its search window
-and its reference colour are seeded from the generated coordinates, so it is a
-generated-grid-anchored refinement rather than a neutral arbiter between the two
-coordinate sources. The emitted `method` field records this as
-`generated_grid_anchored_...`. The consequence is a structural asymmetry in the
-`tracks` verdict, biased toward `generated_grid`. It is inert on this capture
-because the detector is unusable, so `tracks` resolves to `unresolved`; but any
-future usable-detector run must de-bias (seed on each source and require
-agreement, or detect centres with no coordinate prior) before a
-`generated_grid` verdict may be trusted to exonerate the grid.
+On this capture the detector still cannot arbitrate. The two seedings produce
+140 matched attempts but disagree by `20.059 px` RMS, so there are `0` agreed
+centres available for grid-vs-RawDigger arbitration. Tight-vs-wide search
+windows also differ by `69.620 px` RMS, so the detector is not repeatable enough
+to act as the required noise floor.
 
 The emitted real-data verdict is therefore deliberately unresolved:
 
 | Field | Value |
 |---|---|
+| `method` | `dual_seed_color_similarity_centroid_from_raw_bilinear_rgb` |
 | `best_overall_model` | `smooth_polynomial_degree2_warp_candidate` |
 | `noise_floor_px` | `69.620` |
 | `noise_floor_usable` | `false` |
+| `seed_agreement_rms_px` | `20.059` |
+| `valid_count` | `0` |
 | `parsimony_winner_model` | empty |
 | `conclusive` | `false` |
 
 This blocks a circular RawDigger-only conclusion (RawDigger cannot validate its
-own placement here), but note the detector is grid-anchored, not a neutral
-arbiter, per the caveat above. The current residual table shows a smooth
-second-order bow, but the independent detector does not yet provide the
-repeatable third source needed to decide whether that bow is chart geometry,
-optical distortion, or RawDigger placement.
+own placement here) and avoids the generated-grid anchoring overclaim. The
+current residual table shows a smooth second-order bow, but the independent
+detector does not yet provide the repeatable third source needed to decide
+whether that bow is chart geometry, optical distortion, or RawDigger placement.
 
 Orientation control table:
 
@@ -247,8 +243,8 @@ The next slice should diagnose that systematic interior bow before any
 threshold change:
 
 - improve the independent RAW center detector until its repeatability is a
-  usable pixel-scale noise floor, or use a separate off-center/multi-position
-  capture to break the centered-chart confound;
+  usable pixel-scale noise floor and its dual seedings agree, or use a separate
+  off-center/multi-position capture to break the centered-chart confound;
 - keep the existing radial and affine rows as held-out baselines, not skipped
   dead ends;
 - only then decide whether the production path needs lens-distortion
@@ -266,8 +262,7 @@ threshold change:
 - The color reference remains a compatible 2019 SG spectral reference, not a
   proven exact per-unit measurement of the 2020 capture chart.
 - This is not blind chart localization; corners trace back to RawDigger.
-- The `independent_center_check` is RawDigger-independent but generated-grid-
-  anchored (search window and reference colour are seeded from the generated
-  grid), so its `tracks` verdict is not a symmetric grid-vs-RawDigger arbiter.
-  This is inert while the detector is unusable, but a future usable-detector
-  `generated_grid` verdict must be de-biased before it can exonerate the grid.
+- The `independent_center_check` is dual-seeded, not blind. It avoids a
+  one-sided generated-grid anchor, but it still depends on coordinate priors and
+  is unusable on this capture because the seedings disagree and repeatability is
+  poor.

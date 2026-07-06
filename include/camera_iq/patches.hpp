@@ -146,6 +146,8 @@ struct LocalizationIndependentCenterCheck {
   double rawdigger_oracle_rms_px = 0;
   std::size_t repeatability_valid_count = 0;
   double repeatability_rms_px = 0;
+  std::size_t seed_agreement_valid_count = 0;
+  double seed_agreement_rms_px = 0;
   std::string tracks;
   std::string interpretation;
 };

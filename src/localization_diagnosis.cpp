@@ -643,9 +643,9 @@ LocalizationModelComparison analyze_localization_residual_models(
 // patch_centers()'s tracks verdict, biased toward "generated_grid". Today the
 // bias is inert because the detector is unusable (~70px repeatability) so tracks
 // resolves to "unresolved"; but a future capture that makes the detector usable
-// MUST de-bias before trusting a "generated_grid" verdict -- e.g. seed the
-// search window/colour once on the generated grid and once on RawDigger and
-// require the two seedings to agree, or detect centres without either prior.
+// MUST de-bias before trusting a "generated_grid" verdict. The command path does
+// that by seeding once on the generated grid and once on RawDigger, then only
+// arbitrating with centres where both seedings agree.
 std::vector<IndependentPatchCenter> estimate_patch_centers_by_color_centroid(
     const std::vector<RgbPixel>& image, int width, int height,
     const std::vector<PatchCoord>& coords, double search_scale) {
@@ -831,14 +831,89 @@ LocalizationIndependentCenterCheck compare_independent_patch_centers(
   return check;
 }
 
+LocalizationIndependentCenterCheck compare_dual_seed_independent_patch_centers(
+    const std::vector<PatchCoord>& generated_coords,
+    const RawDiggerPatchTable& oracle,
+    const std::vector<IndependentPatchCenter>& generated_seeded,
+    const std::vector<IndependentPatchCenter>& oracle_seeded) {
+  if (generated_coords.size() != oracle.coords.size() ||
+      generated_coords.size() != generated_seeded.size() ||
+      generated_coords.size() != oracle_seeded.size()) {
+    throw std::runtime_error(
+        "independent center: generated, oracle, and dual-seed detected counts "
+        "differ");
+  }
+
+  constexpr double kMaxDualSeedAgreementPx = 5.0;
+  std::vector<IndependentPatchCenter> agreed;
+  agreed.reserve(generated_seeded.size());
+  LocalizationIndependentCenterCheck check;
+  check.attempted = true;
+  check.method = "dual_seed_color_similarity_centroid_from_raw_bilinear_rgb";
+  double seed_sumsq = 0;
+
+  for (std::size_t i = 0; i < generated_seeded.size(); ++i) {
+    if (!generated_seeded[i].valid || !oracle_seeded[i].valid) {
+      agreed.push_back({});
+      continue;
+    }
+    const double dx = generated_seeded[i].x - oracle_seeded[i].x;
+    const double dy = generated_seeded[i].y - oracle_seeded[i].y;
+    const double dist2 = dx * dx + dy * dy;
+    seed_sumsq += dist2;
+    ++check.seed_agreement_valid_count;
+    if (std::sqrt(dist2) > kMaxDualSeedAgreementPx) {
+      agreed.push_back({});
+      continue;
+    }
+    agreed.push_back(IndependentPatchCenter{
+        true, 0.5 * (generated_seeded[i].x + oracle_seeded[i].x),
+        0.5 * (generated_seeded[i].y + oracle_seeded[i].y)});
+  }
+
+  if (check.seed_agreement_valid_count > 0) {
+    check.seed_agreement_rms_px =
+        std::sqrt(seed_sumsq /
+                  static_cast<double>(check.seed_agreement_valid_count));
+  }
+  if (check.seed_agreement_valid_count == 0 ||
+      check.seed_agreement_rms_px > kMaxDualSeedAgreementPx) {
+    check.tracks = "unresolved";
+    check.interpretation =
+        "dual-seed independent centres do not agree closely enough to "
+        "arbitrate generated grid against RawDigger";
+    return check;
+  }
+
+  check = compare_independent_patch_centers(generated_coords, oracle, agreed);
+  check.method = "dual_seed_color_similarity_centroid_from_raw_bilinear_rgb";
+  check.seed_agreement_valid_count = 0;
+  check.seed_agreement_rms_px = 0;
+  for (std::size_t i = 0; i < generated_seeded.size(); ++i) {
+    if (!generated_seeded[i].valid || !oracle_seeded[i].valid) continue;
+    const double dx = generated_seeded[i].x - oracle_seeded[i].x;
+    const double dy = generated_seeded[i].y - oracle_seeded[i].y;
+    check.seed_agreement_rms_px += dx * dx + dy * dy;
+    ++check.seed_agreement_valid_count;
+  }
+  if (check.seed_agreement_valid_count > 0) {
+    check.seed_agreement_rms_px =
+        std::sqrt(check.seed_agreement_rms_px /
+                  static_cast<double>(check.seed_agreement_valid_count));
+  }
+  return check;
+}
+
 void finalize_localization_model_comparison(
     LocalizationModelComparison& comparison,
     const LocalizationIndependentCenterCheck& independent) {
-  comparison.noise_floor_px =
-      std::max(0.5, independent.repeatability_rms_px);
+  comparison.noise_floor_px = std::max(
+      {0.5, independent.repeatability_rms_px,
+       independent.seed_agreement_rms_px});
   comparison.noise_floor_source =
-      independent.repeatability_valid_count > 0
-          ? "independent_center_repeatability_color_centroid"
+      independent.repeatability_valid_count > 0 &&
+              independent.seed_agreement_valid_count > 0
+          ? "dual_seed_center_repeatability_and_agreement"
           : "fallback_minimum_center_floor";
   constexpr double kMaxUsableNoiseFloorPx = 5.0;
   const std::size_t required_repeatability_count =
@@ -846,7 +921,10 @@ void finalize_localization_model_comparison(
           std::ceil(0.9 * static_cast<double>(comparison.patch_count)));
   comparison.noise_floor_usable =
       comparison.patch_count > 0 && independent.repeatability_valid_count > 0 &&
+      independent.seed_agreement_valid_count > 0 &&
+      independent.valid_count >= required_repeatability_count &&
       independent.repeatability_valid_count >= required_repeatability_count &&
+      independent.seed_agreement_valid_count >= required_repeatability_count &&
       comparison.noise_floor_px <= kMaxUsableNoiseFloorPx;
 
   const LocalizationModelReport* best = nullptr;
@@ -867,9 +945,9 @@ void finalize_localization_model_comparison(
     comparison.parsimony_winner_model.clear();
     comparison.conclusive = false;
     comparison.diagnostic_conclusion =
-        "unresolved: independent centre repeatability did not provide a "
-        "usable noise floor, so held-out residuals cannot be converted into a "
-        "parsimony winner";
+        "unresolved: independent centre repeatability/agreement did not "
+        "provide a usable noise floor, so held-out residuals cannot be "
+        "converted into a parsimony winner";
     return;
   }
 
