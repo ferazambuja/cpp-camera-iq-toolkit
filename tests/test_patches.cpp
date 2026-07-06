@@ -444,6 +444,16 @@ void TESTS() {
   model_comparison.observed_anisotropy_dx_over_dy = 3.46;
   model_comparison.isotropic_radial_predicted_anisotropy_dx_over_dy = 1.62;
   model_comparison.radial_affine_baselines_reported = true;
+  model_comparison.noise_floor_px = 0.75;
+  model_comparison.noise_floor_usable = true;
+  model_comparison.noise_floor_source =
+      "independent_center_repeatability_color_centroid";
+  model_comparison.best_overall_model = "smooth_polynomial_degree2_warp_candidate";
+  model_comparison.parsimony_winner_model =
+      "chart_cylindrical_bow_candidate";
+  model_comparison.conclusive = false;
+  model_comparison.diagnostic_conclusion =
+      "unresolved — off-centre capture required";
   model_comparison.identifiability_note =
       "near-centred capture: unresolved — off-centre capture required";
   LocalizationModelReport model;
@@ -461,6 +471,8 @@ void TESTS() {
   independent_check.valid_count = 140;
   independent_check.generated_grid_rms_px = 6.5;
   independent_check.rawdigger_oracle_rms_px = 1.2;
+  independent_check.repeatability_valid_count = 140;
+  independent_check.repeatability_rms_px = 0.75;
   independent_check.tracks = "rawdigger_oracle";
   independent_check.interpretation =
       "independent centers track RawDigger more closely";
@@ -485,6 +497,18 @@ void TESTS() {
   check(diagnosis_doc.find("\"radial_affine_baselines_reported\":true") !=
             std::string::npos,
         "localization report: radial/affine baseline contract emitted");
+  check(diagnosis_doc.find("\"noise_floor_px\":0.75") != std::string::npos,
+        "localization report: noise floor emitted");
+  check(diagnosis_doc.find("\"noise_floor_usable\":true") != std::string::npos,
+        "localization report: noise floor usability emitted");
+  check(diagnosis_doc.find("\"parsimony_winner_model\":\"chart_cylindrical_"
+                          "bow_candidate\"") != std::string::npos,
+        "localization report: parsimony winner emitted");
+  check(diagnosis_doc.find("\"conclusive\":false") != std::string::npos,
+        "localization report: conclusive verdict emitted");
+  check(diagnosis_doc.find("\"diagnostic_conclusion\":\"unresolved") !=
+            std::string::npos,
+        "localization report: unresolved conclusion emitted");
   check(diagnosis_doc.find("\"split\":\"checkerboard\"") != std::string::npos,
         "localization report: held-out split emitted");
   check(diagnosis_doc.find("\"degrees_of_freedom\":1") != std::string::npos,
@@ -495,6 +519,9 @@ void TESTS() {
   check(diagnosis_doc.find("\"tracks\":\"rawdigger_oracle\"") !=
             std::string::npos,
         "localization report: independent center interpretation emitted");
+  check(diagnosis_doc.find("\"repeatability_rms_px\":0.75") !=
+            std::string::npos,
+        "localization report: independent detector repeatability emitted");
 
   const auto wb_corrected =
       apply_white_balance(flat_corrected, WhiteBalanceGains{0.5, 1.0, 2.0});

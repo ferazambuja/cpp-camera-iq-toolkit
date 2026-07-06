@@ -6,6 +6,7 @@
 #include <limits>
 #include <stdexcept>
 #include <string>
+#include <utility>
 #include <vector>
 
 namespace camera_iq {
@@ -98,6 +99,14 @@ std::vector<Sample> make_samples(
     samples.push_back(s);
   }
   return samples;
+}
+
+double worst_heldout_rms(const LocalizationModelReport& model) {
+  double worst = 0;
+  for (const auto& score : model.heldout_scores) {
+    worst = std::max(worst, score.metrics.rms_px);
+  }
+  return worst;
 }
 
 std::vector<double> solve_linear_system(std::vector<std::vector<double>> a,
@@ -625,11 +634,15 @@ LocalizationModelComparison analyze_localization_residual_models(
 
 std::vector<IndependentPatchCenter> estimate_patch_centers_by_color_centroid(
     const std::vector<RgbPixel>& image, int width, int height,
-    const std::vector<PatchCoord>& coords) {
+    const std::vector<PatchCoord>& coords, double search_scale) {
   if (width <= 0 || height <= 0 ||
       image.size() != static_cast<std::size_t>(width * height)) {
     throw std::runtime_error(
         "independent center: image dimensions do not match pixel buffer");
+  }
+  if (!std::isfinite(search_scale) || search_scale <= 0) {
+    throw std::runtime_error(
+        "independent center: search scale must be positive and finite");
   }
 
   std::vector<IndependentPatchCenter> out;
@@ -637,8 +650,8 @@ std::vector<IndependentPatchCenter> estimate_patch_centers_by_color_centroid(
   for (const auto& coord : coords) {
     const double cx = patch_center_x(coord);
     const double cy = patch_center_y(coord);
-    const double search_half_x = std::max(coord.width * 2.5, 4.0);
-    const double search_half_y = std::max(coord.height * 2.5, 4.0);
+    const double search_half_x = std::max(coord.width * search_scale, 4.0);
+    const double search_half_y = std::max(coord.height * search_scale, 4.0);
 
     const int inner_left =
         std::max(0, static_cast<int>(std::floor(coord.x - 1.0)));
@@ -713,6 +726,26 @@ std::vector<IndependentPatchCenter> estimate_patch_centers_by_color_centroid(
   return out;
 }
 
+IndependentCenterRepeatability estimate_independent_center_repeatability(
+    const std::vector<IndependentPatchCenter>& a,
+    const std::vector<IndependentPatchCenter>& b) {
+  if (a.size() != b.size()) {
+    throw std::runtime_error(
+        "independent center: repeatability inputs have different counts");
+  }
+  IndependentCenterRepeatability out;
+  double sumsq = 0;
+  for (std::size_t i = 0; i < a.size(); ++i) {
+    if (!a[i].valid || !b[i].valid) continue;
+    sumsq += std::pow(a[i].x - b[i].x, 2) + std::pow(a[i].y - b[i].y, 2);
+    ++out.valid_count;
+  }
+  if (out.valid_count > 0) {
+    out.rms_px = std::sqrt(sumsq / static_cast<double>(out.valid_count));
+  }
+  return out;
+}
+
 LocalizationIndependentCenterCheck compare_independent_patch_centers(
     const std::vector<PatchCoord>& generated_coords,
     const RawDiggerPatchTable& oracle,
@@ -776,6 +809,86 @@ LocalizationIndependentCenterCheck compare_independent_patch_centers(
         "independent centres do not separate generated grid from RawDigger";
   }
   return check;
+}
+
+void finalize_localization_model_comparison(
+    LocalizationModelComparison& comparison,
+    const LocalizationIndependentCenterCheck& independent) {
+  comparison.noise_floor_px =
+      std::max(0.5, independent.repeatability_rms_px);
+  comparison.noise_floor_source =
+      independent.repeatability_valid_count > 0
+          ? "independent_center_repeatability_color_centroid"
+          : "fallback_minimum_center_floor";
+  constexpr double kMaxUsableNoiseFloorPx = 5.0;
+  const std::size_t required_repeatability_count =
+      static_cast<std::size_t>(
+          std::ceil(0.9 * static_cast<double>(comparison.patch_count)));
+  comparison.noise_floor_usable =
+      comparison.patch_count > 0 && independent.repeatability_valid_count > 0 &&
+      independent.repeatability_valid_count >= required_repeatability_count &&
+      comparison.noise_floor_px <= kMaxUsableNoiseFloorPx;
+
+  const LocalizationModelReport* best = nullptr;
+  double best_worst = std::numeric_limits<double>::infinity();
+  for (const auto& model : comparison.models) {
+    if (model.heldout_scores.empty()) continue;
+    const double worst = worst_heldout_rms(model);
+    if (worst < best_worst) {
+      best_worst = worst;
+      best = &model;
+    }
+  }
+  if (best) {
+    comparison.best_overall_model = best->name;
+  }
+
+  if (!comparison.noise_floor_usable) {
+    comparison.parsimony_winner_model.clear();
+    comparison.conclusive = false;
+    comparison.diagnostic_conclusion =
+        "unresolved: independent centre repeatability did not provide a "
+        "usable noise floor, so held-out residuals cannot be converted into a "
+        "parsimony winner";
+    return;
+  }
+
+  const LocalizationModelReport* parsimonious = nullptr;
+  int parsimonious_dof = std::numeric_limits<int>::max();
+  for (const auto& model : comparison.models) {
+    if (model.heldout_scores.empty()) continue;
+    const double worst = worst_heldout_rms(model);
+    if (worst <= best_worst + comparison.noise_floor_px &&
+        model.degrees_of_freedom < parsimonious_dof) {
+      parsimonious = &model;
+      parsimonious_dof = model.degrees_of_freedom;
+    }
+  }
+  if (parsimonious) {
+    comparison.parsimony_winner_model = parsimonious->name;
+  }
+
+  if (independent.tracks == "unresolved") {
+    comparison.conclusive = false;
+    comparison.diagnostic_conclusion =
+        "unresolved: independent centre check did not separate generated grid "
+        "from RawDigger; off-centre or multi-position capture required before "
+        "promoting a causal model";
+    return;
+  }
+  if (comparison.parsimony_winner_model.empty()) {
+    comparison.conclusive = false;
+    comparison.diagnostic_conclusion =
+        "unresolved: no held-out model comparison winner was available";
+    return;
+  }
+
+  comparison.conclusive = false;
+  comparison.diagnostic_conclusion =
+      "consistent with " + comparison.parsimony_winner_model +
+      " under held-out parsimony, but this centered capture remains "
+      "diagnostic-only; production promotion requires a separate validation "
+      "slice";
 }
 
 }  // namespace camera_iq

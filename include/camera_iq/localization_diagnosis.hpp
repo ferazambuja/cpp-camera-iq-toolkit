@@ -12,11 +12,24 @@ LocalizationModelComparison analyze_localization_residual_models(
 
 std::vector<IndependentPatchCenter> estimate_patch_centers_by_color_centroid(
     const std::vector<RgbPixel>& image, int width, int height,
-    const std::vector<PatchCoord>& coords);
+    const std::vector<PatchCoord>& coords, double search_scale = 2.5);
+
+struct IndependentCenterRepeatability {
+  std::size_t valid_count = 0;
+  double rms_px = 0;
+};
+
+IndependentCenterRepeatability estimate_independent_center_repeatability(
+    const std::vector<IndependentPatchCenter>& a,
+    const std::vector<IndependentPatchCenter>& b);
 
 LocalizationIndependentCenterCheck compare_independent_patch_centers(
     const std::vector<PatchCoord>& generated_coords,
     const RawDiggerPatchTable& oracle,
     const std::vector<IndependentPatchCenter>& independent);
+
+void finalize_localization_model_comparison(
+    LocalizationModelComparison& comparison,
+    const LocalizationIndependentCenterCheck& independent);
 
 }  // namespace camera_iq

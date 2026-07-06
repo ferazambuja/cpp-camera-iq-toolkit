@@ -173,20 +173,33 @@ Interpretation:
 - Simple radial terms barely move the residual, and affine/linear pitch remains
   above the 5 px target on held-out row/column blocks. They stay in the table as
   baselines, not skipped dead ends.
-- The parsimonious chart-space cylindrical-bow candidate reduces held-out RMS to
-  about `2.2 px`, while the 12-DOF polynomial warp reaches about `0.5 px`.
-  That is consistent with a second-order smooth bow, but the higher-DOF warp is
-  a flexibility ceiling, not a physical explanation.
+- The 12-DOF polynomial warp is the lowest held-out residual model (`0.5 px`),
+  while the chart-space cylindrical-bow candidate reaches about `2.2 px`.
+  That is consistent with a smooth second-order bow, but held-out residual alone
+  is not enough to choose a physical explanation; the comparison must be judged
+  against a usable independent center noise floor and model parsimony.
 
 The command also emits an `independent_center_check` using a color-similarity
 centroid from the bilinear RAW RGB image as a third source. On this capture it
-finds 140 valid centroids, but the centroids are far from both coordinate
-sources (`69.555 px` RMS to the generated grid, `71.438 px` RMS to RawDigger).
-Because the separation is small relative to the detector error, the emitted
-verdict is `unresolved`. This prevents a circular RawDigger-only conclusion:
-the current data support "smooth second-order bow" but do not independently
-prove whether the bow is chart geometry, optical distortion, or RawDigger
-placement.
+finds 140 valid centroids, but the detector is not repeatable enough to act as
+the required noise floor. Tight-vs-wide search windows differ by `69.620 px`
+RMS, and the centroids are similarly far from both coordinate sources
+(`69.555 px` RMS to the generated grid, `71.438 px` RMS to RawDigger).
+
+The emitted real-data verdict is therefore deliberately unresolved:
+
+| Field | Value |
+|---|---|
+| `best_overall_model` | `smooth_polynomial_degree2_warp_candidate` |
+| `noise_floor_px` | `69.620` |
+| `noise_floor_usable` | `false` |
+| `parsimony_winner_model` | empty |
+| `conclusive` | `false` |
+
+This prevents a circular RawDigger-only conclusion. The current residual table
+shows a smooth second-order bow, but the independent detector does not yet
+provide the repeatable third source needed to decide whether that bow is chart
+geometry, optical distortion, or RawDigger placement.
 
 Orientation control table:
 
@@ -219,18 +232,22 @@ rectangle placement following a non-projective warp.
 The next slice should diagnose that systematic interior bow before any
 threshold change:
 
-- verify whether RawDigger rectangles include manual per-patch jitter that a
-  single homography cannot reproduce;
-- compare all-center least-squares, robust, or low-order distortion-corrected
-  models as diagnostics only, without using them to relax the committed gate
-  post hoc;
-- decide, before another real-data validation run, whether the production path
-  needs lens-distortion compensation, a different corner-estimation method, or a
-  separately justified pre-run gate revision.
+- improve the independent RAW center detector until its repeatability is a
+  usable pixel-scale noise floor, or use a separate off-center/multi-position
+  capture to break the centered-chart confound;
+- keep the existing radial and affine rows as held-out baselines, not skipped
+  dead ends;
+- only then decide whether the production path needs lens-distortion
+  compensation, a different chart/cell geometry model, a different
+  corner-estimation method, or a separately justified pre-run gate revision.
 
 ## Limitations
 
 - Validation is scoped to the f/8 CCSG `1:10` RAW and uncorrected RGB means.
+- The available RawDigger oracle export covers only
+  `CCSG_f8.0_1:10_DSCF0402.RAF`. Other CLRS-589 CCSG RAW exposures exist in the
+  local private cache, but this slice has no matching per-frame RawDigger oracle
+  export or off-center capture proof to use for disambiguation.
 - The f/9 CCSG series still lacks a usable same-aperture flat-field frame.
 - The color reference remains a compatible 2019 SG spectral reference, not a
   proven exact per-unit measurement of the 2020 capture chart.

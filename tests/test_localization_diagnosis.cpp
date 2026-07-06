@@ -17,6 +17,7 @@ using camera_iq::Point2d;
 using camera_iq::analyze_localization_residual_models;
 using camera_iq::compare_independent_patch_centers;
 using camera_iq::estimate_patch_centers_by_color_centroid;
+using camera_iq::finalize_localization_model_comparison;
 using test::check;
 using test::check_near;
 
@@ -141,6 +142,55 @@ void TESTS() {
             std::string::npos,
         "diagnosis: centered-capture confound is reported");
 
+  camera_iq::LocalizationIndependentCenterCheck unresolved;
+  unresolved.attempted = true;
+  unresolved.valid_count = 140;
+  unresolved.repeatability_valid_count = 140;
+  unresolved.repeatability_rms_px = 0.75;
+  unresolved.tracks = "unresolved";
+  auto finalized = comparison;
+  finalize_localization_model_comparison(finalized, unresolved);
+  check(finalized.noise_floor_px >= 0.75,
+        "diagnosis: model comparison records detector noise floor");
+  check(finalized.noise_floor_usable,
+        "diagnosis: bounded detector noise floor is usable");
+  check(finalized.noise_floor_source.find("repeatability") !=
+            std::string::npos,
+        "diagnosis: noise floor source is machine-readable");
+  check(finalized.best_overall_model ==
+            "chart_cylindrical_bow_candidate" ||
+            finalized.best_overall_model ==
+                "smooth_polynomial_degree2_warp_candidate",
+        "diagnosis: best overall model is recorded");
+  check(finalized.parsimony_winner_model ==
+            "chart_cylindrical_bow_candidate",
+        "diagnosis: parsimony winner chooses lower DOF within noise floor");
+  check(!finalized.conclusive,
+        "diagnosis: unresolved independent check prevents conclusive verdict");
+  check(finalized.diagnostic_conclusion.find("unresolved") !=
+            std::string::npos,
+        "diagnosis: tie/confound outcome is emitted as unresolved");
+
+  auto unreliable = comparison;
+  unresolved.repeatability_rms_px = 50.0;
+  finalize_localization_model_comparison(unreliable, unresolved);
+  check(!unreliable.noise_floor_usable,
+        "diagnosis: huge detector repeatability is not a usable noise floor");
+  check(unreliable.parsimony_winner_model.empty(),
+        "diagnosis: unusable noise floor does not choose a parsimony winner");
+  check(unreliable.diagnostic_conclusion.find("noise floor") !=
+            std::string::npos,
+        "diagnosis: unusable noise floor is reported as unresolved");
+
+  auto undercovered = comparison;
+  undercovered.patch_count = 2;
+  unresolved.repeatability_valid_count = 1;
+  unresolved.repeatability_rms_px = 0.75;
+  finalize_localization_model_comparison(undercovered, unresolved);
+  check(!undercovered.noise_floor_usable,
+        "diagnosis: detector repeatability requires at least 90 percent "
+        "coverage");
+
   std::vector<PatchCenterResidual> too_few(residuals.begin(),
                                           residuals.begin() + 5);
   bool threw = false;
@@ -161,6 +211,12 @@ void TESTS() {
   const std::vector<PatchCoord> generated_coords = {PatchCoord{13, 11, 4, 4}};
   const auto centres =
       estimate_patch_centers_by_color_centroid(image, 40, 30, generated_coords);
+  const auto centres_tight =
+      estimate_patch_centers_by_color_centroid(image, 40, 30, generated_coords,
+                                               1.75);
+  const auto centres_wide =
+      estimate_patch_centers_by_color_centroid(image, 40, 30, generated_coords,
+                                               3.0);
   check(centres.size() == 1 && centres[0].valid,
         "independent center: color centroid produces a valid estimate");
   check_near(centres[0].x, 17.0, 0.25,
@@ -182,4 +238,12 @@ void TESTS() {
         "independent center: comparison distinguishes closer source");
   check(independent_check.tracks == "rawdigger_oracle",
         "independent center: interpretation tracks the closer RawDigger source");
+
+  const auto repeatability =
+      camera_iq::estimate_independent_center_repeatability(centres_tight,
+                                                           centres_wide);
+  check(repeatability.valid_count == 1,
+        "independent center: repeatability counts valid matched detections");
+  check(repeatability.rms_px <= 0.75,
+        "independent center: repeatability is bounded on stable fixture");
 }

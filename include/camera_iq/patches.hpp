@@ -121,6 +121,13 @@ struct LocalizationModelComparison {
   bool radial_affine_baselines_reported = false;
   double observed_anisotropy_dx_over_dy = 0;
   double isotropic_radial_predicted_anisotropy_dx_over_dy = 0;
+  double noise_floor_px = 0;
+  bool noise_floor_usable = false;
+  std::string noise_floor_source;
+  std::string best_overall_model;
+  std::string parsimony_winner_model;
+  bool conclusive = false;
+  std::string diagnostic_conclusion;
   std::string identifiability_note;
   std::vector<LocalizationModelReport> models;
 };
@@ -137,6 +144,8 @@ struct LocalizationIndependentCenterCheck {
   std::size_t valid_count = 0;
   double generated_grid_rms_px = 0;
   double rawdigger_oracle_rms_px = 0;
+  std::size_t repeatability_valid_count = 0;
+  double repeatability_rms_px = 0;
   std::string tracks;
   std::string interpretation;
 };

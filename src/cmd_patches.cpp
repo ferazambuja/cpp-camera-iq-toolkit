@@ -635,8 +635,23 @@ int cmd_patches(int argc, char** argv) {
                       static_cast<double>(cfa->height) / 2.0});
       const auto independent_centers = estimate_patch_centers_by_color_centroid(
           rgb, cfa->width, cfa->height, coords);
+      const auto independent_centers_tight =
+          estimate_patch_centers_by_color_centroid(rgb, cfa->width,
+                                                   cfa->height, coords, 1.75);
+      const auto independent_centers_wide =
+          estimate_patch_centers_by_color_centroid(rgb, cfa->width,
+                                                   cfa->height, coords, 3.0);
       localization_validation->independent_center_check =
           compare_independent_patch_centers(coords, oracle, independent_centers);
+      const auto repeatability = estimate_independent_center_repeatability(
+          independent_centers_tight, independent_centers_wide);
+      localization_validation->independent_center_check->repeatability_valid_count =
+          repeatability.valid_count;
+      localization_validation->independent_center_check->repeatability_rms_px =
+          repeatability.rms_px;
+      finalize_localization_model_comparison(
+          *localization_validation->model_comparison,
+          *localization_validation->independent_center_check);
     }
 
     std::optional<PatchComparison> comparison;
