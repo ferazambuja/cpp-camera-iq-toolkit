@@ -282,6 +282,55 @@ void write_comparison(JsonWriter& w, const PatchComparison& comparison,
   w.end_object();
 }
 
+void write_orientation_pairing(JsonWriter& w,
+                               const SpectralReferencePairing& pairing) {
+  w.key("patch_count");
+  w.value(static_cast<std::int64_t>(pairing.patch_count));
+  w.key("luminance_correlation");
+  w.value(pairing.luminance_correlation);
+  w.key("red_green_correlation");
+  w.value(pairing.red_green_correlation);
+  w.key("blue_green_correlation");
+  w.value(pairing.blue_green_correlation);
+  w.key("min_luminance_correlation");
+  w.value(pairing.thresholds.min_luminance_correlation);
+  w.key("min_red_green_correlation");
+  w.value(pairing.thresholds.min_red_green_correlation);
+  w.key("min_blue_green_correlation");
+  w.value(pairing.thresholds.min_blue_green_correlation);
+  w.key("passes_thresholds");
+  w.value(pairing.passes);
+}
+
+void write_orientation_validation(
+    JsonWriter& w,
+    const std::optional<SpectralReferenceOrientationReport>& orientation) {
+  if (!orientation) {
+    w.null();
+    return;
+  }
+  w.begin_object();
+  w.key("method");
+  w.value(orientation->method);
+  w.key("orientation_valid");
+  w.value(orientation->orientation_valid);
+  w.key("best_orientation");
+  w.value(orientation->best_orientation);
+  w.key("scores");
+  w.begin_array();
+  for (const auto& score : orientation->scores) {
+    w.begin_object();
+    w.key("orientation");
+    w.value(score.orientation);
+    w.key("aggregate_score_min_correlation");
+    w.value(score.aggregate_score);
+    write_orientation_pairing(w, score.pairing);
+    w.end_object();
+  }
+  w.end_array();
+  w.end_object();
+}
+
 PatchChannelComparison compare_channel(const std::vector<PatchMean>& patches,
                                        const std::vector<CameraRgbPatch>& ref,
                                        int component) {
@@ -664,7 +713,8 @@ void write_patch_report_json(
     const std::vector<std::string>& sample_names,
     const std::optional<PatchComparison>& comparison,
     std::string_view reference_label,
-    const std::optional<PatchGeometryReport>& geometry) {
+    const std::optional<PatchGeometryReport>& geometry,
+    const std::optional<SpectralReferenceOrientationReport>& orientation) {
   JsonWriter w(os);
   w.begin_object();
   w.key("file");
@@ -675,6 +725,8 @@ void write_patch_report_json(
   w.value(coordinate_source_format);
   w.key("generated_chart_geometry");
   write_generated_geometry(w, geometry);
+  w.key("orientation_validation");
+  write_orientation_validation(w, orientation);
   w.key("extraction_coordinate_convention");
   w.value("one_based_top_left_rectangles_after_source_conversion");
   w.key("rgb_source");

@@ -4,20 +4,26 @@
 #include <fstream>
 #include <stdexcept>
 #include <string>
+#include <vector>
 
 #include "harness.hpp"
 
 namespace fs = std::filesystem;
 
+using camera_iq::CameraRgbPatch;
+using camera_iq::SpectralReference;
+using camera_iq::SpectralReferencePatch;
 using camera_iq::read_spectral_reference_csv;
 using camera_iq::read_spectral_reference_cgats;
 using camera_iq::read_camera_rgb_csv;
+using camera_iq::evaluate_reference_orientation_controls;
 using camera_iq::evaluate_reference_pairing;
 using camera_iq::validate_spectral_reference;
 using camera_iq::SpectralReferencePairingThresholds;
 using camera_iq::SpectralReferenceProvenance;
 using camera_iq::SpectralReferenceValidation;
 using test::check;
+using test::check_near;
 
 namespace {
 
@@ -25,6 +31,52 @@ void write_file(const fs::path& path, const std::string& text) {
   fs::create_directories(path.parent_path());
   std::ofstream os(path, std::ios::binary);
   os << text;
+}
+
+double component_from_normalized_difference(double green, double diff) {
+  return green * (1.0 + diff) / (1.0 - diff);
+}
+
+SpectralReference make_sg_orientation_reference(
+    std::vector<CameraRgbPatch>* camera_rgb) {
+  SpectralReference ref;
+  ref.source_label = "synthetic_sg";
+  ref.wavelengths_nm = {430.0, 520.0, 650.0};
+  ref.patches.reserve(140);
+  camera_rgb->clear();
+  camera_rgb->reserve(140);
+
+  for (int row = 0; row < 10; ++row) {
+    for (int col = 0; col < 14; ++col) {
+      const double green = 0.20 + 0.010 * row + 0.004 * col;
+      const double rg_diff = -0.16 + 0.32 * static_cast<double>(col) / 13.0;
+      const double bg_diff = -0.14 + 0.28 * static_cast<double>(row) / 9.0;
+      const double red =
+          component_from_normalized_difference(green, rg_diff);
+      const double blue =
+          component_from_normalized_difference(green, bg_diff);
+
+      SpectralReferencePatch patch;
+      patch.id = std::string(1, static_cast<char>('A' + col)) +
+                 std::to_string(row + 1);
+      patch.reflectance = {blue, green, red};
+      ref.patches.push_back(patch);
+      camera_rgb->push_back({red, green, blue});
+    }
+  }
+  return ref;
+}
+
+std::vector<CameraRgbPatch> column_flipped(
+    const std::vector<CameraRgbPatch>& direct) {
+  std::vector<CameraRgbPatch> out;
+  out.reserve(direct.size());
+  for (int row = 0; row < 10; ++row) {
+    for (int col = 0; col < 14; ++col) {
+      out.push_back(direct[static_cast<std::size_t>(row * 14 + (13 - col))]);
+    }
+  }
+  return out;
 }
 
 }  // namespace
@@ -179,6 +231,30 @@ void TESTS() {
   const auto shifted = evaluate_reference_pairing(
       pair_ref_data, read_camera_rgb_csv(shifted_camera), thresholds);
   check(!shifted.passes, "pairing: shifted camera/reference order rejected");
+
+  std::vector<CameraRgbPatch> sg_camera;
+  const auto sg_ref = make_sg_orientation_reference(&sg_camera);
+  const auto orientation =
+      evaluate_reference_orientation_controls(sg_ref, sg_camera, thresholds);
+  check(orientation.orientation_valid,
+        "orientation: direct SG order is valid");
+  check(orientation.best_orientation == "direct",
+        "orientation: direct SG order wins");
+  check(orientation.scores.size() == 4,
+        "orientation: direct plus three controls reported");
+  check_near(orientation.scores[0].pairing.luminance_correlation, 1.0, 1e-12,
+             "orientation: direct luminance correlation");
+  check_near(orientation.scores[0].aggregate_score, 1.0, 1e-12,
+             "orientation: direct aggregate score");
+  check(orientation.scores[1].pairing.red_green_correlation < 0.0,
+        "orientation: column-flip control is discriminating");
+
+  const auto flipped_orientation = evaluate_reference_orientation_controls(
+      sg_ref, column_flipped(sg_camera), thresholds);
+  check(!flipped_orientation.orientation_valid,
+        "orientation: flipped camera order rejected");
+  check(flipped_orientation.best_orientation == "column_flip",
+        "orientation: column flip is named when it beats direct");
 
   fs::remove_all(root);
 }

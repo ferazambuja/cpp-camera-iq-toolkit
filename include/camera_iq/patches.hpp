@@ -143,6 +143,8 @@ void write_patch_report_json(
     const std::vector<std::string>& sample_names,
     const std::optional<PatchComparison>& comparison,
     std::string_view reference_label,
-    const std::optional<PatchGeometryReport>& geometry = std::nullopt);
+    const std::optional<PatchGeometryReport>& geometry = std::nullopt,
+    const std::optional<SpectralReferenceOrientationReport>& orientation =
+        std::nullopt);
 
 }  // namespace camera_iq

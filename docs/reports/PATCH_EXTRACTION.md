@@ -63,6 +63,12 @@ convention:
   "colorchecker_sg_corner_seeded_projective_grid"`. JSON records the chart
   model, corner order, input corners, patch IDs, physical row/column, and each
   generated rectangle.
+- For `--sg-corners` runs with a configured spectral SG reference, JSON emits
+  `orientation_validation`: direct physical order plus column-flip, row-flip,
+  and 180-degree controls using the same broad luminance/chroma proxy as
+  `reference-info`. `orientation_valid` is true only when direct order is the
+  best control by minimum luminance/R-G/B-G correlation and passes the
+  configured correlation thresholds.
 - `camera_iq patches`, producing per-patch JSON and optional comparison / CSV
   output.
 
@@ -95,6 +101,37 @@ The first patch (`A1`) extracted by C++:
 RawDigger reports `4139.45, 7602.30, 4651.25`. The direct (pre-affine) RMSE is
 within 1% of the after-affine RMSE and the signed channel bias is below `0.03`
 DN, so the agreement is absolute-DN agreement, not a scale/offset artifact.
+
+## Corner-Seeded Orientation Gate Validation
+
+The orientation orientation gate was validation-tested on the f/8 CCSG RAW using a
+RawDigger-derived four-corner seed. The seed was computed from the A1, A14, J14,
+and J1 patch centers and then projected back to the SG outer chart corners, so
+this is **not** an independent localization result; it verifies the command
+wiring, JSON artifact, and direct-vs-flip orientation gate.
+
+Command excerpt:
+
+```bash
+./build/camera_iq patches \
+  "Images/CCSG_f8/CCSG_f8.0_1:10_DSCF0402.RAF" \
+  --dataset clrs589_project_camera \
+  --sg-corners "1242.489159,707.131935;4835.468326,692.253409;4816.545845,3254.656481;1252.609404,3220.163201" \
+  --flat-field-raw "Images/Sphere/Sphere_f8.0_1:1000_DSCF0387.RAF" \
+  --wb-from-flat-field \
+  --out /tmp/camera_iq_sg_orientation_validation.json
+```
+
+Result:
+
+| Orientation | Aggregate min corr | Luminance corr | R-G proxy corr | B-G proxy corr | Passes thresholds |
+|---|---:|---:|---:|---:|---|
+| direct | 0.960203 | 0.982774 | 0.960203 | 0.960970 | true |
+| column flip | 0.052004 | 0.376739 | 0.248921 | 0.052004 | false |
+| row flip | 0.080909 | 0.491728 | 0.140243 | 0.080909 | false |
+| 180 rotation | -0.280493 | 0.396087 | -0.211692 | -0.280493 | false |
+
+The output reports `orientation_valid: true` and `best_orientation: "direct"`.
 
 ## Important Negative Finding
 
@@ -187,8 +224,10 @@ cross-aperture approximation, not a measured same-aperture correction.
   those coordinates belong to the same image domain as the RAW being read.
 - `--sg-corners` removes the 140-rectangle dependency but still depends on
   caller-supplied chart corners; there is no blind chart detection yet. The
-  corner-seeded path still needs real-data validation against the RawDigger
-  oracle before it replaces RawDigger coordinates in evidence reports.
+  orientation orientation gate confirms the direct physical sweep beats flip
+  controls, but the corner-seeded path still needs RawDigger-oracle absolute geometry and
+  mean-error validation against the RawDigger oracle before it replaces
+  RawDigger coordinates in evidence reports.
 
 ## Next Risks
 

@@ -155,6 +155,70 @@ PatchGeometryReport make_patch_geometry_report(
   return out;
 }
 
+SpectralReferenceProvenance provenance_from_spec(
+    const ColorReferenceSpec& spec) {
+  SpectralReferenceProvenance provenance;
+  provenance.source = spec.source;
+  provenance.illuminant = spec.illuminant;
+  provenance.observer = spec.observer;
+  provenance.unit = spec.unit;
+  provenance.numbering_order = spec.numbering_order;
+  return provenance;
+}
+
+SpectralReferenceValidation validation_from_spec(
+    const ColorReferenceSpec& spec) {
+  SpectralReferenceValidation validation;
+  validation.expected_patch_count = spec.expected_patch_count;
+  validation.expected_band_count = spec.expected_band_count;
+  validation.first_wavelength_nm = spec.first_wavelength_nm;
+  validation.last_wavelength_nm = spec.last_wavelength_nm;
+  validation.min_reflectance = spec.min_reflectance;
+  validation.max_reflectance = spec.max_reflectance;
+  return validation;
+}
+
+SpectralReferencePairingThresholds pairing_thresholds_from_spec(
+    const ColorReferenceSpec& spec) {
+  SpectralReferencePairingThresholds thresholds;
+  if (spec.pairing_min_luminance_correlation) {
+    thresholds.min_luminance_correlation =
+        *spec.pairing_min_luminance_correlation;
+  }
+  if (spec.pairing_min_red_green_correlation) {
+    thresholds.min_red_green_correlation =
+        *spec.pairing_min_red_green_correlation;
+  }
+  if (spec.pairing_min_blue_green_correlation) {
+    thresholds.min_blue_green_correlation =
+        *spec.pairing_min_blue_green_correlation;
+  }
+  return thresholds;
+}
+
+SpectralReference read_reference_from_spec(const ColorReferenceSpec& spec,
+                                           const std::filesystem::path& path) {
+  const auto provenance = provenance_from_spec(spec);
+  if (spec.format == "camera_iq_spectral_csv") {
+    return read_spectral_reference_csv(path, spec.id, provenance);
+  }
+  if (spec.format == "cgats_spectral") {
+    return read_spectral_reference_cgats(path, spec.id, provenance);
+  }
+  throw std::runtime_error("unsupported reference format '" + spec.format +
+                           "' for " + spec.id);
+}
+
+std::vector<CameraRgbPatch> camera_rgb_from_patches(
+    const std::vector<PatchMean>& patches) {
+  std::vector<CameraRgbPatch> out;
+  out.reserve(patches.size());
+  for (const auto& patch : patches) {
+    out.push_back(patch.rgb);
+  }
+  return out;
+}
+
 }  // namespace
 
 int cmd_patches(int argc, char** argv) {
@@ -312,6 +376,8 @@ int cmd_patches(int argc, char** argv) {
     std::string reference_label;
     std::filesystem::path actual_flat_field_raw;
     std::string flat_label;
+    std::optional<ColorReferenceSpec> color_reference_spec;
+    std::filesystem::path actual_color_reference;
 
     std::optional<ResolvedDataset> dataset;
     if (!args.dataset_id.empty()) {
@@ -342,13 +408,20 @@ int cmd_patches(int argc, char** argv) {
         coordinate_source_format = "rawdigger_csv_zero_based_left_top";
       }
 
-      if (args.reference_rgb.empty() && args.rawdigger_csv.empty()) {
-        const auto configs = read_dataset_config(args.config);
-        const auto it = configs.find(args.dataset_id);
-        if (it != configs.end() && it->second.color_reference &&
-            !it->second.color_reference->pairing_rgb_path.empty()) {
-          args.reference_rgb = it->second.color_reference->pairing_rgb_path;
-        }
+      const auto configs = read_dataset_config(args.config);
+      const auto it = configs.find(args.dataset_id);
+      if (it != configs.end() && it->second.color_reference) {
+        color_reference_spec = *it->second.color_reference;
+      }
+      if (args.reference_rgb.empty() && args.rawdigger_csv.empty() &&
+          color_reference_spec &&
+          !color_reference_spec->pairing_rgb_path.empty()) {
+        args.reference_rgb = color_reference_spec->pairing_rgb_path;
+      }
+      if (color_reference_spec && !color_reference_spec->path.empty()) {
+        actual_color_reference =
+            resolve_dataset_side_path(*dataset, color_reference_spec->path)
+                .actual;
       }
       if (!args.flat_field_raw.empty()) {
         const auto resolved_flat =
@@ -487,6 +560,16 @@ int cmd_patches(int argc, char** argv) {
     const auto patches =
         extract_patch_means(corrected_rgb, cfa->width, cfa->height, coords);
 
+    std::optional<SpectralReferenceOrientationReport> orientation_report;
+    if (sg_geometry && color_reference_spec) {
+      const auto ref =
+          read_reference_from_spec(*color_reference_spec, actual_color_reference);
+      validate_spectral_reference(ref, validation_from_spec(*color_reference_spec));
+      orientation_report = evaluate_reference_orientation_controls(
+          ref, camera_rgb_from_patches(patches),
+          pairing_thresholds_from_spec(*color_reference_spec));
+    }
+
     std::optional<PatchComparison> comparison;
     if (!actual_reference_rgb.empty()) {
       comparison = compare_patch_means_to_rgb(
@@ -509,7 +592,7 @@ int cmd_patches(int argc, char** argv) {
           std::cout, file_label, coords_label, coordinate_source_format,
           cfa->meta, cfa->width, cfa->height, flat_label, flat_summary,
           applied_wb, wb_policy, patches, sample_names, comparison,
-          reference_label, sg_geometry_report);
+          reference_label, sg_geometry_report, orientation_report);
       std::cout << "\n";
     } else {
       std::ofstream os(args.out, std::ios::binary);
@@ -521,7 +604,8 @@ int cmd_patches(int argc, char** argv) {
                               coordinate_source_format, cfa->meta, cfa->width,
                               cfa->height, flat_label, flat_summary, applied_wb,
                               wb_policy, patches, sample_names, comparison,
-                              reference_label, sg_geometry_report);
+                              reference_label, sg_geometry_report,
+                              orientation_report);
       os << "\n";
       std::cerr << "patch means written to " << args.out << "\n";
     }

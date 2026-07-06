@@ -71,6 +71,20 @@ struct SpectralReferencePairing {
   bool passes = false;
 };
 
+struct SpectralReferenceOrientationScore {
+  std::string orientation;
+  SpectralReferencePairing pairing;
+  double aggregate_score = 0;
+};
+
+struct SpectralReferenceOrientationReport {
+  std::string method =
+      "broadband_luminance_and_chroma_proxy_correlation_with_flip_controls";
+  std::vector<SpectralReferenceOrientationScore> scores;
+  std::string best_orientation;
+  bool orientation_valid = false;
+};
+
 // Canonical private/export format:
 // patch_id,380,390,...,730
 // A1,0.1123,0.2108,...
@@ -98,6 +112,10 @@ std::vector<CameraRgbPatch> read_camera_rgb_csv(
     const std::filesystem::path& path);
 
 SpectralReferencePairing evaluate_reference_pairing(
+    const SpectralReference& ref, const std::vector<CameraRgbPatch>& camera_rgb,
+    SpectralReferencePairingThresholds thresholds = {});
+
+SpectralReferenceOrientationReport evaluate_reference_orientation_controls(
     const SpectralReference& ref, const std::vector<CameraRgbPatch>& camera_rgb,
     SpectralReferencePairingThresholds thresholds = {});
 

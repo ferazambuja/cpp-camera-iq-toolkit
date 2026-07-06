@@ -213,6 +213,43 @@ double normalized_difference(double a, double b) {
   return (a - b) / (std::abs(a) + std::abs(b) + eps);
 }
 
+double pairing_score(const SpectralReferencePairing& pairing) {
+  return std::min({pairing.luminance_correlation,
+                   pairing.red_green_correlation,
+                   pairing.blue_green_correlation});
+}
+
+std::vector<CameraRgbPatch> reoriented_sg_camera_rgb(
+    const std::vector<CameraRgbPatch>& camera_rgb, std::string_view orientation) {
+  constexpr int rows = 10;
+  constexpr int columns = 14;
+  constexpr std::size_t patch_count =
+      static_cast<std::size_t>(rows * columns);
+  if (camera_rgb.size() != patch_count) {
+    throw std::runtime_error(
+        "reference orientation: ColorChecker SG controls require 140 patches");
+  }
+
+  std::vector<CameraRgbPatch> out;
+  out.reserve(camera_rgb.size());
+  for (int row = 0; row < rows; ++row) {
+    for (int col = 0; col < columns; ++col) {
+      int source_row = row;
+      int source_col = col;
+      if (orientation == "column_flip" || orientation == "rotate_180") {
+        source_col = columns - 1 - source_col;
+      }
+      if (orientation == "row_flip" || orientation == "rotate_180") {
+        source_row = rows - 1 - source_row;
+      }
+      out.push_back(
+          camera_rgb[static_cast<std::size_t>(source_row * columns +
+                                              source_col)]);
+    }
+  }
+  return out;
+}
+
 }  // namespace
 
 SpectralReference read_spectral_reference_csv(const std::filesystem::path& path,
@@ -607,6 +644,43 @@ SpectralReferencePairing evaluate_reference_pairing(
       out.red_green_correlation >= thresholds.min_red_green_correlation &&
       out.blue_green_correlation >= thresholds.min_blue_green_correlation;
   return out;
+}
+
+SpectralReferenceOrientationReport evaluate_reference_orientation_controls(
+    const SpectralReference& ref, const std::vector<CameraRgbPatch>& camera_rgb,
+    SpectralReferencePairingThresholds thresholds) {
+  constexpr std::size_t kColorCheckerSgPatchCount = 140;
+  if (ref.patches.size() != kColorCheckerSgPatchCount ||
+      camera_rgb.size() != kColorCheckerSgPatchCount) {
+    throw std::runtime_error(
+        "reference orientation: ColorChecker SG controls require 140 patches");
+  }
+
+  SpectralReferenceOrientationReport report;
+  const std::vector<std::string> orientations = {
+      "direct", "column_flip", "row_flip", "rotate_180"};
+  double best_score = -std::numeric_limits<double>::infinity();
+  for (const auto& orientation : orientations) {
+    const auto oriented_camera =
+        orientation == "direct"
+            ? camera_rgb
+            : reoriented_sg_camera_rgb(camera_rgb, orientation);
+    SpectralReferenceOrientationScore score;
+    score.orientation = orientation;
+    score.pairing =
+        evaluate_reference_pairing(ref, oriented_camera, thresholds);
+    score.aggregate_score = pairing_score(score.pairing);
+    if (score.aggregate_score > best_score + 1e-12) {
+      best_score = score.aggregate_score;
+      report.best_orientation = orientation;
+    }
+    report.scores.push_back(std::move(score));
+  }
+
+  report.orientation_valid =
+      report.best_orientation == "direct" && !report.scores.empty() &&
+      report.scores.front().pairing.passes;
+  return report;
 }
 
 void write_spectral_reference_summary_json(std::ostream& os,

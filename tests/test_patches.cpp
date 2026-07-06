@@ -20,6 +20,9 @@ using camera_iq::PatchChannelComparison;
 using camera_iq::PatchCoord;
 using camera_iq::PatchMean;
 using camera_iq::RawMeta;
+using camera_iq::SpectralReferenceOrientationReport;
+using camera_iq::SpectralReferenceOrientationScore;
+using camera_iq::SpectralReferencePairing;
 using camera_iq::WhiteBalanceGains;
 using camera_iq::apply_flat_field;
 using camera_iq::apply_white_balance;
@@ -206,6 +209,48 @@ void TESTS() {
   check(geometry_doc.find("\"row\":0") != std::string::npos &&
             geometry_doc.find("\"column\":0") != std::string::npos,
         "chart report: row and column emitted");
+
+  SpectralReferencePairing direct_pairing;
+  direct_pairing.patch_count = 140;
+  direct_pairing.luminance_correlation = 0.958;
+  direct_pairing.red_green_correlation = 0.960;
+  direct_pairing.blue_green_correlation = 0.961;
+  direct_pairing.thresholds.min_luminance_correlation = 0.90;
+  direct_pairing.thresholds.min_red_green_correlation = 0.80;
+  direct_pairing.thresholds.min_blue_green_correlation = 0.80;
+  direct_pairing.passes = true;
+  SpectralReferencePairing column_pairing = direct_pairing;
+  column_pairing.luminance_correlation = 0.327;
+  column_pairing.passes = false;
+  SpectralReferenceOrientationReport orientation;
+  orientation.best_orientation = "direct";
+  orientation.orientation_valid = true;
+  orientation.scores = {
+      SpectralReferenceOrientationScore{"direct", direct_pairing, 0.958},
+      SpectralReferenceOrientationScore{"column_flip", column_pairing, 0.248},
+  };
+  std::ostringstream orientation_json;
+  write_patch_report_json(
+      orientation_json, "dataset:fixture/raw.RAF", "manual:sg-corners",
+      "colorchecker_sg_corner_seeded_projective_grid", meta, 2, 2, "",
+      std::nullopt, std::nullopt, "none", {report_patch}, {"A1"},
+      std::nullopt, "", geometry, orientation);
+  const std::string orientation_doc = orientation_json.str();
+  check(orientation_doc.find("\"orientation_validation\"") !=
+            std::string::npos,
+        "orientation report: block emitted");
+  check(orientation_doc.find("\"best_orientation\":\"direct\"") !=
+            std::string::npos,
+        "orientation report: best orientation emitted");
+  check(orientation_doc.find("\"orientation_valid\":true") !=
+            std::string::npos,
+        "orientation report: valid flag emitted");
+  check(orientation_doc.find("\"orientation\":\"column_flip\"") !=
+            std::string::npos,
+        "orientation report: control orientation emitted");
+  check(orientation_doc.find("\"aggregate_score_min_correlation\":0.958") !=
+            std::string::npos,
+        "orientation report: aggregate score emitted");
 
   const auto wb_corrected =
       apply_white_balance(flat_corrected, WhiteBalanceGains{0.5, 1.0, 2.0});
