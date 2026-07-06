@@ -95,6 +95,7 @@ camera_iq_add_test(test_colorimetry tests/test_colorimetry.cpp)
 camera_iq_add_test(test_cmd_ccm_fit tests/test_cmd_ccm_fit.cpp)
 camera_iq_add_test(test_patches tests/test_patches.cpp)
 camera_iq_add_test(test_chart_localization tests/test_chart_localization.cpp)
+camera_iq_add_test(test_cmd_patches tests/test_cmd_patches.cpp)
 
 add_test(NAME check_public_paths
   COMMAND bash ${CMAKE_SOURCE_DIR}/tools/check_public_paths.sh)

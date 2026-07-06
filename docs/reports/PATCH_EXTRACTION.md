@@ -18,6 +18,11 @@ Two coordinate sources are supported:
   filename. RawDigger `Left`/`Top` are zero-based and are converted internally to
   the extractor's one-based coordinate convention. `Sample_Name` is emitted as
   `sample_name` in JSON.
+- `--sg-corners "x1,y1;x2,y2;x3,y3;x4,y4"`: four ColorChecker-SG outer corners
+  in top-left, top-right, bottom-right, bottom-left order. The command uses the
+  verified 14x10 SG physical layout and a planar homography to generate 140
+  one-based extraction rectangles. This is corner-seeded geometry, not blind
+  chart detection.
 
 JSON separates the original coordinate source from the normalized extraction
 convention:
@@ -53,6 +58,11 @@ convention:
   scales red/blue to match it.
 - Optional `--rgb-csv-out`, producing a three-column camera RGB table that
   `camera_iq ccm-fit --camera-rgb` can consume directly.
+- Optional `--sg-corners`, producing generated SG rectangles with
+  `coordinate_source_format:
+  "colorchecker_sg_corner_seeded_projective_grid"`. JSON records the chart
+  model, corner order, input corners, patch IDs, physical row/column, and each
+  generated rectangle.
 - `camera_iq patches`, producing per-patch JSON and optional comparison / CSV
   output.
 
@@ -175,13 +185,17 @@ cross-aperture approximation, not a measured same-aperture correction.
   corrected reference or downstream CCM/DeltaE evaluation.
 - `--coords` supports MATLAB-style rectangle files, but the caller must ensure
   those coordinates belong to the same image domain as the RAW being read.
-- There is no automatic chart detection or perspective fitting yet.
+- `--sg-corners` removes the 140-rectangle dependency but still depends on
+  caller-supplied chart corners; there is no blind chart detection yet. The
+  corner-seeded path still needs real-data validation against the RawDigger
+  oracle before it replaces RawDigger coordinates in evidence reports.
 
 ## Next Risks
 
 1. Decide whether to reproduce the historical TIFF workflow for parity or move
    directly to RAW-space chart localization.
-2. Replace RawDigger-coordinate dependency with automatic chart localization.
+2. Validate corner-seeded SG localization against the RawDigger oracle using the
+   predeclared absolute geometry and mean-error gates.
 3. Diagnose the dark-patch / neutral-axis error before adding higher-order color
    models; root-polynomial variants need held-out evidence before they are
    treated as an improvement.

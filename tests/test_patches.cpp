@@ -13,6 +13,9 @@
 
 using camera_iq::CameraRgbPatch;
 using camera_iq::FlatFieldCorrectionSummary;
+using camera_iq::PatchGeometryReport;
+using camera_iq::PatchGeometryReportPatch;
+using camera_iq::PatchGeometryReportPoint;
 using camera_iq::PatchChannelComparison;
 using camera_iq::PatchCoord;
 using camera_iq::PatchMean;
@@ -171,6 +174,38 @@ void TESTS() {
   check(patch_doc.find("\"white_balance\":{\"policy\":\"flat_field_green_anchor\"") !=
             std::string::npos,
         "flat report: JSON records flat-derived WB policy");
+
+  PatchGeometryReport geometry;
+  geometry.chart_model = "ColorChecker-SG 14x10";
+  geometry.method = "corner_seeded_projective_grid";
+  geometry.corners = {PatchGeometryReportPoint{0, 0},
+                      PatchGeometryReportPoint{242, 0},
+                      PatchGeometryReportPoint{242, 172},
+                      PatchGeometryReportPoint{0, 172}};
+  geometry.patches = {PatchGeometryReportPatch{"A1", 0, 0}};
+  std::ostringstream geometry_json;
+  write_patch_report_json(
+      geometry_json, "dataset:fixture/raw.RAF", "manual:sg-corners",
+      "colorchecker_sg_corner_seeded_projective_grid", meta, 2, 2, "",
+      std::nullopt, std::nullopt, "none", {report_patch}, {"A1"},
+      std::nullopt, "", geometry);
+  const std::string geometry_doc = geometry_json.str();
+  check(geometry_doc.find("\"generated_chart_geometry\"") !=
+            std::string::npos,
+        "chart report: generated chart geometry block emitted");
+  check(geometry_doc.find("\"chart_model\":\"ColorChecker-SG 14x10\"") !=
+            std::string::npos,
+        "chart report: chart model emitted");
+  check(geometry_doc.find("\"corner_order\":[\"top_left\",\"top_right\","
+                          "\"bottom_right\",\"bottom_left\"]") !=
+            std::string::npos,
+        "chart report: corner order emitted");
+  check(geometry_doc.find("\"reference_patch_id\":\"A1\"") !=
+            std::string::npos,
+        "chart report: reference patch id emitted");
+  check(geometry_doc.find("\"row\":0") != std::string::npos &&
+            geometry_doc.find("\"column\":0") != std::string::npos,
+        "chart report: row and column emitted");
 
   const auto wb_corrected =
       apply_white_balance(flat_corrected, WhiteBalanceGains{0.5, 1.0, 2.0});

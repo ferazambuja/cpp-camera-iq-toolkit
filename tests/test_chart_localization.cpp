@@ -11,6 +11,9 @@ using camera_iq::ChartCorners;
 using camera_iq::PatchCoord;
 using camera_iq::Point2d;
 using camera_iq::localize_colorchecker_sg_grid;
+using camera_iq::parse_colorchecker_sg_corners;
+using camera_iq::patch_coords_from_chart_geometry;
+using camera_iq::patch_ids_from_chart_geometry;
 using test::check;
 using test::check_near;
 
@@ -29,6 +32,15 @@ const camera_iq::ChartPatchGeometry& patch_at(
 bool throws_for(const ChartCorners& corners, double inner_fraction = 0.65) {
   try {
     (void)localize_colorchecker_sg_grid(corners, inner_fraction);
+  } catch (const std::runtime_error&) {
+    return true;
+  }
+  return false;
+}
+
+bool parse_throws_for(const std::string& text) {
+  try {
+    (void)parse_colorchecker_sg_corners(text);
   } catch (const std::runtime_error&) {
     return true;
   }
@@ -174,6 +186,27 @@ void TESTS() {
     check_near(n10.y, 181.2389, 0.05,
                "projective grid: N10 center y matches homography prediction "
                "(rejects affine parallelogram grid)");
+  }
+
+  {
+    const auto parsed =
+        parse_colorchecker_sg_corners("0,0;242,0;242,172;0,172");
+    const auto result = localize_colorchecker_sg_grid(parsed);
+    const auto coords = patch_coords_from_chart_geometry(result);
+    const auto ids = patch_ids_from_chart_geometry(result);
+    check(coords.size() == 140,
+          "sg corners: parsed corners generate 140 patch coords");
+    check(ids.size() == 140, "sg corners: parsed corners generate 140 ids");
+    check(ids.front() == "A1" && ids.back() == "N10",
+          "sg corners: generated ids preserve SG physical order");
+    check_near(coords.front().x, 3.5375, 1e-9,
+               "sg corners: generated coords use one-based convention");
+    check(parse_throws_for("0,0;242,0;242,172"),
+          "sg corners: rejects too few corners");
+    check(parse_throws_for("0,0;242,0;bad;0,172"),
+          "sg corners: rejects malformed point");
+    check(parse_throws_for("0,0;242,0;242,172;0,172;9,9"),
+          "sg corners: rejects extra corners");
   }
 
   {

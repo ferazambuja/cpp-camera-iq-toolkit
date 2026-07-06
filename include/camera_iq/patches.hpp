@@ -23,6 +23,24 @@ struct PatchCoord {
   double height = 0;
 };
 
+struct PatchGeometryReportPoint {
+  double x = 0;
+  double y = 0;
+};
+
+struct PatchGeometryReportPatch {
+  std::string reference_patch_id;
+  int row = 0;
+  int column = 0;
+};
+
+struct PatchGeometryReport {
+  std::string chart_model;
+  std::string method;
+  std::array<PatchGeometryReportPoint, 4> corners;
+  std::vector<PatchGeometryReportPatch> patches;
+};
+
 struct PatchMean {
   PatchCoord source_coord;
   int x = 0;
@@ -124,6 +142,7 @@ void write_patch_report_json(
     const std::vector<PatchMean>& patches,
     const std::vector<std::string>& sample_names,
     const std::optional<PatchComparison>& comparison,
-    std::string_view reference_label);
+    std::string_view reference_label,
+    const std::optional<PatchGeometryReport>& geometry = std::nullopt);
 
 }  // namespace camera_iq

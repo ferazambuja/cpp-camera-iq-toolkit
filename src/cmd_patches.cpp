@@ -12,6 +12,7 @@
 #include <string_view>
 #include <vector>
 
+#include "camera_iq/chart_localization.hpp"
 #include "camera_iq/color_reference.hpp"
 #include "camera_iq/dataset_config.hpp"
 #include "camera_iq/demosaic.hpp"
@@ -29,6 +30,7 @@ struct Args {
   std::filesystem::path config = default_dataset_config_path();
   std::filesystem::path coords;
   std::filesystem::path rawdigger_csv;
+  std::string sg_corners;
   std::filesystem::path reference_rgb;
   std::filesystem::path flat_field_raw;
   double flat_field_floor = 1.0;
@@ -45,14 +47,16 @@ struct ResolvedPath {
 
 void usage() {
   std::cerr << "Usage: camera_iq patches <raw-file>"
-               " (--coords FILE | --rawdigger-csv FILE)"
+               " (--coords FILE | --rawdigger-csv FILE | --sg-corners SPEC)"
                " [--dataset ID] [--config FILE]"
                " [--reference-rgb FILE]"
                " [--flat-field-raw FILE] [--flat-field-floor DN]"
                " [--wb-gains R,G,B | --wb-from-flat-field]"
                " [--rgb-csv-out FILE] [--out FILE]\n"
                "--coords reads checker2colors-style x,y,width,height rows;\n"
-               "--rawdigger-csv reads RAW-space RawDigger patch exports.\n";
+               "--rawdigger-csv reads RAW-space RawDigger patch exports;\n"
+               "--sg-corners reads TL;TR;BR;BL active-image corners as "
+               "\"x1,y1;x2,y2;x3,y3;x4,y4\".\n";
 }
 
 ResolvedPath resolve_dataset_side_path(const ResolvedDataset& dataset,
@@ -129,6 +133,28 @@ std::size_t count_flat_samples_near_ceiling(
   return count;
 }
 
+PatchGeometryReport make_patch_geometry_report(
+    const ChartLocalizationResult& geometry) {
+  PatchGeometryReport out;
+  out.chart_model = geometry.chart_model;
+  out.method = geometry.method;
+  out.corners = {PatchGeometryReportPoint{geometry.corners.top_left.x,
+                                          geometry.corners.top_left.y},
+                 PatchGeometryReportPoint{geometry.corners.top_right.x,
+                                          geometry.corners.top_right.y},
+                 PatchGeometryReportPoint{geometry.corners.bottom_right.x,
+                                          geometry.corners.bottom_right.y},
+                 PatchGeometryReportPoint{geometry.corners.bottom_left.x,
+                                          geometry.corners.bottom_left.y}};
+  out.patches.reserve(geometry.patches.size());
+  for (const auto& patch : geometry.patches) {
+    out.patches.push_back(
+        PatchGeometryReportPatch{patch.reference_patch_id, patch.row,
+                                 patch.column});
+  }
+  return out;
+}
+
 }  // namespace
 
 int cmd_patches(int argc, char** argv) {
@@ -159,6 +185,12 @@ int cmd_patches(int argc, char** argv) {
         return 2;
       }
       args.rawdigger_csv = argv[i];
+    } else if (arg == "--sg-corners") {
+      if (++i >= argc) {
+        std::cerr << "camera_iq patches: --sg-corners requires corners\n";
+        return 2;
+      }
+      args.sg_corners = argv[i];
     } else if (arg == "--reference-rgb") {
       if (++i >= argc) {
         std::cerr << "camera_iq patches: --reference-rgb requires a path\n";
@@ -224,14 +256,16 @@ int cmd_patches(int argc, char** argv) {
     }
   }
 
-  if (args.raw_file.empty() ||
-      (args.coords.empty() && args.rawdigger_csv.empty())) {
+  const int coordinate_modes = (args.coords.empty() ? 0 : 1) +
+                               (args.rawdigger_csv.empty() ? 0 : 1) +
+                               (args.sg_corners.empty() ? 0 : 1);
+  if (args.raw_file.empty() || coordinate_modes == 0) {
     usage();
     return 2;
   }
-  if (!args.coords.empty() && !args.rawdigger_csv.empty()) {
-    std::cerr << "camera_iq patches: use either --coords or --rawdigger-csv,"
-                 " not both\n";
+  if (coordinate_modes > 1) {
+    std::cerr << "camera_iq patches: use exactly one of --coords, "
+                 "--rawdigger-csv, or --sg-corners\n";
     return 2;
   }
   if (args.wb_from_flat_field && args.wb_gains) {
@@ -247,6 +281,18 @@ int cmd_patches(int argc, char** argv) {
   const bool corrections_requested =
       !args.flat_field_raw.empty() || args.wb_gains.has_value() ||
       args.wb_from_flat_field;
+  std::optional<ChartLocalizationResult> sg_geometry;
+  std::optional<PatchGeometryReport> sg_geometry_report;
+  if (!args.sg_corners.empty()) {
+    try {
+      sg_geometry = localize_colorchecker_sg_grid(
+          parse_colorchecker_sg_corners(args.sg_corners));
+      sg_geometry_report = make_patch_geometry_report(*sg_geometry);
+    } catch (const std::exception& ex) {
+      std::cerr << "camera_iq patches: --sg-corners " << ex.what() << "\n";
+      return 2;
+    }
+  }
 
   try {
     std::filesystem::path actual_raw = args.raw_file;
@@ -255,6 +301,11 @@ int cmd_patches(int argc, char** argv) {
     std::string coords_label = args.coords.string();
     std::string coordinate_source_format =
         "checker2colors_csv_one_based_top_left";
+    if (sg_geometry) {
+      coords_label = "manual:sg-corners";
+      coordinate_source_format =
+          "colorchecker_sg_corner_seeded_projective_grid";
+    }
     std::filesystem::path actual_rawdigger_csv;
     std::string rawdigger_label;
     std::filesystem::path actual_reference_rgb;
@@ -427,6 +478,9 @@ int cmd_patches(int argc, char** argv) {
         embedded_reference_rgb = rawdigger.reference_rgb;
         reference_label = rawdigger_label + "#Ravg/Gavg/Bavg";
       }
+    } else if (sg_geometry) {
+      coords = patch_coords_from_chart_geometry(*sg_geometry);
+      sample_names = patch_ids_from_chart_geometry(*sg_geometry);
     } else {
       coords = read_patch_coords_csv(actual_coords);
     }
@@ -455,7 +509,7 @@ int cmd_patches(int argc, char** argv) {
           std::cout, file_label, coords_label, coordinate_source_format,
           cfa->meta, cfa->width, cfa->height, flat_label, flat_summary,
           applied_wb, wb_policy, patches, sample_names, comparison,
-          reference_label);
+          reference_label, sg_geometry_report);
       std::cout << "\n";
     } else {
       std::ofstream os(args.out, std::ios::binary);
@@ -467,7 +521,7 @@ int cmd_patches(int argc, char** argv) {
                               coordinate_source_format, cfa->meta, cfa->width,
                               cfa->height, flat_label, flat_summary, applied_wb,
                               wb_policy, patches, sample_names, comparison,
-                              reference_label);
+                              reference_label, sg_geometry_report);
       os << "\n";
       std::cerr << "patch means written to " << args.out << "\n";
     }

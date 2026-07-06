@@ -110,6 +110,60 @@ void write_coord(JsonWriter& w, const PatchCoord& coord) {
   w.end_object();
 }
 
+void write_point(JsonWriter& w, const PatchGeometryReportPoint& point) {
+  w.begin_object();
+  w.key("x");
+  w.value(point.x);
+  w.key("y");
+  w.value(point.y);
+  w.end_object();
+}
+
+void write_generated_geometry(
+    JsonWriter& w, const std::optional<PatchGeometryReport>& geometry) {
+  if (!geometry) {
+    w.null();
+    return;
+  }
+  w.begin_object();
+  w.key("chart_model");
+  w.value(geometry->chart_model);
+  w.key("method");
+  w.value(geometry->method);
+  w.key("corner_order");
+  w.begin_array();
+  w.value("top_left");
+  w.value("top_right");
+  w.value("bottom_right");
+  w.value("bottom_left");
+  w.end_array();
+  w.key("corners");
+  w.begin_object();
+  w.key("top_left");
+  write_point(w, geometry->corners[0]);
+  w.key("top_right");
+  write_point(w, geometry->corners[1]);
+  w.key("bottom_right");
+  write_point(w, geometry->corners[2]);
+  w.key("bottom_left");
+  write_point(w, geometry->corners[3]);
+  w.end_object();
+  w.key("patches");
+  w.begin_array();
+  for (const auto& patch : geometry->patches) {
+    w.begin_object();
+    w.key("reference_patch_id");
+    w.value(patch.reference_patch_id);
+    w.key("row");
+    w.value(patch.row);
+    w.key("column");
+    w.value(patch.column);
+    w.end_object();
+  }
+  w.end_array();
+  w.end_object();
+}
+
 void write_patch(JsonWriter& w, const PatchMean& patch, std::size_t index,
                  const std::vector<std::string>& sample_names) {
   w.begin_object();
@@ -609,7 +663,8 @@ void write_patch_report_json(
     const std::vector<PatchMean>& patches,
     const std::vector<std::string>& sample_names,
     const std::optional<PatchComparison>& comparison,
-    std::string_view reference_label) {
+    std::string_view reference_label,
+    const std::optional<PatchGeometryReport>& geometry) {
   JsonWriter w(os);
   w.begin_object();
   w.key("file");
@@ -618,6 +673,8 @@ void write_patch_report_json(
   w.value(coords_label);
   w.key("coordinate_source_format");
   w.value(coordinate_source_format);
+  w.key("generated_chart_geometry");
+  write_generated_geometry(w, geometry);
   w.key("extraction_coordinate_convention");
   w.value("one_based_top_left_rectangles_after_source_conversion");
   w.key("rgb_source");

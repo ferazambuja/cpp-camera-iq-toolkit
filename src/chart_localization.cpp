@@ -5,6 +5,8 @@
 #include <cmath>
 #include <stdexcept>
 #include <string>
+#include <string_view>
+#include <vector>
 
 namespace camera_iq {
 namespace {
@@ -148,6 +150,33 @@ std::string patch_id(int row, int column) {
   return id;
 }
 
+double parse_number(std::string_view field, std::string_view context) {
+  const std::string text(field);
+  try {
+    std::size_t consumed = 0;
+    const double value = std::stod(text, &consumed);
+    if (consumed != text.size() || !std::isfinite(value)) {
+      throw std::runtime_error("");
+    }
+    return value;
+  } catch (...) {
+    throw std::runtime_error("invalid ColorChecker-SG corner number in " +
+                             std::string(context));
+  }
+}
+
+Point2d parse_point(std::string_view field, int index) {
+  const auto comma = field.find(',');
+  if (comma == std::string_view::npos ||
+      field.find(',', comma + 1) != std::string_view::npos) {
+    throw std::runtime_error(
+        "ColorChecker-SG corners must use x,y point pairs");
+  }
+  const std::string context = "corner " + std::to_string(index + 1);
+  return {parse_number(field.substr(0, comma), context),
+          parse_number(field.substr(comma + 1), context)};
+}
+
 PatchCoord projected_roi(const Homography& h, double left, double top,
                          double right, double bottom) {
   const std::array<Point2d, 4> projected = {
@@ -201,6 +230,51 @@ ChartLocalizationResult localize_colorchecker_sg_grid(
   }
 
   return result;
+}
+
+ChartCorners parse_colorchecker_sg_corners(std::string_view text) {
+  std::vector<Point2d> points;
+  std::size_t start = 0;
+  while (start <= text.size()) {
+    const std::size_t end = text.find(';', start);
+    const std::string_view field =
+        end == std::string_view::npos ? text.substr(start)
+                                      : text.substr(start, end - start);
+    if (field.empty()) {
+      throw std::runtime_error(
+          "ColorChecker-SG corners must contain four x,y point pairs");
+    }
+    points.push_back(parse_point(field, static_cast<int>(points.size())));
+    if (end == std::string_view::npos) {
+      break;
+    }
+    start = end + 1;
+  }
+  if (points.size() != 4) {
+    throw std::runtime_error(
+        "ColorChecker-SG corners must contain exactly four points");
+  }
+  return {points[0], points[1], points[2], points[3]};
+}
+
+std::vector<PatchCoord> patch_coords_from_chart_geometry(
+    const ChartLocalizationResult& geometry) {
+  std::vector<PatchCoord> coords;
+  coords.reserve(geometry.patches.size());
+  for (const auto& patch : geometry.patches) {
+    coords.push_back(patch.extraction_coord);
+  }
+  return coords;
+}
+
+std::vector<std::string> patch_ids_from_chart_geometry(
+    const ChartLocalizationResult& geometry) {
+  std::vector<std::string> ids;
+  ids.reserve(geometry.patches.size());
+  for (const auto& patch : geometry.patches) {
+    ids.push_back(patch.reference_patch_id);
+  }
+  return ids;
 }
 
 }  // namespace camera_iq

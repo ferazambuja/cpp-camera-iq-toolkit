@@ -1,6 +1,7 @@
 #pragma once
 
 #include <string>
+#include <string_view>
 #include <vector>
 
 #include "camera_iq/patches.hpp"
@@ -35,5 +36,13 @@ struct ChartLocalizationResult {
 
 ChartLocalizationResult localize_colorchecker_sg_grid(
     const ChartCorners& corners, double inner_fraction = 0.65);
+
+ChartCorners parse_colorchecker_sg_corners(std::string_view text);
+
+std::vector<PatchCoord> patch_coords_from_chart_geometry(
+    const ChartLocalizationResult& geometry);
+
+std::vector<std::string> patch_ids_from_chart_geometry(
+    const ChartLocalizationResult& geometry);
 
 }  // namespace camera_iq
