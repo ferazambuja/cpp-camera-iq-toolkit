@@ -81,6 +81,14 @@ double rgb_component(const CameraRgbPatch& rgb, int component) {
   return rgb.b;
 }
 
+double patch_center_x(const PatchCoord& coord) {
+  return coord.x - 1.0 + coord.width / 2.0;
+}
+
+double patch_center_y(const PatchCoord& coord) {
+  return coord.y - 1.0 + coord.height / 2.0;
+}
+
 double flat_denominator(double value, double floor_value) {
   if (!std::isfinite(value) || value <= floor_value) return floor_value;
   return value;
@@ -325,6 +333,74 @@ void write_orientation_validation(
     w.key("aggregate_score_min_correlation");
     w.value(score.aggregate_score);
     write_orientation_pairing(w, score.pairing);
+    w.end_object();
+  }
+  w.end_array();
+  w.end_object();
+}
+
+void write_localization_validation(
+    JsonWriter& w,
+    const std::optional<PatchLocalizationValidation>& localization) {
+  if (!localization) {
+    w.null();
+    return;
+  }
+  w.begin_object();
+  w.key("method");
+  w.value(localization->method);
+  w.key("oracle_path");
+  w.value(localization->oracle_label);
+  w.key("corner_source");
+  w.value(localization->corner_source);
+  w.key("patch_count");
+  w.value(static_cast<std::int64_t>(localization->patch_count));
+  w.key("predeclared_gates");
+  w.begin_object();
+  w.key("expected_patch_count");
+  w.value(static_cast<std::int64_t>(
+      localization->thresholds.expected_patch_count));
+  w.key("max_center_error_px");
+  w.value(localization->thresholds.max_center_error_px);
+  w.key("min_channel_correlation");
+  w.value(localization->thresholds.min_channel_correlation);
+  w.key("max_abs_mean_error_dn");
+  w.value(localization->thresholds.max_abs_mean_error_dn);
+  w.end_object();
+  w.key("max_center_error_px");
+  w.value(localization->max_center_error_px);
+  w.key("rms_center_error_px");
+  w.value(localization->rms_center_error_px);
+  w.key("patch_count_gate_passes");
+  w.value(localization->patch_count_gate_passes);
+  w.key("center_gate_passes");
+  w.value(localization->center_gate_passes);
+  w.key("correlation_gate_passes");
+  w.value(localization->correlation_gate_passes);
+  w.key("mean_error_gate_passes");
+  w.value(localization->mean_error_gate_passes);
+  w.key("passes");
+  w.value(localization->passes);
+  w.key("channels");
+  w.begin_array();
+  for (const auto& c : localization->rgb_comparison.channels) {
+    w.begin_object();
+    w.key("channel");
+    w.value(c.channel);
+    w.key("correlation");
+    w.value(c.correlation);
+    w.key("mean_error");
+    w.value(c.mean_error_before_affine);
+    w.key("rmse");
+    w.value(c.rmse_before_affine);
+    w.key("max_abs_error");
+    w.value(c.max_abs_error_before_affine);
+    w.key("correlation_gate_passes");
+    w.value(c.correlation >=
+            localization->thresholds.min_channel_correlation);
+    w.key("mean_error_gate_passes");
+    w.value(c.max_abs_error_before_affine <=
+            localization->thresholds.max_abs_mean_error_dn);
     w.end_object();
   }
   w.end_array();
@@ -687,6 +763,65 @@ PatchComparison compare_patch_means_to_rgb(
   return out;
 }
 
+PatchLocalizationValidation validate_patch_localization_against_oracle(
+    const std::vector<PatchMean>& patches, const RawDiggerPatchTable& oracle,
+    PatchLocalizationValidationThresholds thresholds) {
+  if (patches.size() != oracle.coords.size() ||
+      patches.size() != oracle.reference_rgb.size()) {
+    throw std::runtime_error(
+        "localization validation: patch and RawDigger oracle counts differ");
+  }
+  if (patches.size() < 2) {
+    throw std::runtime_error(
+        "localization validation: at least two patches required");
+  }
+  if (!std::isfinite(thresholds.max_center_error_px) ||
+      thresholds.max_center_error_px < 0 ||
+      !std::isfinite(thresholds.min_channel_correlation) ||
+      !std::isfinite(thresholds.max_abs_mean_error_dn) ||
+      thresholds.max_abs_mean_error_dn < 0) {
+    throw std::runtime_error(
+        "localization validation: invalid threshold");
+  }
+
+  PatchLocalizationValidation out;
+  out.patch_count = patches.size();
+  out.thresholds = thresholds;
+  out.patch_count_gate_passes =
+      patches.size() == thresholds.expected_patch_count;
+
+  double center_sumsq = 0;
+  for (std::size_t i = 0; i < patches.size(); ++i) {
+    const double dx = patch_center_x(patches[i].source_coord) -
+                      patch_center_x(oracle.coords[i]);
+    const double dy = patch_center_y(patches[i].source_coord) -
+                      patch_center_y(oracle.coords[i]);
+    const double error = std::sqrt(dx * dx + dy * dy);
+    out.max_center_error_px = std::max(out.max_center_error_px, error);
+    center_sumsq += error * error;
+  }
+  out.rms_center_error_px =
+      std::sqrt(center_sumsq / static_cast<double>(patches.size()));
+  out.center_gate_passes =
+      out.max_center_error_px <= thresholds.max_center_error_px;
+
+  out.rgb_comparison = compare_patch_means_to_rgb(patches, oracle.reference_rgb);
+  out.correlation_gate_passes = true;
+  out.mean_error_gate_passes = true;
+  for (const auto& channel : out.rgb_comparison.channels) {
+    if (channel.correlation < thresholds.min_channel_correlation) {
+      out.correlation_gate_passes = false;
+    }
+    if (channel.max_abs_error_before_affine >
+        thresholds.max_abs_mean_error_dn) {
+      out.mean_error_gate_passes = false;
+    }
+  }
+  out.passes = out.patch_count_gate_passes && out.center_gate_passes &&
+               out.correlation_gate_passes && out.mean_error_gate_passes;
+  return out;
+}
+
 void write_camera_rgb_csv(std::ostream& os,
                           const std::vector<PatchMean>& patches) {
   os << std::setprecision(17);
@@ -714,7 +849,8 @@ void write_patch_report_json(
     const std::optional<PatchComparison>& comparison,
     std::string_view reference_label,
     const std::optional<PatchGeometryReport>& geometry,
-    const std::optional<SpectralReferenceOrientationReport>& orientation) {
+    const std::optional<SpectralReferenceOrientationReport>& orientation,
+    const std::optional<PatchLocalizationValidation>& localization) {
   JsonWriter w(os);
   w.begin_object();
   w.key("file");
@@ -727,6 +863,8 @@ void write_patch_report_json(
   write_generated_geometry(w, geometry);
   w.key("orientation_validation");
   write_orientation_validation(w, orientation);
+  w.key("localization_validation");
+  write_localization_validation(w, localization);
   w.key("extraction_coordinate_convention");
   w.value("one_based_top_left_rectangles_after_source_conversion");
   w.key("rgb_source");

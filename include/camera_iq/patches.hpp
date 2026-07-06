@@ -67,6 +67,30 @@ struct PatchComparison {
   std::array<PatchChannelComparison, 3> channels;
 };
 
+struct PatchLocalizationValidationThresholds {
+  std::size_t expected_patch_count = 140;
+  double max_center_error_px = 5.0;
+  double min_channel_correlation = 0.999;
+  double max_abs_mean_error_dn = 25.0;
+};
+
+struct PatchLocalizationValidation {
+  std::string method =
+      "rawdigger_oracle_uncorrected_roi_center_and_rgb_mean";
+  std::string oracle_label;
+  std::string corner_source;
+  std::size_t patch_count = 0;
+  PatchLocalizationValidationThresholds thresholds;
+  double max_center_error_px = 0;
+  double rms_center_error_px = 0;
+  PatchComparison rgb_comparison;
+  bool patch_count_gate_passes = false;
+  bool center_gate_passes = false;
+  bool correlation_gate_passes = false;
+  bool mean_error_gate_passes = false;
+  bool passes = false;
+};
+
 struct RawDiggerPatchTable {
   std::vector<PatchCoord> coords;
   std::vector<CameraRgbPatch> reference_rgb;
@@ -127,6 +151,10 @@ PatchComparison compare_patch_means_to_rgb(
     const std::vector<PatchMean>& patches,
     const std::vector<CameraRgbPatch>& reference_rgb);
 
+PatchLocalizationValidation validate_patch_localization_against_oracle(
+    const std::vector<PatchMean>& patches, const RawDiggerPatchTable& oracle,
+    PatchLocalizationValidationThresholds thresholds = {});
+
 void write_camera_rgb_csv(std::ostream& os,
                           const std::vector<PatchMean>& patches);
 
@@ -145,6 +173,8 @@ void write_patch_report_json(
     std::string_view reference_label,
     const std::optional<PatchGeometryReport>& geometry = std::nullopt,
     const std::optional<SpectralReferenceOrientationReport>& orientation =
+        std::nullopt,
+    const std::optional<PatchLocalizationValidation>& localization =
         std::nullopt);
 
 }  // namespace camera_iq

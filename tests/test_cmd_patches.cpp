@@ -32,6 +32,15 @@ void TESTS() {
   check(run_patches({"missing.RAF", "--sg-corners", valid_corners,
                      "--rawdigger-csv", "rawdigger.csv"}) == 2,
         "patches command: sg-corners mutually exclusive with RawDigger CSV");
+  check(run_patches({"missing.RAF", "--coords", "coord.csv",
+                     "--rawdigger-oracle-csv", "rawdigger.csv"}) == 2,
+        "patches command: RawDigger oracle requires sg-corners");
+  check(run_patches({"missing.RAF", "--sg-corners", valid_corners,
+                     "--rawdigger-oracle-csv", "rawdigger.csv",
+                     "--flat-field-raw", "flat.RAF"}) == 2,
+        "patches command: RawDigger oracle rejects corrected extraction");
+  check(run_patches({"missing.RAF", "--sg-corner-source", "manual"}) == 2,
+        "patches command: sg-corner-source requires sg-corners");
   check(run_patches({"missing.RAF", "--sg-corners", "0,0;bad;242,172;0,172"}) ==
             2,
         "patches command: malformed sg-corners rejected before RAW I/O");

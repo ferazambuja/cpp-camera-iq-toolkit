@@ -30,7 +30,9 @@ struct Args {
   std::filesystem::path config = default_dataset_config_path();
   std::filesystem::path coords;
   std::filesystem::path rawdigger_csv;
+  std::filesystem::path rawdigger_oracle_csv;
   std::string sg_corners;
+  std::string sg_corner_source = "caller_supplied_sg_corners";
   std::filesystem::path reference_rgb;
   std::filesystem::path flat_field_raw;
   double flat_field_floor = 1.0;
@@ -49,6 +51,8 @@ void usage() {
   std::cerr << "Usage: camera_iq patches <raw-file>"
                " (--coords FILE | --rawdigger-csv FILE | --sg-corners SPEC)"
                " [--dataset ID] [--config FILE]"
+               " [--rawdigger-oracle-csv FILE]"
+               " [--sg-corner-source TEXT]"
                " [--reference-rgb FILE]"
                " [--flat-field-raw FILE] [--flat-field-floor DN]"
                " [--wb-gains R,G,B | --wb-from-flat-field]"
@@ -56,7 +60,9 @@ void usage() {
                "--coords reads checker2colors-style x,y,width,height rows;\n"
                "--rawdigger-csv reads RAW-space RawDigger patch exports;\n"
                "--sg-corners reads TL;TR;BR;BL active-image corners as "
-               "\"x1,y1;x2,y2;x3,y3;x4,y4\".\n";
+               "\"x1,y1;x2,y2;x3,y3;x4,y4\".\n"
+               "--rawdigger-oracle-csv validates --sg-corners output against "
+               "uncorrected RawDigger means without using them as input.\n";
 }
 
 ResolvedPath resolve_dataset_side_path(const ResolvedDataset& dataset,
@@ -249,12 +255,25 @@ int cmd_patches(int argc, char** argv) {
         return 2;
       }
       args.rawdigger_csv = argv[i];
+    } else if (arg == "--rawdigger-oracle-csv") {
+      if (++i >= argc) {
+        std::cerr
+            << "camera_iq patches: --rawdigger-oracle-csv requires a path\n";
+        return 2;
+      }
+      args.rawdigger_oracle_csv = argv[i];
     } else if (arg == "--sg-corners") {
       if (++i >= argc) {
         std::cerr << "camera_iq patches: --sg-corners requires corners\n";
         return 2;
       }
       args.sg_corners = argv[i];
+    } else if (arg == "--sg-corner-source") {
+      if (++i >= argc) {
+        std::cerr << "camera_iq patches: --sg-corner-source requires text\n";
+        return 2;
+      }
+      args.sg_corner_source = argv[i];
     } else if (arg == "--reference-rgb") {
       if (++i >= argc) {
         std::cerr << "camera_iq patches: --reference-rgb requires a path\n";
@@ -332,6 +351,24 @@ int cmd_patches(int argc, char** argv) {
                  "--rawdigger-csv, or --sg-corners\n";
     return 2;
   }
+  if (!args.rawdigger_oracle_csv.empty() && args.sg_corners.empty()) {
+    std::cerr << "camera_iq patches: --rawdigger-oracle-csv requires "
+                 "--sg-corners\n";
+    return 2;
+  }
+  if (!args.rawdigger_oracle_csv.empty() &&
+      (!args.flat_field_raw.empty() || args.wb_gains.has_value() ||
+       args.wb_from_flat_field)) {
+    std::cerr << "camera_iq patches: --rawdigger-oracle-csv compares "
+                 "uncorrected means and cannot be combined with corrections\n";
+    return 2;
+  }
+  if (args.sg_corner_source != "caller_supplied_sg_corners" &&
+      args.sg_corners.empty()) {
+    std::cerr << "camera_iq patches: --sg-corner-source requires "
+                 "--sg-corners\n";
+    return 2;
+  }
   if (args.wb_from_flat_field && args.wb_gains) {
     std::cerr << "camera_iq patches: use either --wb-gains or "
                  "--wb-from-flat-field, not both\n";
@@ -372,6 +409,8 @@ int cmd_patches(int argc, char** argv) {
     }
     std::filesystem::path actual_rawdigger_csv;
     std::string rawdigger_label;
+    std::filesystem::path actual_rawdigger_oracle_csv;
+    std::string rawdigger_oracle_label;
     std::filesystem::path actual_reference_rgb;
     std::string reference_label;
     std::filesystem::path actual_flat_field_raw;
@@ -407,6 +446,12 @@ int cmd_patches(int argc, char** argv) {
         coords_label = rawdigger_label;
         coordinate_source_format = "rawdigger_csv_zero_based_left_top";
       }
+      if (!args.rawdigger_oracle_csv.empty()) {
+        const auto resolved_oracle =
+            resolve_dataset_side_path(*dataset, args.rawdigger_oracle_csv);
+        actual_rawdigger_oracle_csv = resolved_oracle.actual;
+        rawdigger_oracle_label = resolved_oracle.label;
+      }
 
       const auto configs = read_dataset_config(args.config);
       const auto it = configs.find(args.dataset_id);
@@ -436,6 +481,10 @@ int cmd_patches(int argc, char** argv) {
       rawdigger_label = args.rawdigger_csv.string();
       coords_label = rawdigger_label;
       coordinate_source_format = "rawdigger_csv_zero_based_left_top";
+    }
+    if (!args.rawdigger_oracle_csv.empty() && !dataset) {
+      actual_rawdigger_oracle_csv = args.rawdigger_oracle_csv;
+      rawdigger_oracle_label = args.rawdigger_oracle_csv.string();
     }
 
     if (!args.reference_rgb.empty()) {
@@ -570,6 +619,16 @@ int cmd_patches(int argc, char** argv) {
           pairing_thresholds_from_spec(*color_reference_spec));
     }
 
+    std::optional<PatchLocalizationValidation> localization_validation;
+    if (!actual_rawdigger_oracle_csv.empty()) {
+      const auto oracle = read_rawdigger_patch_table(
+          actual_rawdigger_oracle_csv, actual_raw.filename().string());
+      localization_validation = validate_patch_localization_against_oracle(
+          patches, oracle);
+      localization_validation->oracle_label = rawdigger_oracle_label;
+      localization_validation->corner_source = args.sg_corner_source;
+    }
+
     std::optional<PatchComparison> comparison;
     if (!actual_reference_rgb.empty()) {
       comparison = compare_patch_means_to_rgb(
@@ -592,7 +651,8 @@ int cmd_patches(int argc, char** argv) {
           std::cout, file_label, coords_label, coordinate_source_format,
           cfa->meta, cfa->width, cfa->height, flat_label, flat_summary,
           applied_wb, wb_policy, patches, sample_names, comparison,
-          reference_label, sg_geometry_report, orientation_report);
+          reference_label, sg_geometry_report, orientation_report,
+          localization_validation);
       std::cout << "\n";
     } else {
       std::ofstream os(args.out, std::ios::binary);
@@ -605,9 +665,13 @@ int cmd_patches(int argc, char** argv) {
                               cfa->height, flat_label, flat_summary, applied_wb,
                               wb_policy, patches, sample_names, comparison,
                               reference_label, sg_geometry_report,
-                              orientation_report);
+                              orientation_report, localization_validation);
       os << "\n";
       std::cerr << "patch means written to " << args.out << "\n";
+    }
+    if (localization_validation && !localization_validation->passes) {
+      std::cerr << "camera_iq patches: RawDigger oracle validation failed\n";
+      return 1;
     }
   } catch (const std::exception& ex) {
     std::cerr << "camera_iq patches: " << ex.what() << "\n";

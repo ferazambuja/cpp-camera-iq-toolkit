@@ -18,8 +18,10 @@ using camera_iq::PatchGeometryReportPatch;
 using camera_iq::PatchGeometryReportPoint;
 using camera_iq::PatchChannelComparison;
 using camera_iq::PatchCoord;
+using camera_iq::PatchLocalizationValidationThresholds;
 using camera_iq::PatchMean;
 using camera_iq::RawMeta;
+using camera_iq::RawDiggerPatchTable;
 using camera_iq::SpectralReferenceOrientationReport;
 using camera_iq::SpectralReferenceOrientationScore;
 using camera_iq::SpectralReferencePairing;
@@ -32,6 +34,7 @@ using camera_iq::flat_field_near_ceiling_threshold_fraction;
 using camera_iq::flat_field_normalization_policy;
 using camera_iq::read_patch_coords_csv;
 using camera_iq::read_rawdigger_patch_table;
+using camera_iq::validate_patch_localization_against_oracle;
 using camera_iq::write_camera_rgb_csv;
 using camera_iq::write_patch_report_json;
 using camera_iq::white_balance_gains_from_flat_field;
@@ -105,6 +108,62 @@ void TESTS() {
              "compare: green negative correlation");
   check_near(comparison.channels[1].rmse_after_affine, 0.0, 1e-12,
              "compare: affine rmse");
+
+  RawDiggerPatchTable oracle;
+  oracle.coords = {PatchCoord{1, 1, 2, 2}, PatchCoord{5, 1, 2, 2},
+                   PatchCoord{9, 1, 2, 2}};
+  oracle.reference_rgb = {{10, 20, 30}, {20, 40, 60}, {30, 60, 90}};
+  PatchLocalizationValidationThresholds localization_thresholds;
+  localization_thresholds.expected_patch_count = 3;
+  localization_thresholds.max_center_error_px = 5.0;
+  localization_thresholds.min_channel_correlation = 0.999;
+  localization_thresholds.max_abs_mean_error_dn = 25.0;
+
+  std::vector<PatchMean> localized = {
+      PatchMean{PatchCoord{1, 1, 2, 2}, 0, 0, 2, 2, 4, {10, 20, 30}},
+      PatchMean{PatchCoord{5, 1, 2, 2}, 4, 0, 2, 2, 4, {20, 40, 60}},
+      PatchMean{PatchCoord{9, 1, 2, 2}, 8, 0, 2, 2, 4, {30, 60, 90}},
+  };
+  auto localization = validate_patch_localization_against_oracle(
+      localized, oracle, localization_thresholds);
+  check(localization.passes,
+        "localization validation: matching oracle passes all gates");
+  check_near(localization.max_center_error_px, 0.0, 1e-12,
+             "localization validation: max center error");
+  check(localization.patch_count_gate_passes,
+        "localization validation: patch-count gate");
+  check(localization.correlation_gate_passes,
+        "localization validation: correlation gate");
+  check(localization.mean_error_gate_passes,
+        "localization validation: absolute mean gate");
+
+  std::vector<PatchMean> shifted = localized;
+  for (auto& patch : shifted) {
+    patch.source_coord.x += 6.0;
+  }
+  localization = validate_patch_localization_against_oracle(
+      shifted, oracle, localization_thresholds);
+  check(!localization.passes,
+        "localization validation: shifted grid fails despite perfect RGB");
+  check(!localization.center_gate_passes,
+        "localization validation: shifted grid fails center gate");
+  check(localization.correlation_gate_passes,
+        "localization validation: shifted grid still passes correlation");
+
+  std::vector<PatchMean> offset = localized;
+  for (auto& patch : offset) {
+    patch.rgb.r += 30.0;
+    patch.rgb.g += 30.0;
+    patch.rgb.b += 30.0;
+  }
+  localization = validate_patch_localization_against_oracle(
+      offset, oracle, localization_thresholds);
+  check(!localization.passes,
+        "localization validation: DN offset fails despite high correlation");
+  check(localization.correlation_gate_passes,
+        "localization validation: DN offset still passes correlation");
+  check(!localization.mean_error_gate_passes,
+        "localization validation: DN offset fails absolute mean gate");
 
   const std::vector<camera_iq::RgbPixel> flat_image = {
       {10, 100, 1000},
@@ -251,6 +310,28 @@ void TESTS() {
   check(orientation_doc.find("\"aggregate_score_min_correlation\":0.958") !=
             std::string::npos,
         "orientation report: aggregate score emitted");
+
+  localization = validate_patch_localization_against_oracle(
+      shifted, oracle, localization_thresholds);
+  localization.oracle_label = "dataset:fixture/rawdigger.csv";
+  localization.corner_source =
+      "RawDigger-derived least-squares homography validation seed";
+  std::ostringstream localization_json;
+  write_patch_report_json(
+      localization_json, "dataset:fixture/raw.RAF", "manual:sg-corners",
+      "colorchecker_sg_corner_seeded_projective_grid", meta, 2, 2, "",
+      std::nullopt, std::nullopt, "none", {report_patch}, {"A1"},
+      std::nullopt, "", geometry, orientation, localization);
+  const std::string localization_doc = localization_json.str();
+  check(localization_doc.find("\"localization_validation\"") !=
+            std::string::npos,
+        "localization report: block emitted");
+  check(localization_doc.find("\"max_center_error_px\":6") !=
+            std::string::npos,
+        "localization report: center gate diagnostic emitted");
+  check(localization_doc.find("\"max_abs_mean_error_dn\":25") !=
+            std::string::npos,
+        "localization report: predeclared DN gate emitted");
 
   const auto wb_corrected =
       apply_white_balance(flat_corrected, WhiteBalanceGains{0.5, 1.0, 2.0});

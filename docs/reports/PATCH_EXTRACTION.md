@@ -69,6 +69,11 @@ convention:
   `reference-info`. `orientation_valid` is true only when direct order is the
   best control by minimum luminance/R-G/B-G correlation and passes the
   configured correlation thresholds.
+- Optional `--rawdigger-oracle-csv`, allowed only with `--sg-corners`, compares
+  generated uncorrected patch means and ROI centers against a RawDigger export
+  without using RawDigger as the extraction coordinate source. It records the
+  predeclared 140-patch / 5 px / 0.999 correlation / 25 DN gates in
+  `localization_validation` and exits nonzero when any hard gate fails.
 - `camera_iq patches`, producing per-patch JSON and optional comparison / CSV
   output.
 
@@ -132,6 +137,23 @@ Result:
 | 180 rotation | -0.280493 | 0.396087 | -0.211692 | -0.280493 | false |
 
 The output reports `orientation_valid: true` and `best_orientation: "direct"`.
+
+## RawDigger Oracle Localization Gate
+
+Task 4 added the RawDigger-oracle validation path, but the first f/8 `1:10`
+corner-seeded run **does not pass** the predeclared geometry gate. With corners
+derived from RawDigger A1/A14/J14/J1 centers, the command writes
+`/tmp/camera_iq_rawdigger_oracle_rawdigger_oracle.json` and exits `1` because:
+
+- patch count: 140, pass
+- max center error: **16.449 px**, fail against the 5 px gate
+- per-channel correlations: all >= 0.999, pass
+- max absolute RGB mean error: R 12.169 DN, G 20.482 DN, B 11.554 DN, pass
+- orientation: direct, pass
+
+This confirms the orientation and mean extraction are close, but the generated
+projective grid is not yet approved as a replacement for RawDigger rectangles.
+See `docs/reports/RAW_CHART_LOCALIZATION.md`.
 
 ## Important Negative Finding
 
@@ -225,16 +247,16 @@ cross-aperture approximation, not a measured same-aperture correction.
 - `--sg-corners` removes the 140-rectangle dependency but still depends on
   caller-supplied chart corners; there is no blind chart detection yet. The
   orientation orientation gate confirms the direct physical sweep beats flip
-  controls, but the corner-seeded path still needs RawDigger-oracle absolute geometry and
-  mean-error validation against the RawDigger oracle before it replaces
-  RawDigger coordinates in evidence reports.
+  controls, but the first RawDigger-oracle RawDigger-oracle run fails the predeclared 5 px
+  center gate, so the corner-seeded path must not replace RawDigger coordinates
+  in evidence reports yet.
 
 ## Next Risks
 
 1. Decide whether to reproduce the historical TIFF workflow for parity or move
    directly to RAW-space chart localization.
-2. Validate corner-seeded SG localization against the RawDigger oracle using the
-   predeclared absolute geometry and mean-error gates.
+2. Diagnose why the corner-seeded projective grid misses the RawDigger oracle
+   centers by up to 16.449 px before changing any predeclared validation gate.
 3. Diagnose the dark-patch / neutral-axis error before adding higher-order color
    models; root-polynomial variants need held-out evidence before they are
    treated as an improvement.
