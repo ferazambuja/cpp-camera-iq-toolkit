@@ -632,6 +632,20 @@ LocalizationModelComparison analyze_localization_residual_models(
   return comparison;
 }
 
+// INDEPENDENCE CAVEAT (load-bearing for the tracks arbitration below).
+// This detector is independent of RawDigger -- RawDigger coordinates never
+// enter it -- so it does break RawDigger self-validation, which is its stated
+// purpose. It is NOT independent of the generated grid: both the search window
+// (centred on the generated coord) and the reference colour (mean over the
+// generated coord's inner rectangle) are seeded from `coords`. It is therefore
+// a generated-grid-anchored refinement, not a neutral arbiter between the grid
+// and RawDigger. That injects a structural asymmetry into compare_independent_
+// patch_centers()'s tracks verdict, biased toward "generated_grid". Today the
+// bias is inert because the detector is unusable (~70px repeatability) so tracks
+// resolves to "unresolved"; but a future capture that makes the detector usable
+// MUST de-bias before trusting a "generated_grid" verdict -- e.g. seed the
+// search window/colour once on the generated grid and once on RawDigger and
+// require the two seedings to agree, or detect centres without either prior.
 std::vector<IndependentPatchCenter> estimate_patch_centers_by_color_centroid(
     const std::vector<RgbPixel>& image, int width, int height,
     const std::vector<PatchCoord>& coords, double search_scale) {
@@ -756,9 +770,15 @@ LocalizationIndependentCenterCheck compare_independent_patch_centers(
         "independent center: generated, oracle, and detected counts differ");
   }
 
+  // The detector is RawDigger-independent but generated-grid-anchored (see the
+  // INDEPENDENCE CAVEAT on estimate_patch_centers_by_color_centroid), so the
+  // tracks verdict below is not a symmetric grid-vs-RawDigger arbiter: it leans
+  // toward "generated_grid". The method label carries that anchoring so the JSON
+  // artifact does not overclaim independence.
   LocalizationIndependentCenterCheck check;
   check.attempted = true;
-  check.method = "color_similarity_centroid_from_raw_bilinear_rgb";
+  check.method =
+      "generated_grid_anchored_color_similarity_centroid_from_raw_bilinear_rgb";
   double generated_sumsq = 0;
   double oracle_sumsq = 0;
   for (std::size_t i = 0; i < independent.size(); ++i) {
