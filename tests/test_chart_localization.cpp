@@ -207,6 +207,17 @@ void TESTS() {
           "sg corners: rejects malformed point");
     check(parse_throws_for("0,0;242,0;242,172;0,172;9,9"),
           "sg corners: rejects extra corners");
+    // Distinct rejection branches the cases above do not exercise: an empty
+    // field between separators (field.empty()), a non-finite coordinate
+    // (!isfinite, which stod accepts as a value), and a three-value point
+    // (parse_point's second-comma guard). Each is a separate guard; cover them
+    // so "rejects malformed" is verified per-branch, not just for one shape.
+    check(parse_throws_for("0,0;;242,172;0,172"),
+          "sg corners: rejects empty corner field");
+    check(parse_throws_for("nan,0;242,0;242,172;0,172"),
+          "sg corners: rejects non-finite coordinate");
+    check(parse_throws_for("0,0,5;242,0;242,172;0,172"),
+          "sg corners: rejects three-value point");
   }
 
   {
