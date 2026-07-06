@@ -332,6 +332,20 @@ void TESTS() {
   check(localization_doc.find("\"max_abs_mean_error_dn\":25") !=
             std::string::npos,
         "localization report: predeclared DN gate emitted");
+  // Pin the machine-readable verdict for a FAILING run. The `passes` boolean is
+  // the downstream contract an audit/thesis script reads to decide whether the
+  // grid replaced RawDigger; a serialization regression flipping it to true on a
+  // real center-gate failure would ship a false claim that no numeric-field
+  // check above would catch. The shifted grid must serialize the failing center
+  // gate while still reporting correlation passing.
+  check(localization_doc.find("\"passes\":false") != std::string::npos,
+        "localization report: overall failure verdict serialized");
+  check(localization_doc.find("\"center_gate_passes\":false") !=
+            std::string::npos,
+        "localization report: failing center gate serialized");
+  check(localization_doc.find("\"correlation_gate_passes\":true") !=
+            std::string::npos,
+        "localization report: correlation still passes in failing run");
 
   const auto wb_corrected =
       apply_white_balance(flat_corrected, WhiteBalanceGains{0.5, 1.0, 2.0});
