@@ -36,6 +36,8 @@ void print_usage() {
       "              Inspect configured ColorChecker spectral reference metadata\n"
       "  ccm-fit\n"
       "              Fit a linear RGB-to-XYZ CCM against a spectral SG reference\n"
+      "  spectral-response\n"
+      "              Parse and validate legacy monochromator response/SPD CSVs\n"
       "  patches\n"
       "              Extract checker ROI RGB means from a RAW capture\n"
       "\n"
@@ -86,6 +88,9 @@ int run(int argc, char** argv) {
   }
   if (arg == "ccm-fit") {
     return cmd_ccm_fit(argc - 2, argv + 2);
+  }
+  if (arg == "spectral-response") {
+    return cmd_spectral_response(argc - 2, argv + 2);
   }
   if (arg == "patches") {
     return cmd_patches(argc - 2, argv + 2);

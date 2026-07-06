@@ -149,9 +149,10 @@ Legacy reproduction is a fidelity check, not a scientific correctness proof:
 
 Do not promote a conclusion from tier 1 alone.
 
-## Next Implementation Recommendation
+## Parser / Normalizer Slice
 
-Add a small spectral-response parser/normalizer slice before RAW extraction:
+The first follow-up implementation slice adds a spectral-response
+parser/normalizer before RAW extraction:
 
 - read `spd.csv` and `*_mono.csv`;
 - validate 48 samples, 360-830 nm rounded axis, 10 nm spacing, finite numeric
@@ -161,9 +162,25 @@ Add a small spectral-response parser/normalizer slice before RAW extraction:
   `line_spd`, and `validation_tier`;
 - keep legacy CSV comparison labeled as `legacy_fidelity_only`.
 
-After that parser is locked, add the RAW extraction slice over the 48 sweep CR2s
-plus the dark frame, using post-unpack Canon black metadata and the existing
-active-area/crop logic.
+The command shape is:
+
+```bash
+./build/camera_iq spectral-response \
+  --response-csv "<local-subset>/2016_11_21_5D2_mono.csv" \
+  --spd-csv "<local-subset>/spd.csv" \
+  --camera-model "Canon EOS 5D Mark II" \
+  --dataset-id spectral_sensitivity_2016_2017 \
+  --archive-subset canon_5d2/2016_11_21_5D2_Monochromator_OK \
+  --out out/spectral_response_5d2_20161121.json
+```
+
+On the local Canon 5D2 subset this emits 48 samples, axis 360-830 nm, a
+positive 48-sample line SPD, the original legacy RGB response, normalization
+`legacy_peak_channel_normalized_green_1_no_rescale`, and
+`validation_tier: "legacy_fidelity_only"`.
+
+Next, add the RAW extraction slice over the 48 sweep CR2s plus the dark frame,
+using post-unpack Canon black metadata and the existing active-area/crop logic.
 
 ## Not Claimed
 
