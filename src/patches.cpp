@@ -356,6 +356,108 @@ void write_orientation_validation(
   w.end_object();
 }
 
+void write_metric_summary(JsonWriter& w,
+                          const LocalizationMetricSummary& metrics) {
+  w.begin_object();
+  w.key("sample_count");
+  w.value(static_cast<std::int64_t>(metrics.sample_count));
+  w.key("rms_px");
+  w.value(metrics.rms_px);
+  w.key("max_px");
+  w.value(metrics.max_px);
+  w.key("dx_dy_anisotropy");
+  w.value(metrics.dx_dy_anisotropy);
+  w.key("adjacent_vector_cosine");
+  w.value(metrics.adjacent_vector_cosine);
+  w.key("dx_rms_px");
+  w.value(metrics.dx_rms_px);
+  w.key("dy_rms_px");
+  w.value(metrics.dy_rms_px);
+  w.end_object();
+}
+
+void write_model_comparison(
+    JsonWriter& w,
+    const std::optional<LocalizationModelComparison>& comparison) {
+  if (!comparison) {
+    w.null();
+    return;
+  }
+  w.begin_object();
+  w.key("method");
+  w.value(comparison->method);
+  w.key("patch_count");
+  w.value(static_cast<std::int64_t>(comparison->patch_count));
+  w.key("diagnostic_only");
+  w.value(comparison->diagnostic_only);
+  w.key("predeclared_gate_revision");
+  w.value(comparison->predeclared_gate_revision);
+  w.key("radial_affine_baselines_reported");
+  w.value(comparison->radial_affine_baselines_reported);
+  w.key("observed_anisotropy_dx_over_dy");
+  w.value(comparison->observed_anisotropy_dx_over_dy);
+  w.key("isotropic_radial_predicted_anisotropy_dx_over_dy");
+  w.value(comparison->isotropic_radial_predicted_anisotropy_dx_over_dy);
+  w.key("identifiability_note");
+  w.value(comparison->identifiability_note);
+  w.key("models");
+  w.begin_array();
+  for (const auto& model : comparison->models) {
+    w.begin_object();
+    w.key("name");
+    w.value(model.name);
+    w.key("hypothesis");
+    w.value(model.hypothesis);
+    w.key("degrees_of_freedom");
+    w.value(static_cast<std::int64_t>(model.degrees_of_freedom));
+    w.key("production_candidate");
+    w.value(model.production_candidate);
+    w.key("in_sample");
+    write_metric_summary(w, model.in_sample);
+    w.key("heldout_scores");
+    w.begin_array();
+    for (const auto& score : model.heldout_scores) {
+      w.begin_object();
+      w.key("split");
+      w.value(score.split);
+      w.key("folds");
+      w.value(static_cast<std::int64_t>(score.folds));
+      w.key("metrics");
+      write_metric_summary(w, score.metrics);
+      w.end_object();
+    }
+    w.end_array();
+    w.end_object();
+  }
+  w.end_array();
+  w.end_object();
+}
+
+void write_independent_center_check(
+    JsonWriter& w,
+    const std::optional<LocalizationIndependentCenterCheck>& check) {
+  if (!check) {
+    w.null();
+    return;
+  }
+  w.begin_object();
+  w.key("attempted");
+  w.value(check->attempted);
+  w.key("method");
+  w.value(check->method);
+  w.key("valid_count");
+  w.value(static_cast<std::int64_t>(check->valid_count));
+  w.key("generated_grid_rms_px");
+  w.value(check->generated_grid_rms_px);
+  w.key("rawdigger_oracle_rms_px");
+  w.value(check->rawdigger_oracle_rms_px);
+  w.key("tracks");
+  w.value(check->tracks);
+  w.key("interpretation");
+  w.value(check->interpretation);
+  w.end_object();
+}
+
 void write_localization_validation(
     JsonWriter& w,
     const std::optional<PatchLocalizationValidation>& localization) {
@@ -421,6 +523,10 @@ void write_localization_validation(
     w.end_object();
   }
   w.end_array();
+  w.key("model_comparison");
+  write_model_comparison(w, localization->model_comparison);
+  w.key("independent_center_check");
+  write_independent_center_check(w, localization->independent_center_check);
   w.key("center_residuals");
   w.begin_array();
   for (const auto& residual : localization->center_residuals) {

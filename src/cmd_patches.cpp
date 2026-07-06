@@ -16,6 +16,7 @@
 #include "camera_iq/color_reference.hpp"
 #include "camera_iq/dataset_config.hpp"
 #include "camera_iq/demosaic.hpp"
+#include "camera_iq/localization_diagnosis.hpp"
 #include "camera_iq/patches.hpp"
 #include "camera_iq/raw_meta.hpp"
 
@@ -627,6 +628,15 @@ int cmd_patches(int argc, char** argv) {
           patches, oracle);
       localization_validation->oracle_label = rawdigger_oracle_label;
       localization_validation->corner_source = args.sg_corner_source;
+      localization_validation->model_comparison =
+          analyze_localization_residual_models(
+              localization_validation->center_residuals,
+              Point2d{static_cast<double>(cfa->width) / 2.0,
+                      static_cast<double>(cfa->height) / 2.0});
+      const auto independent_centers = estimate_patch_centers_by_color_centroid(
+          rgb, cfa->width, cfa->height, coords);
+      localization_validation->independent_center_check =
+          compare_independent_patch_centers(coords, oracle, independent_centers);
     }
 
     std::optional<PatchComparison> comparison;

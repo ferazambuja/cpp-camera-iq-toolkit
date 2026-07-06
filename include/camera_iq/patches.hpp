@@ -87,6 +87,60 @@ struct PatchCenterResidual {
   double distance_px = 0;
 };
 
+struct LocalizationMetricSummary {
+  std::size_t sample_count = 0;
+  double rms_px = 0;
+  double max_px = 0;
+  double dx_dy_anisotropy = 0;
+  double adjacent_vector_cosine = 0;
+  double dx_rms_px = 0;
+  double dy_rms_px = 0;
+};
+
+struct LocalizationHoldoutScore {
+  std::string split;
+  std::size_t folds = 0;
+  LocalizationMetricSummary metrics;
+};
+
+struct LocalizationModelReport {
+  std::string name;
+  std::string hypothesis;
+  int degrees_of_freedom = 0;
+  bool production_candidate = false;
+  LocalizationMetricSummary in_sample;
+  std::vector<LocalizationHoldoutScore> heldout_scores;
+};
+
+struct LocalizationModelComparison {
+  std::string method =
+      "diagnostic_model_comparison_spatial_holdouts";
+  std::size_t patch_count = 0;
+  bool diagnostic_only = true;
+  bool predeclared_gate_revision = false;
+  bool radial_affine_baselines_reported = false;
+  double observed_anisotropy_dx_over_dy = 0;
+  double isotropic_radial_predicted_anisotropy_dx_over_dy = 0;
+  std::string identifiability_note;
+  std::vector<LocalizationModelReport> models;
+};
+
+struct IndependentPatchCenter {
+  bool valid = false;
+  double x = 0;
+  double y = 0;
+};
+
+struct LocalizationIndependentCenterCheck {
+  bool attempted = false;
+  std::string method;
+  std::size_t valid_count = 0;
+  double generated_grid_rms_px = 0;
+  double rawdigger_oracle_rms_px = 0;
+  std::string tracks;
+  std::string interpretation;
+};
+
 struct PatchLocalizationValidation {
   std::string method =
       "rawdigger_oracle_uncorrected_roi_center_and_rgb_mean";
@@ -103,6 +157,8 @@ struct PatchLocalizationValidation {
   bool correlation_gate_passes = false;
   bool mean_error_gate_passes = false;
   bool passes = false;
+  std::optional<LocalizationModelComparison> model_comparison;
+  std::optional<LocalizationIndependentCenterCheck> independent_center_check;
 };
 
 struct RawDiggerPatchTable {

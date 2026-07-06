@@ -49,6 +49,7 @@ add_library(camera_iq_core STATIC
   src/colorimetry.cpp
   src/patches.cpp
   src/chart_localization.cpp
+  src/localization_diagnosis.cpp
   src/cmd_manifest.cpp
   src/cmd_raw_stats.cpp
   src/cmd_demosaic.cpp
@@ -95,6 +96,7 @@ camera_iq_add_test(test_colorimetry tests/test_colorimetry.cpp)
 camera_iq_add_test(test_cmd_ccm_fit tests/test_cmd_ccm_fit.cpp)
 camera_iq_add_test(test_patches tests/test_patches.cpp)
 camera_iq_add_test(test_chart_localization tests/test_chart_localization.cpp)
+camera_iq_add_test(test_localization_diagnosis tests/test_localization_diagnosis.cpp)
 camera_iq_add_test(test_cmd_patches tests/test_cmd_patches.cpp)
 
 add_test(NAME check_public_paths

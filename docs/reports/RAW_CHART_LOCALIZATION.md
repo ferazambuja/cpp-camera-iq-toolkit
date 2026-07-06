@@ -143,6 +143,51 @@ global shift. Mean `dx_px` is near zero at columns A/N, but reaches about
 | K | -10.97 | 2.66 | 11.40 | 12.00 |
 | N | 0.03 | 2.69 | 2.72 | 5.12 |
 
+## Model-Comparison Diagnostics
+
+The toolkit now emits a diagnostics-only `model_comparison` block under
+`localization_validation`. It does not revise the predeclared 5 px gate and it
+does not promote any candidate to the production coordinate path. The comparison
+is run against regenerated `center_residuals` from the same f/8 `1:10` command
+above, using spatial holdouts rather than fitted RMS alone.
+
+Summary from `/tmp/camera_iq_model_comparison.json`:
+
+| Model | DOF | In-sample RMS px | Checkerboard held-out RMS px | Row-block held-out RMS px | Column-block held-out RMS px |
+|---|---:|---:|---:|---:|---:|
+| corner-seeded homography baseline | 0 | 11.237 | 11.237 | 11.237 | 11.237 |
+| all-center LSQ homography ceiling | 8 | 3.759 | 3.766 | 4.569 | 5.844 |
+| isotropic radial k1 baseline | 1 | 11.235 | 11.235 | 11.241 | 11.382 |
+| isotropic radial k1+k2 baseline | 2 | 11.234 | 11.234 | 11.249 | 11.750 |
+| affine / linear-pitch baseline | 6 | 5.503 | 5.506 | 6.150 | 8.514 |
+| tangential/decentering candidate | 2 | 10.376 | 10.381 | 10.449 | 11.047 |
+| chart cylindrical-bow candidate | 3 | 2.143 | 2.150 | 2.359 | 2.169 |
+| smooth polynomial degree-2 warp candidate | 12 | 0.453 | 0.502 | 0.498 | 0.483 |
+
+Interpretation:
+
+- The residual is still x-dominant: observed `dx/dy` RMS anisotropy is `3.460`.
+- Isotropic radial is judged against the chart-geometry-predicted radial
+  anisotropy, not `1.0`; the emitted radial basis predicts `1.620`, still far
+  below the observed `3.460`.
+- Simple radial terms barely move the residual, and affine/linear pitch remains
+  above the 5 px target on held-out row/column blocks. They stay in the table as
+  baselines, not skipped dead ends.
+- The parsimonious chart-space cylindrical-bow candidate reduces held-out RMS to
+  about `2.2 px`, while the 12-DOF polynomial warp reaches about `0.5 px`.
+  That is consistent with a second-order smooth bow, but the higher-DOF warp is
+  a flexibility ceiling, not a physical explanation.
+
+The command also emits an `independent_center_check` using a color-similarity
+centroid from the bilinear RAW RGB image as a third source. On this capture it
+finds 140 valid centroids, but the centroids are far from both coordinate
+sources (`69.555 px` RMS to the generated grid, `71.438 px` RMS to RawDigger).
+Because the separation is small relative to the detector error, the emitted
+verdict is `unresolved`. This prevents a circular RawDigger-only conclusion:
+the current data support "smooth second-order bow" but do not independently
+prove whether the bow is chart geometry, optical distortion, or RawDigger
+placement.
+
 Orientation control table:
 
 | Orientation | Aggregate min corr |

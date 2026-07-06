@@ -8,6 +8,7 @@
 #include <vector>
 
 #include "camera_iq/demosaic.hpp"
+#include "camera_iq/localization_diagnosis.hpp"
 #include "camera_iq/raw_meta.hpp"
 #include "harness.hpp"
 
@@ -18,6 +19,11 @@ using camera_iq::PatchGeometryReportPatch;
 using camera_iq::PatchGeometryReportPoint;
 using camera_iq::PatchChannelComparison;
 using camera_iq::PatchCoord;
+using camera_iq::LocalizationHoldoutScore;
+using camera_iq::LocalizationIndependentCenterCheck;
+using camera_iq::LocalizationMetricSummary;
+using camera_iq::LocalizationModelComparison;
+using camera_iq::LocalizationModelReport;
 using camera_iq::PatchLocalizationValidationThresholds;
 using camera_iq::PatchMean;
 using camera_iq::RawMeta;
@@ -432,6 +438,63 @@ void TESTS() {
         "localization report: residual row serialized across boundary");
   check(wide_doc.find("\"column\":13") != std::string::npos,
         "localization report: residual column serialized across boundary");
+
+  LocalizationModelComparison model_comparison;
+  model_comparison.patch_count = 140;
+  model_comparison.observed_anisotropy_dx_over_dy = 3.46;
+  model_comparison.isotropic_radial_predicted_anisotropy_dx_over_dy = 1.62;
+  model_comparison.radial_affine_baselines_reported = true;
+  model_comparison.identifiability_note =
+      "near-centred capture: unresolved — off-centre capture required";
+  LocalizationModelReport model;
+  model.name = "isotropic_radial_k1_baseline";
+  model.hypothesis = "baseline";
+  model.degrees_of_freedom = 1;
+  model.in_sample = LocalizationMetricSummary{140, 11.2, 16.4, 3.46, 0.92};
+  model.heldout_scores.push_back(LocalizationHoldoutScore{
+      "checkerboard", 2, LocalizationMetricSummary{140, 11.4, 16.8, 3.4, 0.9}});
+  model_comparison.models.push_back(model);
+  localization.model_comparison = model_comparison;
+  LocalizationIndependentCenterCheck independent_check;
+  independent_check.attempted = true;
+  independent_check.method = "color_similarity_centroid";
+  independent_check.valid_count = 140;
+  independent_check.generated_grid_rms_px = 6.5;
+  independent_check.rawdigger_oracle_rms_px = 1.2;
+  independent_check.tracks = "rawdigger_oracle";
+  independent_check.interpretation =
+      "independent centers track RawDigger more closely";
+  localization.independent_center_check = independent_check;
+  std::ostringstream diagnosis_json;
+  write_patch_report_json(
+      diagnosis_json, "dataset:fixture/raw.RAF", "manual:sg-corners",
+      "colorchecker_sg_corner_seeded_projective_grid", meta, 2, 2, "",
+      std::nullopt, std::nullopt, "none", {report_patch}, {"A1"},
+      std::nullopt, "", geometry, orientation, localization);
+  const std::string diagnosis_doc = diagnosis_json.str();
+  check(diagnosis_doc.find("\"model_comparison\"") != std::string::npos,
+        "localization report: model comparison block emitted");
+  check(diagnosis_doc.find("\"diagnostic_only\":true") != std::string::npos,
+        "localization report: model comparison is diagnostic-only");
+  check(diagnosis_doc.find("\"predeclared_gate_revision\":false") !=
+            std::string::npos,
+        "localization report: model comparison does not revise the gate");
+  check(diagnosis_doc.find("\"isotropic_radial_predicted_anisotropy_"
+                          "dx_over_dy\":1.62") != std::string::npos,
+        "localization report: geometry-predicted radial anisotropy emitted");
+  check(diagnosis_doc.find("\"radial_affine_baselines_reported\":true") !=
+            std::string::npos,
+        "localization report: radial/affine baseline contract emitted");
+  check(diagnosis_doc.find("\"split\":\"checkerboard\"") != std::string::npos,
+        "localization report: held-out split emitted");
+  check(diagnosis_doc.find("\"degrees_of_freedom\":1") != std::string::npos,
+        "localization report: model DOF emitted");
+  check(diagnosis_doc.find("\"independent_center_check\"") !=
+            std::string::npos,
+        "localization report: independent center check emitted");
+  check(diagnosis_doc.find("\"tracks\":\"rawdigger_oracle\"") !=
+            std::string::npos,
+        "localization report: independent center interpretation emitted");
 
   const auto wb_corrected =
       apply_white_balance(flat_corrected, WhiteBalanceGains{0.5, 1.0, 2.0});
