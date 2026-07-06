@@ -124,6 +124,40 @@ void TESTS() {
   }
 
   {
+    // Projective discrimination: a homography keeps every straight chart-line
+    // straight, but a bilinear/affine-quad map curves diagonals (P(t,t) is
+    // quadratic on a non-parallelogram). The diagonal patch centers (row k,
+    // col k) are collinear in chart space, so a genuine homography must keep
+    // them collinear in the image; a bilinear regression fails this. Ordering
+    // alone (above) does not discriminate the two — this does. A tiny inner ROI
+    // keeps each extraction-rectangle AABB center on the true projected center.
+    const ChartCorners corners{{20, 10}, {260, 0}, {245, 190}, {5, 170}};
+    const auto result = localize_colorchecker_sg_grid(corners, 0.01);
+
+    const Point2d p0 = center_zero_based(patch_at(result, 0, 0).extraction_coord);
+    const Point2d p9 = center_zero_based(patch_at(result, 9, 9).extraction_coord);
+    const double dx = p9.x - p0.x;
+    const double dy = p9.y - p0.y;
+    const double len = std::sqrt(dx * dx + dy * dy);
+    check(len > 1.0, "projective grid: diagonal endpoints are distinct");
+
+    double max_offline = 0.0;
+    for (int k = 1; k < 9; ++k) {
+      const Point2d pk =
+          center_zero_based(patch_at(result, k, k).extraction_coord);
+      // perpendicular distance of pk from the line p0->p9
+      const double dist =
+          std::abs(dx * (pk.y - p0.y) - dy * (pk.x - p0.x)) / len;
+      if (dist > max_offline) {
+        max_offline = dist;
+      }
+    }
+    check(max_offline < 0.1,
+          "projective grid: diagonal patch centers stay collinear "
+          "(homography, not bilinear)");
+  }
+
+  {
     check(throws_for(ChartCorners{{0, 0}, {0, 0}, {10, 10}, {0, 10}}),
           "invalid grid: zero-area top edge rejected");
     check(throws_for(ChartCorners{{0, 0}, {100, 100}, {100, 0}, {0, 100}}),
