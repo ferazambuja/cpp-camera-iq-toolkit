@@ -171,6 +171,38 @@ void TESTS() {
             std::string::npos,
         "diagnosis: tie/confound outcome is emitted as unresolved");
 
+  // Strongest reachable branch: usable floor AND the detector separates the two
+  // coordinate sources. No other case drives this path, so without it the
+  // terminal "consistent with" verdict and the identifiability stance are both
+  // untested, and the conclusive=false assertion above cannot tell which branch
+  // ran. This contrast locks the branch: same finalize, separated tracks must
+  // flip the message from "unresolved" to a named "consistent with" verdict
+  // while conclusive stays false by construction.
+  camera_iq::LocalizationIndependentCenterCheck separated;
+  separated.attempted = true;
+  separated.valid_count = 140;
+  separated.repeatability_valid_count = 140;
+  separated.repeatability_rms_px = 0.75;
+  separated.tracks = "generated_grid";
+  auto resolved = comparison;
+  finalize_localization_model_comparison(resolved, separated);
+  check(resolved.noise_floor_usable,
+        "diagnosis: separated detector with bounded floor is usable");
+  check(resolved.parsimony_winner_model == "chart_cylindrical_bow_candidate",
+        "diagnosis: separated case still selects the parsimonious winner");
+  check(!resolved.conclusive,
+        "diagnosis: centered capture stays inconclusive even when the detector "
+        "separates sources (identifiability confound)");
+  check(resolved.diagnostic_conclusion.find("consistent with") !=
+            std::string::npos,
+        "diagnosis: strongest branch emits a 'consistent with' parsimony "
+        "verdict");
+  check(resolved.diagnostic_conclusion.find(resolved.parsimony_winner_model) !=
+            std::string::npos,
+        "diagnosis: parsimony winner is named in the diagnostic conclusion");
+  check(resolved.diagnostic_conclusion.find("unresolved") == std::string::npos,
+        "diagnosis: strongest branch is not mislabeled unresolved");
+
   auto unreliable = comparison;
   unresolved.repeatability_rms_px = 50.0;
   finalize_localization_model_comparison(unreliable, unresolved);

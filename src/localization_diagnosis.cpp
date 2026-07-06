@@ -883,6 +883,13 @@ void finalize_localization_model_comparison(
     return;
   }
 
+  // Strongest reachable branch: usable noise floor, the independent detector
+  // separates the two coordinate sources, and a parsimony winner exists. Even
+  // here conclusive stays false by construction: a near-centred capture cannot
+  // separate lens distortion (about the image centre) from chart geometry
+  // (about the chart centre), so causal attribution is not identifiable. Do not
+  // add a conclusive=true path without a capture-geometry input (off-centre or
+  // multi-position) that actually breaks that confound.
   comparison.conclusive = false;
   comparison.diagnostic_conclusion =
       "consistent with " + comparison.parsimony_winner_model +
