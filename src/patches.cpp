@@ -89,6 +89,23 @@ double patch_center_y(const PatchCoord& coord) {
   return coord.y - 1.0 + coord.height / 2.0;
 }
 
+std::string reference_patch_id_from_index(std::size_t index) {
+  const int row = static_cast<int>(index / 14);
+  const int column = static_cast<int>(index % 14);
+  std::string id;
+  id.push_back(static_cast<char>('A' + column));
+  id += std::to_string(row + 1);
+  return id;
+}
+
+int reference_patch_row_from_index(std::size_t index) {
+  return static_cast<int>(index / 14);
+}
+
+int reference_patch_column_from_index(std::size_t index) {
+  return static_cast<int>(index % 14);
+}
+
 double flat_denominator(double value, double floor_value) {
   if (!std::isfinite(value) || value <= floor_value) return floor_value;
   return value;
@@ -401,6 +418,33 @@ void write_localization_validation(
     w.key("mean_error_gate_passes");
     w.value(c.max_abs_error_before_affine <=
             localization->thresholds.max_abs_mean_error_dn);
+    w.end_object();
+  }
+  w.end_array();
+  w.key("center_residuals");
+  w.begin_array();
+  for (const auto& residual : localization->center_residuals) {
+    w.begin_object();
+    w.key("reference_patch_id");
+    w.value(residual.reference_patch_id);
+    w.key("row");
+    w.value(static_cast<std::int64_t>(residual.row));
+    w.key("column");
+    w.value(static_cast<std::int64_t>(residual.column));
+    w.key("generated_center_x");
+    w.value(residual.generated_center_x);
+    w.key("generated_center_y");
+    w.value(residual.generated_center_y);
+    w.key("oracle_center_x");
+    w.value(residual.oracle_center_x);
+    w.key("oracle_center_y");
+    w.value(residual.oracle_center_y);
+    w.key("dx_px");
+    w.value(residual.dx_px);
+    w.key("dy_px");
+    w.value(residual.dy_px);
+    w.key("distance_px");
+    w.value(residual.distance_px);
     w.end_object();
   }
   w.end_array();
@@ -791,14 +835,28 @@ PatchLocalizationValidation validate_patch_localization_against_oracle(
       patches.size() == thresholds.expected_patch_count;
 
   double center_sumsq = 0;
+  out.center_residuals.reserve(patches.size());
   for (std::size_t i = 0; i < patches.size(); ++i) {
-    const double dx = patch_center_x(patches[i].source_coord) -
-                      patch_center_x(oracle.coords[i]);
-    const double dy = patch_center_y(patches[i].source_coord) -
-                      patch_center_y(oracle.coords[i]);
+    const double generated_center_x = patch_center_x(patches[i].source_coord);
+    const double generated_center_y = patch_center_y(patches[i].source_coord);
+    const double oracle_center_x = patch_center_x(oracle.coords[i]);
+    const double oracle_center_y = patch_center_y(oracle.coords[i]);
+    const double dx = generated_center_x - oracle_center_x;
+    const double dy = generated_center_y - oracle_center_y;
     const double error = std::sqrt(dx * dx + dy * dy);
     out.max_center_error_px = std::max(out.max_center_error_px, error);
     center_sumsq += error * error;
+    out.center_residuals.push_back(
+        PatchCenterResidual{reference_patch_id_from_index(i),
+                            reference_patch_row_from_index(i),
+                            reference_patch_column_from_index(i),
+                            generated_center_x,
+                            generated_center_y,
+                            oracle_center_x,
+                            oracle_center_y,
+                            dx,
+                            dy,
+                            error});
   }
   out.rms_center_error_px =
       std::sqrt(center_sumsq / static_cast<double>(patches.size()));

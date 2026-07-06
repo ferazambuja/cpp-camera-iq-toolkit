@@ -153,7 +153,11 @@ derived from RawDigger A1/A14/J14/J1 centers, the command writes
 
 This confirms the orientation and mean extraction are close, but the generated
 projective grid is not yet approved as a replacement for RawDigger rectangles.
-See `docs/reports/RAW_CHART_LOCALIZATION.md`.
+See `docs/reports/RAW_CHART_LOCALIZATION.md`. That report now records
+the serialized per-patch residuals: the four corner patches are pinned near
+zero, while the middle columns bow by about 15 px relative to RawDigger. The
+miss is therefore a systematic geometry/model mismatch, not a coordinate-origin
+artifact or simple global offset.
 
 ## Important Negative Finding
 
@@ -257,6 +261,9 @@ cross-aperture approximation, not a measured same-aperture correction.
    directly to RAW-space chart localization.
 2. Diagnose why the corner-seeded projective grid misses the RawDigger oracle
    centers by up to 16.449 px before changing any predeclared validation gate.
+   The current residual pattern is an interior-column bow, so any
+   lens-distortion, chart-geometry, or non-projective placement hypothesis must
+   be measured against the serialized residuals.
 3. Diagnose the dark-patch / neutral-axis error before adding higher-order color
    models; root-polynomial variants need held-out evidence before they are
    treated as an improvement.

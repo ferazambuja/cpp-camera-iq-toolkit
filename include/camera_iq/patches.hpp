@@ -74,6 +74,19 @@ struct PatchLocalizationValidationThresholds {
   double max_abs_mean_error_dn = 25.0;
 };
 
+struct PatchCenterResidual {
+  std::string reference_patch_id;
+  int row = 0;
+  int column = 0;
+  double generated_center_x = 0;
+  double generated_center_y = 0;
+  double oracle_center_x = 0;
+  double oracle_center_y = 0;
+  double dx_px = 0;
+  double dy_px = 0;
+  double distance_px = 0;
+};
+
 struct PatchLocalizationValidation {
   std::string method =
       "rawdigger_oracle_uncorrected_roi_center_and_rgb_mean";
@@ -83,6 +96,7 @@ struct PatchLocalizationValidation {
   PatchLocalizationValidationThresholds thresholds;
   double max_center_error_px = 0;
   double rms_center_error_px = 0;
+  std::vector<PatchCenterResidual> center_residuals;
   PatchComparison rgb_comparison;
   bool patch_count_gate_passes = false;
   bool center_gate_passes = false;

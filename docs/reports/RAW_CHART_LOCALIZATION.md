@@ -104,6 +104,45 @@ Per-channel uncorrected RGB mean comparison:
 | G | 0.999997742 | 6.574 DN | 20.482 DN | true |
 | B | 0.999998012 | 3.813 DN | 11.554 DN | true |
 
+The JSON now serializes every generated-vs-oracle ROI-center residual under
+`localization_validation.center_residuals`, including reference patch ID,
+reference-grid row/column, generated center, oracle center, `dx_px`, `dy_px`,
+and Euclidean distance. This makes the negative verdict diagnosable instead of
+only reporting max/RMS aggregates.
+
+Worst residuals from the f/8 `1:10` run:
+
+| Reference patch | Row | Column | dx px | dy px | Distance px |
+|---|---:|---:|---:|---:|---:|
+| H6 | 5 | 7 | -15.921 | 4.133 | 16.449 |
+| H4 | 3 | 7 | -15.868 | 3.504 | 16.251 |
+| G6 | 5 | 6 | -15.559 | 4.228 | 16.123 |
+| H5 | 4 | 7 | -15.395 | 4.782 | 16.121 |
+| H2 | 1 | 7 | -15.812 | 2.113 | 15.952 |
+
+Corner residuals are near zero because the seed was derived from the corner
+patches:
+
+| Reference patch | dx px | dy px | Distance px |
+|---|---:|---:|---:|
+| A1 | 0.011 | -0.042 | 0.043 |
+| N1 | 0.044 | -0.043 | 0.061 |
+| A10 | 0.011 | 0.011 | 0.015 |
+| N10 | 0.043 | 0.011 | 0.044 |
+
+Column summaries show the failure is a systematic interior bow rather than a
+global shift. Mean `dx_px` is near zero at columns A/N, but reaches about
+`-15 px` around columns G/H; mean `dy_px` stays near `+2.6 px`.
+
+| Column | Mean dx px | Mean dy px | Mean distance px | Max distance px |
+|---|---:|---:|---:|---:|
+| A | 0.07 | 2.75 | 2.76 | 4.53 |
+| D | -10.86 | 2.68 | 11.33 | 12.37 |
+| G | -15.05 | 2.67 | 15.36 | 16.12 |
+| H | -15.25 | 2.54 | 15.55 | 16.45 |
+| K | -10.97 | 2.66 | 11.40 | 12.00 |
+| N | 0.03 | 2.69 | 2.72 | 5.12 |
+
 Orientation control table:
 
 | Orientation | Aggregate min corr |
@@ -124,13 +163,22 @@ remain close, but the ROI centers are too far from the RawDigger oracle to claim
 coordinate replacement under the predeclared 5 px gate.
 
 Do not mark the corner-seeded SG grid as the production replacement for
-RawDigger rectangles yet. The next slice should diagnose the geometry mismatch
-before any threshold change:
+RawDigger rectangles yet. The residual evidence narrows the mismatch: it is not
+a coordinate-origin convention error, not a simple global shift, and not
+uncorrelated manual jitter. The corner-pinned homography agrees at the four
+seeded corner patches but bows away from RawDigger in the chart interior,
+especially the middle columns. That is consistent with a model mismatch such as
+lens distortion, a different chart/cell geometry assumption, or RawDigger's
+rectangle placement following a non-projective warp.
+
+The next slice should diagnose that systematic interior bow before any
+threshold change:
 
 - verify whether RawDigger rectangles include manual per-patch jitter that a
   single homography cannot reproduce;
-- compare an all-center least-squares or robust homography as a diagnostic only,
-  without using it to relax the committed gate post hoc;
+- compare all-center least-squares, robust, or low-order distortion-corrected
+  models as diagnostics only, without using them to relax the committed gate
+  post hoc;
 - decide, before another real-data validation run, whether the production path
   needs lens-distortion compensation, a different corner-estimation method, or a
   separately justified pre-run gate revision.

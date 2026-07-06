@@ -128,6 +128,16 @@ void TESTS() {
       localized, oracle, localization_thresholds);
   check(localization.passes,
         "localization validation: matching oracle passes all gates");
+  check(localization.center_residuals.size() == 3,
+        "localization validation: center residuals emitted per patch");
+  check(localization.center_residuals[0].reference_patch_id == "A1",
+        "localization validation: first residual carries reference id");
+  check(localization.center_residuals[1].reference_patch_id == "B1",
+        "localization validation: second residual carries reference id");
+  check_near(localization.center_residuals[2].generated_center_x, 9.0, 1e-12,
+             "localization validation: generated center x recorded");
+  check_near(localization.center_residuals[2].oracle_center_x, 9.0, 1e-12,
+             "localization validation: oracle center x recorded");
   check_near(localization.max_center_error_px, 0.0, 1e-12,
              "localization validation: max center error");
   check(localization.patch_count_gate_passes,
@@ -145,6 +155,12 @@ void TESTS() {
       shifted, oracle, localization_thresholds);
   check(!localization.passes,
         "localization validation: shifted grid fails despite perfect RGB");
+  check_near(localization.center_residuals[0].dx_px, 6.0, 1e-12,
+             "localization validation: residual dx records shifted grid");
+  check_near(localization.center_residuals[0].dy_px, 0.0, 1e-12,
+             "localization validation: residual dy records shifted grid");
+  check_near(localization.center_residuals[0].distance_px, 6.0, 1e-12,
+             "localization validation: residual distance records shifted grid");
   check(!localization.center_gate_passes,
         "localization validation: shifted grid fails center gate");
   check(localization.correlation_gate_passes,
@@ -346,6 +362,13 @@ void TESTS() {
   check(localization_doc.find("\"correlation_gate_passes\":true") !=
             std::string::npos,
         "localization report: correlation still passes in failing run");
+  check(localization_doc.find("\"center_residuals\"") != std::string::npos,
+        "localization report: residual block emitted");
+  check(localization_doc.find("\"reference_patch_id\":\"A1\"") !=
+            std::string::npos,
+        "localization report: residual reference id emitted");
+  check(localization_doc.find("\"dx_px\":6") != std::string::npos,
+        "localization report: residual dx emitted");
 
   const auto wb_corrected =
       apply_white_balance(flat_corrected, WhiteBalanceGains{0.5, 1.0, 2.0});
