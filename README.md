@@ -131,10 +131,10 @@ config:
 - Public docs and JSON labels use stable dataset IDs such as
   `clrs589_project_camera` and `spectral_sensitivity_2016_2017`, never
   machine-specific absolute paths.
-- All captures used by the author were shot by the author on standard DSLR / camera
-  bodies; large RAW sets are kept out of git for size and reproducibility, not
-  licensing. A small sample under `data/samples/` lets `build → test` run with no
-  private data.
+- All captures used by the author were shot by the author on DSLR, mirrorless,
+  and medium-format camera systems; large RAW sets are kept out of git for size
+  and reproducibility, not licensing. A small sample under `data/samples/` lets
+  `build → test` run with no private data.
 - CTest runs public-path and sample-fixture guards so tracked docs avoid local
   absolute paths and tracked samples stay tiny synthetic placeholders.
 - See [docs/DATASETS.md](docs/DATASETS.md) for the local-cache policy.
