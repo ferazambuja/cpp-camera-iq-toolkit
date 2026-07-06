@@ -178,30 +178,46 @@ void TESTS() {
   // ran. This contrast locks the branch: same finalize, separated tracks must
   // flip the message from "unresolved" to a named "consistent with" verdict
   // while conclusive stays false by construction.
-  camera_iq::LocalizationIndependentCenterCheck separated;
-  separated.attempted = true;
-  separated.valid_count = 140;
-  separated.repeatability_valid_count = 140;
-  separated.repeatability_rms_px = 0.75;
-  separated.tracks = "generated_grid";
-  auto resolved = comparison;
-  finalize_localization_model_comparison(resolved, separated);
-  check(resolved.noise_floor_usable,
+  camera_iq::LocalizationIndependentCenterCheck rawdigger_supported;
+  rawdigger_supported.attempted = true;
+  rawdigger_supported.valid_count = 140;
+  rawdigger_supported.repeatability_valid_count = 140;
+  rawdigger_supported.repeatability_rms_px = 0.75;
+  rawdigger_supported.tracks = "rawdigger_oracle";
+  auto rawdigger_resolved = comparison;
+  finalize_localization_model_comparison(rawdigger_resolved,
+                                         rawdigger_supported);
+  check(rawdigger_resolved.noise_floor_usable,
         "diagnosis: separated detector with bounded floor is usable");
-  check(resolved.parsimony_winner_model == "chart_cylindrical_bow_candidate",
-        "diagnosis: separated case still selects the parsimonious winner");
-  check(!resolved.conclusive,
+  check(rawdigger_resolved.parsimony_winner_model ==
+            "chart_cylindrical_bow_candidate",
+        "diagnosis: RawDigger-tracking detector can select the parsimonious "
+        "grid/model correction candidate");
+  check(!rawdigger_resolved.conclusive,
         "diagnosis: centered capture stays inconclusive even when the detector "
         "separates sources (identifiability confound)");
-  check(resolved.diagnostic_conclusion.find("consistent with") !=
+  check(rawdigger_resolved.diagnostic_conclusion.find("consistent with") !=
             std::string::npos,
-        "diagnosis: strongest branch emits a 'consistent with' parsimony "
-        "verdict");
-  check(resolved.diagnostic_conclusion.find(resolved.parsimony_winner_model) !=
-            std::string::npos,
+        "diagnosis: RawDigger-tracking branch emits a 'consistent with' "
+        "parsimony verdict");
+  check(rawdigger_resolved.diagnostic_conclusion.find(
+            rawdigger_resolved.parsimony_winner_model) != std::string::npos,
         "diagnosis: parsimony winner is named in the diagnostic conclusion");
-  check(resolved.diagnostic_conclusion.find("unresolved") == std::string::npos,
-        "diagnosis: strongest branch is not mislabeled unresolved");
+  check(rawdigger_resolved.diagnostic_conclusion.find("unresolved") ==
+            std::string::npos,
+        "diagnosis: RawDigger-tracking branch is not mislabeled unresolved");
+
+  auto grid_supported = rawdigger_supported;
+  grid_supported.tracks = "generated_grid";
+  auto grid_resolved = comparison;
+  finalize_localization_model_comparison(grid_resolved, grid_supported);
+  check(grid_resolved.parsimony_winner_model.empty(),
+        "diagnosis: grid-tracking detector does not promote a chart/lens "
+        "parsimony candidate");
+  check(grid_resolved.diagnostic_conclusion.find("RawDigger placement") !=
+            std::string::npos,
+        "diagnosis: grid-tracking detector reports RawDigger placement as the "
+        "suspect");
 
   auto unreliable = comparison;
   unresolved.repeatability_rms_px = 50.0;

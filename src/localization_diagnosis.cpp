@@ -868,7 +868,16 @@ void finalize_localization_model_comparison(
     comparison.parsimony_winner_model = parsimonious->name;
   }
 
-  if (independent.tracks == "unresolved") {
+  if (independent.tracks == "generated_grid") {
+    comparison.parsimony_winner_model.clear();
+    comparison.conclusive = false;
+    comparison.diagnostic_conclusion =
+        "consistent with RawDigger placement mismatch: independent centres "
+        "track the generated grid, so held-out residual models describe the "
+        "oracle-vs-grid offset rather than a production chart/lens correction";
+    return;
+  }
+  if (independent.tracks != "rawdigger_oracle") {
     comparison.conclusive = false;
     comparison.diagnostic_conclusion =
         "unresolved: independent centre check did not separate generated grid "
@@ -883,13 +892,14 @@ void finalize_localization_model_comparison(
     return;
   }
 
-  // Strongest reachable branch: usable noise floor, the independent detector
-  // separates the two coordinate sources, and a parsimony winner exists. Even
-  // here conclusive stays false by construction: a near-centred capture cannot
-  // separate lens distortion (about the image centre) from chart geometry
-  // (about the chart centre), so causal attribution is not identifiable. Do not
-  // add a conclusive=true path without a capture-geometry input (off-centre or
-  // multi-position) that actually breaks that confound.
+  // Strongest reachable grid/model-correction branch: usable noise floor, the
+  // independent detector tracks RawDigger over the generated grid, and a
+  // parsimony winner exists. Even here conclusive stays false by construction:
+  // a near-centred capture cannot separate lens distortion (about the image
+  // centre) from chart geometry (about the chart centre), so causal attribution
+  // is not identifiable. Do not add a conclusive=true path without a
+  // capture-geometry input (off-centre or multi-position) that actually breaks
+  // that confound.
   comparison.conclusive = false;
   comparison.diagnostic_conclusion =
       "consistent with " + comparison.parsimony_winner_model +
