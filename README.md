@@ -15,6 +15,10 @@ noise/SNR, OECF/linearity, and reproducible CSV/JSON/Markdown reports.
   linear color-correction matrices, held-out diagnostics, and ΔE
   (76/2000) against compatible or measured references. Root-polynomial models
   are deferred until they prove held-out improvement.
+- **Spectral sensitivity** — archived monochromator / camSPECS camera sweeps,
+  parsed as camera spectral-sensitivity datasets rather than ColorChecker
+  references. Legacy script outputs are fidelity checks, not correctness
+  oracles.
 - **Objective IQ metrics** — read noise / DSNU / PRNU, photon-transfer-curve summaries,
   dynamic range, slanted-edge SFR/MTF, OECF/linearity.
 - **Reporting** — batch runner, threshold checks, CSV/JSON export, Markdown reports.
@@ -125,7 +129,8 @@ config:
   and set the paths to your own dataset roots or local mirrors under
   `data/private/datasets/<dataset_id>/`.
 - Public docs and JSON labels use stable dataset IDs such as
-  `clrs589_project_camera`, never machine-specific absolute paths.
+  `clrs589_project_camera` and `spectral_sensitivity_2016_2017`, never
+  machine-specific absolute paths.
 - All captures used by the author were shot by the author on standard DSLR / camera
   bodies; large RAW sets are kept out of git for size and reproducibility, not
   licensing. A small sample under `data/samples/` lets `build → test` run with no

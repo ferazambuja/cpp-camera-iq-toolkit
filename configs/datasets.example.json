@@ -38,34 +38,15 @@
         "pairing_min_blue_green_correlation": 0.90
       }
     },
-    "monochromator_2016_color_checker": {
-      "root": "data/private/datasets/monochromator_2016_color_checker",
-      "description": "2016/2017 color-checker / spectral-sensitivity archive mirror",
-      "capture_project": "2016/2017 camera-characterization archive",
+    "spectral_sensitivity_2016_2017": {
+      "root": "data/private/datasets/spectral_sensitivity_2016_2017",
+      "description": "2016/2017 camera spectral-sensitivity monochromator/camSPECS sweep archive mirror",
+      "capture_project": "2016/2017 camera spectral-sensitivity archive",
       "capture_year": "2016/2017",
-      "timeline_note": "Old archive datasets should use contemporaneous 2016 SG measurements by project provenance.",
-      "_reference_note": "Old archive datasets should use contemporaneous 2016 SG measurements by project provenance, not the newer 2019 CLRS workbook and never camera EXIF dates.",
-      "color_reference": {
-        "id": "sg_2016_i1pro_m0",
-        "role": "representative_measured_sg",
-        "format": "cgats_spectral",
-        "path": "data/private/references/sg_2016_archive/color_management_color/Patch-Reader_chart_10Rx14C_2016-04-20_11h57_M0.txt",
-        "selection_basis": "project_provenance_not_camera_date",
-        "source": "2016_i1pro2_patchtool_m0",
-        "reference_project": "2016 i1Pro2 PatchTool SG measurements",
-        "reference_year": "2016",
-        "physical_chart_identity": "representative_measured_archive_reference",
-        "illuminant": "D50",
-        "observer": "2_degree_lab_weighting",
-        "unit": "spectral_reflectance",
-        "numbering_order": "A1_to_A10_then_B1_to_N10_patchreader_order",
-        "expected_patch_count": 140,
-        "expected_band_count": 36,
-        "first_wavelength_nm": 380,
-        "last_wavelength_nm": 730,
-        "min_reflectance": 0,
-        "max_reflectance": 1
-      }
+      "timeline_note": "Use project/archive provenance, not camera EXIF dates. This dataset is camera spectral-sensitivity sweep data, not ColorChecker-SG chart reflectance.",
+      "_provenance_note": "Captures are Fernando's archive captures; the original 2017 DPMI analysis was a team effort. Treat spectral_v2_1.py as legacy Gold legacy method context and reimplement fresh in C++.",
+      "_copy_policy": "Do not bulk-copy the full archive by default. Keep the archive read-only and copy only the scoped camera subset, dark frames, SPD sidecars, and metadata needed for the current slice.",
+      "_reference_note": "Do not confuse this camera-sensitivity dataset with data/private/references/sg_2016_archive/monochromator_color_checker, which is SG chart reflectance reference data."
     },
     "canon_5d2_repro": {
       "root": "data/private/datasets/canon_5d2_repro",

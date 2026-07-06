@@ -10,6 +10,7 @@ Use this gitignored layout for local mirrors:
 ```text
 data/private/datasets/
   clrs589_project_camera/
+  spectral_sensitivity_2016_2017/
   canon_5d2_repro/
   d800_oecf_2016/
 data/private/references/
@@ -79,7 +80,21 @@ Inspect the configured reference with:
 
 ```bash
 ./build/camera_iq reference-info clrs589_project_camera
-./build/camera_iq reference-info monochromator_2016_color_checker
+```
+
+`spectral_sensitivity_2016_2017` is a camera spectral-sensitivity sweep
+dataset, not a ColorChecker-SG reference dataset, so it intentionally does not
+carry a `color_reference` block in the checked-in example. Keep SG reflectance
+references under `data/private/references/sg_2016_archive/`; do not conflate
+`sg_2016_archive/monochromator_color_checker` with the camera monochromator /
+camSPECS RAW sweep archive.
+
+For the spectral-sensitivity archive, start by manifesting a scoped local subset
+rather than bulk-copying the full RAW archive:
+
+```bash
+./build/camera_iq manifest spectral_sensitivity_2016_2017 \
+  --out out/spectral_sensitivity_manifest.json
 ```
 
 Fit the first linear CCM with an explicit local illuminant SPD:
