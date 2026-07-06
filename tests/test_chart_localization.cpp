@@ -155,6 +155,25 @@ void TESTS() {
     check(max_offline < 0.1,
           "projective grid: diagonal patch centers stay collinear "
           "(homography, not bilinear)");
+
+    // Collinearity is preserved by EVERY affine map, not only a homography, so
+    // the line-shape invariant above does not exclude a 3-corner affine grid
+    // that discards the fourth corner (parallelogram completion). Pin the
+    // bottom-right patch center to the closed-form homography prediction for
+    // these corners. The value is a deterministic geometric ground truth for
+    // this fixed trapezoid, not a number fitted to an observed run: solving the
+    // plane->image homography and projecting N10's patch center yields
+    // (237.1444, 181.2389). A TL/TR/BL affine yields (238.44, 153.56) here; the
+    // ~28 px vertical gap is exactly the perspective foreshortening the fourth
+    // corner imposes. Anchoring N10 rejects both bilinear and affine grids.
+    const Point2d n10 =
+        center_zero_based(patch_at(result, 9, 13).extraction_coord);
+    check_near(n10.x, 237.1444, 0.05,
+               "projective grid: N10 center x matches homography prediction "
+               "(rejects affine parallelogram grid)");
+    check_near(n10.y, 181.2389, 0.05,
+               "projective grid: N10 center y matches homography prediction "
+               "(rejects affine parallelogram grid)");
   }
 
   {
