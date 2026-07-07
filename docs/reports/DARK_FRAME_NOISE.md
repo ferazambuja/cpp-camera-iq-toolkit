@@ -18,7 +18,10 @@ CLRS-589 dark-frame data supports:
 - Estimate DSNU from the pair mean after subtracting the temporal contribution:
   `DSNU^2 = var(mean_pair) - sigma_temporal^2 / N`, with `N=2` for a pair.
 - Emit a robust MAD-based DSNU companion because the moment estimate is
-  defect-pixel-inclusive.
+  defect-pixel-inclusive. The companion subtracts the SAME temporal floor
+  (`robust^2 = mad(mean_pair)^2 - sigma_temporal^2 / N`) so both DSNU columns
+  are on one scale, and clamps to null with `dsnu_below_temporal_floor` when the
+  tail-robust bulk holds no fixed-pattern above that floor.
 - Fit an expected-null dark-current diagnostic over in-tolerance dark frames.
 
 This is deliberately not photon-transfer, electron read noise, full well, or
@@ -64,10 +67,10 @@ LibRaw's active Bayer phase; the two green positions are kept separate.
 
 | Plane | Temporal noise DN | Moment DSNU DN | Robust MAD DSNU DN |
 |---|---:|---:|---:|
-| R | 2.4397 | 3.0662 | 1.4826 |
-| G1 | 2.0584 | 0.4133 | 1.4826 |
-| G2 | 2.0825 | 0.8927 | 1.4826 |
-| B | 2.0669 | 0.5307 | 1.4826 |
+| R | 2.4397 | 3.0662 | null (below floor) |
+| G1 | 2.0584 | 0.4133 | 0.2821 |
+| G2 | 2.0825 | 0.8927 | 0.1721 |
+| B | 2.0669 | 0.5307 | 0.2492 |
 
 Interpretation:
 
@@ -76,8 +79,11 @@ Interpretation:
   is near zero over this short shutter ladder.
 - The moment DSNU is an upper-bound style estimate because no hot-pixel or
   defect-pixel rejection is performed.
-- The robust MAD companion exposes how much the moment estimate depends on
-  sparse defects or tails.
+- The temporal-corrected robust MAD companion isolates the fixed-pattern that
+  survives tail rejection. R clamps to null: its 3.07 DN moment DSNU is driven
+  entirely by sparse defect/tail pixels, with no bulk fixed-pattern above the
+  temporal floor. G1/G2/B carry a small resolvable fixed-pattern (0.17-0.28 DN),
+  below their moment values and on the same scale.
 
 ## Dark-Current Diagnostic
 
@@ -104,7 +110,9 @@ Targeted red/green tests were added for:
 - DSNU moment correction with a material temporal-noise subtraction.
 - Negative DSNU variance clamp to `null` with
   `dsnu_below_temporal_floor`.
-- Hot-pixel sensitivity: moment DSNU inflates while robust MAD remains stable.
+- Hot-pixel sensitivity: moment DSNU inflates while the temporal-corrected
+  robust MAD stays stable, and the robust estimate clamps to null with
+  `dsnu_below_temporal_floor` when only tails carry the spread.
 - Dimension and CFA-phase mismatch rejection before differencing.
 - Dark-current expected-null diagnostic.
 - JSON honesty contract: DN units, single-pair status, and gain/PTC/DR

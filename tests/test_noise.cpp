@@ -84,6 +84,20 @@ void TESTS() {
         "positive DSNU moment is emitted");
   check_near(*estimate.planes[0].dsnu_moment_dn, std::sqrt(1.25), 1e-12,
              "DSNU subtracts temporal variance over N=2");
+  // Robust MAD DSNU must subtract the SAME temporal floor as the moment
+  // estimate; otherwise it is not a DSNU and is not comparable to the moment
+  // column.  pair-mean MAD here is 2*1.4826; robust^2 = mad^2 - temporal^2/2.
+  const double material_mad = 2.0 * 1.4826;
+  check(estimate.planes[0].dsnu_robust_mad_dn.has_value(),
+        "positive robust DSNU is emitted");
+  check_near(*estimate.planes[0].dsnu_robust_mad_dn,
+             std::sqrt(material_mad * material_mad - 4.0), 1e-9,
+             "robust DSNU subtracts temporal variance over N=2");
+  check(*estimate.planes[0].dsnu_robust_mad_dn <
+            estimate.planes[0].pair_mean_mad_stddev_dn,
+        "temporal correction lowers robust DSNU below raw pair-mean MAD");
+  check(estimate.planes[0].dsnu_robust_reason == "ok",
+        "positive robust DSNU has ok reason");
 
   const RawCfaImage identical =
       image_from_planes(4, 8, repeat_planes(pattern));
@@ -112,6 +126,11 @@ void TESTS() {
   check(below_floor.planes[0].dsnu_moment_reason ==
             "dsnu_below_temporal_floor",
         "negative DSNU clamp has machine-readable reason");
+  check(!below_floor.planes[0].dsnu_robust_mad_dn.has_value(),
+        "robust DSNU also clamps to null below the temporal floor");
+  check(below_floor.planes[0].dsnu_robust_reason ==
+            "dsnu_below_temporal_floor",
+        "robust DSNU clamp has machine-readable reason");
 
   std::vector<double> hot_pattern = pattern;
   hot_pattern.back() = 1000.0;
@@ -121,7 +140,8 @@ void TESTS() {
       "hp2.RAF", "1:60", 1.0 / 60.0, 200, 8.0);
   check(hot.planes[0].pair_mean_spatial_stddev_dn > 300.0,
         "moment DSNU is hot-pixel inclusive");
-  check(hot.planes[0].dsnu_robust_mad_dn < 6.0,
+  check(hot.planes[0].dsnu_robust_mad_dn.has_value() &&
+            *hot.planes[0].dsnu_robust_mad_dn < 6.0,
         "robust MAD DSNU is stable against one hot pixel");
 
   RawCfaImage mismatched = identical;

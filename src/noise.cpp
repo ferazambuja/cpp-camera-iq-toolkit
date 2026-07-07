@@ -113,8 +113,12 @@ void write_plane(JsonWriter& w, const NoisePlaneEstimate& plane) {
   write_optional(w, plane.dsnu_moment_dn);
   w.key("dsnu_moment_reason");
   w.value(plane.dsnu_moment_reason);
+  w.key("dsnu_robust_variance_dn2");
+  w.value(plane.dsnu_robust_variance_dn2);
   w.key("dsnu_robust_mad_dn");
-  w.value(plane.dsnu_robust_mad_dn);
+  write_optional(w, plane.dsnu_robust_mad_dn);
+  w.key("dsnu_robust_reason");
+  w.value(plane.dsnu_robust_reason);
   w.end_object();
 }
 
@@ -236,7 +240,22 @@ NoisePairEstimate compute_noise_pair_estimate(
       plane.dsnu_moment_dn = std::nullopt;
       plane.dsnu_moment_reason = "dsnu_below_temporal_floor";
     }
-    plane.dsnu_robust_mad_dn = plane.pair_mean_mad_stddev_dn;
+    // Robust DSNU mirrors the moment estimate: subtract the same temporal
+    // floor (sigma_temporal^2 / 2 for an N=2 pair mean) from a hot-pixel-robust
+    // MAD spread, so the two DSNU columns are on the same scale.  A MAD spread
+    // dominated by leftover temporal noise (bulk fixed-pattern below the floor)
+    // clamps to null, which correctly attributes any large moment DSNU on that
+    // plane entirely to tail/defect pixels the MAD rejected.
+    plane.dsnu_robust_variance_dn2 =
+        plane.pair_mean_mad_stddev_dn * plane.pair_mean_mad_stddev_dn -
+        (plane.temporal_noise_dn * plane.temporal_noise_dn) / 2.0;
+    if (plane.dsnu_robust_variance_dn2 >= 0.0) {
+      plane.dsnu_robust_mad_dn = std::sqrt(plane.dsnu_robust_variance_dn2);
+      plane.dsnu_robust_reason = "ok";
+    } else {
+      plane.dsnu_robust_mad_dn = std::nullopt;
+      plane.dsnu_robust_reason = "dsnu_below_temporal_floor";
+    }
   }
   return out;
 }

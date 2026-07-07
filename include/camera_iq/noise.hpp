@@ -24,7 +24,9 @@ struct NoisePlaneEstimate {
   double dsnu_variance_dn2 = 0.0;
   std::optional<double> dsnu_moment_dn;
   std::string dsnu_moment_reason;
-  double dsnu_robust_mad_dn = 0.0;
+  double dsnu_robust_variance_dn2 = 0.0;
+  std::optional<double> dsnu_robust_mad_dn;
+  std::string dsnu_robust_reason;
 };
 
 struct NoisePairEstimate {
