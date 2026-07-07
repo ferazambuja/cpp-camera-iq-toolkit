@@ -45,8 +45,6 @@ void print_usage() {
       "  patches\n"
       "              Extract checker ROI RGB means from a RAW capture\n"
       "\n"
-      "Commands (planned):\n"
-      "  noise       Read noise / DSNU / PRNU summaries\n\n"
       "Options:\n"
       "  -h, --help       Show this help\n"
       "  -v, --version    Show version\n";
@@ -111,7 +109,7 @@ int run(int argc, char** argv) {
 
   std::cerr << "camera_iq: command '" << arg
             << "' is not implemented yet.\n"
-               "Run 'camera_iq --help' for the planned command list.\n";
+               "Run 'camera_iq --help' for the available command list.\n";
   return 2;
 }
 

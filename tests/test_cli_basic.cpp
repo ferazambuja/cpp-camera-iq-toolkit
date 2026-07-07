@@ -1,6 +1,7 @@
 #include "camera_iq/toolkit.hpp"
 
 #include <iostream>
+#include <sstream>
 #include <string>
 
 // Minimal dependency-free test harness. Later phases can adopt a framework.
@@ -18,6 +19,19 @@ static void check(bool condition, const std::string& name) {
 int main() {
   check(!camera_iq::version().empty(), "version is non-empty");
   check(camera_iq::version() != "0.0.0", "version comes from CMake project");
+
+  {
+    std::ostringstream captured;
+    auto* old_buf = std::cout.rdbuf(captured.rdbuf());
+    const char* args[] = {"camera_iq", "--help"};
+    const int rc = camera_iq::run(2, const_cast<char**>(args));
+    std::cout.rdbuf(old_buf);
+    const std::string help = captured.str();
+    check(rc == 0, "help command succeeds");
+    check(help.find("Commands (planned)") == std::string::npos &&
+              help.find("  noise") == std::string::npos,
+          "help lists only implemented commands");
+  }
 
   {
     const char* args[] = {"camera_iq", "dark-calibration",
