@@ -327,26 +327,32 @@ read-only):
 
 | Camera | Session | SSF source | Target capture | Illuminant SPD | Chart reflectance | Tier-3 |
 |---|---|---|---|---|---|---|
-| Canon 5D2 | 2016 | sweeps + `mono.csv` | `_Target` (5 sets) | HID (PR655) | SGMeasurements | ready, pairing verified |
-| Nikon D810 | 2016 | sweeps + `mono.csv` | `_Target` (5 sets) | HID (shared) | SGMeasurements (shared) | ready, not yet run |
-| Sony A7RII | 2016 | sweeps + `mono.csv` | `_Target` (5 sets) | HID (shared) | SGMeasurements (shared) | ready, not yet run |
-| Sony A7SII | 2016 | sweeps + `mono.csv` | `_Target` (5 sets) | HID (shared) | SGMeasurements (shared) | ready, not yet run |
+| Canon 5D2 | 2016 | sweeps + `mono.csv` | `_Target` (5 sets) | HID (PR655) | SGMeasurements | input-complete; Target set 1 pairing verified |
+| Nikon D810 | 2016 | sweeps + `mono.csv` | `_Target` (5 sets) | HID (shared) | SGMeasurements (shared) | input-complete; pairing gate not yet run |
+| Sony A7RII | 2016 | sweeps + `mono.csv` | `_Target` (5 sets) | HID (shared) | SGMeasurements (shared) | input-complete; pairing gate not yet run |
+| Sony A7SII | 2016 | sweeps + `mono.csv` | `_Target` (5 sets) | HID (shared) | SGMeasurements (shared) | input-complete; pairing gate not yet run |
 | Phase One IQ3 | 2017 | sweeps + `Spectral_Sensitivity_Data.csv` | none | `Lamp_SPD` xlsx (camSPECS) | none | blocked |
 
 Only the Phase One IQ3 is missing measurements: its 2017 camSPECS session has
 spectral sweeps and a lamp SPD but no broadband Target capture and no chart
-reflectance, so it is SSF-only (tier-1/tier-2), not physically closable. All
-four 2016 cameras are complete and share the single measured HID illuminant and
-the single measured proven-identity SG reflectance.
+reflectance, so it is SSF-only (tier-1/tier-2), not physically closable. The
+four 2016 cameras are archive input-complete and share the single measured HID
+illuminant and the single measured proven-identity SG reflectance. Only the
+Canon 5D2 Target set 1 has been locally staged and white-card pairing-checked so
+far; D810, A7RII, and A7SII still need the same automated gate before any
+closure residual is trusted.
 
 Multi-camera closure plan (fires after the 5D2 closure slice lands, not before):
 the `spectral-closure` command is camera-agnostic, so extending it to D810,
 A7RII, and A7SII is mechanical — same command, per-camera `_Target` +
 SSF inputs, the shared illuminant and reflectance, and the same white-card
-pairing gate run first for each (same 2016-11-21 session and HID, so each is
-expected to pass its own gate). This yields a four-camera cross-manufacturer
-closure suite (Canon / Nikon / Sony x2) rather than a single-camera result. Copy
-each camera's scoped Target subset only when its slice runs; do not bulk-copy.
+pairing gate run first for each. Use a specific target set per camera
+initially, preferably Target set 1 from 2016-11-21 to match the verified Canon
+pre-check; the additional target sets span 2016-11-21 and 2016-11-22 and must
+carry their own white-card/dark pairing if used. This can yield a four-camera
+cross-manufacturer closure suite (Canon / Nikon / Sony x2) rather than a
+single-camera result. Copy each camera's scoped Target subset only when its
+slice runs; do not bulk-copy.
 
 ## Not Claimed
 
@@ -357,3 +363,6 @@ each camera's scoped Target subset only when its slice runs; do not bulk-copy.
 - No physical-closure result yet; the same-session Canon 5D2 target, dark, SG
   reflectance, and PR-655 illuminant inputs are staged locally, but the closure
   computation has not been implemented or run.
+- No D810, A7RII, or A7SII closure result yet; those rows record archive
+  availability only, not local staging, pairing-gate success, or a computed
+  closure residual.
