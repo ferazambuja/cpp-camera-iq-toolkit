@@ -273,6 +273,15 @@ the separate `canon_5d2_repro` / `2016_IS_Reproduction` capture.
 
 Predeclare these implementation constraints before running closure:
 
+- **confirm the illuminant pairing first (gate 1), do not assume it**: this
+  report treats `PR655_HID` as the Target capture's illuminant on strong but
+  circumstantial grounds (same session, only measured broadband source in the
+  session, standard SSF-plus-known-light design). That the `Target` ColorChecker
+  frames were actually shot under that HID lamp is inferred, not documented. The
+  closure slice must verify it via a white-card cross-check — the `WhiteCard`
+  frame's extracted RGB must be consistent with the SSF-times-HID prediction. If
+  it is not, stop and report the pairing as unconfirmed rather than emitting a
+  closure residual that could rest on the wrong illuminant;
 - use the strict three-way spectral overlap, **380-730 nm**, because the SG
   reflectance file ends at 730 nm; do not extrapolate reflectance to the PR-655
   780 nm endpoint;
