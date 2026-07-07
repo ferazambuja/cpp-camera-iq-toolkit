@@ -18,7 +18,8 @@ under ignored paths.
 
 ## Local Copy
 
-Only one scoped camera subset was copied locally:
+For the spectral-sensitivity dataset itself, only one scoped camera subset was
+copied locally:
 
 | Role | Location |
 |---|---|
@@ -247,9 +248,34 @@ Tier-1 legacy fidelity, normalized to the extracted green peak:
 This is a strong reimplementation-fidelity result. It is not a proof that the
 legacy curve is scientifically correct.
 
-Next, add either the independent Canon 5D Mark II public-SSF comparison (tier 2)
-or a physical-closure test against an independently measured target/illuminant
-capture (tier 3). Do not tune the RAW extraction to the legacy curve.
+## Tier-3 Feasibility Check
+
+A later archive check found Canon 5D Mark II broadband reproduction captures in
+the separate `canon_5d2_repro` / `2016_IS_Reproduction` archive, including
+`DSLR_Color Checker.CR2`, `DSLR_White.CR2`, and `DSLR_Ansel Adams.CR2`.
+These are real non-monochromator 5D2 raster captures, and the local private
+cache now contains those files plus `carry_white_card.txt` and
+`carry_white_card_dataonly.txt`.
+
+This does **not** make tier-3 physical closure valid yet:
+
+- the reproduction captures are a different project/session from the
+  monochromator sweep;
+- metadata matches the camera/lens family (Canon EOS 5D Mark II, EF50mm f/2.5
+  Compact Macro, 5616 x 3744) but not the exposure setup (reproduction:
+  ISO 2000, 1/500 s, f/8; monochromator sweep: ISO 100, 1/160 s, f/5.6);
+- `carry_white_card.txt` is CGATS.17 white-card reflectance data measured under
+  D50 / 2 degree / M0 conditions, not a same-session capture illuminant SPD;
+- a strict physical closure needs a pairable target reflectance, measured
+  capture illuminant SPD, and broadband RAW target capture from the same
+  session.
+
+So the earlier stronger claim that no non-mono 5D2 raster exists is false.
+The corrected conclusion is narrower: tier 3 remains blocked until a measured
+illuminant SPD and target/reference pairing are established for a broadband
+5D2 capture. The feasible next validation slice is therefore the independent
+Canon 5D Mark II public-SSF comparison (tier 2), with the optical-path caveat
+predeclared. Do not tune the RAW extraction to the legacy curve.
 
 ## Not Claimed
 
@@ -257,4 +283,5 @@ capture (tier 3). Do not tune the RAW extraction to the legacy curve.
   here; the toolkit-derived RAW response is tier-1 legacy-fidelity evidence.
 - No assertion that the legacy `*_mono.csv` is scientifically correct.
 - No public-SSF comparison yet.
-- No physical-closure result yet.
+- No physical-closure result yet; the available 5D2 reproduction captures are
+  not pairable to a same-session measured illuminant SPD.
