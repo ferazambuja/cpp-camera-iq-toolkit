@@ -278,10 +278,14 @@ Predeclare these implementation constraints before running closure:
   circumstantial grounds (same session, only measured broadband source in the
   session, standard SSF-plus-known-light design). That the `Target` ColorChecker
   frames were actually shot under that HID lamp is inferred, not documented. The
-  closure slice must verify it via a white-card cross-check — the `WhiteCard`
-  frame's extracted RGB must be consistent with the SSF-times-HID prediction. If
-  it is not, stop and report the pairing as unconfirmed rather than emitting a
-  closure residual that could rest on the wrong illuminant;
+  closure slice must verify it via a white-card cross-check before using the
+  target patches. Because no measured white-card reflectance is staged here,
+  this is an illuminant-pairing / chromaticity sanity gate, not the physical
+  closure result: the `WhiteCard` frame's dark-subtracted channel ratios should
+  be consistent with an SSF-times-HID neutral prediction under one global scale.
+  If the chromaticity check fails, stop and report the pairing as unconfirmed
+  rather than emitting a closure residual that could rest on the wrong
+  illuminant;
 - use the strict three-way spectral overlap, **380-730 nm**, because the SG
   reflectance file ends at 730 nm; do not extrapolate reflectance to the PR-655
   780 nm endpoint;
