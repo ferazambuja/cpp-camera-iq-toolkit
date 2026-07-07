@@ -477,10 +477,11 @@ score the residual **perceptual** CIELAB error as `SMI = 100 - 5.5 * meanDE*ab`.
 Higher is better; 100 is a Luther-condition camera.
 
 The ISO-recommended test set is the **18 chromatic patches** of the classic
-ColorChecker 24 (the 6 neutrals of the bottom row, verified as the flattest and a
-monotonic white->black ramp, are excluded). All three measured 2016 test sets
-were run for cross-checking: the 18 chromatic CC-24 patches (ISO), the full 24,
-and the 140-patch ColorChecker SG.
+ColorChecker 24. The 6 bottom-row neutrals (`A4`/`B4`/`C4`/`D4`/`E4`/`F4`) are
+excluded; they were verified as the flattest spectra and a monotonic white-to-
+black ramp. All three measured 2016 test sets were run for cross-checking: the
+18 chromatic CC-24 patches (ISO-style), the full 24, and the 140-patch
+ColorChecker SG.
 
 **CC-18 (ISO-recommended chromatic patches), CIE D50 — primary result:**
 
@@ -510,14 +511,15 @@ What is robust and what is not:
 - **Nikon D810 and Sony A7SII are a statistical tie for third** — CC-18 puts them
   at 89.21 vs 89.20; SG-140 and CC-24 flip the pair by ~0.2 SMI. No hard 3rd/4th
   order is claimed.
-- **CC-18 SMI is ~3 points below CC-24 / SG-140** because dropping the 6 neutrals
-  removes the trivially-fit flat patches and leaves only the harder chromatic
-  ones. This is expected: the neutrals inflate SMI without testing colour
-  fidelity, which is exactly why ISO specifies the 18 chromatic set. CC-18 is the
-  more discriminating and more honest number.
-- **dE2000 tracks the SMI (dE76) order except at the very top**, where Canon and
-  A7SII fall within 0.02 dE2000 — a metric-level tie, not a reordering of the SMI
-  result (SMI is defined on dE*ab 1976, where Canon leads clearly).
+- **CC-18 SMI is about 2-3 points below CC-24 / SG-140** because dropping the 6
+  neutrals removes the trivially-fit flat patches and leaves only the harder
+  chromatic ones. This is expected: the neutrals inflate SMI without testing
+  colour fidelity, which is exactly why ISO specifies the 18 chromatic set.
+  CC-18 is the more discriminating and more honest number.
+- **dE2000 is a companion diagnostic, not the SMI ranking metric.** Under dE2000
+  the Canon and A7SII CC-18 means are within 0.02 of each other and effectively
+  tied at the top, while SMI is defined on dE*ab 1976 and keeps Canon clearly
+  ahead. Report both, but do not reinterpret SMI using the dE2000 ordering.
 
 SMI caveats (honest scope):
 - **Close to ISO, not bit-exact.** Method + test set now follow ISO 17321 (optimal
