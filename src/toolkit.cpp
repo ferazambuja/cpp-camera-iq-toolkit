@@ -40,6 +40,8 @@ void print_usage() {
       "  spectral-closure\n"
       "  spectral-quality\n"
       "              Parse and validate legacy monochromator response/SPD CSVs\n"
+      "  spectral-smi\n"
+      "              Camera Sensitivity Metamerism Index (ISO 17321 style)\n"
       "  patches\n"
       "              Extract checker ROI RGB means from a RAW capture\n"
       "\n"
@@ -99,6 +101,9 @@ int run(int argc, char** argv) {
   }
   if (arg == "spectral-quality") {
     return cmd_spectral_quality(argc - 2, argv + 2);
+  }
+  if (arg == "spectral-smi") {
+    return cmd_spectral_smi(argc - 2, argv + 2);
   }
   if (arg == "patches") {
     return cmd_patches(argc - 2, argv + 2);
