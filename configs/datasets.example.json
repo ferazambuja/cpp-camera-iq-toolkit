@@ -55,6 +55,14 @@
     "d800_oecf_2016": {
       "root": "data/private/datasets/d800_oecf_2016",
       "description": "Nikon D800 OECF/noise-chart archive mirror"
+    },
+    "d800_d810_sfr_2016": {
+      "root": "data/private/datasets/d800_d810_sfr_2016",
+      "description": "Nikon D800/D810 slanted-edge SFR/MTF archive subset",
+      "capture_project": "2016 esensi SFR archive",
+      "capture_year": "2016",
+      "_copy_policy": "Do not bulk-copy by default. Stage only the scoped NEF(s) and Imatest result CSVs needed for an SFR/MTF implementation slice.",
+      "_archive_note": "Canonical archive labels: archive:2016_esensi_images/2016_12_09_D800_SFR, archive:2016_esensi_images/2016_12_09_D810_SFR, and archive:2016_esensi_images/SFR_Results. This is not part of the CLRS589 Fuji dataset."
     }
   }
 }

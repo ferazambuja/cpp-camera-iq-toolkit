@@ -21,7 +21,8 @@ noise diagnostics, OECF/linearity, and reproducible CSV/JSON/Markdown reports.
   oracles.
 - **Objective IQ metrics** — dark-frame temporal noise / DSNU diagnostics,
   OECF/linearity, with photon-transfer-curve summaries, dynamic range,
-  PRNU, and slanted-edge SFR/MTF still planned.
+  PRNU, and slanted-edge SFR/MTF still planned. D800/D810 SFR archive captures
+  and Imatest result CSVs have been identified; implementation remains pending.
 - **Reporting** — batch runner, threshold checks, CSV/JSON export, Markdown reports.
 
 ## Build
