@@ -290,8 +290,15 @@ Predeclare these implementation constraints before running closure:
   140 sampled points, RawDigger `_SG` export; dark frame verified ~0 DN) match
   the SSF-times-HID neutral prediction (R/G 0.591, B/G 0.462) to 0.4% and 0.8%.
   This confirms the staged Target/WhiteCard/DarkFrame set is chromatically
-  consistent with the PR-655-measured HID lamp. The closure slice must still
-  encode this as an automated gate rather than relying on this manual check;
+  consistent with the PR-655-measured HID lamp. Discriminating power (same SSF,
+  reproducible from the local files): the predicted white ratios differ from the
+  HID result by roughly 16-53% under equal-energy and tungsten-to-daylight
+  blackbody proxies (tungsten ~2856K: R/G +26%, B/G -25%; daylight ~6500K:
+  R/G -26%, B/G +53%), so the sub-1% HID match is specific to that lamp, not a
+  value any illuminant would yield. (Superseded an earlier uncomputed
+  "30-100%+" phrasing; the measured spread is ~16-53% for these proxies.) The
+  closure slice must still encode this as an automated gate rather than relying
+  on this manual check;
 - use the strict three-way spectral overlap, **380-730 nm**, because the SG
   reflectance file ends at 730 nm; do not extrapolate reflectance to the PR-655
   780 nm endpoint;
