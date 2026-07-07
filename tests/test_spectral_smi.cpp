@@ -66,6 +66,12 @@ void TESTS() {
     check_near(r.mean_delta_e_76, 0.0, 0.05,
                "smi: Luther camera has ~zero mean CIELAB error");
     check_near(r.smi, 100.0, 0.5, "smi: Luther camera scores ~100");
+    check_near(r.white_preserving_mean_delta_e_76, 0.0, 0.05,
+               "smi: white-preserving Luther fit has ~zero mean error");
+    check_near(r.white_preserving_smi, 100.0, 0.5,
+               "smi: white-preserving Luther fit scores ~100");
+    check_near(r.white_preserving_white_delta_e_76, 0.0, 1e-9,
+               "smi: white-preserving fit maps camera white to XYZ white");
   }
 
   // 2. Metameric camera: the SSF peaks are wavelength-shifted off the CMF peaks.
@@ -95,6 +101,13 @@ void TESTS() {
     const auto r = compute_spectral_smi(in);
     check_near(r.smi, 100.0 - 5.5 * r.mean_delta_e_76, 1e-9,
                "smi: score matches 100 - slope * meanDE76");
+    check_near(r.white_preserving_smi,
+               100.0 - 5.5 * r.white_preserving_mean_delta_e_76, 1e-9,
+               "smi: white-preserving score matches 100 - slope * meanDE76");
+    check(std::abs(r.white_preserving_delta_smi) > 1e-6,
+          "smi: white-preserving sensitivity is not a duplicate of default fit");
+    check_near(r.white_preserving_white_delta_e_76, 0.0, 1e-9,
+               "smi: white-preserving non-Luther fit maps camera white to XYZ white");
     check_near(r.smi_slope, 5.5, 1e-12, "smi: slope echoed in result");
   }
 

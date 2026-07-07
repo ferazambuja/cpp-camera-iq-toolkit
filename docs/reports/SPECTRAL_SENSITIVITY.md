@@ -525,14 +525,33 @@ What is robust and what is not:
   1976 and keeps Canon clearly ahead. Report both, but do not reinterpret SMI
   using the dE2000 ordering.
 
+White-preserving optimization sensitivity (same CC-18 / D55 inputs):
+
+| Camera | default SMI | white-preserving SMI | delta |
+|---|---:|---:|---:|
+| Canon 5D2 | 90.70 | 91.73 | +1.03 |
+| Sony A7RII | 90.03 | 90.03 | +0.01 |
+| Sony A7SII | 89.76 | 89.71 | -0.05 |
+| Nikon D810 | 89.40 | 89.76 | +0.36 |
+| Phase One IQ3 100 | 88.29 | 86.64 | -1.65 |
+
+The `spectral-smi` command now reports this as a sensitivity bound:
+`white_preserving_*` refits the 3x3 while forcing the camera's perfect-diffuser
+RGB response to map exactly to the CIE illuminant white. It is a plausible
+normalization variant, not a claim that ISO Annex B uses this exact optimizer.
+The check narrows the residual optimizer caveat from a pure prose warning to a
+measured range: the endpoints (Canon best, IQ3 worst) remain stable, while the
+middle pack can shift by a few tenths of an SMI point.
+
 SMI caveats (honest scope):
 - **Close to ISO, not bit-exact.** The test set now matches the ISO 17321 shape
   (18 chromatic ColorChecker patches) and the primary illuminant now follows the
   ISO DSC/SMI default (D55). The metric uses `SMI = 100 - 5.5*dE*ab` after a 3x3
-  RGB->XYZ fit. The remaining gaps to a citable absolute ISO SMI are the exact
-  slope constant and the paywalled Annex B optimizer / normalization details.
-  The command exposes `--smi-slope`; slope changes the absolute SMI scale but not
-  the ranking (a positive affine map).
+  RGB->XYZ fit. The command also emits a white-preserving constrained-fit
+  sensitivity check, but the remaining gaps to a citable absolute ISO SMI are
+  still the exact slope constant and the paywalled Annex B optimizer /
+  normalization details. The command exposes `--smi-slope`; slope changes the
+  absolute SMI scale but not the ranking (a positive affine map).
 - **Reproducibility.** The `spectral-smi` command and its unit tests are fully
   reproducible from the committed repo (synthetic fixtures + committed D50/D55).
   The five-camera *numbers* depend on the private measured reflectances (CC-24 /
@@ -582,9 +601,11 @@ subset only when its slice runs; do not bulk-copy.
    under CIE D55 over three measured test sets — the ISO-recommended 18 chromatic
    ColorChecker patches, the full CC-24, and the SG-140 — see the SMI ranking
    section above (Canon best, IQ3 worst on all three; A7RII second; A7SII slightly
-   ahead of D810 in the D55 run). The remaining gaps to a *bit-exact* citable SMI
-   are the `5.5` slope (paywalled ISO constant) and the exact Annex B optimizer /
-   normalization convention; slope does not change the ranking.
+   ahead of D810 in the D55 run). The command also reports a white-preserving
+   constrained-fit sensitivity check to bound one plausible normalization variant.
+   The remaining gaps to a *bit-exact* citable SMI are the `5.5` slope (paywalled
+   ISO constant) and the exact Annex B optimizer / normalization convention;
+   slope does not change the ranking.
 
 ## Not Claimed
 

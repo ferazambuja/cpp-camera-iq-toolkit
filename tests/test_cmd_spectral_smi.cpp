@@ -106,6 +106,13 @@ void TESTS() {
         "spectral-smi JSON: smi score emitted");
   check(json.find("\"mean_delta_e_76\":") != std::string::npos,
         "spectral-smi JSON: mean CIELAB error emitted");
+  check(json.find("\"white_preserving_mean_delta_e_76\":") != std::string::npos,
+        "spectral-smi JSON: white-preserving sensitivity emitted");
+  check(json.find("\"white_preserving_delta_smi\":") != std::string::npos,
+        "spectral-smi JSON: white-preserving SMI delta emitted");
+  check(json.find("\"white_preserving_white_delta_e_76\":") !=
+            std::string::npos,
+        "spectral-smi JSON: white-preserving white error emitted");
   check(json.find("\"patch_count\":6") != std::string::npos,
         "spectral-smi JSON: patch count reflects reflectance rows");
   check(json.find("ISO-17321-style only when the supplied slope and test "
@@ -113,6 +120,8 @@ void TESTS() {
         "spectral-smi JSON: interpretation does not overclaim arbitrary test set");
   check(json.find("Annex B optimization convention") != std::string::npos,
         "spectral-smi JSON: interpretation does not overclaim bit-exact ISO");
+  check(json.find("white-preserving sensitivity") != std::string::npos,
+        "spectral-smi JSON: interpretation explains constrained-fit bound");
 
   // Luther camera (SSF == CMF) scores essentially 100.
   const std::size_t k = json.find("\"smi\":");

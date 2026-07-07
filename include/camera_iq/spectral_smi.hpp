@@ -32,6 +32,19 @@ struct SpectralSmiResult {
   double smi = 0;          // 100 - smi_slope * mean_delta_e_76
   double smi_slope = 5.5;
   std::array<std::array<double, 3>, 3> matrix{};  // fitted RGB->XYZ transform
+
+  // Sensitivity check for the remaining ISO Annex-B optimization caveat: fit a
+  // constrained 3x3 whose perfect-diffuser camera RGB maps exactly to the
+  // illuminant white. This is reported alongside the default unconstrained fit;
+  // it is not promoted as bit-exact ISO behavior.
+  double white_preserving_mean_delta_e_76 = 0;
+  double white_preserving_max_delta_e_76 = 0;
+  double white_preserving_rms_delta_e_76 = 0;
+  double white_preserving_mean_delta_e_2000 = 0;
+  double white_preserving_smi = 0;
+  double white_preserving_delta_smi = 0;  // constrained_smi - default_smi
+  double white_preserving_white_delta_e_76 = 0;
+  std::array<std::array<double, 3>, 3> white_preserving_matrix{};
 };
 
 // Throws std::runtime_error on grid/size mismatch, fewer than three test

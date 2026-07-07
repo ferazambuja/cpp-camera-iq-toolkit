@@ -227,9 +227,30 @@ int cmd_spectral_smi(int argc, char** argv) {
     w.key("mean_delta_e_2000"); w.value(res.mean_delta_e_2000);
     w.key("smi_slope"); w.value(res.smi_slope);
     w.key("smi"); w.value(res.smi);
+    w.key("white_preserving_mean_delta_e_76");
+    w.value(res.white_preserving_mean_delta_e_76);
+    w.key("white_preserving_max_delta_e_76");
+    w.value(res.white_preserving_max_delta_e_76);
+    w.key("white_preserving_rms_delta_e_76");
+    w.value(res.white_preserving_rms_delta_e_76);
+    w.key("white_preserving_mean_delta_e_2000");
+    w.value(res.white_preserving_mean_delta_e_2000);
+    w.key("white_preserving_smi"); w.value(res.white_preserving_smi);
+    w.key("white_preserving_delta_smi");
+    w.value(res.white_preserving_delta_smi);
+    w.key("white_preserving_white_delta_e_76");
+    w.value(res.white_preserving_white_delta_e_76);
     w.key("matrix");
     w.begin_array();
     for (const auto& row : res.matrix) {
+      w.begin_array();
+      for (double m : row) w.value(m);
+      w.end_array();
+    }
+    w.end_array();
+    w.key("white_preserving_matrix");
+    w.begin_array();
+    for (const auto& row : res.white_preserving_matrix) {
       w.begin_array();
       for (double m : row) w.value(m);
       w.end_array();
@@ -242,7 +263,11 @@ int cmd_spectral_smi(int argc, char** argv) {
         "higher is better, 100 is a Luther-condition camera. This is "
         "ISO-17321-style only when the supplied slope and test colours match "
         "the standard; verify the exact constant, colour set, illuminant, and "
-        "Annex B optimization convention before citing an absolute SMI.");
+        "Annex B optimization convention before citing an absolute SMI. The "
+        "white-preserving sensitivity fields refit the 3x3 with the camera "
+        "perfect-diffuser white constrained to the reference white, quantifying "
+        "one plausible Annex-B normalization variant without promoting it as "
+        "bit-exact ISO behavior.");
     w.end_object();
 
     const std::string json = os.str();

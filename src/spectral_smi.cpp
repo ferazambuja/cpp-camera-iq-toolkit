@@ -1,10 +1,12 @@
 #include "camera_iq/spectral_smi.hpp"
 
+#include <cmath>
 #include <stdexcept>
 #include <string>
+#include <utility>
 
 #include "camera_iq/color_reference.hpp"  // CameraRgbPatch
-#include "camera_iq/colorimetry.hpp"      // Xyz, CcmFit, fit_rgb_to_xyz_ccm
+#include "camera_iq/colorimetry.hpp"      // Xyz, CcmFit, fit/evaluate CCM
 
 namespace camera_iq {
 namespace {
@@ -35,6 +37,79 @@ void require_len(const std::vector<double>& v, std::size_t n, const char* what) 
   if (v.size() != n)
     throw std::runtime_error(std::string("spectral smi: ") + what +
                              " length does not match grid");
+}
+
+std::array<double, 3> rgb_array(const CameraRgbPatch& rgb) {
+  return {rgb.r, rgb.g, rgb.b};
+}
+
+std::array<double, 3> xyz_component_array(const Xyz& xyz) {
+  return {xyz.x, xyz.y, xyz.z};
+}
+
+std::array<double, 3> solve_3x3(std::array<std::array<double, 3>, 3> a,
+                                std::array<double, 3> b) {
+  for (int col = 0; col < 3; ++col) {
+    int pivot = col;
+    for (int r = col + 1; r < 3; ++r) {
+      if (std::abs(a[r][col]) > std::abs(a[pivot][col])) pivot = r;
+    }
+    if (std::abs(a[pivot][col]) < 1e-12)
+      throw std::runtime_error(
+          "spectral smi: singular white-preserving design matrix");
+    if (pivot != col) {
+      std::swap(a[pivot], a[col]);
+      std::swap(b[pivot], b[col]);
+    }
+    const double div = a[col][col];
+    for (int c = col; c < 3; ++c) a[col][c] /= div;
+    b[col] /= div;
+    for (int r = 0; r < 3; ++r) {
+      if (r == col) continue;
+      const double f = a[r][col];
+      for (int c = col; c < 3; ++c) a[r][c] -= f * a[col][c];
+      b[r] -= f * b[col];
+    }
+  }
+  return b;
+}
+
+std::array<std::array<double, 3>, 3> fit_white_preserving_matrix(
+    const std::vector<CameraRgbPatch>& camera,
+    const std::vector<Xyz>& target, const CameraRgbPatch& camera_white,
+    const Xyz& target_white) {
+  std::array<std::array<double, 3>, 3> normal{};
+  std::array<std::array<double, 3>, 3> rhs{};
+  for (std::size_t i = 0; i < camera.size(); ++i) {
+    const auto rgb = rgb_array(camera[i]);
+    const std::array<double, 3> xyz = {target[i].x, target[i].y, target[i].z};
+    for (int r = 0; r < 3; ++r) {
+      for (int c = 0; c < 3; ++c) normal[r][c] += rgb[r] * rgb[c];
+      for (int ch = 0; ch < 3; ++ch) rhs[ch][r] += rgb[r] * xyz[ch];
+    }
+  }
+
+  const auto white_rgb = rgb_array(camera_white);
+  const auto white_xyz = xyz_component_array(target_white);
+  std::array<std::array<double, 3>, 3> matrix{};
+  for (int ch = 0; ch < 3; ++ch) {
+    const auto unconstrained = solve_3x3(normal, rhs[ch]);
+    const auto normal_inv_white = solve_3x3(normal, white_rgb);
+    double current = 0.0;
+    double denom = 0.0;
+    for (int i = 0; i < 3; ++i) {
+      current += white_rgb[i] * unconstrained[i];
+      denom += white_rgb[i] * normal_inv_white[i];
+    }
+    if (std::abs(denom) < 1e-18)
+      throw std::runtime_error(
+          "spectral smi: degenerate white-preserving constraint");
+    const double lambda = (current - white_xyz[ch]) / denom;
+    for (int i = 0; i < 3; ++i) {
+      matrix[ch][i] = unconstrained[i] - lambda * normal_inv_white[i];
+    }
+  }
+  return matrix;
 }
 
 }  // namespace
@@ -69,6 +144,19 @@ SpectralSmiResult compute_spectral_smi(const SpectralSmiInputs& in) {
   const double scale = 100.0 / yw;
   const Xyz white{xw * scale, 100.0, zw * scale};
 
+  double rw = 0.0, gw = 0.0, bw = 0.0;
+  for (std::size_t i = 0; i < n; ++i) {
+    const double e = in.illuminant[i] * w[i];
+    rw += in.ssf[0][i] * e;
+    gw += in.ssf[1][i] * e;
+    bw += in.ssf[2][i] * e;
+  }
+  if (rw <= 0.0 || gw <= 0.0 || bw <= 0.0) {
+    throw std::runtime_error(
+        "spectral smi: camera white response must be positive");
+  }
+  const CameraRgbPatch camera_white{rw, gw, bw};
+
   std::vector<Xyz> target;
   std::vector<CameraRgbPatch> camera;
   target.reserve(in.reflectance.size());
@@ -92,6 +180,13 @@ SpectralSmiResult compute_spectral_smi(const SpectralSmiInputs& in) {
   // error. This is the ISO 17321-style characterization shape, not a claim of
   // bit-exact Annex B optimizer/normalization behavior.
   const CcmFit fit = fit_rgb_to_xyz_ccm(camera, target, white);
+  const auto constrained_matrix =
+      fit_white_preserving_matrix(camera, target, camera_white, white);
+  const auto constrained_eval =
+      evaluate_rgb_to_xyz_ccm(constrained_matrix, camera, target, white);
+  const Lab white_lab = xyz_to_lab(white, white);
+  const Lab constrained_white_lab =
+      xyz_to_lab(apply_ccm(constrained_matrix, camera_white), white);
 
   SpectralSmiResult res;
   res.method = "iso17321_style_smi_optimal_3x3_then_mean_cielab_de";
@@ -105,6 +200,18 @@ SpectralSmiResult compute_spectral_smi(const SpectralSmiInputs& in) {
   res.smi_slope = in.smi_slope;
   res.smi = 100.0 - in.smi_slope * fit.mean_delta_e_76;
   res.matrix = fit.matrix;
+  res.white_preserving_mean_delta_e_76 = constrained_eval.mean_delta_e_76;
+  res.white_preserving_max_delta_e_76 = constrained_eval.max_delta_e_76;
+  res.white_preserving_rms_delta_e_76 = constrained_eval.rms_delta_e_76;
+  res.white_preserving_mean_delta_e_2000 = constrained_eval.mean_delta_e_2000;
+  res.white_preserving_smi =
+      100.0 - in.smi_slope * constrained_eval.mean_delta_e_76;
+  res.white_preserving_delta_smi = res.white_preserving_smi - res.smi;
+  const double dl = white_lab.l - constrained_white_lab.l;
+  const double da = white_lab.a - constrained_white_lab.a;
+  const double db = white_lab.b - constrained_white_lab.b;
+  res.white_preserving_white_delta_e_76 = std::sqrt(dl * dl + da * da + db * db);
+  res.white_preserving_matrix = constrained_matrix;
   return res;
 }
 

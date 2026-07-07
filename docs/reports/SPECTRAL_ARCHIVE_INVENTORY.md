@@ -120,7 +120,9 @@ alongside the 2016 cameras is valid; a closure comparison would not be.
    ISO DSC/SMI specifies by default; D50 is retained as a cross-check. The three
    sets agree on the endpoints (Canon best, IQ3 worst) and on A7RII second; A7SII
    is slightly ahead of D810 under D55, while D50 makes them a practical tie.
-   See the SMI ranking section of `SPECTRAL_SENSITIVITY.md`.
+   The command also reports a white-preserving constrained-fit sensitivity check
+   to bound one plausible Annex-B normalization variant. See the SMI ranking
+   section of `SPECTRAL_SENSITIVITY.md`.
 2. **CC-24 closure** (open): use the `<camera>/Target/*_CC.txt` ROI RGB with the
    CC-24 reflectance for a 24-patch predicted-vs-measured closure alongside SG-140.
 3. **PR-655 vs i1Pro illuminant cross-check** for the closure illuminant.
