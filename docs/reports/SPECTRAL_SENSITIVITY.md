@@ -289,8 +289,8 @@ Predeclare these implementation constraints before running closure:
   `WhiteCard` dark-subtracted channel ratios (R/G 0.589, B/G 0.459, mean over
   140 sampled points, RawDigger `_SG` export; dark frame verified ~0 DN) match
   the SSF-times-HID neutral prediction (R/G 0.591, B/G 0.462) to 0.4% and 0.8%.
-  Different illuminants would diverge 30-100%+, so this confirms the Target was
-  captured under the PR-655-measured HID lamp. The closure slice must still
+  This confirms the staged Target/WhiteCard/DarkFrame set is chromatically
+  consistent with the PR-655-measured HID lamp. The closure slice must still
   encode this as an automated gate rather than relying on this manual check;
 - use the strict three-way spectral overlap, **380-730 nm**, because the SG
   reflectance file ends at 730 nm; do not extrapolate reflectance to the PR-655
