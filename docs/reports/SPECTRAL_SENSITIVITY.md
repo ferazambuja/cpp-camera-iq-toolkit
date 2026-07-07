@@ -366,9 +366,11 @@ per-channel diagnostic `k` values. Those per-channel values stay diagnostic only
 the fitted closure uses the single global `k` above.
 
 Four-camera Target set 1 fan-out (`--dark-rgb` supplied for every camera, shared
-PR-655 HID illuminant and SG reflectance). The Canon row now uses the toolkit
-RAW-derived SSF; the other three rows still use their legacy `*_mono.csv` SSFs
-until their RAW sweeps are scoped-copied and extracted:
+PR-655 HID illuminant and SG reflectance). This retained closure table is a
+mixed-source baseline: the Canon row uses the toolkit RAW-derived SSF; the other
+three rows still use their legacy `*_mono.csv` SSFs. Regenerate and retain the
+D810, A7RII, and A7SII toolkit-SSF closure artifacts before claiming the closure
+table itself is fully migrated off the legacy curves:
 
 | Camera | SSF source | Gate-1 max ratio error | Patches | Target saturated / below-dark exclusions | R/G/B relative RMS | Minimum channel correlation |
 |---|---|---:|---:|---:|---:|---:|
@@ -392,10 +394,19 @@ the generalized `discover_spectral_sweep_files`). Distinguish reproducibility:
   reproduce from the committed repo.
 - **D810 / A7RII / A7SII were extracted by reading the mounted archive
   read-only** (their RAW are not scoped-copied locally, ~1-4 GB each). Those
-  runs confirm the ranking is stable across legacy-vs-toolkit SSFs (quality
-  0.297 / 0.297 / 0.309, unchanged from the legacy `mono.csv` values), but the
-  numbers are **not locally reproducible** until each camera's RAW is scoped-
-  copied. The committed local pipeline for these three still uses legacy SSFs.
+  runs confirm the ranking is stable across legacy-vs-toolkit SSFs (combined
+  residuals 0.297 / 0.297 / 0.309, unchanged at the reported precision from the
+  legacy `mono.csv` values), but those toolkit SSF artifacts are **not retained
+  in the local cache**. The committed local closure pipeline for these three
+  still uses legacy SSFs until the archive-backed toolkit CSVs and closure JSONs
+  are regenerated and kept under ignored `out/`.
+
+| Camera | Combined residual, toolkit extraction | Combined residual, legacy SSF |
+|---|---:|---:|
+| Canon 5D2 | 0.2218 | 0.2222 |
+| Nikon D810 | 0.2972 | 0.2989 |
+| Sony A7RII | 0.2970 | 0.2991 |
+| Sony A7SII | 0.3087 | 0.3102 |
 
 The stability of the ranking across legacy and toolkit SSFs is the real result:
 it confirms the color-fidelity ordering is a genuine SSF property, not an
@@ -427,10 +438,11 @@ effectively tied at the reported precision, and Sony A7SII is the highest
 residual of the four. Caveats: this is a Luther-condition CMF-fit residual (a
 metamerism proxy), not the official CIE Sensitivity Metamerism Index (which fixes
 test colors + illuminant); the differences after Canon are modest; and the
-multi-camera ranking remains mixed-source until the D810, A7RII, and A7SII RAW
-sweeps are extracted with the same toolkit path. It can include the Phase One IQ3
-once its SSF CSV is converted to the `Wavelength,R,G,B` form (it has SSF data but
-no tier-3 target closure).
+component-residual table remains mixed-source. The all-toolkit combined-residual
+validation table above records that the ranking is stable when all four cameras use
+toolkit-extracted SSFs. The Phase One IQ3 can be added once its SSF CSV is
+converted to the `Wavelength,R,G,B` form (it has SSF data but no tier-3 target
+closure).
 
 The separate `canon_5d2_repro` / `2016_IS_Reproduction` captures remain real
 archive material, but they are not the closure evidence for this slice because

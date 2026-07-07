@@ -365,9 +365,9 @@ void TESTS() {
   }
   check(threw, "raw spectral response: broken filename mapping rejected");
 
-  // Sweep discovery must not be Canon-only: Nikon NEF and Sony ARW sweeps are
-  // discovered the same way (the archive has D810/A7RII/A7SII monochromator
-  // sessions in those formats).
+  // Sweep discovery must not be Canon-only: Nikon NEF, Sony ARW and Phase One
+  // IIQ sweeps are discovered the same way (the archive has D810/A7RII/A7SII
+  // monochromator sessions and a Phase One camSPECS session in those formats).
   const fs::path nef_root = root / "raw_nef";
   fs::create_directories(nef_root);
   for (int i = 0; i < 48; ++i) {
@@ -393,4 +393,18 @@ void TESTS() {
         "raw spectral response: ARW sweeps are discovered, not just CR2");
   check(arw_mapped.front().filename() == "2016_11_21_A7R2_mono_0200.ARW",
         "raw spectral response: ARW map is contiguous and ordered");
+
+  const fs::path iiq_root = root / "raw_iiq";
+  fs::create_directories(iiq_root);
+  for (int i = 0; i < 48; ++i) {
+    std::ostringstream frame;
+    frame << std::setw(4) << std::setfill('0') << (300 + i);
+    write_file(iiq_root / ("2017_01_24_IQ3_mono_" + frame.str() + ".IIQ"),
+               "x");
+  }
+  const auto iiq_mapped = discover_spectral_sweep_files(iiq_root, legacy.axis_nm);
+  check(iiq_mapped.size() == 48,
+        "raw spectral response: IIQ sweeps are discovered, not just CR2");
+  check(iiq_mapped.front().filename() == "2017_01_24_IQ3_mono_0300.IIQ",
+        "raw spectral response: IIQ map is contiguous and ordered");
 }
