@@ -144,9 +144,9 @@ Legacy reproduction is a fidelity check, not a scientific correctness proof:
 2. **Independent oracle:** verify whether a published Canon EOS 5D Mark II
    spectral-sensitivity function exists in a suitable public database before
    asserting an external comparison.
-3. **Physical closure:** if an independently measured target or illuminant SPD
-   and a camera capture are present, integrate SPD through the reconstructed
-   response and compare predicted RGB against actual camera RGB.
+3. **Physical closure:** integrate the same-session measured illuminant SPD and
+   measured SG reflectance through the reconstructed response, then compare
+   predicted RGB against the Canon 5D2 broadband target capture.
 
 Do not promote a conclusion from tier 1 alone.
 
@@ -250,32 +250,45 @@ legacy curve is scientifically correct.
 
 ## Tier-3 Feasibility Check
 
-A later archive check found Canon 5D Mark II broadband reproduction captures in
-the separate `canon_5d2_repro` / `2016_IS_Reproduction` archive, including
-`DSLR_Color Checker.CR2`, `DSLR_White.CR2`, and `DSLR_Ansel Adams.CR2`.
-These are real non-monochromator 5D2 raster captures, and the local private
-cache now contains those files plus `carry_white_card.txt` and
-`carry_white_card_dataonly.txt`.
+The earlier blocked conclusion was too broad. The `2016_Monochromator` archive
+also contains a same-session Canon 5D2 broadband target set under the
+`2016_11_21_5D2_Target` session, and the scoped local private cache now contains
+only the closure inputs needed for the next slice:
 
-This does **not** make tier-3 physical closure valid yet:
+`data/private/datasets/spectral_sensitivity_2016_2017/canon_5d2/target_closure_20161121/`
 
-- the reproduction captures are a different project/session from the
-  monochromator sweep;
-- metadata matches the camera/lens family (Canon EOS 5D Mark II, EF50mm f/2.5
-  Compact Macro, 5616 x 3744) but not the exposure setup (reproduction:
-  ISO 2000, 1/500 s, f/8; monochromator sweep: ISO 100, 1/160 s, f/5.6);
-- `carry_white_card.txt` is CGATS.17 white-card reflectance data measured under
-  D50 / 2 degree / M0 conditions, not a same-session capture illuminant SPD;
-- a strict physical closure needs a pairable target reflectance, measured
-  capture illuminant SPD, and broadband RAW target capture from the same
-  session.
+| Input | Local file | Verified role |
+|---|---|---|
+| Target RAW | `2016_11_21_5D2_Target_1_Target_0116.CR2` | Canon EOS 5D Mark II, EF50mm f/2.5 Compact Macro, ISO 100, 1/200 s, f/5.6, 50 mm, 5616 x 3744 |
+| White RAW | `2016_11_21_5D2_Target_1_WhiteCard_0117.CR2` | Same camera/lens/exposure metadata as target |
+| Dark RAW | `2016_11_21_5D2_Target_1_DarkFrame_0118.CR2` | Same camera/lens/exposure metadata as target |
+| Patch coordinates | `*_CR2_SG.txt` sidecars | RawDigger SG exports for the target, white, and dark frames |
+| Illuminant SPD | `PR655_HID_avg.txt` | PR-655 HID average, 101 samples, 380-780 nm at 4 nm |
+| SG reflectance | `SGMeasurements_CGATS.txt` | i1Pro / SpectraShop SG measurement, 140 patches A1..N10, 380-730 nm at 10 nm |
 
-So the earlier stronger claim that no non-mono 5D2 raster exists is false.
-The corrected conclusion is narrower: tier 3 remains blocked until a measured
-illuminant SPD and target/reference pairing are established for a broadband
-5D2 capture. The feasible next validation slice is therefore the independent
-Canon 5D Mark II public-SSF comparison (tier 2), with the optical-path caveat
-predeclared. Do not tune the RAW extraction to the legacy curve.
+The session `readme.rtf` states that the 5D2 target files were normalized to the
+same naming convention and that the CC/SG patch readings were reordered to match
+RawDigger. This makes the tier-3 physical-closure slice feasible without mixing
+the separate `canon_5d2_repro` / `2016_IS_Reproduction` capture.
+
+Predeclare these implementation constraints before running closure:
+
+- use the strict three-way spectral overlap, **380-730 nm**, because the SG
+  reflectance file ends at 730 nm; do not extrapolate reflectance to the PR-655
+  780 nm endpoint;
+- resample the PR-655 illuminant from 4 nm to the 10 nm closure grid and
+  restrict the extracted SSF from 360-830 nm to the same 380-730 nm grid;
+- fit one global exposure scale `k` across all channels. The target capture is
+  1/200 s while the monochromator sweep is 1/160 s, so a global exposure scale
+  is expected; per-channel scales are diagnostics only, not the closure fit;
+- subtract the same-session dark frame, count saturated patches, and report
+  exclusions as top-level rollups;
+- language should be "consistent with physical closure" until residuals are
+  computed and reviewed. Do not tune the RAW extraction to improve closure.
+
+The separate `canon_5d2_repro` / `2016_IS_Reproduction` captures remain real
+archive material, but they are not the closure evidence for this slice because
+they are a different session with no paired capture illuminant SPD.
 
 ## Not Claimed
 
@@ -283,5 +296,6 @@ predeclared. Do not tune the RAW extraction to the legacy curve.
   here; the toolkit-derived RAW response is tier-1 legacy-fidelity evidence.
 - No assertion that the legacy `*_mono.csv` is scientifically correct.
 - No public-SSF comparison yet.
-- No physical-closure result yet; the available 5D2 reproduction captures are
-  not pairable to a same-session measured illuminant SPD.
+- No physical-closure result yet; the same-session Canon 5D2 target, dark, SG
+  reflectance, and PR-655 illuminant inputs are staged locally, but the closure
+  computation has not been implemented or run.
