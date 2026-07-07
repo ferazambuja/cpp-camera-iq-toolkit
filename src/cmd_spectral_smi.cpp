@@ -239,9 +239,10 @@ int cmd_spectral_smi(int argc, char** argv) {
     w.value(
         "SMI = 100 - slope * mean CIELAB(1976) error after the optimal 3x3 "
         "RGB->XYZ fit over the test colours under the reference illuminant; "
-        "higher is better, 100 is a Luther-condition camera. Slope and test "
-        "set follow the ISO 17321 form; verify the exact constant and colour "
-        "set against the standard before citing an absolute SMI.");
+        "higher is better, 100 is a Luther-condition camera. This is "
+        "ISO-17321-style only when the supplied slope and test colours match "
+        "the standard; verify the exact constant and colour set before citing "
+        "an absolute SMI.");
     w.end_object();
 
     const std::string json = os.str();

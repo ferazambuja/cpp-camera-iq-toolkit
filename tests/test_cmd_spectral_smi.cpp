@@ -108,6 +108,9 @@ void TESTS() {
         "spectral-smi JSON: mean CIELAB error emitted");
   check(json.find("\"patch_count\":6") != std::string::npos,
         "spectral-smi JSON: patch count reflects reflectance rows");
+  check(json.find("ISO-17321-style only when the supplied slope and test "
+                  "colours match the standard") != std::string::npos,
+        "spectral-smi JSON: interpretation does not overclaim arbitrary test set");
 
   // Luther camera (SSF == CMF) scores essentially 100.
   const std::size_t k = json.find("\"smi\":");

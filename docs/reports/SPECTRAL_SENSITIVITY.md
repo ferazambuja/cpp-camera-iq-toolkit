@@ -487,14 +487,17 @@ and the test colours are the 140 measured ColorChecker SG patches
 | 5 | Phase One IQ3 100 | legacy `Spectral_Sensitivity_Data.csv` (2017) | 1.74 | 1.03 | 90.4 |
 
 The endpoints are **metric-robust**: Canon 5D2 is best and the Phase One IQ3 is
-worst under both the Luther residual and the perceptual SMI. The middle of the
-pack **reorders**, which is the point of the upgrade: the unweighted Luther metric
-tied Nikon D810 with Sony A7RII and put Sony A7SII last of the four, whereas the
-D50-weighted CIELAB SMI puts A7RII clearly second and drops the D810 to the
-bottom of the 35 mm group. The A7SII/D810 gap (91.1 vs 90.9, ~0.03 dE2000) is
-within noise, but A7RII pulling ahead of both is real (~0.1 dE*ab). A perceptually
-weighted metric over real measured colours under a real illuminant genuinely
-disagrees with the geometric CMF fit about the mid-pack ordering.
+worst under both the Luther residual and the perceptual SMI for the reported
+IQ3 run. The second IQ3 run gives SMI **90.8**, still below the D810's **90.9**
+but only marginally, so the IQ3 endpoint is directionally consistent rather than
+a large-margin separation. The middle of the pack **reorders**, which is the
+point of the upgrade: the unweighted Luther metric tied Nikon D810 with Sony
+A7RII and put Sony A7SII last of the four, whereas the D50-weighted CIELAB SMI
+puts A7RII clearly second and drops the D810 to the bottom of the 35 mm group.
+The A7SII/D810 gap (91.1 vs 90.9, ~0.03 dE*ab / ~0.09 dE2000) is within noise,
+but A7RII pulling ahead of both is real (~0.1 dE*ab). A perceptually weighted
+metric over real measured colours under a real illuminant genuinely disagrees
+with the geometric CMF fit about the mid-pack ordering.
 
 SMI caveats (honest scope, same discipline as the Luther table):
 - **Not the bit-exact ISO number.** The method follows ISO 17321 (optimal 3x3 +
