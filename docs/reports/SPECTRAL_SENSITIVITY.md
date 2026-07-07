@@ -373,25 +373,28 @@ capture, RawDigger sidecar, SSF, and shared illuminant/reference pairing.
 
 The fair cross-camera color ranking is a per-camera SSF property, not a closure
 number. The `spectral-quality` command fits each camera's SSFs to the CIE 1931
-2-degree color-matching functions (`data/cie1931_2deg_cmf.csv`) with one 3x3
-transform and reports the relative residual (Luther condition); lower is better,
-and the metric is scale-invariant so the peak-G SSF normalization does not bias
-it. Result over 380-730 nm:
+2-degree color-matching functions (`data/cie1931_2deg_cmf.csv`, the same
+10-nm Wyszecki/Stiles table already used by `colorimetry.cpp`) with one 3x3
+transform and reports the relative residual (Luther condition). Lower residual
+is better, and the metric is scale-invariant so the peak-G SSF normalization does
+not bias it. Result over the current CMF grid, 380-730 nm:
 
-| Rank | Camera | Combined residual | Quality index |
-|---|---:|---:|---:|
-| 1 | Canon 5D2 | 0.222 | 0.778 |
-| 2 | Nikon D810 | 0.299 | 0.701 |
-| 3 | Sony A7RII | 0.299 | 0.701 |
-| 4 | Sony A7SII | 0.310 | 0.690 |
+| Rank | Camera | xbar residual | ybar residual | zbar residual | Combined residual | Quality index |
+|---|---:|---:|---:|---:|---:|---:|
+| 1 | Canon 5D2 | 0.174 | 0.214 | 0.268 | 0.222 | 0.778 |
+| 2 (tie) | Nikon D810 | 0.348 | 0.225 | 0.311 | 0.299 | 0.701 |
+| 2 (tie) | Sony A7RII | 0.342 | 0.198 | 0.335 | 0.299 | 0.701 |
+| 4 | Sony A7SII | 0.353 | 0.196 | 0.355 | 0.310 | 0.690 |
 
-Canon 5D2 spans the human visual subspace best; the two Sony bodies are the
-weakest, with Nikon between. Caveats: this is a Luther-condition CMF-fit residual
-(a metamerism proxy), not the official CIE Sensitivity Metamerism Index (which
-fixes test colors + illuminant); the differences are modest; and the ranking
-rests on the legacy legacy-Gold-extracted SSFs, so it inherits their extraction
-quality. It can include the Phase One IQ3 once its SSF CSV is converted to the
-`Wavelength,R,G,B` form (it has SSF data but no tier-3 target closure).
+Canon 5D2 has the lowest residual in this slice. Nikon D810 and Sony A7RII are
+effectively tied at the reported precision, and Sony A7SII is the highest
+residual of the four. Caveats: this is a Luther-condition CMF-fit residual (a
+metamerism proxy), not the official CIE Sensitivity Metamerism Index (which fixes
+test colors + illuminant); the differences after Canon are modest; and the
+ranking rests on the legacy legacy-Gold-extracted SSFs, so it inherits their
+extraction quality. It can include the Phase One IQ3 once its SSF CSV is
+converted to the `Wavelength,R,G,B` form (it has SSF data but no tier-3 target
+closure).
 
 The separate `canon_5d2_repro` / `2016_IS_Reproduction` captures remain real
 archive material, but they are not the closure evidence for this slice because
