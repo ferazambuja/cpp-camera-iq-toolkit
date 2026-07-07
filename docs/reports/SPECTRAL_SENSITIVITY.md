@@ -383,6 +383,15 @@ cross-manufacturer method validation: independently measured SSF, illuminant,
 and chart reflectance predict the same-session camera target captures with a
 single global exposure scale.
 
+The whole suite was also re-run on the toolkit's **own** RAW extractions, not
+the legacy legacy-Gold CSVs: each camera's SSF was re-extracted via
+`spectral-response --raw-dir --ssf-csv-out` (CR2/NEF/ARW sweeps discovered by
+the generalized `discover_spectral_sweep_files`) and fed to closure and quality.
+The color-fidelity ranking is unchanged on our extractions (Canon 0.222,
+D810 0.297, A7RII 0.297, A7SII 0.309), confirming the ranking is a real SSF
+property and the pipeline is now self-contained on our own dark-subtracted
+extraction rather than any legacy curve.
+
 Do **not** read the residual spread as a camera-quality ranking. These numbers
 measure per-camera session and optical-path closure consistency, including lens,
 capture, RawDigger sidecar, SSF, and shared illuminant/reference pairing.
