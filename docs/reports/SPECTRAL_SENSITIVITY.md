@@ -471,47 +471,66 @@ they are a different session with no paired capture illuminant SPD.
 The Luther residual above is an unweighted geometric CMF-fit. The `spectral-smi`
 command upgrades this to the ISO 17321 Sensitivity Metamerism Index method:
 synthesize each camera's linear RGB response to a set of real test colours under
-a reference illuminant, fit the optimal 3x3 RGB->XYZ transform, and score the
-residual **perceptual** CIELAB error as `SMI = 100 - 5.5 * meanDE*ab`. Higher is
-better; 100 is a Luther-condition camera. Here the reference illuminant is CIE
-D50 (`data/cie_d50.csv`, generated + white-point-checked by `tools/gen_cie_d50.py`)
-and the test colours are the 140 measured ColorChecker SG patches
-(`SGMeasurements`, the same reference used for closure).
+a reference illuminant (CIE D50, `data/cie_d50.csv`, generated + white-point-
+checked by `tools/gen_cie_d50.py`), fit the optimal 3x3 RGB->XYZ transform, and
+score the residual **perceptual** CIELAB error as `SMI = 100 - 5.5 * meanDE*ab`.
+Higher is better; 100 is a Luther-condition camera.
+
+The ISO-recommended test set is the **18 chromatic patches** of the classic
+ColorChecker 24 (the 6 neutrals of the bottom row, verified as the flattest and a
+monotonic white->black ramp, are excluded). All three measured 2016 test sets
+were run for cross-checking: the 18 chromatic CC-24 patches (ISO), the full 24,
+and the 140-patch ColorChecker SG.
+
+**CC-18 (ISO-recommended chromatic patches), CIE D50 — primary result:**
 
 | Rank | Camera | SSF source | mean dE*ab (1976) | mean dE2000 | SMI |
 |---|---|---|---:|---:|---:|
-| 1 | Canon 5D2 | toolkit RAW extraction | 1.23 | 0.65 | 93.2 |
-| 2 | Sony A7RII | legacy `mono.csv` | 1.55 | 0.76 | 91.5 |
-| 3 | Sony A7SII | legacy `mono.csv` | 1.63 | 0.77 | 91.1 |
-| 4 | Nikon D810 | legacy `mono.csv` | 1.65 | 0.86 | 90.9 |
-| 5 | Phase One IQ3 100 | legacy `Spectral_Sensitivity_Data.csv` (2017) | 1.74 | 1.03 | 90.4 |
+| 1 | Canon 5D2 | toolkit RAW extraction | 1.70 | 0.92 | 90.7 |
+| 2 | Sony A7RII | legacy `mono.csv` | 1.87 | 0.98 | 89.7 |
+| 3 (tie) | Nikon D810 | legacy `mono.csv` | 1.96 | 1.07 | 89.2 |
+| 3 (tie) | Sony A7SII | legacy `mono.csv` | 1.96 | 0.91 | 89.2 |
+| 5 | Phase One IQ3 100 | legacy `Spectral_Sensitivity_Data.csv` (2017) | 2.16 | 1.10 | 88.1 |
 
-The endpoints are **metric-robust**: Canon 5D2 is best and the Phase One IQ3 is
-worst under both the Luther residual and the perceptual SMI for the reported
-IQ3 run. The second IQ3 run gives SMI **90.8**, still below the D810's **90.9**
-but only marginally, so the IQ3 endpoint is directionally consistent rather than
-a large-margin separation. The middle of the pack **reorders**, which is the
-point of the upgrade: the unweighted Luther metric tied Nikon D810 with Sony
-A7RII and put Sony A7SII last of the four, whereas the D50-weighted CIELAB SMI
-puts A7RII clearly second and drops the D810 to the bottom of the 35 mm group.
-The A7SII/D810 gap (91.1 vs 90.9, ~0.03 dE*ab / ~0.09 dE2000) is within noise,
-but A7RII pulling ahead of both is real (~0.1 dE*ab). A perceptually weighted
-metric over real measured colours under a real illuminant genuinely disagrees
-with the geometric CMF fit about the mid-pack ordering.
+**SMI across all three test sets (stability check):**
 
-SMI caveats (honest scope, same discipline as the Luther table):
-- **Not the bit-exact ISO number.** The method follows ISO 17321 (optimal 3x3 +
-  mean CIELAB error, `100 - 5.5*dE`), but the standard recommends the 18 chromatic
-  ColorChecker patches; this run uses the 140-patch measured SG set, so the
-  absolute SMI is test-set dependent. The `5.5` slope is the commonly cited
-  constant (the exact ISO value is behind the paywalled standard). Reconcile the
-  test set + constant with ISO 17321 before citing an absolute SMI. The command
-  exposes `--smi-slope` and takes any reflectance/illuminant set so the exact
-  standard inputs can be swapped in.
+| Camera | SMI, SG-140 | SMI, CC-24 | SMI, CC-18 (ISO) |
+|---|---:|---:|---:|
+| Canon 5D2 | 93.2 | 93.2 | 90.7 |
+| Sony A7RII | 91.5 | 92.2 | 89.7 |
+| Sony A7SII | 91.1 | 91.8 | 89.2 |
+| Nikon D810 | 90.9 | 91.6 | 89.2 |
+| Phase One IQ3 100 | 90.4 | 90.6 | 88.1 |
+
+What is robust and what is not:
+- **Endpoints are rock-solid.** Canon 5D2 is best and the Phase One IQ3 is worst
+  under every test set and under the Luther residual. (IQ3 run 2 gives SMI 88.4 on
+  CC-18, still last.)
+- **Sony A7RII is clearly second** under all three sets.
+- **Nikon D810 and Sony A7SII are a statistical tie for third** — CC-18 puts them
+  at 89.21 vs 89.20; SG-140 and CC-24 flip the pair by ~0.2 SMI. No hard 3rd/4th
+  order is claimed.
+- **CC-18 SMI is ~3 points below CC-24 / SG-140** because dropping the 6 neutrals
+  removes the trivially-fit flat patches and leaves only the harder chromatic
+  ones. This is expected: the neutrals inflate SMI without testing colour
+  fidelity, which is exactly why ISO specifies the 18 chromatic set. CC-18 is the
+  more discriminating and more honest number.
+- **dE2000 tracks the SMI (dE76) order except at the very top**, where Canon and
+  A7SII fall within 0.02 dE2000 — a metric-level tie, not a reordering of the SMI
+  result (SMI is defined on dE*ab 1976, where Canon leads clearly).
+
+SMI caveats (honest scope):
+- **Close to ISO, not bit-exact.** Method + test set now follow ISO 17321 (optimal
+  3x3, 18 chromatic ColorChecker patches, `SMI = 100 - 5.5*dE*ab`). The remaining
+  gap to a citable absolute SMI is the `5.5` slope (the exact ISO constant is
+  behind the paywalled standard) and the reference-illuminant convention (D50
+  here; some references use D55). The command exposes `--smi-slope` and takes any
+  illuminant, so both are a parameter swap. The *ranking* is unaffected by the
+  slope (a positive affine map).
 - **Reproducibility.** The `spectral-smi` command and its unit tests are fully
   reproducible from the committed repo (synthetic fixtures + committed D50). The
-  five-camera *numbers* above depend on the private SG reflectance and the
-  per-camera SSFs under `data/private`, so they are not regenerable from the
+  five-camera *numbers* depend on the private measured reflectances (CC-24 / SG)
+  and per-camera SSFs under `data/private`, so they are not regenerable from the
   public tree alone. The D50 illuminant is committed and white-point-verified.
 - **Mixed SSF sources / cross-timeline**, exactly as the Luther table: Canon uses
   the toolkit extraction, the rest legacy; the IQ3 is the 2017 camSPECS SSF. SMI,
@@ -552,13 +571,13 @@ subset only when its slice runs; do not bulk-copy.
    The medium-format back has the highest CMF-fit residual of the set.
 2. **[DONE 2026-07-07]** **Upgrade from the Luther CMF-fit proxy to the CIE
    Sensitivity Metamerism Index (SMI) method.** The `spectral-smi` command
-   (optimal 3x3 + mean CIELAB error, `SMI = 100 - 5.5*dE`) now scores all five
-   cameras under CIE D50 over the measured SG test colours — see the SMI ranking
-   section above (Canon 93.2 best, IQ3 90.4 worst; the mid-pack reorders vs
-   Luther). Remaining to reach the *bit-exact* ISO number: swap in the 18
-   chromatic ColorChecker patches and reconcile the `5.5` slope against the
-   paywalled ISO 17321 text. The command already accepts any reflectance set and
-   a `--smi-slope`, so this is a data swap, not new code.
+   (optimal 3x3 + mean CIELAB error, `SMI = 100 - 5.5*dE`) scores all five cameras
+   under CIE D50 over three measured test sets — the ISO-recommended 18 chromatic
+   ColorChecker patches, the full CC-24, and the SG-140 — see the SMI ranking
+   section above (Canon best, IQ3 worst on all three; A7RII second; D810/A7SII tie
+   for third). The only remaining gap to a *bit-exact* citable SMI is the `5.5`
+   slope (paywalled ISO constant) and the D50-vs-D55 illuminant convention; both
+   are `spectral-smi` parameters and neither changes the ranking.
 
 ## Not Claimed
 

@@ -53,7 +53,7 @@ wrong-camera or wrong-day file is in use.
 | Illuminant (closure) | `Data_Collected/Light Source/PR655_HID_avg.txt` (PR-655 spectroradiometer, HID lamp, 380-780 nm) | `spectral-closure` | md5 MATCH to `private:.../PR655_HID_avg.txt` |
 | Illuminant (SMI) | `data/cie_d50.csv` (committed standard CIE D50) | `spectral-smi` | white point x=0.34566 y=0.35863 checked by `tools/gen_cie_d50.py` |
 | Chart reflectance (SG-140) | `Data_Collected/Color Checker/SGMeasurements_CGATS.txt` (i1Pro, 140 patches, 380-730 nm) | `spectral-closure`, `spectral-smi` | md5 MATCH to staged copy |
-| Chart reflectance (CC-24) | `Data_Collected/Color Checker/CC24Patch_CGATS.txt` (i1Pro, classic 24-patch) | **not yet used** — see Follow-ups | — |
+| Chart reflectance (CC-24) | `Data_Collected/Color Checker/CC24Patch_CGATS.txt` (i1Pro, classic 24-patch) | `spectral-smi` (full 24 + the ISO 18-chromatic subset) | converted to `private:...monochromator_color_checker/cc24_reflectance_canonical.csv`; the 18-chromatic subset is `cc18_chromatic_reflectance_canonical.csv` (neutrals A4/B4/C4/D4/E4/F4 excluded, verified as the flattest, monotonic white->black ramp) |
 
 ## Target capture sessions (closure broadband captures)
 
@@ -92,7 +92,7 @@ illuminant and SG reflectance are likewise byte-identical to the authoritative
 
 | Data | Location | Why unused / potential use |
 |---|---|---|
-| CC-24 reflectance + CC ROI sidecars | `Data_Collected/Color Checker/CC24Patch_CGATS.txt`, `<camera>/Target/*_CC.txt` | The ISO 17321 SMI recommends the 18 chromatic CC-24 patches; adopting CC-24 would make `spectral-smi` closer to the standard than the SG-140 set. **Actionable follow-up.** |
+| CC ROI sidecars (target RGB) | `<camera>/Target/*_CC.txt` | ColorChecker-24 ROI RGB from the broadband Target captures; enables a CC-24 *closure* (predicted-vs-measured on the 24 chart patches) to complement the SG-140 closure. (The CC-24 *reflectance* is now used by `spectral-smi` — see Shared inputs.) |
 | i1Pro illuminant | `Data_Collected/Light Source/i1Pro_HID_avg.txt` | A second-instrument measurement of the same HID lamp; usable as a cross-check against PR-655. |
 | Other-day SSFs (11-18/19/20 + II) | `Data_Collected/<camera>/Monochromator/*.csv` | Repeatability set; could quantify day-to-day SSF stability. Not needed for closure (11-21 is canonical). |
 | Excel spectral workbooks | `2016_11_21_<cam>.xlsx` (per mono session); `2017_camspec/.../spectral.xlsx` | Excel form of data already available as CSV; no new information. |
@@ -113,10 +113,13 @@ alongside the 2016 cameras is valid; a closure comparison would not be.
 
 ## Follow-ups
 
-1. **Adopt CC-24 for the ISO-style SMI.** Convert `CC24Patch_CGATS.txt` to the
-   canonical reflectance CSV (the CGATS converter already handles it) and re-run
-   `spectral-smi` over the 18 chromatic patches, which is the ISO 17321
-   recommended test set. Report both SG-140 and CC-24 SMI.
-2. **PR-655 vs i1Pro illuminant cross-check** for the closure illuminant.
-3. **SSF day-to-day stability** (optional): rank the same camera across its 11-18..21
+1. **[DONE 2026-07-07] Adopt CC-24 for the ISO-style SMI.** `CC24Patch_CGATS.txt`
+   is converted to canonical CSV and `spectral-smi` runs over the 18 chromatic
+   patches (ISO), the full 24, and the SG-140. The three sets agree on the
+   endpoints (Canon best, IQ3 worst) and on A7RII second; D810/A7SII tie for third.
+   See the SMI ranking section of `SPECTRAL_SENSITIVITY.md`.
+2. **CC-24 closure** (open): use the `<camera>/Target/*_CC.txt` ROI RGB with the
+   CC-24 reflectance for a 24-patch predicted-vs-measured closure alongside SG-140.
+3. **PR-655 vs i1Pro illuminant cross-check** for the closure illuminant.
+4. **SSF day-to-day stability** (optional): rank the same camera across its 11-18..21
    monochromator runs to bound repeatability of the Luther/SMI numbers.
