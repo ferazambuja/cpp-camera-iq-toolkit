@@ -466,6 +466,54 @@ The separate `canon_5d2_repro` / `2016_IS_Reproduction` captures remain real
 archive material, but they are not the closure evidence for this slice because
 they are a different session with no paired capture illuminant SPD.
 
+### Camera color-fidelity ranking (`spectral-smi`, perceptual CIE-SMI style)
+
+The Luther residual above is an unweighted geometric CMF-fit. The `spectral-smi`
+command upgrades this to the ISO 17321 Sensitivity Metamerism Index method:
+synthesize each camera's linear RGB response to a set of real test colours under
+a reference illuminant, fit the optimal 3x3 RGB->XYZ transform, and score the
+residual **perceptual** CIELAB error as `SMI = 100 - 5.5 * meanDE*ab`. Higher is
+better; 100 is a Luther-condition camera. Here the reference illuminant is CIE
+D50 (`data/cie_d50.csv`, generated + white-point-checked by `tools/gen_cie_d50.py`)
+and the test colours are the 140 measured ColorChecker SG patches
+(`SGMeasurements`, the same reference used for closure).
+
+| Rank | Camera | SSF source | mean dE*ab (1976) | mean dE2000 | SMI |
+|---|---|---|---:|---:|---:|
+| 1 | Canon 5D2 | toolkit RAW extraction | 1.23 | 0.65 | 93.2 |
+| 2 | Sony A7RII | legacy `mono.csv` | 1.55 | 0.76 | 91.5 |
+| 3 | Sony A7SII | legacy `mono.csv` | 1.63 | 0.77 | 91.1 |
+| 4 | Nikon D810 | legacy `mono.csv` | 1.65 | 0.86 | 90.9 |
+| 5 | Phase One IQ3 100 | legacy `Spectral_Sensitivity_Data.csv` (2017) | 1.74 | 1.03 | 90.4 |
+
+The endpoints are **metric-robust**: Canon 5D2 is best and the Phase One IQ3 is
+worst under both the Luther residual and the perceptual SMI. The middle of the
+pack **reorders**, which is the point of the upgrade: the unweighted Luther metric
+tied Nikon D810 with Sony A7RII and put Sony A7SII last of the four, whereas the
+D50-weighted CIELAB SMI puts A7RII clearly second and drops the D810 to the
+bottom of the 35 mm group. The A7SII/D810 gap (91.1 vs 90.9, ~0.03 dE2000) is
+within noise, but A7RII pulling ahead of both is real (~0.1 dE*ab). A perceptually
+weighted metric over real measured colours under a real illuminant genuinely
+disagrees with the geometric CMF fit about the mid-pack ordering.
+
+SMI caveats (honest scope, same discipline as the Luther table):
+- **Not the bit-exact ISO number.** The method follows ISO 17321 (optimal 3x3 +
+  mean CIELAB error, `100 - 5.5*dE`), but the standard recommends the 18 chromatic
+  ColorChecker patches; this run uses the 140-patch measured SG set, so the
+  absolute SMI is test-set dependent. The `5.5` slope is the commonly cited
+  constant (the exact ISO value is behind the paywalled standard). Reconcile the
+  test set + constant with ISO 17321 before citing an absolute SMI. The command
+  exposes `--smi-slope` and takes any reflectance/illuminant set so the exact
+  standard inputs can be swapped in.
+- **Reproducibility.** The `spectral-smi` command and its unit tests are fully
+  reproducible from the committed repo (synthetic fixtures + committed D50). The
+  five-camera *numbers* above depend on the private SG reflectance and the
+  per-camera SSFs under `data/private`, so they are not regenerable from the
+  public tree alone. The D50 illuminant is committed and white-point-verified.
+- **Mixed SSF sources / cross-timeline**, exactly as the Luther table: Canon uses
+  the toolkit extraction, the rest legacy; the IQ3 is the 2017 camSPECS SSF. SMI,
+  like Luther, is a per-camera SSF property, so this is valid for ranking.
+
 ## Per-Camera Coverage and Multi-Camera Closure Plan
 
 The archive is a five-camera set across two sessions. Tier-3 closure needs, per
@@ -499,11 +547,15 @@ subset only when its slice runs; do not bulk-copy.
    (the SSF is scoped-copied to `data/private/.../iq3_100_2017camspec/`). Added as
    rank 5 above (combined residual 0.348 run 1 / 0.336 run 2, worst of the five).
    The medium-format back has the highest CMF-fit residual of the set.
-2. **Upgrade from the Luther CMF-fit proxy to the official CIE Sensitivity
-   Metamerism Index (SMI)** — the standardized metric with a fixed test-color
-   set and reference illuminant, rather than the unweighted CMF-fit residual.
-   The current metric gives a defensible relative ordering; the SMI gives the
-   citable standardized number.
+2. **[DONE 2026-07-07]** **Upgrade from the Luther CMF-fit proxy to the CIE
+   Sensitivity Metamerism Index (SMI) method.** The `spectral-smi` command
+   (optimal 3x3 + mean CIELAB error, `SMI = 100 - 5.5*dE`) now scores all five
+   cameras under CIE D50 over the measured SG test colours — see the SMI ranking
+   section above (Canon 93.2 best, IQ3 90.4 worst; the mid-pack reorders vs
+   Luther). Remaining to reach the *bit-exact* ISO number: swap in the 18
+   chromatic ColorChecker patches and reconcile the `5.5` slope against the
+   paywalled ISO 17321 text. The command already accepts any reflectance set and
+   a `--smi-slope`, so this is a data swap, not new code.
 
 ## Not Claimed
 
