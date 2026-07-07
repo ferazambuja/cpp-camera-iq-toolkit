@@ -13,6 +13,7 @@ int cmd_oecf_fit(int argc, char** argv);
 int cmd_reference_info(int argc, char** argv);
 int cmd_ccm_fit(int argc, char** argv);
 int cmd_spectral_response(int argc, char** argv);
+int cmd_spectral_closure(int argc, char** argv);
 int cmd_patches(int argc, char** argv);
 
 }  // namespace camera_iq
