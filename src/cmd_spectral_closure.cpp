@@ -414,6 +414,9 @@ int cmd_spectral_closure(int argc, char** argv) {
       if (it == measured.rows.end()) { ++missing; continue; }
       ++matched;
       std::array<double, 3> corrected = it->second;
+      // Saturation is a capture-ceiling property, so test the target sidecar
+      // value before subtracting the dark residual. Comparing target-dark here
+      // would under-exclude by the dark residual near the OELevels threshold.
       if (any_near_oe(it->second, measured, saturation_fraction)) {
         ++target_saturated;
         continue;

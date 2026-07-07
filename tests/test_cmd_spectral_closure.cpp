@@ -141,7 +141,9 @@ void TESTS() {
   check(rc_fail == 1, "closure cmd: gate failure returns nonzero exit");
 
   // Mean-near-OE target rows are excluded and counted instead of silently
-  // entering the closure fit.
+  // entering the closure fit. This also pins the phase of the saturation guard:
+  // p1 target R is 20 with dark R 1, so target-dark would be 19 and would NOT
+  // trip 0.98 * 20; the correct pre-dark target comparison excludes it.
   write_file(root / "target_sat.txt",
              "CGATS.17\nDESCRIPTOR \"OELevels=20,20,20,20\"\n"
              "BEGIN_DATA_FORMAT\nSAMPLE_ID\tSAMPLE_NAME\tRGB_R\tRGB_G\tRGB_B\n"
