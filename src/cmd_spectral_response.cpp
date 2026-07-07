@@ -18,6 +18,7 @@ struct Args {
   std::filesystem::path spd_csv;
   std::filesystem::path raw_dir;
   std::filesystem::path dark_raw;
+  std::filesystem::path ssf_csv_out;
   std::filesystem::path out = "out/spectral_response.json";
   RoiRect roi;
   bool has_roi = false;
@@ -70,6 +71,9 @@ int cmd_spectral_response(int argc, char** argv) {
     } else if (arg == "--raw-dir") {
       if (!require_value(argc, i + 1, arg)) return 2;
       args.raw_dir = argv[++i];
+    } else if (arg == "--ssf-csv-out") {
+      if (!require_value(argc, i + 1, arg)) return 2;
+      args.ssf_csv_out = argv[++i];
     } else if (arg == "--dark-raw") {
       if (!require_value(argc, i + 1, arg)) return 2;
       args.dark_raw = argv[++i];
@@ -139,6 +143,31 @@ int cmd_spectral_response(int argc, char** argv) {
       write_spectral_raw_extraction_json(os, response, *raw_extraction);
     } else {
       write_spectral_response_json(os, response);
+    }
+
+    // Emit the TOOLKIT-extracted SSF (dark-subtracted, saturation-guarded,
+    // CFA-direct) as a Wavelength,R,G,B CSV so the closure and quality slices
+    // can consume our own extraction instead of the legacy legacy-Gold curve.
+    if (!args.ssf_csv_out.empty()) {
+      if (!raw_extraction) {
+        std::cerr << "camera_iq spectral-response: --ssf-csv-out requires "
+                     "--raw-dir (there is no toolkit SSF without extraction)\n";
+        return 2;
+      }
+      const auto& r = raw_extraction->response;
+      if (!args.ssf_csv_out.parent_path().empty())
+        std::filesystem::create_directories(args.ssf_csv_out.parent_path());
+      std::ofstream ss(args.ssf_csv_out, std::ios::binary);
+      if (!ss) {
+        std::cerr << "camera_iq spectral-response: cannot write "
+                  << args.ssf_csv_out << "\n";
+        return 1;
+      }
+      ss << "Wavelength (nm),Red,Green,Blue\n";
+      for (std::size_t i = 0; i < r.axis_nm.size(); ++i) {
+        ss << r.axis_nm[i] << "," << r.response_r[i] << "," << r.response_g[i]
+           << "," << r.response_b[i] << "\n";
+      }
     }
   } catch (const std::exception& e) {
     std::cerr << "camera_iq spectral-response: " << e.what() << "\n";

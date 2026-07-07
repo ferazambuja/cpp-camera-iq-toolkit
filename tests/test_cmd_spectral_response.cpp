@@ -98,6 +98,16 @@ void TESTS() {
             {"--response-csv", response.string(), "--spd-csv", spd.string(),
              "--camera-model", "Canon EOS 5D Mark II", "--dataset-id",
              "spectral_sensitivity_2016_2017", "--archive-subset",
+             "canon_5d2/2016_11_21_5D2_Monochromator_OK", "--ssf-csv-out",
+             (root / "ssf.csv").string(), "--out",
+             (root / "noraw.json").string()}) == 2,
+        "spectral-response command: --ssf-csv-out requires --raw-dir (no "
+        "toolkit SSF without extraction)");
+
+  check(run_spectral_response(
+            {"--response-csv", response.string(), "--spd-csv", spd.string(),
+             "--camera-model", "Canon EOS 5D Mark II", "--dataset-id",
+             "spectral_sensitivity_2016_2017", "--archive-subset",
              "canon_5d2/2016_11_21_5D2_Monochromator_OK", "--raw-dir",
              (root / "raw").string(), "--out", (root / "raw.json").string()}) ==
             2,
