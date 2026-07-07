@@ -29,8 +29,8 @@ int main() {
     const std::string help = captured.str();
     check(rc == 0, "help command succeeds");
     check(help.find("Commands (planned)") == std::string::npos &&
-              help.find("  noise") == std::string::npos,
-          "help lists only implemented commands");
+              help.find("  noise") != std::string::npos,
+          "help lists implemented noise command and no planned block");
   }
 
   {
@@ -57,6 +57,12 @@ int main() {
                           "--coords", "/definitely/not/a/coord.csv"};
     check(camera_iq::run(5, const_cast<char**>(args)) == 1,
           "patches command is routed");
+  }
+  {
+    const char* args[] = {"camera_iq", "noise",
+                          "/definitely/not/a/camera_iq/dataset"};
+    check(camera_iq::run(3, const_cast<char**>(args)) == 1,
+          "noise command is routed");
   }
   {
     const char* args[] = {"camera_iq", "dark-calibration",

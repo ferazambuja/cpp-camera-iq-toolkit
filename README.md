@@ -2,7 +2,7 @@
 
 A C++ toolkit for camera image-quality analysis from RAW and reference-chart data:
 RAW/CFA handling, ColorChecker patch statistics, color-correction (CCM) and ΔE,
-noise/SNR, OECF/linearity, and reproducible CSV/JSON/Markdown reports.
+noise diagnostics, OECF/linearity, and reproducible CSV/JSON/Markdown reports.
 
 > **Status: early development.** This is a portfolio research project, not a
 > production ISP. Interfaces and outputs will change.
@@ -19,8 +19,9 @@ noise/SNR, OECF/linearity, and reproducible CSV/JSON/Markdown reports.
   parsed as camera spectral-sensitivity datasets rather than ColorChecker
   references. Legacy script outputs are fidelity checks, not correctness
   oracles.
-- **Objective IQ metrics** — read noise / DSNU / PRNU, photon-transfer-curve summaries,
-  dynamic range, slanted-edge SFR/MTF, OECF/linearity.
+- **Objective IQ metrics** — dark-frame temporal noise / DSNU diagnostics,
+  OECF/linearity, with photon-transfer-curve summaries, dynamic range,
+  PRNU, and slanted-edge SFR/MTF still planned.
 - **Reporting** — batch runner, threshold checks, CSV/JSON export, Markdown reports.
 
 ## Build
@@ -59,6 +60,12 @@ ctest --test-dir build --output-on-failure
 ./build/camera_iq dark-calibration clrs589_project_camera \
   --subdir "Images/Dark Frame" \
   --out out/dark-calibration.json
+
+# Estimate DN-only temporal noise and DSNU from matched dark-frame pairs:
+#   this is not gain/PTC/electron read noise/dynamic range.
+./build/camera_iq noise clrs589_project_camera \
+  --subdir "Images/Dark Frame" \
+  --out out/noise.json
 
 # Group black-subtracted CFA stats by detected exposure series:
 #   this is a readiness/response summary, not a final ISO OECF/PTC metric.
@@ -114,8 +121,10 @@ ctest --test-dir build --output-on-failure
 ```
 
 Implemented commands: `manifest`, `raw-stats`, `demosaic`,
-`dark-calibration`, `exposure-response`, `oecf-fit`, `reference-info`,
-`ccm-fit`, and `patches`. Evidence reports for completed phases live under
+`dark-calibration`, `noise`, `exposure-response`, `oecf-fit`,
+`reference-info`, `ccm-fit`, `patches`, `spectral-response`,
+`spectral-closure`, `spectral-quality`, and `spectral-smi`.
+Evidence reports for completed phases live under
 [docs/reports/](docs/reports/).
 
 ## Data

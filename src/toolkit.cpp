@@ -28,6 +28,8 @@ void print_usage() {
       "  demosaic    Bilinear demosaic summary for a raw capture\n"
       "  dark-calibration\n"
       "              Reconcile metadata black against measured dark frames\n"
+      "  noise\n"
+      "              Dark-frame temporal noise and DSNU diagnostics in DN\n"
       "  exposure-response\n"
       "              Black-subtracted CFA summaries grouped by exposure series\n"
       "  oecf-fit\n"
@@ -78,6 +80,9 @@ int run(int argc, char** argv) {
   }
   if (arg == "dark-calibration") {
     return cmd_dark_calibration(argc - 2, argv + 2);
+  }
+  if (arg == "noise") {
+    return cmd_noise(argc - 2, argv + 2);
   }
   if (arg == "exposure-response") {
     return cmd_exposure_response(argc - 2, argv + 2);

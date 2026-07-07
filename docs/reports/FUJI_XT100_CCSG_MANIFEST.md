@@ -193,10 +193,12 @@ Completed follow-on slices now cover:
 - Dark-frame-vs-metadata black reconciliation for the CLRS-589 X-T100 dark
   folder: 20/21 candidates agree with the 1024 DN pedestal within 2 DN, with one
   outlier preserved for provenance review.
+- Dark-frame temporal noise / DSNU diagnostics over the only clean matched dark
+  pair, with gain/PTC/DR still explicitly not claimed.
 - Exposure-response readiness grouping with conservative OECF candidate gates.
 - First relative-exposure OECF linearity fit over usable ROI response points.
 
 Remaining objective-IQ work starts from the exposure-response candidates and
 still needs chart/patch selection beyond manual ROI coordinates, ISO 14524
-OECF conformance work, dark-current/noise modeling, PTC/read-noise handling,
+OECF conformance work, longer-exposure dark-current modeling, PTC/gain handling,
 and color-reference pairing before any final camera-IQ metric is claimed.
