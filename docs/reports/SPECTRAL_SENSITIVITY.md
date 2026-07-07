@@ -349,6 +349,31 @@ The JSON also emits per-patch measured, predicted, and residual RGB rows, plus
 per-channel diagnostic `k` values. Those per-channel values stay diagnostic only;
 the fitted closure uses the single global `k` above.
 
+Four-camera Target set 1 fan-out (same command, `--dark-rgb` supplied for every
+camera, shared PR-655 HID illuminant and SG reflectance):
+
+| Camera | Gate-1 max ratio error | Patches | Target saturated / below-dark exclusions | R/G/B relative RMS | Minimum channel correlation |
+|---|---:|---:|---:|---:|---:|
+| Canon 5D2 | 0.865% | 140/140 | 0 / 0 | 9.261% / 9.856% / 11.110% | 0.994304 |
+| Nikon D810 | 2.949% | 140/140 | 0 / 0 | 10.802% / 11.069% / 13.802% | 0.992676 |
+| Sony A7RII | 2.103% | 140/140 | 0 / 0 | 10.803% / 11.149% / 13.349% | 0.992517 |
+| Sony A7SII | 1.284% | 140/140 | 0 / 0 | 9.901% / 9.917% / 11.252% | 0.993567 |
+
+All four 2016 cameras pass the illuminant-pairing gate and close with
+high patch-order correlation (minimum channel correlation >0.992). This is a
+cross-manufacturer method validation: independently measured SSF, illuminant,
+and chart reflectance predict the same-session camera target captures with a
+single global exposure scale.
+
+Do **not** read the residual spread as a camera-quality ranking. These numbers
+measure per-camera session and optical-path closure consistency, including lens,
+capture, RawDigger sidecar, SSF, and shared illuminant/reference pairing. A
+camera color-fidelity ranking needs a separate spectral-quality / Luther metric:
+fit each camera SSF to the CIE 1931 color-matching functions with one 3x3
+transform and compare residuals against a verified CMF source. That future
+metric can include the Phase One IQ3, which has SSF data but no tier-3 target
+closure.
+
 The separate `canon_5d2_repro` / `2016_IS_Reproduction` captures remain real
 archive material, but they are not the closure evidence for this slice because
 they are a different session with no paired capture illuminant SPD.
@@ -362,32 +387,21 @@ read-only):
 
 | Camera | Session | SSF source | Target capture | Illuminant SPD | Chart reflectance | Tier-3 |
 |---|---|---|---|---|---|---|
-| Canon 5D2 | 2016 | sweeps + `mono.csv` | `_Target` (5 sets) | HID (PR655) | SGMeasurements | input-complete; Target set 1 pairing verified |
-| Nikon D810 | 2016 | sweeps + `mono.csv` | `_Target` (5 sets) | HID (shared) | SGMeasurements (shared) | input-complete; pairing gate not yet run |
-| Sony A7RII | 2016 | sweeps + `mono.csv` | `_Target` (5 sets) | HID (shared) | SGMeasurements (shared) | input-complete; pairing gate not yet run |
-| Sony A7SII | 2016 | sweeps + `mono.csv` | `_Target` (5 sets) | HID (shared) | SGMeasurements (shared) | input-complete; pairing gate not yet run |
+| Canon 5D2 | 2016 | sweeps + `mono.csv` | `_Target` (5 sets) | HID (PR655) | SGMeasurements | Target set 1 closure run; gate PASS |
+| Nikon D810 | 2016 | sweeps + `mono.csv` | `_Target` (5 sets) | HID (shared) | SGMeasurements (shared) | Target set 1 closure run; gate PASS |
+| Sony A7RII | 2016 | sweeps + `mono.csv` | `_Target` (5 sets) | HID (shared) | SGMeasurements (shared) | Target set 1 closure run; gate PASS |
+| Sony A7SII | 2016 | sweeps + `mono.csv` | `_Target` (5 sets) | HID (shared) | SGMeasurements (shared) | Target set 1 closure run; gate PASS |
 | Phase One IQ3 | 2017 | sweeps + `Spectral_Sensitivity_Data.csv` | none | `Lamp_SPD` xlsx (camSPECS) | none | blocked |
 
 Only the Phase One IQ3 is missing measurements: its 2017 camSPECS session has
 spectral sweeps and a lamp SPD but no broadband Target capture and no chart
 reflectance, so it is SSF-only (tier-1/tier-2), not physically closable. The
 four 2016 cameras are archive input-complete and share the single measured HID
-illuminant and the single measured proven-identity SG reflectance. Only the
-Canon 5D2 Target set 1 has been locally staged and white-card pairing-checked so
-far; D810, A7RII, and A7SII still need the same automated gate before any
-closure residual is trusted.
-
-Multi-camera closure plan (fires after the 5D2 closure slice lands, not before):
-the `spectral-closure` command is camera-agnostic, so extending it to D810,
-A7RII, and A7SII is mechanical — same command, per-camera `_Target` +
-SSF inputs, the shared illuminant and reflectance, and the same white-card
-pairing gate run first for each. Use a specific target set per camera
-initially, preferably Target set 1 from 2016-11-21 to match the verified Canon
-pre-check; the additional target sets span 2016-11-21 and 2016-11-22 and must
-carry their own white-card/dark pairing if used. This can yield a four-camera
-cross-manufacturer closure suite (Canon / Nikon / Sony x2) rather than a
-single-camera result. Copy each camera's scoped Target subset only when its
-slice runs; do not bulk-copy.
+illuminant and the single measured proven-identity SG reflectance. Target set 1
+has now been staged and gate-checked for all four 2016 cameras. The additional
+target sets span 2016-11-21 and 2016-11-22 and must carry their own
+white-card/dark pairing if used later. Copy each additional camera or target
+subset only when its slice runs; do not bulk-copy.
 
 ## Not Claimed
 
@@ -395,9 +409,9 @@ slice runs; do not bulk-copy.
   here; the toolkit-derived RAW response is tier-1 legacy-fidelity evidence.
 - No assertion that the legacy `*_mono.csv` is scientifically correct.
 - No public-SSF comparison yet.
-- No claim that this Canon 5D2 closure is a uniqueness proof or a public-SSF
-  validation; it is a same-session physical consistency check under one global
-  exposure scale.
-- No D810, A7RII, or A7SII closure result yet; those rows record archive
-  availability only, not local staging, pairing-gate success, or a computed
-  closure residual.
+- No claim that these closures are uniqueness proofs or public-SSF validations;
+  they are same-session physical consistency checks under one global exposure
+  scale.
+- No claim that the four-camera closure residuals rank camera color quality.
+  They validate the spectral-response method and session pairing; color-quality
+  ranking requires a separate SSF-vs-CMF spectral-quality metric.
