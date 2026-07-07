@@ -385,6 +385,32 @@ cross-manufacturer method validation: independently measured SSF, illuminant,
 and chart reflectance predict the same-session camera target captures with a
 single global exposure scale.
 
+#### CC-24 closure (classic ColorChecker, complementary to SG-140)
+
+The same `spectral-closure` command also closes the **classic 24-patch
+ColorChecker** for all four 2016 cameras. This run uses the original paired-column
+`CC24Patch_CGATS.txt` SpectraShop export, not the canonical
+`patch_id,380,390,...` CSV used by `spectral-smi`; `spectral-closure` reads
+paired `SPECTRAL_NM` / `SPECTRAL_DEC` CGATS rows and matches by patch name
+(`A1`..`F4`). Inputs are Target set 1 (2016-11-21) `_CC.txt` RawDigger ROI
+sidecars, the same PR-655 HID illuminant, legacy `*_mono.csv` SSFs for the four
+rows, and per-patch dark subtraction.
+
+| Camera | Gate-1 max ratio error | Patches | Target saturated / below-dark exclusions | R/G/B relative RMS | Minimum channel correlation |
+|---|---:|---:|---:|---:|---:|
+| Canon 5D2 | 1.012% | 24/24 | 0 / 0 | 5.153% / 4.439% / 5.403% | 0.998234 |
+| Nikon D810 | 2.581% | 24/24 | 0 / 0 | 5.583% / 4.271% / 7.575% | 0.998095 |
+| Sony A7RII | 1.747% | 24/24 | 0 / 0 | 5.707% / 4.755% / 6.627% | 0.997728 |
+| Sony A7SII | 1.473% | 24/24 | 0 / 0 | 5.610% / 5.377% / 5.803% | 0.997400 |
+
+The CC-24 residuals are roughly half the SG-140 residuals (~5-8% vs ~9-14%).
+This is a **chart-set difference, not a stronger camera result**: the classic
+24-patch ColorChecker is a smaller set of matte, well-behaved colours, while
+SG-140 includes many more dark, extreme, and near-glossy patches where relative
+error on small RGB values is larger. Both charts hold high patch-order
+correlation, so both validate the same SSF physics; CC-24 is the standard-chart
+complement to the denser SG-140 closure, not a replacement.
+
 The suite was also re-run on the toolkit's **own** RAW extractions via
 `spectral-response --raw-dir --ssf-csv-out` (CR2/NEF/ARW sweeps discovered by
 the generalized `discover_spectral_sweep_files`). Distinguish reproducibility:

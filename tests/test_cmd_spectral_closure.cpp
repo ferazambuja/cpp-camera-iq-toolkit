@@ -172,4 +172,20 @@ void TESTS() {
   check(sat_json.find("\"target_saturated_excluded_patch_count\":1") !=
             std::string::npos,
         "closure cmd: saturated target exclusion count is serialized");
+
+  const fs::path bad_refl_out = root / "bad_refl.json";
+  write_file(root / "bad_reflectance.csv", "patch_id,500,510\np1,1,0\n");
+  const int rc_bad_refl = run_closure(
+      {"--ssf-csv", (root / "ssf.csv").string(), "--illuminant",
+       (root / "illuminant.txt").string(), "--reflectance",
+       (root / "bad_reflectance.csv").string(), "--target-rgb",
+       (root / "target.txt").string(), "--white-rgb",
+       (root / "white.txt").string(), "--dark-rgb",
+       (root / "dark.txt").string(), "--camera-model", "TestCam",
+       "--dataset-id", "test_ds", "--archive-subset", "sub", "--out",
+       bad_refl_out.string()});
+  check(rc_bad_refl == 1,
+        "closure cmd: canonical CSV reflectance is rejected for closure");
+  check(!fs::exists(bad_refl_out),
+        "closure cmd: malformed reflectance writes no output");
 }

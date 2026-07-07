@@ -247,7 +247,9 @@ struct Reflectance {
 
 // CGATS with paired SPECTRAL_NM/SPECTRAL_DEC columns: each data row is a patch,
 // carrying (wavelength, reflectance) pairs. SAMPLE_ID/SAMPLE_NAME is the patch id.
-Reflectance read_sg_reflectance(const std::filesystem::path& path) {
+// This covers both SG-140 and CC-24 SpectraShop exports. It is not the canonical
+// patch_id,380,390,... CSV consumed by spectral-smi.
+Reflectance read_paired_reflectance_cgats(const std::filesystem::path& path) {
   const auto lines = read_lines_any_eol(path);
   std::vector<std::string> fmt;
   bool in_fmt = false, in_data = false;
@@ -275,7 +277,8 @@ Reflectance read_sg_reflectance(const std::filesystem::path& path) {
     if (in_data) {
       const auto f = split_ws(l);
       if (id_col < 0 || nm_cols.empty() || nm_cols.size() != dec_cols.size())
-        throw std::runtime_error("spectral closure: bad SG reflectance format");
+        throw std::runtime_error(
+            "spectral closure: bad paired spectral reflectance format");
       if (static_cast<int>(f.size()) <= dec_cols.back()) continue;
       std::vector<double> refl;
       refl.reserve(nm_cols.size());
@@ -285,7 +288,7 @@ Reflectance read_sg_reflectance(const std::filesystem::path& path) {
         if (out.by_patch.empty()) out.nm.push_back(w);
         else if (out.nm[k] != w)
           throw std::runtime_error(
-              "spectral closure: SG reflectance wavelength axis differs by row");
+              "spectral closure: reflectance wavelength axis differs by row");
         refl.push_back(
             to_double(f[static_cast<std::size_t>(dec_cols[k])], "reflectance"));
       }
@@ -293,8 +296,9 @@ Reflectance read_sg_reflectance(const std::filesystem::path& path) {
     }
   }
   if (out.by_patch.empty() || out.nm.empty())
-    throw std::runtime_error("spectral closure: no SG reflectance patches in " +
-                             path.string());
+    throw std::runtime_error(
+        "spectral closure: no paired spectral reflectance patches in " +
+        path.string());
   return out;
 }
 
@@ -370,7 +374,7 @@ int cmd_spectral_closure(int argc, char** argv) {
   try {
     const auto ssf = read_ssf_csv(ssf_csv);
     const auto spd = read_illuminant(illuminant);
-    const auto refl = read_sg_reflectance(reflectance);
+    const auto refl = read_paired_reflectance_cgats(reflectance);
     const auto measured = read_cgats_rgb(target_rgb);
     const auto white_map = read_cgats_rgb(white_rgb);
     const bool subtract_dark = !dark_rgb.empty();
