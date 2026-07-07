@@ -271,7 +271,7 @@ same naming convention and that the CC/SG patch readings were reordered to match
 RawDigger. This makes the tier-3 physical-closure slice feasible without mixing
 the separate `canon_5d2_repro` / `2016_IS_Reproduction` capture.
 
-Predeclare these implementation constraints before running closure:
+The implemented `spectral-closure` command follows these constraints:
 
 - **confirm the illuminant pairing first (gate 1), do not assume it**: this
   report treats `PR655_HID` as the Target capture's illuminant on strong but
@@ -298,9 +298,9 @@ Predeclare these implementation constraints before running closure:
   sub-1% HID match is specific relative to these proxies, not a generic result
   produced by any broad illuminant assumption. This does not rule out every
   possible engineered spectrum. (Superseded an earlier uncomputed "30-100%+"
-  phrasing; the measured spread is ~16-53% for these proxies.) The closure
-  slice must still encode this as an automated gate rather than relying on this
-  manual check;
+  phrasing; the measured spread is ~16-53% for these proxies.) The command
+  encodes this as the `white_card_gate` and exits nonzero if the pairing check
+  fails;
 - use the strict three-way spectral overlap, **380-730 nm**, because the SG
   reflectance file ends at 730 nm; do not extrapolate reflectance to the PR-655
   780 nm endpoint;
@@ -309,10 +309,45 @@ Predeclare these implementation constraints before running closure:
 - fit one global exposure scale `k` across all channels. The target capture is
   1/200 s while the monochromator sweep is 1/160 s, so a global exposure scale
   is expected; per-channel scales are diagnostics only, not the closure fit;
-- subtract the same-session dark frame, count saturated patches, and report
-  exclusions as top-level rollups;
+- subtract the same-session dark sidecar when `--dark-rgb` is supplied, exclude
+  saturated or not-above-dark target patches, and report extraction rollups as
+  top-level JSON fields;
 - language should be "consistent with physical closure" until residuals are
   computed and reviewed. Do not tune the RAW extraction to improve closure.
+
+Canon 5D2 Target set 1 tier-3 closure result (fresh challenged run, with
+same-session dark sidecar subtraction):
+
+```bash
+./build/camera_iq spectral-closure \
+  --ssf-csv data/private/datasets/spectral_sensitivity_2016_2017/canon_5d2/2016_11_21_5D2_Monochromator_OK/2016_11_21_5D2_mono.csv \
+  --illuminant data/private/datasets/spectral_sensitivity_2016_2017/canon_5d2/target_closure_20161121/PR655_HID_avg.txt \
+  --reflectance data/private/datasets/spectral_sensitivity_2016_2017/canon_5d2/target_closure_20161121/SGMeasurements_CGATS.txt \
+  --target-rgb data/private/datasets/spectral_sensitivity_2016_2017/canon_5d2/target_closure_20161121/2016_11_21_5D2_Target_1_Target_0116_CR2_SG.txt \
+  --white-rgb data/private/datasets/spectral_sensitivity_2016_2017/canon_5d2/target_closure_20161121/2016_11_21_5D2_Target_1_WhiteCard_0117_CR2_SG.txt \
+  --dark-rgb data/private/datasets/spectral_sensitivity_2016_2017/canon_5d2/target_closure_20161121/2016_11_21_5D2_Target_1_DarkFrame_0118_CR2_SG.txt \
+  --camera-model "Canon EOS 5D Mark II" \
+  --dataset-id spectral_sensitivity_2016_2017 \
+  --archive-subset canon_5d2/target_closure_20161121 \
+  --out out/spectral_closure_5d2_20161121.json
+```
+
+Result:
+
+| Quantity | Value |
+|---|---:|
+| White-card gate max ratio error | 0.8647% |
+| Common wavelength grid | 380-730 nm, 36 bands |
+| Closure patches | 140/140 matched |
+| Target dark-subtracted patches | 140 |
+| Target saturated / below-dark exclusions | 0 / 0 |
+| Global exposure scale `k` | 13566.322 |
+| R/G/B relative RMS | 9.261% / 9.856% / 11.110% |
+| R/G/B correlation | 0.994642 / 0.994304 / 0.995001 |
+
+The JSON also emits per-patch measured, predicted, and residual RGB rows, plus
+per-channel diagnostic `k` values. Those per-channel values stay diagnostic only;
+the fitted closure uses the single global `k` above.
 
 The separate `canon_5d2_repro` / `2016_IS_Reproduction` captures remain real
 archive material, but they are not the closure evidence for this slice because
@@ -360,9 +395,9 @@ slice runs; do not bulk-copy.
   here; the toolkit-derived RAW response is tier-1 legacy-fidelity evidence.
 - No assertion that the legacy `*_mono.csv` is scientifically correct.
 - No public-SSF comparison yet.
-- No physical-closure result yet; the same-session Canon 5D2 target, dark, SG
-  reflectance, and PR-655 illuminant inputs are staged locally, but the closure
-  computation has not been implemented or run.
+- No claim that this Canon 5D2 closure is a uniqueness proof or a public-SSF
+  validation; it is a same-session physical consistency check under one global
+  exposure scale.
 - No D810, A7RII, or A7SII closure result yet; those rows record archive
   availability only, not local staging, pairing-gate success, or a computed
   closure residual.

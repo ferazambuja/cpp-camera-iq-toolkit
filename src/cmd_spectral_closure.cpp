@@ -112,10 +112,37 @@ double interp(const std::vector<std::pair<double, double>>& spd, double wl) {
   return 0.0;
 }
 
+struct CgatsRgb {
+  std::map<std::string, std::array<double, 3>> rows;
+  bool has_oe_levels = false;
+  std::array<double, 3> oe_levels{0, 0, 0};
+};
+
+bool parse_oe_levels(const std::string& line, std::array<double, 3>& oe) {
+  const auto pos = line.find("OELevels=");
+  if (pos == std::string::npos) return false;
+  std::string values;
+  for (std::size_t i = pos + 9; i < line.size(); ++i) {
+    const char c = line[i];
+    if ((c >= '0' && c <= '9') || c == '.' || c == ',' || c == '-' ||
+        c == '+') {
+      values += c;
+    } else {
+      break;
+    }
+  }
+  const auto parts = split_ws(values);
+  if (parts.size() < 3) return false;
+  oe = {to_double(parts[0], "OELevels R"),
+        to_double(parts[1], "OELevels G"),
+        to_double(parts[2], "OELevels B")};
+  return true;
+}
+
 // Minimal CGATS RGB reader for RawDigger _SG.txt: pulls SAMPLE_NAME + RGB_R/G/B
 // by column index from the DATA_FORMAT block. Robust to the filename mismatch
 // that read_rawdigger_patch_table validates against.
-std::map<std::string, std::array<double, 3>> read_cgats_rgb(
+CgatsRgb read_cgats_rgb(
     const std::filesystem::path& path) {
   std::ifstream is(path, std::ios::binary);
   if (!is) throw std::runtime_error("spectral closure: cannot open RGB " +
@@ -125,12 +152,15 @@ std::map<std::string, std::array<double, 3>> read_cgats_rgb(
 
   std::vector<std::string> fmt;
   bool in_fmt = false, in_data = false;
-  std::map<std::string, std::array<double, 3>> out;
+  CgatsRgb out;
   int i_name = -1, i_r = -1, i_g = -1, i_b = -1, i_id = -1;
   for (const auto& raw : lines) {
     std::string l = raw;
     if (!l.empty() && l.back() == '\r') l.pop_back();
     const std::string trimmed = l;
+    if (!out.has_oe_levels && parse_oe_levels(trimmed, out.oe_levels)) {
+      out.has_oe_levels = true;
+    }
     if (trimmed.rfind("BEGIN_DATA_FORMAT", 0) == 0) { in_fmt = true; continue; }
     if (trimmed.rfind("END_DATA_FORMAT", 0) == 0) {
       in_fmt = false;
@@ -154,16 +184,38 @@ std::map<std::string, std::array<double, 3>> read_cgats_rgb(
       const int need = std::max({i_name, i_id, i_r, i_g, i_b});
       if (need < 0 || static_cast<int>(f.size()) <= need) continue;
       const int nk = i_name >= 0 ? i_name : i_id;
-      out[f[static_cast<std::size_t>(nk)]] = {
+      out.rows[f[static_cast<std::size_t>(nk)]] = {
           to_double(f[static_cast<std::size_t>(i_r)], "RGB_R"),
           to_double(f[static_cast<std::size_t>(i_g)], "RGB_G"),
           to_double(f[static_cast<std::size_t>(i_b)], "RGB_B")};
     }
   }
-  if (i_r < 0 || i_g < 0 || i_b < 0 || out.empty())
+  if (i_r < 0 || i_g < 0 || i_b < 0 || out.rows.empty())
     throw std::runtime_error("spectral closure: no RGB rows in " +
                              path.string());
   return out;
+}
+
+std::array<double, 3> subtract_rgb(const std::array<double, 3>& v,
+                                   const std::array<double, 3>& dark) {
+  return {v[0] - dark[0], v[1] - dark[1], v[2] - dark[2]};
+}
+
+bool any_nonpositive(const std::array<double, 3>& v) {
+  return v[0] <= 0 || v[1] <= 0 || v[2] <= 0;
+}
+
+bool any_near_oe(const std::array<double, 3>& v, const CgatsRgb& table,
+                 double fraction) {
+  if (!table.has_oe_levels) return false;
+  for (int c = 0; c < 3; ++c) {
+    if (table.oe_levels[static_cast<std::size_t>(c)] > 0 &&
+        v[static_cast<std::size_t>(c)] >=
+            fraction * table.oe_levels[static_cast<std::size_t>(c)]) {
+      return true;
+    }
+  }
+  return false;
 }
 
 // Reads a file split into logical lines regardless of CR, LF, or CRLF endings
@@ -263,12 +315,24 @@ void write_channel(JsonWriter& w, const char* key,
   w.end_object();
 }
 
+void write_rgb_array(JsonWriter& w, const char* key,
+                     const std::array<double, 3>& rgb) {
+  w.key(key);
+  w.begin_array();
+  w.value(rgb[0]);
+  w.value(rgb[1]);
+  w.value(rgb[2]);
+  w.end_array();
+}
+
 }  // namespace
 
 int cmd_spectral_closure(int argc, char** argv) {
-  std::string ssf_csv, illuminant, reflectance, target_rgb, white_rgb, out_path;
+  std::string ssf_csv, illuminant, reflectance, target_rgb, white_rgb, dark_rgb,
+      out_path;
   std::string camera_model, dataset_id, archive_subset;
   double white_gate = 0.05;
+  double saturation_fraction = 0.98;
   for (int i = 0; i < argc; ++i) {
     const std::string a = argv[i];
     if (a == "--ssf-csv") ssf_csv = arg_value(argc, argv, i);
@@ -276,11 +340,14 @@ int cmd_spectral_closure(int argc, char** argv) {
     else if (a == "--reflectance") reflectance = arg_value(argc, argv, i);
     else if (a == "--target-rgb") target_rgb = arg_value(argc, argv, i);
     else if (a == "--white-rgb") white_rgb = arg_value(argc, argv, i);
+    else if (a == "--dark-rgb") dark_rgb = arg_value(argc, argv, i);
     else if (a == "--camera-model") camera_model = arg_value(argc, argv, i);
     else if (a == "--dataset-id") dataset_id = arg_value(argc, argv, i);
     else if (a == "--archive-subset") archive_subset = arg_value(argc, argv, i);
     else if (a == "--white-gate-max-error")
       white_gate = std::stod(arg_value(argc, argv, i));
+    else if (a == "--saturation-mean-fraction")
+      saturation_fraction = std::stod(arg_value(argc, argv, i));
     else if (a == "--out") out_path = arg_value(argc, argv, i);
     else {
       std::cerr << "spectral closure: unknown argument " << a << "\n";
@@ -292,7 +359,8 @@ int cmd_spectral_closure(int argc, char** argv) {
       dataset_id.empty() || archive_subset.empty()) {
     std::cerr << "Usage: camera_iq spectral-closure --ssf-csv F --illuminant F "
                  "--reflectance F --target-rgb F --white-rgb F --camera-model N "
-                 "--dataset-id ID --archive-subset L [--white-gate-max-error X] "
+                 "--dataset-id ID --archive-subset L [--dark-rgb F] "
+                 "[--white-gate-max-error X] [--saturation-mean-fraction X] "
                  "[--out F]\n"
                  "Tier-3 physical closure: predict ColorChecker RGB from "
                  "SSF x illuminant x reflectance vs the measured target.\n";
@@ -305,6 +373,9 @@ int cmd_spectral_closure(int argc, char** argv) {
     const auto refl = read_sg_reflectance(reflectance);
     const auto measured = read_cgats_rgb(target_rgb);
     const auto white_map = read_cgats_rgb(white_rgb);
+    const bool subtract_dark = !dark_rgb.empty();
+    CgatsRgb dark_map;
+    if (subtract_dark) dark_map = read_cgats_rgb(dark_rgb);
 
     // Common 10 nm grid over the reflectance range (limiting factor) that is
     // also covered by the SSF and the illuminant span.
@@ -336,27 +407,68 @@ int cmd_spectral_closure(int argc, char** argv) {
     for (std::size_t k = 0; k < refl.nm.size(); ++k) refl_col[refl.nm[k]] = k;
 
     std::size_t matched = 0, missing = 0;
+    std::size_t target_dark_subtracted = 0, target_missing_dark = 0;
+    std::size_t target_below_dark = 0, target_saturated = 0;
     for (const auto& [pid, prefl] : refl.by_patch) {
-      const auto it = measured.find(pid);
-      if (it == measured.end()) { ++missing; continue; }
+      const auto it = measured.rows.find(pid);
+      if (it == measured.rows.end()) { ++missing; continue; }
+      ++matched;
+      std::array<double, 3> corrected = it->second;
+      if (any_near_oe(it->second, measured, saturation_fraction)) {
+        ++target_saturated;
+        continue;
+      }
+      if (subtract_dark) {
+        const auto dit = dark_map.rows.find(pid);
+        if (dit == dark_map.rows.end()) { ++target_missing_dark; continue; }
+        corrected = subtract_rgb(corrected, dit->second);
+        ++target_dark_subtracted;
+        if (any_nonpositive(corrected)) {
+          ++target_below_dark;
+          continue;
+        }
+      }
       std::vector<double> r;
       r.reserve(grid.size());
       for (int w : grid) r.push_back(prefl[refl_col.at(w)]);
       in.patch_ids.push_back(pid);
       in.reflectance.push_back(std::move(r));
-      in.measured_rgb.push_back({it->second[0], it->second[1], it->second[2]});
-      ++matched;
+      in.measured_rgb.push_back(corrected);
     }
     if (in.patch_ids.empty())
       throw std::runtime_error(
           "spectral closure: no reflectance/measured patch id matches");
+    if (subtract_dark && target_missing_dark > 0)
+      throw std::runtime_error(
+          "spectral closure: target RGB rows missing matching dark rows");
 
     // White card RGB = mean over all sampled points (uniform card).
     std::array<double, 3> white{0, 0, 0};
-    for (const auto& [name, rgb] : white_map) {
-      white[0] += rgb[0]; white[1] += rgb[1]; white[2] += rgb[2];
+    std::size_t white_dark_subtracted = 0, white_missing_dark = 0,
+                white_below_dark = 0, white_saturated = 0, white_accepted = 0;
+    for (const auto& [name, rgb] : white_map.rows) {
+      if (any_near_oe(rgb, white_map, saturation_fraction)) ++white_saturated;
+      std::array<double, 3> corrected = rgb;
+      if (subtract_dark) {
+        const auto dit = dark_map.rows.find(name);
+        if (dit == dark_map.rows.end()) { ++white_missing_dark; continue; }
+        corrected = subtract_rgb(corrected, dit->second);
+        ++white_dark_subtracted;
+        if (any_nonpositive(corrected)) {
+          ++white_below_dark;
+          continue;
+        }
+      }
+      white[0] += corrected[0]; white[1] += corrected[1]; white[2] += corrected[2];
+      ++white_accepted;
     }
-    const double wn = static_cast<double>(white_map.size());
+    if (subtract_dark && white_missing_dark > 0)
+      throw std::runtime_error(
+          "spectral closure: white RGB rows missing matching dark rows");
+    const double wn = static_cast<double>(white_accepted);
+    if (wn <= 0 || white_saturated > 0 || white_below_dark > 0)
+      throw std::runtime_error(
+          "spectral closure: white RGB is saturated or not above dark");
     in.white_rgb = {white[0] / wn, white[1] / wn, white[2] / wn};
 
     const auto res = compute_spectral_closure(in);
@@ -375,6 +487,25 @@ int cmd_spectral_closure(int argc, char** argv) {
     w.key("patch_count"); w.value(static_cast<std::int64_t>(res.patches.size()));
     w.key("matched_patches"); w.value(static_cast<std::int64_t>(matched));
     w.key("unmatched_patches"); w.value(static_cast<std::int64_t>(missing));
+    w.key("extraction");
+    w.begin_object();
+    w.key("dark_rgb_subtracted"); w.value(subtract_dark);
+    w.key("target_dark_subtracted_patch_count");
+    w.value(static_cast<std::int64_t>(target_dark_subtracted));
+    w.key("target_missing_dark_patch_count");
+    w.value(static_cast<std::int64_t>(target_missing_dark));
+    w.key("target_below_dark_excluded_patch_count");
+    w.value(static_cast<std::int64_t>(target_below_dark));
+    w.key("target_saturated_excluded_patch_count");
+    w.value(static_cast<std::int64_t>(target_saturated));
+    w.key("white_dark_subtracted_sample_count");
+    w.value(static_cast<std::int64_t>(white_dark_subtracted));
+    w.key("white_below_dark_sample_count");
+    w.value(static_cast<std::int64_t>(white_below_dark));
+    w.key("white_saturated_sample_count");
+    w.value(static_cast<std::int64_t>(white_saturated));
+    w.key("saturation_mean_fraction"); w.value(saturation_fraction);
+    w.end_object();
     w.key("white_card_gate");
     w.begin_object();
     w.key("attempted"); w.value(res.white_card_gate_attempted);
@@ -392,6 +523,21 @@ int cmd_spectral_closure(int argc, char** argv) {
     w.key("scale_mode"); w.value("global_single_k");
     w.key("chart_identity"); w.value("measured_same_session");
     w.key("conclusion"); w.value(res.conclusion);
+    w.key("patches");
+    w.begin_array();
+    for (const auto& p : res.patches) {
+      w.begin_object();
+      w.key("id"); w.value(p.id);
+      write_rgb_array(w, "measured_rgb", p.measured);
+      write_rgb_array(w, "predicted_rgb", p.predicted);
+      const std::array<double, 3> residual{
+          p.measured[0] - p.predicted[0],
+          p.measured[1] - p.predicted[1],
+          p.measured[2] - p.predicted[2]};
+      write_rgb_array(w, "residual_rgb", residual);
+      w.end_object();
+    }
+    w.end_array();
     w.end_object();
 
     const std::string json = os.str();
