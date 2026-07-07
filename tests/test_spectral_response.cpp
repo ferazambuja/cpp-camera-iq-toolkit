@@ -364,4 +364,33 @@ void TESTS() {
     threw = true;
   }
   check(threw, "raw spectral response: broken filename mapping rejected");
+
+  // Sweep discovery must not be Canon-only: Nikon NEF and Sony ARW sweeps are
+  // discovered the same way (the archive has D810/A7RII/A7SII monochromator
+  // sessions in those formats).
+  const fs::path nef_root = root / "raw_nef";
+  fs::create_directories(nef_root);
+  for (int i = 0; i < 48; ++i) {
+    std::ostringstream frame;
+    frame << std::setw(4) << std::setfill('0') << (100 + i);
+    write_file(nef_root / ("2016_11_21_D810_mono_" + frame.str() + ".NEF"), "x");
+  }
+  const auto nef_mapped = discover_spectral_sweep_files(nef_root, legacy.axis_nm);
+  check(nef_mapped.size() == 48,
+        "raw spectral response: NEF sweeps are discovered, not just CR2");
+  check(nef_mapped.front().filename() == "2016_11_21_D810_mono_0100.NEF",
+        "raw spectral response: NEF map is contiguous and ordered");
+
+  const fs::path arw_root = root / "raw_arw";
+  fs::create_directories(arw_root);
+  for (int i = 0; i < 48; ++i) {
+    std::ostringstream frame;
+    frame << std::setw(4) << std::setfill('0') << (200 + i);
+    write_file(arw_root / ("2016_11_21_A7R2_mono_" + frame.str() + ".ARW"), "x");
+  }
+  const auto arw_mapped = discover_spectral_sweep_files(arw_root, legacy.axis_nm);
+  check(arw_mapped.size() == 48,
+        "raw spectral response: ARW sweeps are discovered, not just CR2");
+  check(arw_mapped.front().filename() == "2016_11_21_A7R2_mono_0200.ARW",
+        "raw spectral response: ARW map is contiguous and ordered");
 }

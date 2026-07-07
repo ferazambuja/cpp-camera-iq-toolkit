@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <array>
+#include <cctype>
 #include <cmath>
 #include <cstdint>
 #include <fstream>
@@ -472,10 +473,19 @@ std::vector<std::filesystem::path> discover_spectral_sweep_files(
     throw std::runtime_error(
         "spectral response RAW: wavelength axis must have 48 samples");
   }
+  // Not Canon-only: the monochromator sessions are CR2 (Canon), NEF (Nikon),
+  // ARW (Sony) and IIQ (Phase One). Match any known RAW extension, case-
+  // insensitively, so every camera's sweep can be discovered.
+  static const std::vector<std::string> kRawExts = {
+      ".cr2", ".nef", ".arw", ".iiq", ".raf", ".dng", ".rw2", ".orf"};
   std::vector<std::filesystem::path> files;
   for (const auto& entry : std::filesystem::directory_iterator(raw_dir)) {
     if (!entry.is_regular_file()) continue;
-    if (entry.path().extension() == ".CR2") files.push_back(entry.path());
+    std::string ext = entry.path().extension().string();
+    std::transform(ext.begin(), ext.end(), ext.begin(),
+                   [](unsigned char c) { return std::tolower(c); });
+    if (std::find(kRawExts.begin(), kRawExts.end(), ext) != kRawExts.end())
+      files.push_back(entry.path());
   }
   std::sort(files.begin(), files.end());
   if (files.size() != axis_nm.size()) {

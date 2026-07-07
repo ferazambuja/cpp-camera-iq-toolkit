@@ -198,6 +198,7 @@ The command shape is:
   --archive-subset canon_5d2/2016_11_21_5D2_Monochromator_OK \
   --raw-dir "<local-subset>/raw" \
   --dark-raw "<local-subset>/2016_11_21_5D2_mono_DARK_FRAME_0640.CR2" \
+  --ssf-csv-out out/spectral_response_5d2_toolkit_ssf.csv \
   --out out/spectral_response_5d2_raw_20161121.json
 ```
 
@@ -247,6 +248,20 @@ Tier-1 legacy fidelity, normalized to the extracted green peak:
 
 This is a strong reimplementation-fidelity result. It is not a proof that the
 legacy curve is scientifically correct.
+
+The command now also emits the toolkit-derived SSF as `Wavelength,R,G,B` CSV via
+`--ssf-csv-out`, so downstream closure and quality slices can consume the C++
+extraction directly instead of the legacy Gold `*_mono.csv`. The legacy CSV stays
+as a tier-1 fidelity comparison target only. This distinction matters because the
+legacy `spectral_v2_1.py` path is method context, not a scientific oracle:
+
+- its dark-frame path is commented out, so the historical TIFF workflow can run
+  without dark subtraction;
+- its ROI is selected manually on a downscaled TIFF preview;
+- its `meanrgb()` mask uses `cv2.rectangle(..., thickness=10)`, which samples a
+  rectangular border rather than a filled interior;
+- it consumes demosaiced TIFFs, while the toolkit extraction uses CFA-direct
+  per-channel means plus saturation and below-dark rollups.
 
 ## Tier-3 Feasibility Check
 
@@ -315,12 +330,13 @@ The implemented `spectral-closure` command follows these constraints:
 - language should be "consistent with physical closure" until residuals are
   computed and reviewed. Do not tune the RAW extraction to improve closure.
 
-Canon 5D2 Target set 1 tier-3 closure result (fresh challenged run, with
+Canon 5D2 Target set 1 tier-3 closure result using the toolkit-derived SSF
+(`out/spectral_response_5d2_toolkit_ssf.csv`, fresh challenged run, with
 same-session dark sidecar subtraction):
 
 ```bash
 ./build/camera_iq spectral-closure \
-  --ssf-csv data/private/datasets/spectral_sensitivity_2016_2017/canon_5d2/2016_11_21_5D2_Monochromator_OK/2016_11_21_5D2_mono.csv \
+  --ssf-csv out/spectral_response_5d2_toolkit_ssf.csv \
   --illuminant data/private/datasets/spectral_sensitivity_2016_2017/canon_5d2/target_closure_20161121/PR655_HID_avg.txt \
   --reflectance data/private/datasets/spectral_sensitivity_2016_2017/canon_5d2/target_closure_20161121/SGMeasurements_CGATS.txt \
   --target-rgb data/private/datasets/spectral_sensitivity_2016_2017/canon_5d2/target_closure_20161121/2016_11_21_5D2_Target_1_Target_0116_CR2_SG.txt \
@@ -336,28 +352,30 @@ Result:
 
 | Quantity | Value |
 |---|---:|
-| White-card gate max ratio error | 0.8647% |
+| White-card gate max ratio error | 1.3510% |
 | Common wavelength grid | 380-730 nm, 36 bands |
 | Closure patches | 140/140 matched |
 | Target dark-subtracted patches | 140 |
 | Target saturated / below-dark exclusions | 0 / 0 |
-| Global exposure scale `k` | 13566.322 |
-| R/G/B relative RMS | 9.261% / 9.856% / 11.110% |
-| R/G/B correlation | 0.994642 / 0.994304 / 0.995001 |
+| Global exposure scale `k` | 13503.990 |
+| R/G/B relative RMS | 9.539% / 9.840% / 11.618% |
+| R/G/B correlation | 0.994688 / 0.994328 / 0.994999 |
 
 The JSON also emits per-patch measured, predicted, and residual RGB rows, plus
 per-channel diagnostic `k` values. Those per-channel values stay diagnostic only;
 the fitted closure uses the single global `k` above.
 
-Four-camera Target set 1 fan-out (same command, `--dark-rgb` supplied for every
-camera, shared PR-655 HID illuminant and SG reflectance):
+Four-camera Target set 1 fan-out (`--dark-rgb` supplied for every camera, shared
+PR-655 HID illuminant and SG reflectance). The Canon row now uses the toolkit
+RAW-derived SSF; the other three rows still use their legacy `*_mono.csv` SSFs
+until their RAW sweeps are scoped-copied and extracted:
 
-| Camera | Gate-1 max ratio error | Patches | Target saturated / below-dark exclusions | R/G/B relative RMS | Minimum channel correlation |
-|---|---:|---:|---:|---:|---:|
-| Canon 5D2 | 0.865% | 140/140 | 0 / 0 | 9.261% / 9.856% / 11.110% | 0.994304 |
-| Nikon D810 | 2.949% | 140/140 | 0 / 0 | 10.802% / 11.069% / 13.802% | 0.992676 |
-| Sony A7RII | 2.103% | 140/140 | 0 / 0 | 10.803% / 11.149% / 13.349% | 0.992517 |
-| Sony A7SII | 1.284% | 140/140 | 0 / 0 | 9.901% / 9.917% / 11.252% | 0.993567 |
+| Camera | SSF source | Gate-1 max ratio error | Patches | Target saturated / below-dark exclusions | R/G/B relative RMS | Minimum channel correlation |
+|---|---|---:|---:|---:|---:|---:|
+| Canon 5D2 | toolkit RAW extraction | 1.351% | 140/140 | 0 / 0 | 9.539% / 9.840% / 11.618% | 0.994328 |
+| Nikon D810 | legacy `mono.csv` | 2.949% | 140/140 | 0 / 0 | 10.802% / 11.069% / 13.802% | 0.992676 |
+| Sony A7RII | legacy `mono.csv` | 2.103% | 140/140 | 0 / 0 | 10.803% / 11.149% / 13.349% | 0.992517 |
+| Sony A7SII | legacy `mono.csv` | 1.284% | 140/140 | 0 / 0 | 9.901% / 9.917% / 11.252% | 0.993567 |
 
 All four 2016 cameras pass the illuminant-pairing gate and close with
 high patch-order correlation (minimum channel correlation >0.992). This is a
@@ -379,22 +397,22 @@ transform and reports the relative residual (Luther condition). Lower residual
 is better, and the metric is scale-invariant so the peak-G SSF normalization does
 not bias it. Result over the current CMF grid, 380-730 nm:
 
-| Rank | Camera | xbar residual | ybar residual | zbar residual | Combined residual | Quality index |
-|---|---:|---:|---:|---:|---:|---:|
-| 1 | Canon 5D2 | 0.174 | 0.214 | 0.268 | 0.222 | 0.778 |
-| 2 (tie) | Nikon D810 | 0.348 | 0.225 | 0.311 | 0.299 | 0.701 |
-| 2 (tie) | Sony A7RII | 0.342 | 0.198 | 0.335 | 0.299 | 0.701 |
-| 4 | Sony A7SII | 0.353 | 0.196 | 0.355 | 0.310 | 0.690 |
+| Rank | Camera | SSF source | xbar residual | ybar residual | zbar residual | Combined residual | Quality index |
+|---|---|---|---:|---:|---:|---:|---:|
+| 1 | Canon 5D2 | toolkit RAW extraction | 0.173 | 0.211 | 0.270 | 0.222 | 0.778 |
+| 2 (tie) | Nikon D810 | legacy `mono.csv` | 0.348 | 0.225 | 0.311 | 0.299 | 0.701 |
+| 2 (tie) | Sony A7RII | legacy `mono.csv` | 0.342 | 0.198 | 0.335 | 0.299 | 0.701 |
+| 4 | Sony A7SII | legacy `mono.csv` | 0.353 | 0.196 | 0.355 | 0.310 | 0.690 |
 
 Canon 5D2 has the lowest residual in this slice. Nikon D810 and Sony A7RII are
 effectively tied at the reported precision, and Sony A7SII is the highest
 residual of the four. Caveats: this is a Luther-condition CMF-fit residual (a
 metamerism proxy), not the official CIE Sensitivity Metamerism Index (which fixes
 test colors + illuminant); the differences after Canon are modest; and the
-ranking rests on the legacy legacy-Gold-extracted SSFs, so it inherits their
-extraction quality. It can include the Phase One IQ3 once its SSF CSV is
-converted to the `Wavelength,R,G,B` form (it has SSF data but no tier-3 target
-closure).
+multi-camera ranking remains mixed-source until the D810, A7RII, and A7SII RAW
+sweeps are extracted with the same toolkit path. It can include the Phase One IQ3
+once its SSF CSV is converted to the `Wavelength,R,G,B` form (it has SSF data but
+no tier-3 target closure).
 
 The separate `canon_5d2_repro` / `2016_IS_Reproduction` captures remain real
 archive material, but they are not the closure evidence for this slice because
