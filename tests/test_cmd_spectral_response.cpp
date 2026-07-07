@@ -94,6 +94,34 @@ void TESTS() {
                                "--spd-csv", spd.string()}) == 2,
         "spectral-response command: provenance args required");
 
+  check(run_spectral_response(
+            {"--response-csv", response.string(), "--spd-csv", spd.string(),
+             "--camera-model", "Canon EOS 5D Mark II", "--dataset-id",
+             "spectral_sensitivity_2016_2017", "--archive-subset",
+             "canon_5d2/2016_11_21_5D2_Monochromator_OK", "--raw-dir",
+             (root / "raw").string(), "--out", (root / "raw.json").string()}) ==
+            2,
+        "spectral-response command: raw-dir requires dark-raw");
+
+  check(run_spectral_response(
+            {"--response-csv", response.string(), "--spd-csv", spd.string(),
+             "--camera-model", "Canon EOS 5D Mark II", "--dataset-id",
+             "spectral_sensitivity_2016_2017", "--archive-subset",
+             "canon_5d2/2016_11_21_5D2_Monochromator_OK", "--dark-raw",
+             (root / "dark.CR2").string(), "--out",
+             (root / "raw2.json").string()}) == 2,
+        "spectral-response command: dark-raw requires raw-dir");
+
+  check(run_spectral_response(
+            {"--response-csv", response.string(), "--spd-csv", spd.string(),
+             "--camera-model", "Canon EOS 5D Mark II", "--dataset-id",
+             "spectral_sensitivity_2016_2017", "--archive-subset",
+             "canon_5d2/2016_11_21_5D2_Monochromator_OK", "--raw-dir",
+             (root / "raw").string(), "--dark-raw",
+             (root / "dark.CR2").string(), "--out",
+             (root / "raw3.json").string()}) == 1,
+        "spectral-response command: raw extraction syntax accepted before RAW I/O");
+
   const fs::path bad_spd = root / "bad_spd.csv";
   const fs::path bad_out = root / "bad.json";
   write_file(bad_spd, spd_csv("0"));

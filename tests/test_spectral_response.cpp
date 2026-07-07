@@ -4,6 +4,7 @@
 #include <cmath>
 #include <filesystem>
 #include <fstream>
+#include <iomanip>
 #include <sstream>
 #include <stdexcept>
 #include <string>
@@ -13,7 +14,12 @@
 namespace fs = std::filesystem;
 
 using camera_iq::SpectralResponseProvenance;
+using camera_iq::RawCfaImage;
+using camera_iq::RoiRect;
+using camera_iq::discover_spectral_sweep_files;
+using camera_iq::extract_raw_spectral_response;
 using camera_iq::parse_spectral_response;
+using camera_iq::write_spectral_raw_extraction_json;
 using camera_iq::write_spectral_response_json;
 using test::check;
 using test::check_near;
@@ -60,6 +66,84 @@ bool throws_parse(const fs::path& response_csv, const fs::path& line_spd_csv) {
     return true;
   }
   return false;
+}
+
+camera_iq::SpectralResponse synthetic_legacy_response() {
+  camera_iq::SpectralResponse response;
+  response.camera_model = "Canon EOS 5D Mark II";
+  response.dataset_id = "spectral_sensitivity_2016_2017";
+  response.archive_subset = "synthetic";
+  response.source = "legacy_bobby_gold_csv";
+  response.normalization = "legacy_peak_channel_normalized_green_1_no_rescale";
+  response.validation_tier = "legacy_fidelity_only";
+  for (int i = 0; i < 48; ++i) {
+    const double g = static_cast<double>(i + 1) / 48.0;
+    response.axis_nm.push_back(360 + i * 10);
+    response.response_r.push_back(0.5 * g);
+    response.response_g.push_back(g);
+    response.response_b.push_back(0.25 * g);
+    response.line_spd.push_back(2.0);
+  }
+  return response;
+}
+
+RawCfaImage synthetic_cfa_image(const std::array<double, 4>& residuals,
+                                double white_level = 1000.0) {
+  RawCfaImage image;
+  image.meta.make = "Canon";
+  image.meta.model = "EOS 5D Mark II";
+  image.meta.cfa_pattern = "GBRG";
+  image.meta.visible_width = 4;
+  image.meta.visible_height = 4;
+  image.meta.black_per_channel = {100.0, 100.0, 100.0, 100.0};
+  image.meta.black_level = 100.0;
+  image.meta.white_level = white_level;
+  image.width = 4;
+  image.height = 4;
+  image.row_stride_pixels = 4;
+  image.color_at_position = {1, 2, 0, 3};
+  image.cdesc = "RGBG";
+  image.samples.resize(16);
+  for (int r = 0; r < 4; ++r) {
+    for (int c = 0; c < 4; ++c) {
+      const int pos = (r & 1) * 2 + (c & 1);
+      image.samples[static_cast<std::size_t>(r * 4 + c)] =
+          residuals[static_cast<std::size_t>(pos)];
+    }
+  }
+  return image;
+}
+
+std::vector<RawCfaImage> synthetic_sweep(
+    const std::array<double, 4>& dark_residuals, bool clipped = false,
+    bool black_at_signal = false) {
+  std::vector<RawCfaImage> images;
+  images.reserve(48);
+  for (int i = 0; i < 48; ++i) {
+    const double scale = static_cast<double>(i + 1);
+    std::array<double, 4> residuals{
+        dark_residuals[0] + scale * 2.0,        // G1
+        dark_residuals[1] + 0.25 * scale * 2.0, // B
+        dark_residuals[2] + 0.5 * scale * 2.0,  // R
+        dark_residuals[3] + scale * 2.0};       // G2
+    if (clipped && i == 10) {
+      residuals[2] = 890.0;  // raw = residual + black = 990, near white.
+    }
+    if (black_at_signal && i == 4) {
+      residuals[2] = dark_residuals[2];
+    }
+    images.push_back(synthetic_cfa_image(residuals));
+  }
+  return images;
+}
+
+std::vector<RawCfaImage> synthetic_sweep_with_one_clipped_r_pixel(
+    const std::array<double, 4>& dark_residuals) {
+  auto images = synthetic_sweep(dark_residuals);
+  // R is CFA position 2 (odd row, even column). Clip one of the four R samples
+  // so extraction can exclude it, keep the other three, and report a flag.
+  images[10].samples[static_cast<std::size_t>(1 * 4 + 0)] = 890.0;
+  return images;
 }
 
 }  // namespace
@@ -162,4 +246,110 @@ void TESTS() {
     check(true,
           "spectral response real validation: private Canon subset absent, skipped");
   }
+
+  const auto legacy = synthetic_legacy_response();
+  const std::array<double, 4> dark_residuals{1.0, 2.0, 3.0, 4.0};
+  const auto dark = synthetic_cfa_image(dark_residuals);
+  const auto extraction = extract_raw_spectral_response(
+      legacy, synthetic_sweep(dark_residuals), dark, RoiRect{0, 0, 4, 4});
+  check(extraction.response.source == "toolkit_raw_extraction",
+        "raw spectral response: source labels toolkit extraction");
+  check(extraction.response.validation_tier == "legacy_fidelity_only",
+        "raw spectral response: tier remains fidelity-only");
+  check(extraction.response.axis_nm.size() == 48,
+        "raw spectral response: extracted sample count");
+  check_near(extraction.response.response_g.back(), 1.0, 1e-12,
+             "raw spectral response: green peak normalized to 1");
+  check_near(extraction.response.response_r.back(), 0.5, 1e-12,
+             "raw spectral response: red scaled by same green peak");
+  check_near(extraction.response.response_b.back(), 0.25, 1e-12,
+             "raw spectral response: blue scaled by same green peak");
+  check_near(extraction.dark_residual_mean_by_position[0], 1.0, 1e-12,
+             "raw spectral response: dark residual G1 measured");
+  check_near(extraction.dark_residual_mean_by_position[2], 3.0, 1e-12,
+             "raw spectral response: dark residual R measured");
+  check_near(extraction.tier1_legacy_fidelity.r.rms, 0.0, 1e-12,
+             "raw spectral response: red fidelity RMS");
+  check_near(extraction.tier1_legacy_fidelity.g.correlation, 1.0, 1e-12,
+             "raw spectral response: green fidelity correlation");
+
+  std::vector<fs::path> private_paths;
+  private_paths.reserve(48);
+  const std::string private_prefix =
+      std::string("/") + "Users/example/private/raw_";
+  for (int i = 0; i < 48; ++i) {
+    std::ostringstream frame;
+    frame << std::setw(4) << std::setfill('0') << (592 + i);
+    private_paths.push_back(private_prefix + frame.str() + ".CR2");
+  }
+  const auto private_path_extraction = extract_raw_spectral_response(
+      legacy, synthetic_sweep(dark_residuals), dark, RoiRect{0, 0, 4, 4}, 0.98,
+      private_paths);
+  std::ostringstream raw_json;
+  write_spectral_raw_extraction_json(raw_json, legacy, private_path_extraction);
+  check(raw_json.str().find(private_prefix) == std::string::npos,
+        "raw spectral response JSON: private directories are suppressed");
+  check(raw_json.str().find("raw_0592.CR2") != std::string::npos,
+        "raw spectral response JSON: raw filename is retained");
+
+  bool threw = false;
+  try {
+    auto short_sweep = synthetic_sweep(dark_residuals);
+    short_sweep.pop_back();
+    (void)extract_raw_spectral_response(legacy, short_sweep, dark,
+                                        RoiRect{0, 0, 4, 4});
+  } catch (const std::runtime_error&) {
+    threw = true;
+  }
+  check(threw, "raw spectral response: sweep-count mismatch rejected");
+
+  threw = false;
+  try {
+    (void)extract_raw_spectral_response(
+        legacy, synthetic_sweep(dark_residuals, true), dark,
+        RoiRect{0, 0, 4, 4});
+  } catch (const std::runtime_error&) {
+    threw = true;
+  }
+  check(threw, "raw spectral response: clipped channel rejected");
+
+  const auto partial_clip = extract_raw_spectral_response(
+      legacy, synthetic_sweep_with_one_clipped_r_pixel(dark_residuals), dark,
+      RoiRect{0, 0, 4, 4});
+  check_near(partial_clip.samples[10].saturated_fraction_r, 0.25, 1e-12,
+             "raw spectral response: partial saturation is flagged");
+  check_near(partial_clip.response.response_g.back(), 1.0, 1e-12,
+             "raw spectral response: partial saturation keeps extraction");
+
+  const auto below_dark = extract_raw_spectral_response(
+      legacy, synthetic_sweep(dark_residuals, false, true), dark,
+      RoiRect{0, 0, 4, 4});
+  check_near(below_dark.samples[4].below_dark_fraction_r, 1.0, 1e-12,
+             "raw spectral response: below-dark red sample is flagged");
+  check_near(below_dark.samples[4].mean_signal_r, 0.0, 1e-12,
+             "raw spectral response: below-dark signal is clamped to zero");
+
+  const fs::path map_root = root / "raw_map";
+  fs::create_directories(map_root);
+  for (int i = 0; i < 48; ++i) {
+    std::ostringstream frame;
+    frame << std::setw(4) << std::setfill('0') << (592 + i);
+    write_file(map_root /
+                   ("2016_11_21_5D2_mono_" + frame.str() + ".CR2"),
+               "x");
+  }
+  const auto mapped = discover_spectral_sweep_files(map_root, legacy.axis_nm);
+  check(mapped.size() == 48, "raw spectral response: filename map count");
+  check(mapped.front().filename() == "2016_11_21_5D2_mono_0592.CR2" &&
+            mapped.back().filename() == "2016_11_21_5D2_mono_0639.CR2",
+        "raw spectral response: filename map is contiguous");
+
+  fs::remove(map_root / "2016_11_21_5D2_mono_0601.CR2");
+  threw = false;
+  try {
+    (void)discover_spectral_sweep_files(map_root, legacy.axis_nm);
+  } catch (const std::runtime_error&) {
+    threw = true;
+  }
+  check(threw, "raw spectral response: broken filename mapping rejected");
 }

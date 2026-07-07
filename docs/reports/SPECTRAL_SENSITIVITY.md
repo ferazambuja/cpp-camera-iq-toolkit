@@ -179,12 +179,71 @@ positive 48-sample line SPD, the original legacy RGB response, normalization
 `legacy_peak_channel_normalized_green_1_no_rescale`, and
 `validation_tier: "legacy_fidelity_only"`.
 
-Next, add the RAW extraction slice over the 48 sweep CR2s plus the dark frame,
-using post-unpack Canon black metadata and the existing active-area/crop logic.
+## RAW Extraction Slice
+
+The second implementation slice adds toolkit-derived RAW extraction over the
+same 48 sweep CR2s plus the matched dark frame. This remains tier-1 fidelity
+evidence only: the comparison target is legacy Gold's legacy `*_mono.csv`, not an
+independent camera spectral-sensitivity oracle.
+
+The command shape is:
+
+```bash
+./build/camera_iq spectral-response \
+  --response-csv "<local-subset>/2016_11_21_5D2_mono.csv" \
+  --spd-csv "<local-subset>/spd.csv" \
+  --camera-model "Canon EOS 5D Mark II" \
+  --dataset-id spectral_sensitivity_2016_2017 \
+  --archive-subset canon_5d2/2016_11_21_5D2_Monochromator_OK \
+  --raw-dir "<local-subset>/raw" \
+  --dark-raw "<local-subset>/2016_11_21_5D2_mono_DARK_FRAME_0640.CR2" \
+  --out out/spectral_response_5d2_raw_20161121.json
+```
+
+Implementation details:
+
+- RAW decoding reuses `read_raw_cfa_image`, so Canon black is read after
+  `unpack()` through the same `cblack`/active-area path used by `raw-stats`.
+  It does not use the manifest's open-time black value.
+- The empirical dark frame is subtracted per CFA position over the same
+  measurement ROI, so the extracted response uses measured dark residuals while
+  still logging the post-unpack metadata black for sanity checking.
+- With no explicit `--roi`, extraction uses the central 50% of the active image,
+  CFA-balanced to preserve Bayer phase. For this Canon 5D2 subset the emitted
+  ROI is `{x: 1408, y: 938, width: 2816, height: 1876}`.
+- Near-saturated pixels are excluded from the channel mean and reported per
+  sample; a channel only fails if no unsaturated samples remain. Tails at or
+  below the dark-frame mean are flagged and clamped to zero response rather than
+  hidden or treated as negative physical responsivity.
+
+Local Canon 5D2 run:
+
+| Field | Value |
+|---|---:|
+| Metadata black by CFA position | `[1022, 1024, 1023, 1023]` |
+| Dark residual mean by CFA position | `[0.7014, -0.0404, 0.9930, 1.2593]` |
+| Maximum saturated fraction | `0.005576` |
+| Maximum below-dark fraction | `1.0` |
+
+Tier-1 legacy fidelity, normalized to the extracted green peak:
+
+| Channel | RMS vs legacy | Pearson correlation |
+|---|---:|---:|
+| R | `0.0063000` | `0.9993665` |
+| G | `0.0068747` | `0.9997911` |
+| B | `0.0037980` | `0.9999076` |
+
+This is a strong reimplementation-fidelity result. It is not a proof that the
+legacy curve is scientifically correct.
+
+Next, add either the independent Canon 5D Mark II public-SSF comparison (tier 2)
+or a physical-closure test against an independently measured target/illuminant
+capture (tier 3). Do not tune the RAW extraction to the legacy curve.
 
 ## Not Claimed
 
-- No new camera spectral-sensitivity curve is claimed here.
+- No independently validated camera spectral-sensitivity function is claimed
+  here; the toolkit-derived RAW response is tier-1 legacy-fidelity evidence.
 - No assertion that the legacy `*_mono.csv` is scientifically correct.
 - No public-SSF comparison yet.
 - No physical-closure result yet.
