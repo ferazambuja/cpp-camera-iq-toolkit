@@ -223,7 +223,13 @@ Local Canon 5D2 run:
 | Metadata black by CFA position | `[1022, 1024, 1023, 1023]` |
 | Dark residual mean by CFA position | `[0.7014, -0.0404, 0.9930, 1.2593]` |
 | Maximum saturated fraction | `0.005576` |
+| Samples with any saturation flag | `3 / 48` |
 | Maximum below-dark fraction | `1.0` |
+| Samples with any below-dark tail flag | `12 / 48` |
+
+The saturation and below-dark flags are diagnostics, not silent corrections:
+near-saturated pixels are omitted from the channel mean, while below-dark tails
+are clamped to zero physical response and remain visible in the emitted JSON.
 
 Tier-1 legacy fidelity, normalized to the extracted green peak:
 
