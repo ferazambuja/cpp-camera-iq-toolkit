@@ -590,6 +590,19 @@ SpectralRawExtraction extract_raw_spectral_response(
     out.samples.push_back(diag);
   }
 
+  for (const auto& s : out.samples) {
+    const double s_sat = std::max({s.saturated_fraction_r,
+                                   s.saturated_fraction_g,
+                                   s.saturated_fraction_b});
+    const double s_bd = std::max({s.below_dark_fraction_r,
+                                  s.below_dark_fraction_g,
+                                  s.below_dark_fraction_b});
+    out.max_saturated_fraction = std::max(out.max_saturated_fraction, s_sat);
+    out.max_below_dark_fraction = std::max(out.max_below_dark_fraction, s_bd);
+    if (s_sat > 0.0) ++out.saturated_sample_count;
+    if (s_bd > 0.0) ++out.below_dark_sample_count;
+  }
+
   const double max_g = *std::max_element(raw_g.begin(), raw_g.end());
   if (max_g <= 0.0 || !std::isfinite(max_g)) {
     throw std::runtime_error(
@@ -720,6 +733,14 @@ void write_spectral_raw_extraction_json(
   write_roi(w, extraction.measurement_roi);
   w.key("near_saturation_fraction");
   w.value(extraction.near_saturation_fraction);
+  w.key("saturated_sample_count");
+  w.value(static_cast<std::int64_t>(extraction.saturated_sample_count));
+  w.key("max_saturated_fraction");
+  w.value(extraction.max_saturated_fraction);
+  w.key("below_dark_sample_count");
+  w.value(static_cast<std::int64_t>(extraction.below_dark_sample_count));
+  w.key("max_below_dark_fraction");
+  w.value(extraction.max_below_dark_fraction);
   w.key("metadata_black_by_position");
   write_position_array(w, extraction.metadata_black_by_position);
   w.key("dark_residual_mean_by_position");

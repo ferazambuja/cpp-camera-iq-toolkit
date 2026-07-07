@@ -320,6 +320,13 @@ void TESTS() {
              "raw spectral response: partial saturation is flagged");
   check_near(partial_clip.response.response_g.back(), 1.0, 1e-12,
              "raw spectral response: partial saturation keeps extraction");
+  check(partial_clip.saturated_sample_count == 1,
+        "raw spectral response: saturated sample rollup counts the flagged "
+        "sample");
+  check_near(partial_clip.max_saturated_fraction, 0.25, 1e-12,
+             "raw spectral response: max saturated fraction rollup is exposed");
+  check(partial_clip.below_dark_sample_count == 0,
+        "raw spectral response: no below-dark rollup when tails are clean");
 
   const auto below_dark = extract_raw_spectral_response(
       legacy, synthetic_sweep(dark_residuals, false, true), dark,
@@ -328,6 +335,10 @@ void TESTS() {
              "raw spectral response: below-dark red sample is flagged");
   check_near(below_dark.samples[4].mean_signal_r, 0.0, 1e-12,
              "raw spectral response: below-dark signal is clamped to zero");
+  check(below_dark.below_dark_sample_count >= 1,
+        "raw spectral response: below-dark rollup counts the flagged sample");
+  check_near(below_dark.max_below_dark_fraction, 1.0, 1e-12,
+             "raw spectral response: max below-dark fraction rollup is exposed");
 
   const fs::path map_root = root / "raw_map";
   fs::create_directories(map_root);

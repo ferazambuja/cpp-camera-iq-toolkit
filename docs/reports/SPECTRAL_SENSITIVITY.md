@@ -230,6 +230,11 @@ Local Canon 5D2 run:
 The saturation and below-dark flags are diagnostics, not silent corrections:
 near-saturated pixels are omitted from the channel mean, while below-dark tails
 are clamped to zero physical response and remain visible in the emitted JSON.
+The four counts above are emitted as top-level `extraction` rollups
+(`saturated_sample_count`, `max_saturated_fraction`, `below_dark_sample_count`,
+`max_below_dark_fraction`) so a consumer can read whether the guards fired
+without iterating the per-sample array — a mis-named per-sample field otherwise
+defaults to zero and makes a run look deceptively clean.
 
 Tier-1 legacy fidelity, normalized to the extracted green peak:
 

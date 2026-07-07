@@ -63,6 +63,14 @@ struct SpectralRawExtraction {
   std::array<double, 4> metadata_black_by_position{0, 0, 0, 0};
   RoiRect measurement_roi;
   double near_saturation_fraction = 0.98;
+  // Top-level rollups of the per-sample flags below. These exist so a consumer
+  // (report, script, or reviewer) can see at a glance whether the saturation
+  // and below-dark guards fired, without iterating the per-sample array and
+  // silently defaulting a mis-named field to zero.
+  std::size_t saturated_sample_count = 0;
+  double max_saturated_fraction = 0;
+  std::size_t below_dark_sample_count = 0;
+  double max_below_dark_fraction = 0;
   std::vector<SpectralSampleDiagnostics> samples;
   SpectralFidelityComparison tier1_legacy_fidelity;
 };
