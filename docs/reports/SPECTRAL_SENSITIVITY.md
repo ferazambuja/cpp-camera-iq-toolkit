@@ -318,6 +318,36 @@ The separate `canon_5d2_repro` / `2016_IS_Reproduction` captures remain real
 archive material, but they are not the closure evidence for this slice because
 they are a different session with no paired capture illuminant SPD.
 
+## Per-Camera Coverage and Multi-Camera Closure Plan
+
+The archive is a five-camera set across two sessions. Tier-3 closure needs, per
+camera: an SSF source, a broadband ColorChecker/Target capture, a measured
+illuminant SPD, and a measured chart reflectance. Coverage (verified 2026-07-07,
+read-only):
+
+| Camera | Session | SSF source | Target capture | Illuminant SPD | Chart reflectance | Tier-3 |
+|---|---|---|---|---|---|---|
+| Canon 5D2 | 2016 | sweeps + `mono.csv` | `_Target` (5 sets) | HID (PR655) | SGMeasurements | ready, pairing verified |
+| Nikon D810 | 2016 | sweeps + `mono.csv` | `_Target` (5 sets) | HID (shared) | SGMeasurements (shared) | ready, not yet run |
+| Sony A7RII | 2016 | sweeps + `mono.csv` | `_Target` (5 sets) | HID (shared) | SGMeasurements (shared) | ready, not yet run |
+| Sony A7SII | 2016 | sweeps + `mono.csv` | `_Target` (5 sets) | HID (shared) | SGMeasurements (shared) | ready, not yet run |
+| Phase One IQ3 | 2017 | sweeps + `Spectral_Sensitivity_Data.csv` | none | `Lamp_SPD` xlsx (camSPECS) | none | blocked |
+
+Only the Phase One IQ3 is missing measurements: its 2017 camSPECS session has
+spectral sweeps and a lamp SPD but no broadband Target capture and no chart
+reflectance, so it is SSF-only (tier-1/tier-2), not physically closable. All
+four 2016 cameras are complete and share the single measured HID illuminant and
+the single measured proven-identity SG reflectance.
+
+Multi-camera closure plan (fires after the 5D2 closure slice lands, not before):
+the `spectral-closure` command is camera-agnostic, so extending it to D810,
+A7RII, and A7SII is mechanical — same command, per-camera `_Target` +
+SSF inputs, the shared illuminant and reflectance, and the same white-card
+pairing gate run first for each (same 2016-11-21 session and HID, so each is
+expected to pass its own gate). This yields a four-camera cross-manufacturer
+closure suite (Canon / Nikon / Sony x2) rather than a single-camera result. Copy
+each camera's scoped Target subset only when its slice runs; do not bulk-copy.
+
 ## Not Claimed
 
 - No independently validated camera spectral-sensitivity function is claimed
