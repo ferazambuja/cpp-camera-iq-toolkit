@@ -79,11 +79,12 @@ Interpretation:
   is near zero over this short shutter ladder.
 - The moment DSNU is an upper-bound style estimate because no hot-pixel or
   defect-pixel rejection is performed.
-- The temporal-corrected robust MAD companion isolates the fixed-pattern that
-  survives tail rejection. R clamps to null: its 3.07 DN moment DSNU is driven
-  entirely by sparse defect/tail pixels, with no bulk fixed-pattern above the
-  temporal floor. G1/G2/B carry a small resolvable fixed-pattern (0.17-0.28 DN),
-  below their moment values and on the same scale.
+- The temporal-corrected robust MAD companion estimates fixed-pattern that
+  survives tail rejection. R clamps to null: its robust bulk spread sits below
+  the temporal floor while its 3.07 DN moment DSNU remains high, so the R-plane
+  moment estimate is tail-sensitive rather than supported by the robust bulk
+  estimate. G1/G2/B carry a small resolvable fixed-pattern (0.17-0.28 DN), below
+  their moment values and on the same scale.
 
 ## Dark-Current Diagnostic
 
@@ -112,7 +113,8 @@ Targeted red/green tests were added for:
   `dsnu_below_temporal_floor`.
 - Hot-pixel sensitivity: moment DSNU inflates while the temporal-corrected
   robust MAD stays stable, and the robust estimate clamps to null with
-  `dsnu_below_temporal_floor` when only tails carry the spread.
+  `dsnu_below_temporal_floor` when the robust bulk spread sits below the
+  temporal floor.
 - Dimension and CFA-phase mismatch rejection before differencing.
 - Dark-current expected-null diagnostic.
 - JSON honesty contract: DN units, single-pair status, and gain/PTC/DR

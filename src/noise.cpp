@@ -244,8 +244,8 @@ NoisePairEstimate compute_noise_pair_estimate(
     // floor (sigma_temporal^2 / 2 for an N=2 pair mean) from a hot-pixel-robust
     // MAD spread, so the two DSNU columns are on the same scale.  A MAD spread
     // dominated by leftover temporal noise (bulk fixed-pattern below the floor)
-    // clamps to null, which correctly attributes any large moment DSNU on that
-    // plane entirely to tail/defect pixels the MAD rejected.
+    // clamps to null; if the moment DSNU is still large, the spread is
+    // tail-sensitive rather than supported by the robust bulk estimate.
     plane.dsnu_robust_variance_dn2 =
         plane.pair_mean_mad_stddev_dn * plane.pair_mean_mad_stddev_dn -
         (plane.temporal_noise_dn * plane.temporal_noise_dn) / 2.0;
