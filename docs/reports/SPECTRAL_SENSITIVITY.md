@@ -432,17 +432,35 @@ not bias it. Result over the current CMF grid, 380-730 nm:
 | 2 (tie) | Nikon D810 | legacy `mono.csv` | 0.348 | 0.225 | 0.311 | 0.299 | 0.701 |
 | 2 (tie) | Sony A7RII | legacy `mono.csv` | 0.342 | 0.198 | 0.335 | 0.299 | 0.701 |
 | 4 | Sony A7SII | legacy `mono.csv` | 0.353 | 0.196 | 0.355 | 0.310 | 0.690 |
+| 5 | Phase One IQ3 100 | legacy `Spectral_Sensitivity_Data.csv` (2017 camSPECS) | 0.358 | 0.304 | 0.377 | 0.348 | 0.652 |
 
-Canon 5D2 has the lowest residual in this slice. Nikon D810 and Sony A7RII are
-effectively tied at the reported precision, and Sony A7SII is the highest
-residual of the four. Caveats: this is a Luther-condition CMF-fit residual (a
-metamerism proxy), not the official CIE Sensitivity Metamerism Index (which fixes
-test colors + illuminant); the differences after Canon are modest; and the
-component-residual table remains mixed-source. The all-toolkit combined-residual
-validation table above records that the ranking is stable when all four cameras use
-toolkit-extracted SSFs. The Phase One IQ3 can be added once its SSF CSV is
-converted to the `Wavelength,R,G,B` form (it has SSF data but no tier-3 target
-closure).
+Canon 5D2 has the lowest residual in this slice; the medium-format Phase One
+IQ3 100 has the highest. Nikon D810 and Sony A7RII are effectively tied at the
+reported precision, and Sony A7SII sits between that pair and the IQ3. The IQ3
+row is its first 2017 capture run; the second run gives a combined residual of
+0.336, so the IQ3 figure carries ~0.01 run-to-run uncertainty — an order of
+magnitude larger than the 35 mm cameras' spreads — but it ranks last under either
+run (both well above the A7SII's 0.310).
+
+IQ3 provenance caveats (distinct from the four 2016 cameras):
+- **Different session and rig**: the IQ3 SSF is from the 2017 camSPECS session,
+  not the 2016 monochromator run. This is legitimate for the Luther metric, which
+  is a pure SSF-vs-CMF geometry — session-, illuminant-, and capture-independent —
+  but it would be invalid to pool the IQ3 into any closure comparison.
+- **Legacy SSF, SSF-only**: the IQ3 uses its legacy `Spectral_Sensitivity_Data.csv`
+  (already in `Wavelength,Red,Green,Blue` form — no conversion needed; the earlier
+  "once converted" note was wrong). A toolkit dark-subtracted variant is possible
+  from the 2017 IIQ sweeps but is not extracted or retained. The IQ3 cannot be
+  tier-3 closed: the 2017 session has no broadband target capture and no measured
+  chart reflectance.
+
+Caveats shared with the four-camera table: this is a Luther-condition CMF-fit
+residual (a metamerism proxy), not the official CIE Sensitivity Metamerism Index
+(which fixes test colors + a reference illuminant); the differences among the
+middle cameras are modest; and the component-residual sources are mixed (Canon
+toolkit, the rest legacy). The all-toolkit combined-residual validation table above
+records that the four-camera ranking is stable when all four 2016 cameras use
+toolkit-extracted SSFs.
 
 The separate `canon_5d2_repro` / `2016_IS_Reproduction` captures remain real
 archive material, but they are not the closure evidence for this slice because
@@ -475,12 +493,12 @@ subset only when its slice runs; do not bulk-copy.
 
 ## Follow-on TODO
 
-1. **Add the Phase One IQ3 to the color-fidelity ranking** — convert its
-   `2017_camspec/.../IQ3 100_Spectral_Sensitivity_Data.csv` to the
-   `Wavelength,R,G,B` form and run `spectral-quality`. This makes it a full
-   five-camera color ranking including the medium-format back, which has an SSF
-   but no tier-3 closure. Watch the IQ3 CSV's wavelength axis/format; it is a
-   different export than the legacy-Gold `mono.csv`.
+1. **[DONE 2026-07-07]** **Add the Phase One IQ3 to the color-fidelity ranking.**
+   The IQ3 `Spectral_Sensitivity_Data.csv` was already in `Wavelength,Red,Green,
+   Blue` form — no conversion needed — so `spectral-quality` runs on it directly
+   (the SSF is scoped-copied to `data/private/.../iq3_100_2017camspec/`). Added as
+   rank 5 above (combined residual 0.348 run 1 / 0.336 run 2, worst of the five).
+   The medium-format back has the highest CMF-fit residual of the set.
 2. **Upgrade from the Luther CMF-fit proxy to the official CIE Sensitivity
    Metamerism Index (SMI)** — the standardized metric with a fixed test-color
    set and reference illuminant, rather than the unweighted CMF-fit residual.
