@@ -51,7 +51,8 @@ wrong-camera or wrong-day file is in use.
 | Role | Canonical file | Used by | Verified |
 |---|---|---|---|
 | Illuminant (closure) | `Data_Collected/Light Source/PR655_HID_avg.txt` (PR-655 spectroradiometer, HID lamp, 380-780 nm) | `spectral-closure` | md5 MATCH to `private:.../PR655_HID_avg.txt` |
-| Illuminant (SMI) | `data/cie_d50.csv` (committed standard CIE D50) | `spectral-smi` | white point x=0.34566 y=0.35863 checked by `tools/gen_cie_d50.py` |
+| Illuminant (SMI primary) | `data/cie_d55.csv` (committed standard CIE D55) | `spectral-smi` | official CIE D55 dataset subset, white point x=0.33242 y=0.34756 checked by `tools/gen_cie_d55.py` |
+| Illuminant (SMI cross-check) | `data/cie_d50.csv` (committed standard CIE D50) | `spectral-smi` | white point x=0.34566 y=0.35863 checked by `tools/gen_cie_d50.py` |
 | Chart reflectance (SG-140) | `Data_Collected/Color Checker/SGMeasurements_CGATS.txt` (i1Pro, 140 patches, 380-730 nm) | `spectral-closure`, `spectral-smi` | md5 MATCH to staged copy |
 | Chart reflectance (CC-24) | `Data_Collected/Color Checker/CC24Patch_CGATS.txt` (i1Pro, classic 24-patch) | `spectral-smi` (full 24 + the ISO 18-chromatic subset) | converted to `private:...monochromator_color_checker/cc24_reflectance_canonical.csv`; the 18-chromatic subset is `cc18_chromatic_reflectance_canonical.csv` (neutrals A4/B4/C4/D4/E4/F4 excluded, verified as the flattest, monotonic white->black ramp) |
 
@@ -115,8 +116,10 @@ alongside the 2016 cameras is valid; a closure comparison would not be.
 
 1. **[DONE 2026-07-07] Adopt CC-24 for the ISO-style SMI.** `CC24Patch_CGATS.txt`
    is converted to canonical CSV and `spectral-smi` runs over the 18 chromatic
-   patches (ISO), the full 24, and the SG-140. The three sets agree on the
-   endpoints (Canon best, IQ3 worst) and on A7RII second; D810/A7SII tie for third.
+   patches (ISO), the full 24, and the SG-140. The primary SMI run uses D55, as
+   ISO DSC/SMI specifies by default; D50 is retained as a cross-check. The three
+   sets agree on the endpoints (Canon best, IQ3 worst) and on A7RII second; A7SII
+   is slightly ahead of D810 under D55, while D50 makes them a practical tie.
    See the SMI ranking section of `SPECTRAL_SENSITIVITY.md`.
 2. **CC-24 closure** (open): use the `<camera>/Target/*_CC.txt` ROI RGB with the
    CC-24 reflectance for a 24-patch predicted-vs-measured closure alongside SG-140.
