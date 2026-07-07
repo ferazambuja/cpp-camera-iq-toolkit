@@ -111,6 +111,8 @@ void TESTS() {
   check(json.find("ISO-17321-style only when the supplied slope and test "
                   "colours match the standard") != std::string::npos,
         "spectral-smi JSON: interpretation does not overclaim arbitrary test set");
+  check(json.find("Annex B optimization convention") != std::string::npos,
+        "spectral-smi JSON: interpretation does not overclaim bit-exact ISO");
 
   // Luther camera (SSF == CMF) scores essentially 100.
   const std::size_t k = json.find("\"smi\":");

@@ -241,8 +241,8 @@ int cmd_spectral_smi(int argc, char** argv) {
         "RGB->XYZ fit over the test colours under the reference illuminant; "
         "higher is better, 100 is a Luther-condition camera. This is "
         "ISO-17321-style only when the supplied slope and test colours match "
-        "the standard; verify the exact constant and colour set before citing "
-        "an absolute SMI.");
+        "the standard; verify the exact constant, colour set, illuminant, and "
+        "Annex B optimization convention before citing an absolute SMI.");
     w.end_object();
 
     const std::string json = os.str();

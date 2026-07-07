@@ -522,13 +522,14 @@ What is robust and what is not:
   ahead. Report both, but do not reinterpret SMI using the dE2000 ordering.
 
 SMI caveats (honest scope):
-- **Close to ISO, not bit-exact.** Method + test set now follow ISO 17321 (optimal
-  3x3, 18 chromatic ColorChecker patches, `SMI = 100 - 5.5*dE*ab`). The remaining
-  gap to a citable absolute SMI is the `5.5` slope (the exact ISO constant is
-  behind the paywalled standard) and the reference-illuminant convention (D50
-  here; some references use D55). The command exposes `--smi-slope` and takes any
-  illuminant, so both are a parameter swap. The *ranking* is unaffected by the
-  slope (a positive affine map).
+- **Close to ISO, not bit-exact.** The test set now matches the ISO 17321 shape
+  (18 chromatic ColorChecker patches) and the metric uses `SMI = 100 -
+  5.5*dE*ab` after a 3x3 RGB->XYZ fit. The remaining gaps to a citable absolute
+  ISO SMI are the exact slope constant, the reference-illuminant convention (D50
+  here; some references use D55), and the paywalled Annex B optimizer /
+  normalization details. The command exposes `--smi-slope` and takes any
+  illuminant, so slope and illuminant are parameter swaps. The *ranking* is
+  unaffected by the slope (a positive affine map).
 - **Reproducibility.** The `spectral-smi` command and its unit tests are fully
   reproducible from the committed repo (synthetic fixtures + committed D50). The
   five-camera *numbers* depend on the private measured reflectances (CC-24 / SG)
@@ -577,9 +578,10 @@ subset only when its slice runs; do not bulk-copy.
    under CIE D50 over three measured test sets — the ISO-recommended 18 chromatic
    ColorChecker patches, the full CC-24, and the SG-140 — see the SMI ranking
    section above (Canon best, IQ3 worst on all three; A7RII second; D810/A7SII tie
-   for third). The only remaining gap to a *bit-exact* citable SMI is the `5.5`
-   slope (paywalled ISO constant) and the D50-vs-D55 illuminant convention; both
-   are `spectral-smi` parameters and neither changes the ranking.
+   for third). The remaining gaps to a *bit-exact* citable SMI are the `5.5`
+   slope (paywalled ISO constant), the D50-vs-D55 illuminant convention, and the
+   exact Annex B optimizer / normalization convention; slope and illuminant are
+   `spectral-smi` parameters, and slope does not change the ranking.
 
 ## Not Claimed
 

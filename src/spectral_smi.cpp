@@ -88,8 +88,9 @@ SpectralSmiResult compute_spectral_smi(const SpectralSmiInputs& in) {
     camera.push_back(CameraRgbPatch{r, g, b});
   }
 
-  // Optimal (unconstrained least-squares) 3x3 RGB->XYZ transform plus its
-  // residual CIELAB error, exactly the ISO 17321 characterization step.
+  // Unconstrained least-squares 3x3 RGB->XYZ transform plus residual CIELAB
+  // error. This is the ISO 17321-style characterization shape, not a claim of
+  // bit-exact Annex B optimizer/normalization behavior.
   const CcmFit fit = fit_rgb_to_xyz_ccm(camera, target, white);
 
   SpectralSmiResult res;
