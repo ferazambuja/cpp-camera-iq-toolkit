@@ -335,8 +335,9 @@ void TESTS() {
              "raw spectral response: below-dark red sample is flagged");
   check_near(below_dark.samples[4].mean_signal_r, 0.0, 1e-12,
              "raw spectral response: below-dark signal is clamped to zero");
-  check(below_dark.below_dark_sample_count >= 1,
-        "raw spectral response: below-dark rollup counts the flagged sample");
+  check(below_dark.below_dark_sample_count == 1,
+        "raw spectral response: below-dark rollup counts exactly one flagged "
+        "sample");
   check_near(below_dark.max_below_dark_fraction, 1.0, 1e-12,
              "raw spectral response: max below-dark fraction rollup is exposed");
 
