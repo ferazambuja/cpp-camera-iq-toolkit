@@ -367,12 +367,31 @@ single global exposure scale.
 
 Do **not** read the residual spread as a camera-quality ranking. These numbers
 measure per-camera session and optical-path closure consistency, including lens,
-capture, RawDigger sidecar, SSF, and shared illuminant/reference pairing. A
-camera color-fidelity ranking needs a separate spectral-quality / Luther metric:
-fit each camera SSF to the CIE 1931 color-matching functions with one 3x3
-transform and compare residuals against a verified CMF source. That future
-metric can include the Phase One IQ3, which has SSF data but no tier-3 target
-closure.
+capture, RawDigger sidecar, SSF, and shared illuminant/reference pairing.
+
+### Camera color-fidelity ranking (`spectral-quality`, Luther metric)
+
+The fair cross-camera color ranking is a per-camera SSF property, not a closure
+number. The `spectral-quality` command fits each camera's SSFs to the CIE 1931
+2-degree color-matching functions (`data/cie1931_2deg_cmf.csv`) with one 3x3
+transform and reports the relative residual (Luther condition); lower is better,
+and the metric is scale-invariant so the peak-G SSF normalization does not bias
+it. Result over 380-730 nm:
+
+| Rank | Camera | Combined residual | Quality index |
+|---|---:|---:|---:|
+| 1 | Canon 5D2 | 0.222 | 0.778 |
+| 2 | Nikon D810 | 0.299 | 0.701 |
+| 3 | Sony A7RII | 0.299 | 0.701 |
+| 4 | Sony A7SII | 0.310 | 0.690 |
+
+Canon 5D2 spans the human visual subspace best; the two Sony bodies are the
+weakest, with Nikon between. Caveats: this is a Luther-condition CMF-fit residual
+(a metamerism proxy), not the official CIE Sensitivity Metamerism Index (which
+fixes test colors + illuminant); the differences are modest; and the ranking
+rests on the legacy legacy-Gold-extracted SSFs, so it inherits their extraction
+quality. It can include the Phase One IQ3 once its SSF CSV is converted to the
+`Wavelength,R,G,B` form (it has SSF data but no tier-3 target closure).
 
 The separate `canon_5d2_repro` / `2016_IS_Reproduction` captures remain real
 archive material, but they are not the closure evidence for this slice because
