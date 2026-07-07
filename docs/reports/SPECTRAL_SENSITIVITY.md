@@ -383,14 +383,23 @@ cross-manufacturer method validation: independently measured SSF, illuminant,
 and chart reflectance predict the same-session camera target captures with a
 single global exposure scale.
 
-The whole suite was also re-run on the toolkit's **own** RAW extractions, not
-the legacy legacy-Gold CSVs: each camera's SSF was re-extracted via
+The suite was also re-run on the toolkit's **own** RAW extractions via
 `spectral-response --raw-dir --ssf-csv-out` (CR2/NEF/ARW sweeps discovered by
-the generalized `discover_spectral_sweep_files`) and fed to closure and quality.
-The color-fidelity ranking is unchanged on our extractions (Canon 0.222,
-D810 0.297, A7RII 0.297, A7SII 0.309), confirming the ranking is a real SSF
-property and the pipeline is now self-contained on our own dark-subtracted
-extraction rather than any legacy curve.
+the generalized `discover_spectral_sweep_files`). Distinguish reproducibility:
+
+- **Canon 5D2 is fully self-contained** — its 48 sweep RAW are in the local
+  private cache, so closure and quality run on our extraction end-to-end and
+  reproduce from the committed repo.
+- **D810 / A7RII / A7SII were extracted by reading the mounted archive
+  read-only** (their RAW are not scoped-copied locally, ~1-4 GB each). Those
+  runs confirm the ranking is stable across legacy-vs-toolkit SSFs (quality
+  0.297 / 0.297 / 0.309, unchanged from the legacy `mono.csv` values), but the
+  numbers are **not locally reproducible** until each camera's RAW is scoped-
+  copied. The committed local pipeline for these three still uses legacy SSFs.
+
+The stability of the ranking across legacy and toolkit SSFs is the real result:
+it confirms the color-fidelity ordering is a genuine SSF property, not an
+artifact of which extraction is trusted.
 
 Do **not** read the residual spread as a camera-quality ranking. These numbers
 measure per-camera session and optical-path closure consistency, including lens,
@@ -451,6 +460,20 @@ has now been staged and gate-checked for all four 2016 cameras. The additional
 target sets span 2016-11-21 and 2016-11-22 and must carry their own
 white-card/dark pairing if used later. Copy each additional camera or target
 subset only when its slice runs; do not bulk-copy.
+
+## Follow-on TODO
+
+1. **Add the Phase One IQ3 to the color-fidelity ranking** — convert its
+   `2017_camspec/.../IQ3 100_Spectral_Sensitivity_Data.csv` to the
+   `Wavelength,R,G,B` form and run `spectral-quality`. This makes it a full
+   five-camera color ranking including the medium-format back, which has an SSF
+   but no tier-3 closure. Watch the IQ3 CSV's wavelength axis/format; it is a
+   different export than the legacy-Gold `mono.csv`.
+2. **Upgrade from the Luther CMF-fit proxy to the official CIE Sensitivity
+   Metamerism Index (SMI)** — the standardized metric with a fixed test-color
+   set and reference illuminant, rather than the unweighted CMF-fit residual.
+   The current metric gives a defensible relative ordering; the SMI gives the
+   citable standardized number.
 
 ## Not Claimed
 
