@@ -38,6 +38,7 @@ void print_usage() {
       "              Fit a linear RGB-to-XYZ CCM against a spectral SG reference\n"
       "  spectral-response\n"
       "  spectral-closure\n"
+      "  spectral-quality\n"
       "              Parse and validate legacy monochromator response/SPD CSVs\n"
       "  patches\n"
       "              Extract checker ROI RGB means from a RAW capture\n"
@@ -95,6 +96,9 @@ int run(int argc, char** argv) {
   }
   if (arg == "spectral-closure") {
     return cmd_spectral_closure(argc - 2, argv + 2);
+  }
+  if (arg == "spectral-quality") {
+    return cmd_spectral_quality(argc - 2, argv + 2);
   }
   if (arg == "patches") {
     return cmd_patches(argc - 2, argv + 2);

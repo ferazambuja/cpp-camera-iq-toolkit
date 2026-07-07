@@ -52,6 +52,7 @@ add_library(camera_iq_core STATIC
   src/localization_diagnosis.cpp
   src/spectral_response.cpp
   src/spectral_closure.cpp
+  src/spectral_quality.cpp
   src/cmd_manifest.cpp
   src/cmd_raw_stats.cpp
   src/cmd_demosaic.cpp
@@ -62,6 +63,7 @@ add_library(camera_iq_core STATIC
   src/cmd_ccm_fit.cpp
   src/cmd_spectral_response.cpp
   src/cmd_spectral_closure.cpp
+  src/cmd_spectral_quality.cpp
   src/cmd_patches.cpp)
 target_include_directories(camera_iq_core PUBLIC include)
 target_compile_definitions(camera_iq_core PUBLIC
@@ -104,6 +106,8 @@ camera_iq_add_test(test_localization_diagnosis tests/test_localization_diagnosis
 camera_iq_add_test(test_spectral_response tests/test_spectral_response.cpp)
 camera_iq_add_test(test_cmd_spectral_response tests/test_cmd_spectral_response.cpp)
 camera_iq_add_test(test_spectral_closure tests/test_spectral_closure.cpp)
+camera_iq_add_test(test_spectral_quality tests/test_spectral_quality.cpp)
+camera_iq_add_test(test_cmd_spectral_quality tests/test_cmd_spectral_quality.cpp)
 camera_iq_add_test(test_cmd_spectral_closure tests/test_cmd_spectral_closure.cpp)
 camera_iq_add_test(test_cmd_patches tests/test_cmd_patches.cpp)
 
