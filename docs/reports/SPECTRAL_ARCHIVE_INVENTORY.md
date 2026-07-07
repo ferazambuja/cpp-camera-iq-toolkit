@@ -93,7 +93,7 @@ illuminant and SG reflectance are likewise byte-identical to the authoritative
 
 | Data | Location | Why unused / potential use |
 |---|---|---|
-| CC ROI sidecars (target RGB) | `<camera>/Target/*_CC.txt` | ColorChecker-24 ROI RGB from the broadband Target captures; enables a CC-24 *closure* (predicted-vs-measured on the 24 chart patches) to complement the SG-140 closure. (The CC-24 *reflectance* is now used by `spectral-smi` — see Shared inputs.) |
+| CC ROI sidecars (target RGB) | `<camera>/Target/*_CC.txt` | **Now used** by the CC-24 `spectral-closure` (all four cameras, Target set 1); staged under `private:.../<camera>/target_closure_20161121/cc24/`. The 11-22 Target set 2 `_CC.txt` remain available for a repeat. |
 | i1Pro illuminant | `Data_Collected/Light Source/i1Pro_HID_avg.txt` | A second-instrument measurement of the same HID lamp; usable as a cross-check against PR-655. |
 | Other-day SSFs (11-18/19/20 + II) | `Data_Collected/<camera>/Monochromator/*.csv` | Repeatability set; could quantify day-to-day SSF stability. Not needed for closure (11-21 is canonical). |
 | Excel spectral workbooks | `2016_11_21_<cam>.xlsx` (per mono session); `2017_camspec/.../spectral.xlsx` | Excel form of data already available as CSV; no new information. |
@@ -123,8 +123,13 @@ alongside the 2016 cameras is valid; a closure comparison would not be.
    The command also reports a white-preserving constrained-fit sensitivity check
    to bound one plausible Annex-B normalization variant. See the SMI ranking
    section of `SPECTRAL_SENSITIVITY.md`.
-2. **CC-24 closure** (open): use the `<camera>/Target/*_CC.txt` ROI RGB with the
-   CC-24 reflectance for a 24-patch predicted-vs-measured closure alongside SG-140.
+2. **[DONE 2026-07-07] CC-24 closure.** All four 2016 cameras were closed against
+   the classic 24-patch ColorChecker using the `<camera>/Target/*_CC.txt` ROI RGB
+   (Target set 1) + `CC24Patch_CGATS.txt` reflectance + PR-655 HID + legacy SSF.
+   All gate-PASS, 24/24 matched, >0.997 correlation; residuals ~5-7% (roughly half
+   the SG-140 ~9-14%, because the 24 matte patches are better-behaved than the
+   dense SG-140). See the CC-24 closure section of `SPECTRAL_SENSITIVITY.md`.
+   Sidecars staged under `private:.../<camera>/target_closure_20161121/cc24/`.
 3. **PR-655 vs i1Pro illuminant cross-check** for the closure illuminant.
 4. **SSF day-to-day stability** (optional): rank the same camera across its 11-18..21
    monochromator runs to bound repeatability of the Luther/SMI numbers.
