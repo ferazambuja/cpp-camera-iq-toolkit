@@ -403,7 +403,7 @@ the generalized `discover_spectral_sweep_files`). Distinguish reproducibility:
 
 | Camera | Combined residual, toolkit extraction | Combined residual, legacy SSF |
 |---|---:|---:|
-| Canon 5D2 | 0.2218 | 0.2222 |
+| Canon 5D2 | 0.2218 | 0.2221 |
 | Nikon D810 | 0.2972 | 0.2989 |
 | Sony A7RII | 0.2970 | 0.2991 |
 | Sony A7SII | 0.3087 | 0.3102 |
