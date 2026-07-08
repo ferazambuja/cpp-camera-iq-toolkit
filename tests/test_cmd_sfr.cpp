@@ -36,6 +36,15 @@ void TESTS() {
   check(run_sfr({"missing_dataset", "--raw", "edge.NEF", "--oracle-y-multi",
                  "Results/edge__Y_multi.csv"}) == 1,
         "sfr command: valid oracle ROI syntax reaches dataset resolution");
+  check(run_sfr({"missing_dataset", "--raw", "edge.NEF", "--field-map"}) == 2,
+        "sfr command: field-map requires oracle Y_multi");
+  check(run_sfr({"missing_dataset", "--raw", "edge.NEF", "--field-map",
+                 "--oracle-y-multi", "Results/edge__Y_multi.csv"}) == 1,
+        "sfr command: valid field-map syntax reaches dataset resolution");
+  check(run_sfr({"missing_dataset", "--raw", "edge.NEF", "--field-map",
+                 "--oracle-y-multi", "Results/edge__Y_multi.csv",
+                 "--edge-roi", "10,10,40,40"}) == 2,
+        "sfr command: field-map rejects explicit edge ROI");
   check(run_sfr({"missing_dataset", "--raw", "edge.NEF", "--edge-roi",
                  "10,10,40,40", "--near-saturation-fraction", "1.5"}) == 2,
         "sfr command: bad saturation fraction rejected");

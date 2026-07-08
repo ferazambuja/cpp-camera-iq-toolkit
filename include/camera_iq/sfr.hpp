@@ -47,6 +47,34 @@ struct ImatestYMultiOracle {
   double center_mtf50p_cy_per_px = 0.0;
 };
 
+struct ImatestYMultiRoi {
+  int n = 0;
+  double distance_percent = 0.0;
+  std::string direction_label;
+  std::string region_label;
+  std::string edge_id;
+  RoiRect full_frame_roi;
+  double x_px_from_ctr = 0.0;
+  double y_px_from_ctr = 0.0;
+  bool edge_id_parsed = false;
+  int edge_id_grid_x = 0;
+  int edge_id_grid_y = 0;
+  std::string edge_id_side;
+  std::string edge_id_suffix;
+  bool physical_corner = false;
+  bool physical_edge = false;
+  double imatest_mtf50_cy_per_px = 0.0;
+  double imatest_mtf50p_cy_per_px = 0.0;
+  double imatest_r1090_px = 0.0;
+  double imatest_peak_mtf = 0.0;
+};
+
+struct ImatestYMultiFile {
+  std::string filename;
+  std::string run_date;
+  std::vector<ImatestYMultiRoi> rois;
+};
+
 struct SfrSweepPoint {
   double aperture = 0.0;
   double mtf50_cy_per_px = 0.0;
@@ -69,6 +97,9 @@ SfrResult analyze_green_sfr(const RawCfaImage& image, const RoiRect& requested,
                             const SfrOptions& options = {});
 
 std::optional<ImatestYMultiOracle> read_imatest_y_multi(
+    const std::filesystem::path& path);
+
+std::optional<ImatestYMultiFile> read_imatest_y_multi_file(
     const std::filesystem::path& path);
 
 std::optional<RoiRect> full_frame_roi_to_active_area(const RoiRect& full_frame,

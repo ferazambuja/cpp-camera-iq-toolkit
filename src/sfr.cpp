@@ -4,6 +4,7 @@
 #include <cmath>
 #include <fstream>
 #include <limits>
+#include <map>
 #include <numbers>
 #include <numeric>
 #include <sstream>
@@ -47,6 +48,26 @@ std::optional<int> parse_int(const std::string& text) {
   const double rounded = std::round(*value);
   if (std::abs(*value - rounded) > 1e-9) return std::nullopt;
   return static_cast<int>(rounded);
+}
+
+void parse_edge_id(ImatestYMultiRoi& roi) {
+  std::vector<std::string> parts;
+  std::string part;
+  std::istringstream in(roi.edge_id);
+  while (std::getline(in, part, '_')) {
+    parts.push_back(part);
+  }
+  if (parts.size() != 3 && parts.size() != 4) return;
+  const auto grid_x = parse_int(parts[0]);
+  const auto grid_y = parse_int(parts[1]);
+  if (!grid_x || !grid_y || parts[2].empty()) return;
+  roi.edge_id_parsed = true;
+  roi.edge_id_grid_x = *grid_x;
+  roi.edge_id_grid_y = *grid_y;
+  roi.edge_id_side = parts[2];
+  if (parts.size() == 4) roi.edge_id_suffix = parts[3];
+  roi.physical_corner = roi.edge_id_suffix == "C";
+  roi.physical_edge = roi.edge_id_suffix == "E";
 }
 
 bool is_green(const RawCfaImage& image, int x, int y) {
@@ -453,9 +474,9 @@ SfrResult analyze_green_sfr(const RawCfaImage& image, const RoiRect& requested,
 
 std::optional<ImatestYMultiOracle> read_imatest_y_multi(
     const std::filesystem::path& path) {
+  ImatestYMultiOracle oracle;
   std::ifstream is(path);
   if (!is) return std::nullopt;
-  ImatestYMultiOracle oracle;
   std::string line;
   bool in_roi_table = false;
   bool in_mtf_table = false;
@@ -505,6 +526,132 @@ std::optional<ImatestYMultiOracle> read_imatest_y_multi(
     return std::nullopt;
   }
   return oracle;
+}
+
+std::optional<ImatestYMultiFile> read_imatest_y_multi_file(
+    const std::filesystem::path& path) {
+  std::ifstream is(path);
+  if (!is) return std::nullopt;
+  ImatestYMultiFile file;
+  std::string line;
+  bool in_roi_table = false;
+  bool in_mtf_table = false;
+  std::map<int, ImatestYMultiRoi> roi_by_n;
+  struct MtfRow {
+    double mtf50 = 0.0;
+    double mtf50p = 0.0;
+    double r1090 = 0.0;
+    double peak = 0.0;
+  };
+  std::map<int, MtfRow> mtf_by_n;
+  while (std::getline(is, line)) {
+    const auto cells = split_csv_line(line);
+    if (cells.empty()) {
+      in_roi_table = false;
+      in_mtf_table = false;
+      continue;
+    }
+    if (cells[0] == "File" && cells.size() > 1) {
+      file.filename = cells[1];
+      continue;
+    }
+    if (cells[0] == "Run date" && cells.size() > 1) {
+      file.run_date = cells[1];
+      continue;
+    }
+    if (cells.size() > 8 && cells[0] == "N" && cells[1] == "Distance %") {
+      in_roi_table = true;
+      in_mtf_table = false;
+      continue;
+    }
+    if (cells.size() > 7 && cells[0] == "N" &&
+        cells[1].find("MTF50") != std::string::npos) {
+      in_roi_table = false;
+      in_mtf_table = true;
+      continue;
+    }
+    if (in_roi_table && cells.size() > 10) {
+      const auto n = parse_int(cells[0]);
+      if (!n) {
+        in_roi_table = false;
+        continue;
+      }
+      if (roi_by_n.count(*n) > 0) return std::nullopt;
+      const auto distance = parse_double(cells[1]);
+      const auto x1 = parse_int(cells[3]);
+      const auto y1 = parse_int(cells[4]);
+      const auto x2 = parse_int(cells[5]);
+      const auto y2 = parse_int(cells[6]);
+      const auto width = parse_int(cells[7]);
+      const auto height = parse_int(cells[8]);
+      if (!distance || !x1 || !y1 || !x2 || !y2 || !width || !height ||
+          *width <= 0 || *height <= 0 || *x2 - *x1 + 1 != *width ||
+          *y2 - *y1 + 1 != *height) {
+        return std::nullopt;
+      }
+      ImatestYMultiRoi roi;
+      roi.n = *n;
+      roi.distance_percent = *distance;
+      roi.direction_label = cells[2];
+      roi.region_label = cells[9];
+      roi.edge_id = cells[10];
+      roi.full_frame_roi = RoiRect{*x1, *y1, *width, *height};
+      if (cells.size() > 11) {
+        const auto x_ctr = parse_double(cells[11]);
+        if (x_ctr) roi.x_px_from_ctr = *x_ctr;
+      }
+      if (cells.size() > 12) {
+        const auto y_ctr = parse_double(cells[12]);
+        if (y_ctr) roi.y_px_from_ctr = *y_ctr;
+      }
+      parse_edge_id(roi);
+      if (!roi.edge_id_parsed) return std::nullopt;
+      roi_by_n.emplace(*n, std::move(roi));
+      continue;
+    }
+    if (in_mtf_table && cells.size() > 7) {
+      const auto n = parse_int(cells[0]);
+      if (!n) {
+        in_mtf_table = false;
+        continue;
+      }
+      if (mtf_by_n.count(*n) > 0) return std::nullopt;
+      const auto mtf50 = parse_double(cells[1]);
+      const auto r1090 = parse_double(cells[2]);
+      const auto peak = parse_double(cells[6]);
+      const auto mtf50p = parse_double(cells[7]);
+      if (!mtf50 || !r1090 || !peak || !mtf50p) return std::nullopt;
+      mtf_by_n.emplace(*n, MtfRow{*mtf50, *mtf50p, *r1090, *peak});
+      continue;
+    }
+  }
+  if (file.filename.empty() || file.run_date.empty() ||
+      roi_by_n.size() != 23 || roi_by_n.size() != mtf_by_n.size()) {
+    return std::nullopt;
+  }
+  int expected_n = 1;
+  for (const auto& [n, _] : roi_by_n) {
+    if (n != expected_n++) return std::nullopt;
+  }
+  expected_n = 1;
+  for (const auto& [n, _] : mtf_by_n) {
+    if (n != expected_n++) return std::nullopt;
+  }
+  file.rois.reserve(roi_by_n.size());
+  for (auto& [n, roi] : roi_by_n) {
+    const auto mtf = mtf_by_n.find(n);
+    if (mtf == mtf_by_n.end()) return std::nullopt;
+    roi.imatest_mtf50_cy_per_px = mtf->second.mtf50;
+    roi.imatest_mtf50p_cy_per_px = mtf->second.mtf50p;
+    roi.imatest_r1090_px = mtf->second.r1090;
+    roi.imatest_peak_mtf = mtf->second.peak;
+    if (roi.imatest_mtf50_cy_per_px <= 0.0 ||
+        roi.imatest_mtf50p_cy_per_px <= 0.0) {
+      return std::nullopt;
+    }
+    file.rois.push_back(std::move(roi));
+  }
+  return file;
 }
 
 std::optional<RoiRect> full_frame_roi_to_active_area(const RoiRect& full_frame,

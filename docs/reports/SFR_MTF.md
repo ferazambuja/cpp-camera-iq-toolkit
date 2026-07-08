@@ -79,17 +79,27 @@ Result: **PASS**.
 - Luma/gamma parity with Imatest. This slice is linear green-plane only.
 - lp/mm or LW/PH final reporting. Pixel-pitch and output-unit policy are a later
   reporting layer.
-- Field SFR. The per-file Imatest tables expose 23 ROIs, but this slice uses
-  only the center ROI.
+- Full sagittal/tangential lens MTF. Field-map mode is green-linear CFA SFR
+  over Imatest-selected ROIs, not a full lens-characterization replacement.
 
 ## Next
 
-Recommended next: field-MTF over all 23 ROIs per aperture from the same
-per-file `_Y_multi.csv` oracle tables. This is higher value than A2 because it
-turns the single center measurement into a lens field-characterization surface
-while reusing the existing green-linear SFR core.
+Implemented next: field-MTF over all 23 ROIs per aperture from the same
+per-file `_Y_multi.csv` oracle tables. `camera_iq sfr --field-map` reuses the
+green-linear SFR core for every ROI and emits one JSON field map per
+RAW/aperture.
 
-Predeclared field-MTF caveats from the SFR challenge:
+Example:
+
+```bash
+camera_iq sfr d800_d810_sfr_2016 \
+  --raw "NIKON D810_50mm_f5.6_.NEF" \
+  --oracle-y-multi "Results/NIKON D810_50mm_f5.6__Y_multi.csv" \
+  --field-map \
+  --out out/sfr_field_f5_6.json
+```
+
+Field-map implementation gates and caveats:
 
 - parse all 23 ROI rows and matching MTF rows from one `_Y_multi.csv` batch;
 - preserve row number, region, direction label, edge ID, field offsets, ROI, and
@@ -100,6 +110,15 @@ Predeclared field-MTF caveats from the SFR challenge:
 - do not make strict center > corner a universal plateau gate. The f/4 oracle
   and toolkit probes are effectively tied with a slight corner win; f/5.6, f/8,
   and f/11 show the expected center-above-corner relationship.
+
+Verified D810 field-map plateau probe:
+
+| Aperture | ROIs | Accepted | Detected orientations | Center MTF50 | Physical-corner max | Center > corner |
+|---|---:|---:|---|---:|---:|---|
+| f/4 | 23 | 23 | vertical | 0.2000 | 0.2005 | false |
+| f/5.6 | 23 | 23 | vertical | 0.2714 | 0.2002 | true |
+| f/8 | 23 | 23 | vertical | 0.2218 | 0.1955 | true |
+| f/11 | 23 | 23 | vertical | 0.2049 | 0.1831 | true |
 
 future mode can later add an Imatest-replication path: demosaiced/luma pipeline,
 gamma/OECF handling, and an advisory absolute tolerance once the processing

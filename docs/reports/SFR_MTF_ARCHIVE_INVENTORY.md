@@ -100,23 +100,24 @@ near-vertical edge (edge-position x as a function of y), with measured edge
 angles around -6.3 degrees. Avoid describing this ROI as "horizontal" in future
 prompts; that shorthand mismatches the actual green-plane detector convention.
 
-## Correct Next Slice
+## Field-MTF Slice
 
-SFR is complete. The next SFR/MTF slice should be **field-MTF over the 23
-per-aperture ROIs** in the same D810 50 mm sweep:
+SFR center SFR and the follow-on field-MTF slice are complete for the D810
+50 mm sweep. `camera_iq sfr --field-map` now processes all 23 per-aperture ROIs
+from a single per-file `_Y_multi.csv` table:
 
-1. Extend the `_Y_multi.csv` parser from center-only to all 23 rows, preserving
-   the row number, region (`Center`, `Corner`, `Pt Way`), direction, edge ID,
-   full-frame ROI, matching MTF50/MTF50P, and field offsets.
-2. Reuse the existing green-linear `sfr` core for every ROI and emit a field map
-   per aperture. The command should stay claim-scoped as green-linear and
-   advisory-vs-Imatest.
-3. Use physics gates that match the measured oracle:
-   - all 23 ROIs parse and run for a representative aperture;
+1. The `_Y_multi.csv` parser reads all 23 rows, preserving the row number,
+   region (`Center`, `Corner`, `Pt Way`), direction label, edge ID, full-frame
+   ROI, matching MTF50/MTF50P, R1090, peak MTF, and field offsets.
+2. The command reuses the existing green-linear `sfr` core for every ROI and
+   emits a per-aperture field map. The command remains claim-scoped as
+   green-linear and advisory-vs-Imatest.
+3. The measured physics gates are:
+   - all 23 ROIs parse and run for each verified plateau aperture;
    - per-ROI filename/run provenance remains single-batch;
-   - f/5.6, f/8, and f/11 should show center MTF50 above the corner maximum;
+   - f/5.6, f/8, and f/11 show center MTF50 above the physical-corner maximum;
    - f/4 is a near-tie/slight corner win in both Imatest and toolkit probes, so
-     do **not** make strict center > corner a universal plateau gate.
+     strict center > corner is intentionally **not** a universal plateau gate.
 
    Pin the corner set explicitly: the `Region` column marks only the two LEFT
    corners (`-4_-2_L_C`, `-4_2_L_C`) as `Corner`; the right-side corner
@@ -132,3 +133,15 @@ per-aperture ROIs** in the same D810 50 mm sweep:
    actual detected orientation per ROI instead of assuming it from labels.
 5. Keep the CLRS-589 Fuji dataset status separate: it remains blocked for
    SFR/MTF because it has no slanted-edge target.
+
+Verified D810 field-map plateau probe:
+
+| Aperture | ROIs | Accepted | Detected orientations | Center MTF50 | Physical-corner max | Center > corner |
+|---|---:|---:|---|---:|---:|---|
+| f/4 | 23 | 23 | vertical | 0.2000 | 0.2005 | false |
+| f/5.6 | 23 | 23 | vertical | 0.2714 | 0.2002 | true |
+| f/8 | 23 | 23 | vertical | 0.2218 | 0.1955 | true |
+| f/11 | 23 | 23 | vertical | 0.2049 | 0.1831 | true |
+
+Natural follow-ons are a D800 replication run, a multi-aperture summary command,
+or an Imatest-replication A2 path with demosaic/luma/gamma handling.
