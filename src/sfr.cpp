@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <filesystem>
 #include <fstream>
 #include <limits>
 #include <map>
@@ -595,6 +596,10 @@ std::optional<ImatestYMultiFile> read_imatest_y_multi_file(
       roi.direction_label = cells[2];
       roi.region_label = cells[9];
       roi.edge_id = cells[10];
+      if (cells.size() > 13 && !cells[13].empty()) {
+        roi.csv_summary_file =
+            std::filesystem::path(cells[13]).filename().string();
+      }
       roi.full_frame_roi = RoiRect{*x1, *y1, *width, *height};
       if (cells.size() > 11) {
         const auto x_ctr = parse_double(cells[11]);
@@ -652,6 +657,45 @@ std::optional<ImatestYMultiFile> read_imatest_y_multi_file(
     file.rois.push_back(std::move(roi));
   }
   return file;
+}
+
+std::optional<SfrFieldMtfSummary> summarize_imatest_field_mtf(
+    const ImatestYMultiFile& file) {
+  if (file.rois.empty()) return std::nullopt;
+  SfrFieldMtfSummary summary;
+  summary.roi_count = static_cast<int>(file.rois.size());
+
+  bool have_center = false;
+  bool have_corner = false;
+  bool have_argmax = false;
+  for (const auto& roi : file.rois) {
+    const double mtf50 = roi.imatest_mtf50_cy_per_px;
+    if (!(mtf50 > 0.0) || !std::isfinite(mtf50)) return std::nullopt;
+    if (!have_argmax || mtf50 > summary.field_argmax_mtf50_cy_per_px) {
+      summary.field_argmax_mtf50_cy_per_px = mtf50;
+      summary.field_argmax_n = roi.n;
+      have_argmax = true;
+    }
+    if (roi.n == 1) {
+      summary.center_mtf50_cy_per_px = mtf50;
+      have_center = true;
+    }
+    if (roi.physical_corner) {
+      ++summary.physical_corner_count;
+      summary.physical_corner_max_mtf50_cy_per_px =
+          have_corner
+              ? std::max(summary.physical_corner_max_mtf50_cy_per_px, mtf50)
+              : mtf50;
+      have_corner = true;
+    }
+  }
+
+  if (!have_center || !have_corner || !have_argmax) return std::nullopt;
+  summary.center_above_physical_corner_max =
+      summary.center_mtf50_cy_per_px >
+      summary.physical_corner_max_mtf50_cy_per_px;
+  summary.center_is_field_max = summary.field_argmax_n == 1;
+  return summary;
 }
 
 std::optional<RoiRect> full_frame_roi_to_active_area(const RoiRect& full_frame,

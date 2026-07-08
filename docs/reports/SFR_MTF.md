@@ -103,7 +103,8 @@ Field-map implementation gates and caveats:
 
 - parse all 23 ROI rows and matching MTF rows from one `_Y_multi.csv` batch;
 - preserve row number, region, direction label, edge ID, field offsets, ROI, and
-  per-ROI advisory MTF50/MTF50P;
+  per-ROI advisory MTF50/MTF50P. Per-ROI `CSV summary file` values are emitted
+  as basenames only, not absolute Imatest paths;
 - report detected orientation from pixels, not from Imatest `L`/`R`/`AL` labels;
   a real f/5.6 probe classified all 23 ROIs as near-vertical in the toolkit
   convention;

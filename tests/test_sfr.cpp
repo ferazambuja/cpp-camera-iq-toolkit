@@ -158,15 +158,20 @@ void write_field_y_multi_fixture(const std::filesystem::path& path,
   os << "File,NIKON D810_50mm_f5.6_.NEF\n";
   os << "Run date,10-Dec-2016 13:04:04,,Build 2016-11-22\n\n";
   os << "N,Distance %,Direction,X1,Y1,X2,Y2,Width,Height,Region,Edge ID,"
-        "X px from ctr,Y px from ctr\n";
+        "X px from ctr,Y px from ctr,CSV summary file\n";
   for (const auto& row : kFieldRows) {
     const char* edge_id =
         malformed_edge_id && row.n == 3 ? "not_a_grid_edge" : row.edge_id;
+    const auto csv_summary_file =
+        std::filesystem::temp_directory_path() /
+        ("NIKON D810_50mm_f5.6__Y" + std::string(row.direction) + " " +
+         std::to_string(row.n) + "_MTF.csv");
     os << row.n << ",  2.6," << row.direction << "," << row.x1 << ","
        << row.y1 << "," << (row.x1 + row.width - 1) << ","
        << (row.y1 + row.height - 1) << "," << row.width << ","
        << row.height << "," << row.region << "," << edge_id << ","
-       << (row.x1 - 3580.5) << "," << (row.y1 - 2295.5) << "\n";
+       << (row.x1 - 3580.5) << "," << (row.y1 - 2295.5)
+       << "," << csv_summary_file.generic_string() << "\n";
   }
   os << "\n";
   os << "N,MTF50 (Cy/Pxl),R1090 (pxl),CA area(pxl),MTF50 (LW/PH),"
@@ -176,6 +181,23 @@ void write_field_y_multi_fixture(const std::filesystem::path& path,
     const int n = duplicate_mtf_n && row.n == 23 ? 22 : row.n;
     os << n << "," << row.mtf50 << ",2.3,0.000,2000,2000,1.001,"
        << row.mtf50p << "\n";
+  }
+  os << "\n";
+  os << "Summary,10-Dec-2016 13:04:04,,NIKON D810_50mm_f5.6_.NEF\n";
+  os << "23,Regions,3,Center,18,Part way,2,Corner\n";
+  os << " ,MTF50 (Cy/Pxl),R1090 (pxl),CA (pxl),MTF50 (LW/PH),"
+        "R1090 (/PH),Peak MTF,MTF50P (Cy/Pxl),MTF50P (LW/PH),"
+        "MTF20 (Cy/Pxl)\n";
+  os << "Mean Ctr,0.2523,2.2040,0.0000,2486.8,2246.9,1.0040,0.2481,"
+        "2445.0,0.4638\n";
+  os << "Worst Cor,0.1750,2.7672,0.0000,1725.2,1796.7,1.0110,0.1742,"
+        "1716.8,0.2916\n\n";
+  os << "More results: C denotes standardized sharpening\n";
+  os << "N,MTF20 (Cy/Pxl),MTF20 (LW/PH),LSF PW50 (pxl),Gamma from chart,"
+        "R-G pixel shift,B-G pixel shift\n";
+  for (const auto& row : kFieldRows) {
+    os << row.n << "," << (row.n == 13 ? 0.9999 : 0.4000) << ",4000,1.5,"
+       << "0.509,0.00,0.00\n";
   }
 }
 
@@ -368,11 +390,71 @@ void TESTS() {
                 "Imatest all-row parser reaches row 23");
     test::check_near(oracle->rois[12].imatest_mtf50_cy_per_px, 0.2780,
                      1e-12,
-                     "Imatest all-row parser pairs MTF rows by N");
+                     "Imatest parser ignores trailing MTF20 table");
+    test::check(
+        oracle->rois[0].csv_summary_file ==
+            "NIKON D810_50mm_f5.6__YAL 1_MTF.csv",
+        "Imatest parser preserves CSV summary file basename");
+    test::check(oracle->rois[0].csv_summary_file.find('/') ==
+                    std::string::npos,
+                "Imatest parser strips CSV summary file directory");
     test::check(oracle->rois[0].full_frame_roi.width == 217 &&
                     oracle->rois[0].full_frame_roi.height == 338,
                 "Imatest parser validates inclusive X2/Y2 geometry");
+    const auto summary = camera_iq::summarize_imatest_field_mtf(*oracle);
+    test::check(summary.has_value(),
+                "Imatest field summary accepts complete field file");
+    test::check(summary->physical_corner_count == 4,
+                "Imatest field summary counts physical corners by edge ID");
+    test::check(summary->field_argmax_n == 13,
+                "Imatest field summary records non-center argmax");
+    test::check(!summary->center_is_field_max,
+                "Imatest field summary does not assume center is field max");
+    test::check_near(summary->center_mtf50_cy_per_px, 0.2400, 1e-12,
+                     "Imatest field summary pins center MTF50");
+    test::check_near(summary->physical_corner_max_mtf50_cy_per_px, 0.1894,
+                     1e-12, "Imatest field summary pins corner max");
+    test::check(summary->center_above_physical_corner_max,
+                "Imatest field summary center-corner gate passes for f/5.6");
     std::filesystem::remove(path);
+  }
+
+  {
+    auto make_file = [](double center, double corner_max) {
+      camera_iq::ImatestYMultiFile file;
+      file.filename = "fixture.NEF";
+      file.run_date = "fixture";
+      file.rois.push_back(camera_iq::ImatestYMultiRoi{
+          .n = 1, .edge_id = "0_0_R", .imatest_mtf50_cy_per_px = center});
+      for (int n = 2; n <= 5; ++n) {
+        camera_iq::ImatestYMultiRoi roi;
+        roi.n = n;
+        roi.edge_id = n == 2   ? "-4_-2_L_C"
+                      : n == 3 ? "4_-2_R_C"
+                      : n == 4 ? "-4_2_L_C"
+                               : "4_2_R_C";
+        roi.physical_corner = true;
+        roi.imatest_mtf50_cy_per_px = n == 2 ? corner_max : corner_max - 0.01;
+        file.rois.push_back(roi);
+      }
+      return file;
+    };
+    const auto f4 = camera_iq::summarize_imatest_field_mtf(
+        make_file(0.1949, 0.1959));
+    const auto f56 = camera_iq::summarize_imatest_field_mtf(
+        make_file(0.2400, 0.1894));
+    const auto f8 = camera_iq::summarize_imatest_field_mtf(
+        make_file(0.2388, 0.1753));
+    const auto f11 = camera_iq::summarize_imatest_field_mtf(
+        make_file(0.1989, 0.1635));
+    test::check(f4 && !f4->center_above_physical_corner_max,
+                "field corner summary keeps f/4 diagnostic-only near tie");
+    test::check(f56 && f56->center_above_physical_corner_max,
+                "field corner summary passes f/5.6 oracle gate");
+    test::check(f8 && f8->center_above_physical_corner_max,
+                "field corner summary passes f/8 oracle gate");
+    test::check(f11 && f11->center_above_physical_corner_max,
+                "field corner summary passes f/11 oracle gate");
   }
 
   {

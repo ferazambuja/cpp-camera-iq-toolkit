@@ -220,6 +220,8 @@ void write_field_point(JsonWriter& json, const SfrFieldPoint& point) {
   json.value(point.oracle.region_label);
   json.key("edge_id");
   json.value(point.oracle.edge_id);
+  json.key("csv_summary_file");
+  json.value(point.oracle.csv_summary_file);
   json.key("edge_id_parsed");
   json.value(point.oracle.edge_id_parsed);
   json.key("edge_id_grid_x");
@@ -315,9 +317,16 @@ void write_sfr_field_json(std::ostream& os, const ResolvedDataset& dataset,
   int physical_corner_count = 0;
   std::optional<double> center_mtf50;
   std::optional<double> physical_corner_max;
+  int field_argmax_n = 0;
+  std::optional<double> field_argmax_mtf50;
   for (const auto& point : points) {
     if (point.result.accepted) {
       ++accepted_count;
+      if (!field_argmax_mtf50 ||
+          point.result.mtf50_cy_per_px > *field_argmax_mtf50) {
+        field_argmax_mtf50 = point.result.mtf50_cy_per_px;
+        field_argmax_n = point.oracle.n;
+      }
       if (point.oracle.n == 1) center_mtf50 = point.result.mtf50_cy_per_px;
       if (point.oracle.physical_corner) {
         ++physical_corner_count;
@@ -401,6 +410,24 @@ void write_sfr_field_json(std::ostream& os, const ResolvedDataset& dataset,
   json.value(static_cast<int>(points.size()) - accepted_count);
   json.key("physical_corner_count");
   json.value(physical_corner_count);
+  json.key("field_argmax_n");
+  if (field_argmax_mtf50) {
+    json.value(field_argmax_n);
+  } else {
+    json.null();
+  }
+  json.key("field_argmax_mtf50_cy_per_px");
+  if (field_argmax_mtf50) {
+    json.value(*field_argmax_mtf50);
+  } else {
+    json.null();
+  }
+  json.key("center_is_field_max");
+  if (field_argmax_mtf50 && center_mtf50) {
+    json.value(field_argmax_n == 1);
+  } else {
+    json.null();
+  }
   json.key("center_mtf50_cy_per_px");
   if (center_mtf50) {
     json.value(*center_mtf50);

@@ -108,7 +108,8 @@ from a single per-file `_Y_multi.csv` table:
 
 1. The `_Y_multi.csv` parser reads all 23 rows, preserving the row number,
    region (`Center`, `Corner`, `Pt Way`), direction label, edge ID, full-frame
-   ROI, matching MTF50/MTF50P, R1090, peak MTF, and field offsets.
+   ROI, matching MTF50/MTF50P, R1090, peak MTF, field offsets, and the per-ROI
+   CSV-summary filename as a basename.
 2. The command reuses the existing green-linear `sfr` core for every ROI and
    emits a per-aperture field map. The command remains claim-scoped as
    green-linear and advisory-vs-Imatest.

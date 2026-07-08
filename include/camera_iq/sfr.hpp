@@ -53,6 +53,7 @@ struct ImatestYMultiRoi {
   std::string direction_label;
   std::string region_label;
   std::string edge_id;
+  std::string csv_summary_file;
   RoiRect full_frame_roi;
   double x_px_from_ctr = 0.0;
   double y_px_from_ctr = 0.0;
@@ -73,6 +74,17 @@ struct ImatestYMultiFile {
   std::string filename;
   std::string run_date;
   std::vector<ImatestYMultiRoi> rois;
+};
+
+struct SfrFieldMtfSummary {
+  int roi_count = 0;
+  int physical_corner_count = 0;
+  int field_argmax_n = 0;
+  double field_argmax_mtf50_cy_per_px = 0.0;
+  double center_mtf50_cy_per_px = 0.0;
+  double physical_corner_max_mtf50_cy_per_px = 0.0;
+  bool center_above_physical_corner_max = false;
+  bool center_is_field_max = false;
 };
 
 struct SfrSweepPoint {
@@ -101,6 +113,9 @@ std::optional<ImatestYMultiOracle> read_imatest_y_multi(
 
 std::optional<ImatestYMultiFile> read_imatest_y_multi_file(
     const std::filesystem::path& path);
+
+std::optional<SfrFieldMtfSummary> summarize_imatest_field_mtf(
+    const ImatestYMultiFile& file);
 
 std::optional<RoiRect> full_frame_roi_to_active_area(const RoiRect& full_frame,
                                                      const RawMeta& meta);
