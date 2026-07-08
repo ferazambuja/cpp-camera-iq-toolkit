@@ -54,6 +54,45 @@ RawCfaImage synthetic_green_edge(int width, int height, double angle_deg,
   return image;
 }
 
+// Area-integrated hard step: each pixel's value approximates the fraction of
+// the unit pixel area on the bright side of the slanted edge (8x8 supersample).
+// The pixel aperture makes the analytic MTF |sinc(f cos t)|*|sinc(f sin t)|
+// along the edge normal, ~|sinc(f)| at ~6 deg, so MTF50 ~ 0.6034 cy/px --
+// beyond the sensor Nyquist 0.5, measurable only on the 4x oversampled axis.
+RawCfaImage synthetic_green_step_area(int width, int height, double angle_deg) {
+  RawCfaImage image;
+  image.width = width;
+  image.height = height;
+  image.row_stride_pixels = width;
+  image.cdesc = "RGBG";
+  image.color_at_position = {0, 1, 1, 2};
+  image.meta.white_level = 4095.0;
+  image.samples.assign(static_cast<std::size_t>(width * height), 0.0);
+
+  const double slope = std::tan(angle_deg * std::numbers::pi / 180.0);
+  const double cx = 0.5 * static_cast<double>(width - 1);
+  const double cy = 0.5 * static_cast<double>(height - 1);
+  constexpr int kSub = 8;
+  for (int y = 0; y < height; ++y) {
+    for (int x = 0; x < width; ++x) {
+      int bright = 0;
+      for (int sy = 0; sy < kSub; ++sy) {
+        for (int sx = 0; sx < kSub; ++sx) {
+          const double px = static_cast<double>(x) +
+                            (static_cast<double>(sx) + 0.5) / kSub - 0.5;
+          const double py = static_cast<double>(y) +
+                            (static_cast<double>(sy) + 0.5) / kSub - 0.5;
+          const double edge_x = cx + slope * (py - cy);
+          if (px >= edge_x) ++bright;
+        }
+      }
+      image.samples[static_cast<std::size_t>(y * width + x)] =
+          1000.0 * static_cast<double>(bright) / (kSub * kSub);
+    }
+  }
+  return image;
+}
+
 RawCfaImage flat_image(int width, int height) {
   RawCfaImage image;
   image.width = width;
@@ -139,6 +178,24 @@ void TESTS() {
                 "vertical edge orientation detected");
     test::check_near(result.edge_angle_deg, 5.5, 0.08,
                      "synthetic vertical edge angle recovered");
+  }
+
+  {
+    // Area-integrated (pixel-aperture) step edge: analytic MTF ~ |sinc(f)|,
+    // MTF50 ~ 0.6034 cy/px. Distinct sampling model from the point-sampled
+    // Gaussian erf test above. Tolerance covers the known small biases:
+    // 0.25 px bin-average aperture (~3.6% at 0.6 cy/px, uncorrected by
+    // design), Hamming window broadening, and 8x8 supersample quantization.
+    // Also the load-bearing frequency-axis check: a compact-green-grid (2x)
+    // frequency error would read ~0.30 or ~1.21 and fail hard.
+    const auto image = synthetic_green_step_area(160, 144, -6.0);
+    const auto result =
+        camera_iq::analyze_green_sfr(image, RoiRect{20, 16, 120, 112});
+    test::check(result.accepted, "area-integrated step edge accepted");
+    test::check_near(result.mtf50_cy_per_px, 0.6034, 0.03,
+                     "area-integrated step MTF50 near pixel-aperture limit");
+    test::check(result.mtf50_cy_per_px > 0.5,
+                "area-integrated step MTF50 beyond sensor Nyquist");
   }
 
   {
