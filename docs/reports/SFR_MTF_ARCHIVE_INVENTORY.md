@@ -102,11 +102,24 @@ prompts; that shorthand mismatches the actual green-plane detector convention.
 
 ## Correct Next Slice
 
-1. Stage the D810 50 mm aperture sweep and the matching per-file
-   `NIKON D810_50mm_f...__Y_multi.csv` oracle files.
-2. Implement a green-linear, single-center-ROI slanted-edge parser/detector with
-   ISO 12233-compatible reporting where possible.
-3. Compare toolkit output to Imatest CSVs as tier-1 advisory fidelity evidence,
-   not as a hard absolute match.
-4. Keep the CLRS-589 Fuji dataset status separate: it remains blocked for
+SFR is complete. The next SFR/MTF slice should be **field-MTF over the 23
+per-aperture ROIs** in the same D810 50 mm sweep:
+
+1. Extend the `_Y_multi.csv` parser from center-only to all 23 rows, preserving
+   the row number, region (`Center`, `Corner`, `Pt Way`), direction, edge ID,
+   full-frame ROI, matching MTF50/MTF50P, and field offsets.
+2. Reuse the existing green-linear `sfr` core for every ROI and emit a field map
+   per aperture. The command should stay claim-scoped as green-linear and
+   advisory-vs-Imatest.
+3. Use physics gates that match the measured oracle:
+   - all 23 ROIs parse and run for a representative aperture;
+   - per-ROI filename/run provenance remains single-batch;
+   - f/5.6, f/8, and f/11 should show center MTF50 above the corner maximum;
+   - f/4 is a near-tie/slight corner win in both Imatest and toolkit probes, so
+     do **not** make strict center > corner a universal plateau gate.
+4. Do not treat Imatest direction labels (`L`, `R`, `AL`, etc.) as proof of
+   mixed horizontal/vertical edge orientation. A real f/5.6 probe classified all
+   23 ROIs as near-vertical in the toolkit convention; field-MTF should report
+   actual detected orientation per ROI instead of assuming it from labels.
+5. Keep the CLRS-589 Fuji dataset status separate: it remains blocked for
    SFR/MTF because it has no slanted-edge target.

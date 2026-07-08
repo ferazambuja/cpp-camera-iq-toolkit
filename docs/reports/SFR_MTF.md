@@ -84,7 +84,23 @@ Result: **PASS**.
 
 ## Next
 
-future mode can add an Imatest-replication path: demosaiced/luma pipeline,
+Recommended next: field-MTF over all 23 ROIs per aperture from the same
+per-file `_Y_multi.csv` oracle tables. This is higher value than A2 because it
+turns the single center measurement into a lens field-characterization surface
+while reusing the existing green-linear SFR core.
+
+Predeclared field-MTF caveats from the SFR challenge:
+
+- parse all 23 ROI rows and matching MTF rows from one `_Y_multi.csv` batch;
+- preserve row number, region, direction label, edge ID, field offsets, ROI, and
+  per-ROI advisory MTF50/MTF50P;
+- report detected orientation from pixels, not from Imatest `L`/`R`/`AL` labels;
+  a real f/5.6 probe classified all 23 ROIs as near-vertical in the toolkit
+  convention;
+- do not make strict center > corner a universal plateau gate. The f/4 oracle
+  and toolkit probes are effectively tied with a slight corner win; f/5.6, f/8,
+  and f/11 show the expected center-above-corner relationship.
+
+future mode can later add an Imatest-replication path: demosaiced/luma pipeline,
 gamma/OECF handling, and an advisory absolute tolerance once the processing
-model is intentionally aligned to Imatest. A later field-MTF slice can use the
-remaining 22 ROIs per aperture.
+model is intentionally aligned to Imatest.
