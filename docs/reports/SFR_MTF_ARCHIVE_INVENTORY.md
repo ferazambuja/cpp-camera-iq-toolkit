@@ -55,12 +55,53 @@ The result CSVs contain Imatest SFR fields including `MTF50`, `MTF50P`,
 readouts. These are comparison/fidelity references for a fresh C++
 implementation, not correctness oracles by themselves.
 
+## D810 SFR Oracle Contract
+
+The first implementation slice should use the D810 50 mm aperture sweep because
+it has exact filename-keyed NEFs, per-file ROI tables, and a complete f/1.4..f/16
+series. The actual filenames include the `NIKON ` prefix and a space:
+`NIKON D810_50mm_f<aperture>_.NEF`. Do not split these names with whitespace-
+delimited shell tools.
+
+Use a **single Imatest batch** for any advisory comparison. The per-folder
+`Results/SFR_cypx.csv` concatenates two batches; the per-file
+`Results/NIKON D810_50mm_f...__Y_multi.csv` files are the 10-Dec-2016 batch and
+carry both the exact center ROI and the matching center MTF50 values. Do not mix
+the first `SFR_cypx.csv` batch with the per-file ROI tables.
+
+For the green-linear SFR trend gate, these 10-Dec center rows are the
+coherent advisory oracle:
+
+| Aperture | Filename | Center ROI L,T,R,B | Imatest MTF50 cy/px | Edge angle deg |
+|---|---|---|---:|---:|
+| f/1.4 | `NIKON D810_50mm_f1.4_.NEF` | `3483,2231,3699,2568` | 0.1158 | -6.314 |
+| f/1.8 | `NIKON D810_50mm_f1.8_.NEF` | `3483,2232,3699,2567` | 0.0899 | -6.323 |
+| f/2 | `NIKON D810_50mm_f2_.NEF` | `3483,2232,3699,2568` | 0.1121 | -6.321 |
+| f/2.8 | `NIKON D810_50mm_f2.8_.NEF` | `3483,2231,3699,2568` | 0.1707 | -6.318 |
+| f/4 | `NIKON D810_50mm_f4_.NEF` | `3483,2232,3699,2567` | 0.1949 | -6.314 |
+| f/5.6 | `NIKON D810_50mm_f5.6_.NEF` | `3483,2231,3699,2568` | 0.2400 | -6.326 |
+| f/8 | `NIKON D810_50mm_f8_.NEF` | `3485,2232,3701,2568` | 0.2388 | -6.321 |
+| f/11 | `NIKON D810_50mm_f11_.NEF` | `3483,2231,3699,2567` | 0.1989 | -6.297 |
+| f/16 | `NIKON D810_50mm_f16_.NEF` | `3482,2231,3698,2567` | 0.1735 | -6.331 |
+
+The aperture trend gate survives this coherent batch:
+`min(f/4,f/5.6,f/8,f/11) > f/16 > max(f/1.4,f/1.8,f/2)`, with the argmax inside
+the f/4..f/11 plateau. Absolute MTF50 agreement with Imatest remains advisory
+because Imatest's own repeated batch differs materially on some apertures
+(for example f/1.8 center is 0.1215 in the first batch and 0.0899 in the
+10-Dec per-file batch).
+
+The per-file tables also expose 23 ROIs per aperture. SFR should use only
+the center ROI above; the field-sweep ROIs are useful for a later field-MTF
+phase, not for the first single-edge implementation gate.
+
 ## Correct Next Slice
 
-1. Stage a scoped subset only: one D800 and one D810 NEF around a known aperture,
-   plus the matching Imatest CSV rows.
-2. Implement a slanted-edge parser/detector with ISO 12233-compatible reporting
-   where possible.
-3. Compare toolkit output to Imatest CSVs as tier-1 fidelity evidence.
+1. Stage the D810 50 mm aperture sweep and the matching per-file
+   `NIKON D810_50mm_f...__Y_multi.csv` oracle files.
+2. Implement a green-linear, single-center-ROI slanted-edge parser/detector with
+   ISO 12233-compatible reporting where possible.
+3. Compare toolkit output to Imatest CSVs as tier-1 advisory fidelity evidence,
+   not as a hard absolute match.
 4. Keep the CLRS-589 Fuji dataset status separate: it remains blocked for
    SFR/MTF because it has no slanted-edge target.
