@@ -95,6 +95,11 @@ The per-file tables also expose 23 ROIs per aperture. SFR should use only
 the center ROI above; the field-sweep ROIs are useful for a later field-MTF
 phase, not for the first single-edge implementation gate.
 
+SFR toolkit orientation convention: the center ROI is processed as a
+near-vertical edge (edge-position x as a function of y), with measured edge
+angles around -6.3 degrees. Avoid describing this ROI as "horizontal" in future
+prompts; that shorthand mismatches the actual green-plane detector convention.
+
 ## Correct Next Slice
 
 1. Stage the D810 50 mm aperture sweep and the matching per-file
