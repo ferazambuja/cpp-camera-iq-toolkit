@@ -117,6 +117,15 @@ per-aperture ROIs** in the same D810 50 mm sweep:
    - f/5.6, f/8, and f/11 should show center MTF50 above the corner maximum;
    - f/4 is a near-tie/slight corner win in both Imatest and toolkit probes, so
      do **not** make strict center > corner a universal plateau gate.
+
+   Pin the corner set explicitly: the `Region` column marks only the two LEFT
+   corners (`-4_-2_L_C`, `-4_2_L_C`) as `Corner`; the right-side corner
+   positions (`4_-2_R_C`, `4_2_R_C`) are labeled `Pt Way` despite the `_C`
+   edge-ID suffix. Both gate definitions were probed on real pixels (2026-07-08)
+   and the f/5.6-f/11 center-above / f/4 near-tie results hold under either;
+   prefer deriving field position from the edge-ID grid offsets (or the ROI
+   center coordinates), not the `Region` strings — same label-trust trap as the
+   direction column.
 4. Do not treat Imatest direction labels (`L`, `R`, `AL`, etc.) as proof of
    mixed horizontal/vertical edge orientation. A real f/5.6 probe classified all
    23 ROIs as near-vertical in the toolkit convention; field-MTF should report
