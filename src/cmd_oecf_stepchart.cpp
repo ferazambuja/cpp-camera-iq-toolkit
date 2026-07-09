@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <array>
+#include <cmath>
 #include <filesystem>
 #include <fstream>
 #include <iostream>
@@ -18,6 +19,9 @@
 #include "camera_iq/imatest_stepchart.hpp"
 #include "camera_iq/json_writer.hpp"
 #include "camera_iq/manifest.hpp"
+#include "camera_iq/raw_meta.hpp"
+#include "camera_iq/stepchart_localization.hpp"
+#include "camera_iq/stepchart_raw.hpp"
 
 namespace camera_iq {
 namespace {
@@ -27,6 +31,8 @@ struct Args {
   std::filesystem::path config = default_dataset_config_path();
   std::filesystem::path oracle_dir;
   std::filesystem::path out;
+  std::string zone_corners;
+  double zone_inner_fraction = 0.65;
 };
 
 struct ParsedRunDate {
@@ -290,11 +296,175 @@ void write_zone(JsonWriter& w, const ImatestStepchartZone& z) {
   w.end_object();
 }
 
+void write_point(JsonWriter& w, const Point2d& point) {
+  w.begin_object();
+  w.key("x");
+  w.value(point.x);
+  w.key("y");
+  w.value(point.y);
+  w.end_object();
+}
+
+void write_roi(JsonWriter& w, const RoiRect& roi) {
+  w.begin_object();
+  w.key("x");
+  w.value(roi.x);
+  w.key("y");
+  w.value(roi.y);
+  w.key("width");
+  w.value(roi.width);
+  w.key("height");
+  w.value(roi.height);
+  w.end_object();
+}
+
+void write_optional_roi(JsonWriter& w, const std::optional<RoiRect>& roi) {
+  if (!roi) {
+    w.null();
+    return;
+  }
+  write_roi(w, *roi);
+}
+
+void write_raw_plane_summary(JsonWriter& w,
+                             const StepchartRawPlaneSummary& plane) {
+  w.begin_object();
+  w.key("channel");
+  w.value(plane.channel);
+  w.key("unit");
+  w.value("DN");
+  w.key("frame_count");
+  w.value(static_cast<std::int64_t>(plane.frame_count));
+  w.key("mean_dn");
+  w.value(plane.mean_dn);
+  w.key("temporal_stddev_of_zone_mean_dn");
+  w.value(plane.temporal_stddev_of_zone_mean_dn);
+  w.key("mean_spatial_stddev_dn");
+  w.value(plane.mean_spatial_stddev_dn);
+  w.key("max_below_black_fraction");
+  w.value(plane.max_below_black_fraction);
+  w.key("max_saturated_fraction");
+  w.value(plane.max_saturated_fraction);
+  w.end_object();
+}
+
+void write_raw_zone_summary(JsonWriter& w,
+                            const StepchartRawZoneSummary& zone) {
+  w.begin_object();
+  w.key("zone");
+  w.value(zone.zone);
+  w.key("log_exp");
+  w.value(zone.log_exposure);
+  w.key("frame_count");
+  w.value(static_cast<std::int64_t>(zone.frame_count));
+  w.key("actual_roi");
+  write_optional_roi(w, zone.measurement_roi);
+  w.key("planes");
+  w.begin_array();
+  for (const auto& plane : zone.planes) write_raw_plane_summary(w, plane);
+  w.end_array();
+  w.end_object();
+}
+
+void write_raw_zone_extraction(
+    JsonWriter& w, const StepchartLocalizationResult& geometry,
+    double inner_fraction, const std::vector<StepchartRawIsoSummary>& summaries) {
+  w.begin_object();
+  w.key("method");
+  w.value("corner_seeded_projective_20_zone_strip_raw_cfa_roi");
+  w.key("chart_model");
+  w.value(geometry.chart_model);
+  w.key("corner_order");
+  w.begin_array();
+  w.value("top_left");
+  w.value("top_right");
+  w.value("bottom_right");
+  w.value("bottom_left");
+  w.end_array();
+  w.key("corners");
+  w.begin_object();
+  w.key("top_left");
+  write_point(w, geometry.corners.top_left);
+  w.key("top_right");
+  write_point(w, geometry.corners.top_right);
+  w.key("bottom_right");
+  write_point(w, geometry.corners.bottom_right);
+  w.key("bottom_left");
+  write_point(w, geometry.corners.bottom_left);
+  w.end_object();
+  w.key("inner_fraction");
+  w.value(inner_fraction);
+  w.key("zone_count");
+  w.value(static_cast<int>(geometry.zones.size()));
+  w.key("ptc_candidate");
+  w.value(false);
+  w.key("dynamic_range_candidate");
+  w.value(false);
+  w.key("limitations");
+  write_string_array(w, {
+      "corner-seeded OECF-20 strip geometry; no automatic Stepchart detection.",
+      "raw-CFA values are black-subtracted DN, not electron-calibrated gain.",
+      "repeat spread is over ROI means; not ISO 14524, PTC, PRNU, or "
+      "engineering dynamic range."});
+  w.key("zones");
+  w.begin_array();
+  for (const auto& z : geometry.zones) {
+    w.begin_object();
+    w.key("zone");
+    w.value(z.zone);
+    w.key("row");
+    w.value(z.row);
+    w.key("column");
+    w.value(z.column);
+    w.key("source_coord");
+    w.begin_object();
+    w.key("x");
+    w.value(z.extraction_coord.x);
+    w.key("y");
+    w.value(z.extraction_coord.y);
+    w.key("width");
+    w.value(z.extraction_coord.width);
+    w.key("height");
+    w.value(z.extraction_coord.height);
+    w.end_object();
+    w.end_object();
+  }
+  w.end_array();
+
+  w.key("iso_groups");
+  w.begin_array();
+  for (const auto& iso : summaries) {
+    w.begin_object();
+    w.key("iso");
+    w.value(iso.iso);
+    w.key("shutter_token");
+    w.value(iso.shutter_token);
+    w.key("frame_count");
+    w.value(static_cast<std::int64_t>(iso.frame_count));
+    w.key("ptc_candidate");
+    w.value(iso.ptc_candidate);
+    w.key("dynamic_range_candidate");
+    w.value(iso.dynamic_range_candidate);
+    w.key("limitations");
+    write_string_array(w, iso.limitations);
+    w.key("zones");
+    w.begin_array();
+    for (const auto& zone : iso.zones) write_raw_zone_summary(w, zone);
+    w.end_array();
+    w.end_object();
+  }
+  w.end_array();
+  w.end_object();
+}
+
 void write_json(std::ostream& os, const ResolvedDataset& dataset,
                 const std::vector<SummaryGroup>& groups,
                 const std::vector<OrphanGroup>& orphans,
                 const std::string& first_run_date,
-                const std::string& last_run_date, int span_seconds) {
+                const std::string& last_run_date, int span_seconds,
+                const std::optional<StepchartLocalizationResult>& raw_geometry,
+                double raw_inner_fraction,
+                const std::vector<StepchartRawIsoSummary>& raw_summaries) {
   JsonWriter w(os);
   w.begin_object();
   w.key("command");
@@ -400,13 +570,96 @@ void write_json(std::ostream& os, const ResolvedDataset& dataset,
   }
   w.end_array();
 
+  if (raw_geometry) {
+    w.key("raw_zone_extraction");
+    write_raw_zone_extraction(w, *raw_geometry, raw_inner_fraction,
+                              raw_summaries);
+  }
+
   w.key("not_claimed");
-  write_string_array(w, {"iso_14524_oecf_conformance", "raw_dn_oecf",
-                         "raw_stepchart_zone_extraction",
-                         "ptc_or_dynamic_range",
-                         "chart_density_traceability",
-                         "measured_iso_speed"});
+  if (raw_geometry) {
+    write_string_array(w, {"iso_14524_oecf_conformance",
+                           "electron_calibrated_gain",
+                           "ptc_or_dynamic_range", "prnu",
+                           "chart_density_traceability",
+                           "measured_iso_speed"});
+  } else {
+    write_string_array(w, {"iso_14524_oecf_conformance", "raw_dn_oecf",
+                           "raw_stepchart_zone_extraction",
+                           "ptc_or_dynamic_range",
+                           "chart_density_traceability",
+                           "measured_iso_speed"});
+  }
   w.end_object();
+}
+
+RoiRect roi_from_patch_coord(const PatchCoord& coord) {
+  const int x = static_cast<int>(std::llround(coord.x)) - 1;
+  const int y = static_cast<int>(std::llround(coord.y)) - 1;
+  const int width = static_cast<int>(std::llround(coord.width));
+  const int height = static_cast<int>(std::llround(coord.height));
+  if (x < 0 || y < 0 || width <= 0 || height <= 0) {
+    throw std::runtime_error("invalid rounded Stepchart raw zone ROI");
+  }
+  return RoiRect{x, y, width, height};
+}
+
+StepchartRawFrameMeasurement measure_raw_zones_for_file(
+    const ResolvedDataset& dataset, const std::string& raw_name,
+    const StepchartLocalizationResult& geometry) {
+  const auto image = read_raw_cfa_image(dataset.root / raw_name);
+  const std::string file_label = rel_label(dataset, raw_name);
+  if (!image) {
+    throw std::runtime_error("cannot read raw zone file: " + file_label);
+  }
+
+  StepchartRawFrameMeasurement frame;
+  frame.file_label = file_label;
+  frame.zones.reserve(geometry.zones.size());
+  for (const auto& zone : geometry.zones) {
+    const auto report =
+        raw_cfa_report_for_roi(*image, roi_from_patch_coord(zone.extraction_coord));
+    if (!report || !report->measurement_roi) {
+      throw std::runtime_error("cannot measure raw zone " +
+                               std::to_string(zone.zone) + " in " +
+                               file_label);
+    }
+    StepchartRawZoneMeasurement measurement;
+    measurement.zone = zone.zone;
+    measurement.measurement_roi = report->measurement_roi;
+    measurement.planes = report->planes;
+    frame.zones.push_back(std::move(measurement));
+  }
+  return frame;
+}
+
+std::vector<StepchartRawIsoSummary> measure_raw_zone_summaries(
+    const ResolvedDataset& dataset, const std::vector<SummaryGroup>& groups,
+    const StepchartLocalizationResult& geometry) {
+  std::vector<StepchartRawIsoSummary> out;
+  out.reserve(groups.size());
+  for (const auto& group : groups) {
+    std::vector<StepchartRawFrameMeasurement> frames;
+    frames.reserve(group.summary.combined_files.size());
+    for (const auto& raw_name : group.summary.combined_files) {
+      frames.push_back(measure_raw_zones_for_file(dataset, raw_name, geometry));
+    }
+    out.push_back(summarize_stepchart_raw_iso(
+        group.iso, group.shutter_token, group.summary.zones, frames));
+  }
+  return out;
+}
+
+std::optional<double> parse_finite_double(std::string_view text) {
+  try {
+    std::size_t consumed = 0;
+    const std::string s(text);
+    const double value = std::stod(s, &consumed);
+    if (consumed != s.size() || !std::isfinite(value)) return std::nullopt;
+    return value;
+  } catch (...) {
+    return std::nullopt;
+  }
 }
 
 bool require_value(int argc, int next, std::string_view arg) {
@@ -417,7 +670,8 @@ bool require_value(int argc, int next, std::string_view arg) {
 
 void usage() {
   std::cout << "Usage: camera_iq oecf-stepchart <dataset-root-or-id>"
-               " --oracle-dir REL [--config FILE] [--out FILE]\n";
+               " --oracle-dir REL [--zone-corners TL;TR;BR;BL]"
+               " [--zone-inner-fraction F] [--config FILE] [--out FILE]\n";
 }
 
 }  // namespace
@@ -438,6 +692,18 @@ int cmd_oecf_stepchart(int argc, char** argv) {
     } else if (arg == "--out") {
       if (!require_value(argc, i + 1, arg)) return 2;
       args.out = argv[++i];
+    } else if (arg == "--zone-corners") {
+      if (!require_value(argc, i + 1, arg)) return 2;
+      args.zone_corners = argv[++i];
+    } else if (arg == "--zone-inner-fraction") {
+      if (!require_value(argc, i + 1, arg)) return 2;
+      const auto value = parse_finite_double(argv[++i]);
+      if (!value || !(*value > 0.0 && *value <= 1.0)) {
+        std::cerr << "camera_iq oecf-stepchart: --zone-inner-fraction must be"
+                     " finite and in (0, 1]\n";
+        return 2;
+      }
+      args.zone_inner_fraction = *value;
     } else if (args.root_or_id.empty()) {
       args.root_or_id = std::string(arg);
     } else {
@@ -449,7 +715,8 @@ int cmd_oecf_stepchart(int argc, char** argv) {
 
   if (args.root_or_id.empty()) {
     std::cerr << "Usage: camera_iq oecf-stepchart <dataset-root-or-id>"
-                 " --oracle-dir REL [--config FILE] [--out FILE]\n";
+                 " --oracle-dir REL [--zone-corners TL;TR;BR;BL]"
+                 " [--zone-inner-fraction F] [--config FILE] [--out FILE]\n";
     return 2;
   }
   if (args.oracle_dir.empty()) {
@@ -515,10 +782,20 @@ int cmd_oecf_stepchart(int argc, char** argv) {
     int span_seconds = 0;
     validate_run_date_window(groups, &first_date, &last_date, &span_seconds);
     const auto orphans = classify_orphans(entries, listed_basenames);
+    std::optional<StepchartLocalizationResult> raw_geometry;
+    std::vector<StepchartRawIsoSummary> raw_summaries;
+    if (!args.zone_corners.empty()) {
+      raw_geometry = localize_stepchart_20_zone_strip(
+          parse_stepchart_strip_corners(args.zone_corners),
+          args.zone_inner_fraction);
+      raw_summaries =
+          measure_raw_zone_summaries(*dataset, groups, *raw_geometry);
+    }
 
     if (args.out.empty()) {
       write_json(std::cout, *dataset, groups, orphans, first_date, last_date,
-                 span_seconds);
+                 span_seconds, raw_geometry, args.zone_inner_fraction,
+                 raw_summaries);
       std::cout << "\n";
     } else {
       if (!args.out.parent_path().empty()) {
@@ -531,7 +808,8 @@ int cmd_oecf_stepchart(int argc, char** argv) {
         return 1;
       }
       write_json(os, *dataset, groups, orphans, first_date, last_date,
-                 span_seconds);
+                 span_seconds, raw_geometry, args.zone_inner_fraction,
+                 raw_summaries);
       os << "\n";
     }
     return 0;

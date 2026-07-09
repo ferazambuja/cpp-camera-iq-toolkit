@@ -48,10 +48,12 @@ add_library(camera_iq_core STATIC
   src/exposure_response.cpp
   src/oecf_fit.cpp
   src/imatest_stepchart.cpp
+  src/stepchart_raw.cpp
   src/color_reference.cpp
   src/colorimetry.cpp
   src/patches.cpp
   src/chart_localization.cpp
+  src/stepchart_localization.cpp
   src/localization_diagnosis.cpp
   src/spectral_response.cpp
   src/spectral_closure.cpp
@@ -113,11 +115,13 @@ camera_iq_add_test(test_cmd_dataset_labels tests/test_cmd_dataset_labels.cpp)
 camera_iq_add_test(test_oecf_fit tests/test_oecf_fit.cpp)
 camera_iq_add_test(test_imatest_stepchart tests/test_imatest_stepchart.cpp)
 camera_iq_add_test(test_cmd_oecf_stepchart tests/test_cmd_oecf_stepchart.cpp)
+camera_iq_add_test(test_stepchart_raw tests/test_stepchart_raw.cpp)
 camera_iq_add_test(test_color_reference tests/test_color_reference.cpp)
 camera_iq_add_test(test_colorimetry tests/test_colorimetry.cpp)
 camera_iq_add_test(test_cmd_ccm_fit tests/test_cmd_ccm_fit.cpp)
 camera_iq_add_test(test_patches tests/test_patches.cpp)
 camera_iq_add_test(test_chart_localization tests/test_chart_localization.cpp)
+camera_iq_add_test(test_stepchart_localization tests/test_stepchart_localization.cpp)
 camera_iq_add_test(test_localization_diagnosis tests/test_localization_diagnosis.cpp)
 camera_iq_add_test(test_spectral_response tests/test_spectral_response.cpp)
 camera_iq_add_test(test_cmd_spectral_response tests/test_cmd_spectral_response.cpp)

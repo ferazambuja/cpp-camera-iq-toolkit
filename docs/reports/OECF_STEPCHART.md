@@ -91,33 +91,55 @@ Observed envelope:
 This slice does not claim:
 
 - ISO 14524 OECF conformance.
-- Raw-DN OECF.
-- Raw Stepchart zone extraction.
+- Raw-DN OECF or raw Stepchart zone extraction unless `--zone-corners` is
+  provided; the default oracle-only command stays rendered-luma only.
 - PTC or dynamic range.
 - Chart-density traceability. The `Lux (patch)` column is empty in every
   summary, so the log-exposure axis is nominal chart density.
 - Measured ISO speed. ISO tokens are exposure-index settings from filenames.
 
-## Next Slice
+## Raw Zone Extraction
 
-Raw Stepchart extraction is feasible but remains a separate slice. The Imatest
-summaries validate the grouping and 20-zone density axis, but they do **not**
-record image coordinates for the zones. The next defensible implementation is a
-corner-seeded planar localizer for the OECF-20 strip: one audited set of four
-outer chart corners produces 20 inner zone ROIs for the static D800 session,
-then the existing RAW/CFA ROI machinery can compute raw-DN means and repeated
-frame variance per ISO/zone.
+The command now has an optional corner-seeded raw-zone path:
 
-Scope boundaries for that slice:
+```bash
+./build/camera_iq oecf-stepchart \
+  d800_oecf_2016 \
+  --oracle-dir Results \
+  --zone-corners "2240,1830;6260,1830;6260,2122;2240,2122" \
+  --zone-inner-fraction 1 \
+  --out out/d800_oecf_stepchart_raw_zone.json
+```
+
+The corner seed is an audited active-image OECF-20 strip rectangle selected from
+the same static D800 scene. `--zone-inner-fraction 1` uses the full 20 equal
+zones, matching the Imatest primary table geometry (`201x292` px for zones
+1-19 and `200x292` px for zone 20).
+
+Real raw-zone output summary from the local private cache:
+
+| ISO | Frames | Green zone 1 mean DN | Green zone 20 mean DN | Max green repeat-mean stddev DN |
+|---:|---:|---:|---:|---:|
+| 100 | 10 | 4760.1 | 577.1 | 26.06 |
+| 200 | 10 | 4792.8 | 581.0 | 26.07 |
+| 400 | 10 | 4809.5 | 583.0 | 33.27 |
+| 800 | 10 | 4857.7 | 588.4 | 24.50 |
+| 1600 | 10 | 4886.2 | 597.1 | 21.59 |
+| 3200 | 10 | 5126.1 | 630.9 | 36.66 |
+| 6400 | 10 | 5285.7 | 652.6 | 26.13 |
+| 12800 | 10 | 5526.4 | 675.0 | 144.35 |
+
+Scope boundaries for the raw-zone path:
 
 - It is corner-seeded, not automatic Stepchart detection.
-- It reuses the homography/localization pattern from ColorChecker-SG work, but
-  the SG-specific 14x10 geometry function is not a drop-in for the 20-zone
-  Stepchart strip.
-- It can report raw-DN OECF shape and DN-referred variance-vs-signal/noise
-  summaries from 10 repeats per ISO.
-- It must not claim ISO 14524 conformance, electron-calibrated gain, engineering
-  dynamic range, or PRNU without additional calibration/capture support.
+- It reuses the projective homography pattern from ColorChecker-SG work, but
+  the Stepchart strip has its own 20x1 geometry.
+- It reports black-subtracted raw-CFA DN means per ISO/zone/channel and the
+  repeat-frame spread of ROI means.
+- It does **not** claim ISO 14524 conformance, electron-calibrated gain, PTC,
+  engineering dynamic range, measured ISO speed, or PRNU. True PTC still needs
+  per-pixel temporal variance and calibration evidence, not just repeat-mean
+  spread over corner-seeded chart zones.
 
 ## Validation
 
@@ -129,6 +151,11 @@ ctest --test-dir build --output-on-failure
 ./build/camera_iq oecf-stepchart d800_oecf_2016 \
   --oracle-dir Results \
   --out out/d800_oecf_stepchart_oracle.json
+./build/camera_iq oecf-stepchart d800_oecf_2016 \
+  --oracle-dir Results \
+  --zone-corners "2240,1830;6260,1830;6260,2122;2240,2122" \
+  --zone-inner-fraction 1 \
+  --out out/d800_oecf_stepchart_raw_zone.json
 bash tools/check_public_paths.sh
 git diff --check
 ```

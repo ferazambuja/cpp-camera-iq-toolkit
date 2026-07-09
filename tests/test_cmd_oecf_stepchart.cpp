@@ -399,5 +399,27 @@ void TESTS() {
           "oecf-stepchart cmd: summary-count message names the violated gate");
   }
 
+  {
+    const auto [code, err] =
+        run_capture({"d800_oecf_fixture", "--config", config.string(),
+                     "--oracle-dir", "Results", "--zone-corners", "bad"});
+    check(code == 1,
+          "oecf-stepchart cmd: malformed Stepchart zone corners are runtime failure");
+    check(err.find("OECF Stepchart corners") != std::string::npos,
+          "oecf-stepchart cmd: malformed-corners message names the corner parser");
+  }
+
+  {
+    const auto [code, err] = run_capture(
+        {"d800_oecf_fixture", "--config", config.string(), "--oracle-dir",
+         "Results", "--zone-corners", "0,0;200,0;200,100;0,100"});
+    check(code == 1,
+          "oecf-stepchart cmd: valid corners trigger raw-zone extraction path");
+    check(err.find("cannot read raw zone file") != std::string::npos,
+          "oecf-stepchart cmd: raw-zone path reports unreadable fixture RAW");
+    check(err.find("unexpected argument") == std::string::npos,
+          "oecf-stepchart cmd: --zone-corners is a recognized option");
+  }
+
   fs::remove_all(root);
 }
