@@ -169,6 +169,12 @@ This verifies that the parser sees the archive metadata, while the current
 fixed-ISO/fixed-aperture series key does not falsely manufacture a shutter
 ladder from the D800 folder.
 
+The D800 folder's Imatest Stepchart summaries are planned as a separate oracle
+slice, not as a change to this fixed-ISO exposure-series detector. That plan is
+`docs/reports/OECF_STEPCHART.md`: the capture set compensates shutter
+as ISO changes, so the chart zones supply the rendered-luminance log-exposure
+axis and the current `exposure-response` zero-series result remains correct.
+
 ## Validation
 
 ```bash

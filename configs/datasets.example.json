@@ -54,7 +54,11 @@
     },
     "d800_oecf_2016": {
       "root": "data/private/datasets/d800_oecf_2016",
-      "description": "Nikon D800 OECF/noise-chart archive mirror"
+      "description": "Nikon D800 OECF/noise-chart archive mirror",
+      "capture_project": "2016 esensi OECF / Stepchart archive",
+      "capture_year": "2016",
+      "_copy_policy": "Stage the scoped NEF/TIFF files plus the per-group Imatest Results/*_summary.csv files needed for the Stepchart oracle slice. Do not commit private RAW/TIFF/summary outputs.",
+      "_archive_note": "Canonical archive label: archive:2016_esensi_images/2016_12_10_D800_OECF. The Stepchart summaries live under Results/ and include rendered Imatest luma Y tables; they are not raw CFA OECF data."
     },
     "d800_d810_sfr_2016": {
       "root": "data/private/datasets/d800_d810_sfr_2016",

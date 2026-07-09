@@ -97,6 +97,14 @@ rather than bulk-copying the full RAW archive:
   --out out/spectral_sensitivity_manifest.json
 ```
 
+For the Nikon D800 OECF / Stepchart archive, mirror the scoped
+`2016_12_10_D800_OECF` subset under `data/private/datasets/d800_oecf_2016/`,
+including its `Results/*_summary.csv` Imatest Stepchart summaries. Those
+summaries are private oracle files and may contain local-directory metadata in
+the metadata tail; command outputs must omit or sanitize those paths. The
+Stepchart summaries are rendered luminance-oracle data, not raw CFA OECF data.
+The current slice plan is `docs/reports/OECF_STEPCHART.md`.
+
 Fit the first linear CCM with an explicit local illuminant SPD:
 
 ```bash
