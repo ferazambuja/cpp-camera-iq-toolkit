@@ -11,6 +11,7 @@ namespace fs = std::filesystem;
 using camera_iq::dataset_display_label;
 using camera_iq::dataset_file_label;
 using camera_iq::dataset_root_label;
+using camera_iq::dataset_scan_label;
 using camera_iq::read_dataset_config;
 using camera_iq::resolve_dataset_root;
 using test::check;
@@ -174,10 +175,16 @@ void TESTS() {
   if (by_id) {
     check(dataset_display_label(*by_id) == "dataset:clrs589_project_camera",
           "display label: config dataset uses redacted id label");
+    check(dataset_scan_label(*by_id, fs::path("Images/Dark Frame")) ==
+              "dataset:clrs589_project_camera/Images/Dark Frame",
+          "scan label: config dataset appends relative subdir");
   }
   if (by_path) {
     check(dataset_display_label(*by_path) == "dataset-root:clrs",
           "display label: direct path reduces to basename, never absolute");
+    check(dataset_scan_label(*by_path, fs::path("Images/Dark Frame")) ==
+              "dataset-root:clrs/Images/Dark Frame",
+          "scan label: direct path appends subdir without absolute root");
   }
   check(dataset_file_label("clrs589_project_camera",
                            fs::path("Images/CCSG/file.RAF")) ==

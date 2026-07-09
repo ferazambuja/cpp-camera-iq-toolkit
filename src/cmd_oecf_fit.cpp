@@ -99,13 +99,7 @@ int cmd_oecf_fit(int argc, char** argv) {
 
     const std::filesystem::path scan_root =
         subdir.empty() ? resolved->root : (resolved->root / subdir);
-    std::string root_label = resolved->label;
-    if (resolved->from_config && !subdir.empty()) {
-      root_label += "/";
-      root_label += subdir.generic_string();
-    } else if (!resolved->from_config) {
-      root_label = scan_root.string();
-    }
+    const std::string root_label = dataset_scan_label(*resolved, subdir);
 
     auto entries = scan_dataset(scan_root);
     auto series = find_exposure_series(entries, series_min);

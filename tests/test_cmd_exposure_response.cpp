@@ -56,6 +56,9 @@ void TESTS() {
         "exposure-response cmd: direct root mode emits basename label");
   check(json.find(dataset.string()) == std::string::npos,
         "exposure-response cmd: direct root mode does not leak absolute root");
+  check(run_exposure_response(
+            {dataset.string(), "--subdir", (root / "escape").string()}) == 2,
+        "exposure-response cmd: absolute subdir rejected");
 
   fs::remove_all(root);
 }

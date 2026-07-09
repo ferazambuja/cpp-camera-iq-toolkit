@@ -71,4 +71,9 @@ std::string dataset_file_label(std::string_view dataset_id,
 // paths reduce to "dataset-root:<basename>".
 std::string dataset_display_label(const ResolvedDataset& dataset);
 
+// Display label for commands that scan an optional dataset-relative subdir.
+// Keeps the same privacy contract as dataset_display_label().
+std::string dataset_scan_label(const ResolvedDataset& dataset,
+                               const std::filesystem::path& relative_subdir);
+
 }  // namespace camera_iq

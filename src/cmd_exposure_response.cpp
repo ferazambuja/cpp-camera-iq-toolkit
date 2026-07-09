@@ -96,14 +96,15 @@ int cmd_exposure_response(int argc, char** argv) {
                 << "' is not a directory or dataset id in " << config << "\n";
       return 1;
     }
+    if (!subdir.empty() && subdir.is_absolute()) {
+      std::cerr
+          << "camera_iq exposure-response: --subdir requires a relative path\n";
+      return 2;
+    }
     const std::filesystem::path scan_root = subdir.empty()
         ? resolved->root
         : (resolved->root / subdir);
-    std::string root_label = dataset_display_label(*resolved);
-    if (!subdir.empty()) {
-      root_label += "/";
-      root_label += subdir.generic_string();
-    }
+    const std::string root_label = dataset_scan_label(*resolved, subdir);
 
     auto entries = scan_dataset(scan_root);
     auto series = find_exposure_series(entries, series_min);

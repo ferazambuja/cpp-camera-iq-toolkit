@@ -68,16 +68,14 @@ int cmd_manifest(int argc, char** argv) {
                 << "' is not a directory or dataset id in " << config << "\n";
       return 1;
     }
+    if (!subdir.empty() && subdir.is_absolute()) {
+      std::cerr << "camera_iq manifest: --subdir requires a relative path\n";
+      return 2;
+    }
     const std::filesystem::path scan_root = subdir.empty()
         ? resolved->root
         : (resolved->root / subdir);
-    std::string root_label = resolved->label;
-    if (resolved->from_config && !subdir.empty()) {
-      root_label += "/";
-      root_label += subdir.generic_string();
-    } else if (!resolved->from_config) {
-      root_label = scan_root.string();
-    }
+    const std::string root_label = dataset_scan_label(*resolved, subdir);
 
     auto entries = scan_dataset(scan_root);
     std::cerr << "scanned " << entries.size() << " files under " << root_label

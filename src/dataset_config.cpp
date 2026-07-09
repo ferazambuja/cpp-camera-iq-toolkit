@@ -332,4 +332,14 @@ std::string dataset_display_label(const ResolvedDataset& dataset) {
   return "dataset-root:" + (basename.empty() ? std::string(".") : basename);
 }
 
+std::string dataset_scan_label(const ResolvedDataset& dataset,
+                               const std::filesystem::path& relative_subdir) {
+  std::string label = dataset_display_label(dataset);
+  if (!relative_subdir.empty()) {
+    label += "/";
+    label += relative_subdir.generic_string();
+  }
+  return label;
+}
+
 }  // namespace camera_iq
