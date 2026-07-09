@@ -181,9 +181,10 @@ D800-specific contract notes (all verified on the real files, 2026-07-08):
 - **Center-above-corner gates: f/8 and f/11 only.** f/4 and f/5.6 have the
   corner max above center (both oracle and toolkit); f/2.8 is marginal
   (+0.0031) and unpinned.
-- Field argmax is N=12 (`0_-2_R_E`, top-center) for f/2.8-f/11 in both oracle
-  and toolkit — a field-tilt signature of this capture. N=13 on D800 is edge
-  ID `0_2_L_E` (left-edge; the D810 counterpart is `0_2_R_E`).
+- Oracle field argmax is N=12 (`0_-2_R_E`, top-center) for f/2.8-f/11. The
+  toolkit agrees at f/4-f/11, while f/2.8 is diagnostic-only (toolkit max N=8)
+  and f/16 diverges (oracle max N=1, toolkit max N=13). N=13 on D800 is edge ID
+  `0_2_L_E` (left-edge; the D810 counterpart is `0_2_R_E`).
 - Unoracled RAW files in the folder (no per-file `_Y_multi.csv`): the
   tethered `2016_12_09_SFR_D800_f11_0032.NEF` and three
   `2016_12_09_SFR_D800_test_*.NEF` frames — diagnostic only.

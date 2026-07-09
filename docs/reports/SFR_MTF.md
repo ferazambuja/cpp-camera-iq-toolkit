@@ -151,9 +151,11 @@ Findings (the D810 recipe does NOT transfer; gates are camera/capture-specific):
   (0.1428 < 0.1478). This is real behavior of the 2016 capture (f/4 center is
   depressed to f/2.8 level), not an estimator bug. The failure is unit-pinned
   so the gate stays honest about being capture-specific.
-- **Field tilt: the field maximum is N=12 (grid 0,-2, top-center) at
-  f/2.8-f/11 in BOTH oracle and toolkit.** Wide open (f/1.4-f/2) the center is
-  the field max. Compare D810, where N=13 (grid 0,2) won everywhere.
+- **Field tilt: the oracle field maximum is N=12 (grid 0,-2, top-center) at
+  f/2.8-f/11.** The toolkit agrees at f/4-f/11; at f/2.8 its maximum is N=8,
+  and at f/16 the oracle returns to center while the toolkit maximum is N=13.
+  Wide open (f/1.4-f/2) both oracle and toolkit put the center on top. Compare
+  D810, where N=13 (grid 0,2) won everywhere.
 - **Center-above-corner is only gate-worthy at f/8 and f/11 (oracle);
   f/4 and f/5.6 have the corner max ABOVE center** (oracle and toolkit agree)
   and stay diagnostic. f/2.8 is too marginal to pin (+0.0031 oracle margin,
