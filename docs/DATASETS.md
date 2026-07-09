@@ -103,7 +103,7 @@ including its `Results/*_summary.csv` Imatest Stepchart summaries. Those
 summaries are private oracle files and may contain local-directory metadata in
 the metadata tail; command outputs must omit or sanitize those paths. The
 Stepchart summaries are rendered luminance-oracle data, not raw CFA OECF data.
-The current slice plan is `docs/reports/OECF_STEPCHART.md`.
+The current evidence report is `docs/reports/OECF_STEPCHART.md`.
 
 Fit the first linear CCM with an explicit local illuminant SPD:
 

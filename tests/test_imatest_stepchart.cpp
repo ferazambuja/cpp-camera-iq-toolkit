@@ -238,6 +238,42 @@ void TESTS() {
   }
 
   {
+    std::string escaped = stepchart_fixture();
+    const auto pos = escaped.find("File 1,");
+    const auto end = escaped.find('\n', pos);
+    escaped.replace(pos, end - pos, "File 1, ../outside.NEF");
+    write_file(root / "bad_escaped_file_row.csv", escaped);
+    check(throws_containing(root / "bad_escaped_file_row.csv",
+                            "file-list filename"),
+          "stepchart parser: rejects parent-path file-list entries");
+  }
+
+  {
+    std::string nested = stepchart_fixture();
+    const auto pos = nested.find("File 1,");
+    const auto end = nested.find('\n', pos);
+    nested.replace(pos, end - pos, "File 1, nested/NIKON D800_i100_s1-40_2.NEF");
+    write_file(root / "bad_nested_file_row.csv", nested);
+    check(throws_containing(root / "bad_nested_file_row.csv",
+                            "file-list filename"),
+          "stepchart parser: rejects nested-path file-list entries");
+  }
+
+  {
+    std::string duplicate_empty_header = stepchart_fixture();
+    const auto pos = duplicate_empty_header.find(
+        "Zone,Pixel,Pixel/255,Log(exp),Log(px/255),Width px,Height px,");
+    duplicate_empty_header.insert(
+        pos,
+        "Zone,Pixel,Pixel/255,Log(exp),Log(px/255),Width px,Height px,"
+        "Pixels total,Lux (patch),\n\n");
+    write_file(root / "bad_duplicate_empty_header.csv", duplicate_empty_header);
+    check(throws_containing(root / "bad_duplicate_empty_header.csv",
+                            "duplicate primary table"),
+          "stepchart parser: rejects duplicate primary header even before rows");
+  }
+
+  {
     // Zone 5 renumbered to 6: duplicate-6/missing-5 in one mutation.
     std::string renumbered =
         replace_zone_row(stepchart_fixture(), "\n 5,",
@@ -280,6 +316,15 @@ void TESTS() {
     write_file(root / "bad_pixel255.csv", bad_pixel255);
     check(throws_containing(root / "bad_pixel255.csv", "Pixel/255"),
           "stepchart parser: rejects negative Pixel/255");
+  }
+
+  {
+    std::string bad_pixel =
+        replace_zone_row(stepchart_fixture(), "\n20,",
+                         "20,   -1.0, 0.0000, -2.8500, -1.0000,200,50,10000");
+    write_file(root / "bad_negative_pixel.csv", bad_pixel);
+    check(throws_containing(root / "bad_negative_pixel.csv", "negative Pixel"),
+          "stepchart parser: rejects negative Pixel values");
   }
 
   {

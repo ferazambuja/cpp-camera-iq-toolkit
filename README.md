@@ -123,7 +123,7 @@ ctest --test-dir build --output-on-failure
 
 Implemented commands: `manifest`, `raw-stats`, `demosaic`,
 `dark-calibration`, `noise`, `exposure-response`, `oecf-fit`,
-`reference-info`, `ccm-fit`, `patches`, `spectral-response`,
+`oecf-stepchart`, `reference-info`, `ccm-fit`, `patches`, `spectral-response`,
 `spectral-closure`, `spectral-quality`, and `spectral-smi`.
 Evidence reports for completed phases live under
 [docs/reports/](docs/reports/).

@@ -68,6 +68,14 @@ std::optional<int> combined_file_row_index(const std::string& key) {
   return value;
 }
 
+void validate_combined_file_name(const std::string& filename) {
+  if (filename.find('/') != std::string::npos ||
+      filename.find('\\') != std::string::npos ||
+      std::filesystem::path(filename).has_parent_path()) {
+    fail("invalid file-list filename: '" + filename + "'");
+  }
+}
+
 void validate_zones(const std::vector<ImatestStepchartZone>& zones) {
   if (zones.size() < 2) fail("N < 2");
   for (std::size_t i = 0; i < zones.size(); ++i) {
@@ -75,6 +83,7 @@ void validate_zones(const std::vector<ImatestStepchartZone>& zones) {
     if (zones[i].zone != expected_zone) {
       fail("missing or non-contiguous zone rows");
     }
+    if (zones[i].pixel < 0.0) fail("negative Pixel");
     if (zones[i].pixel_255 < 0.0) fail("negative Pixel/255");
     if (zones[i].width_px <= 0 || zones[i].height_px <= 0 ||
         zones[i].pixels_total <= 0) {
@@ -106,6 +115,7 @@ ImatestStepchartSummary read_imatest_stepchart_summary(
 
   bool saw_stepchart = false;
   bool in_primary = false;
+  bool saw_primary_header = false;
   int expected_next_zone = 1;
 
   std::string line;
@@ -148,6 +158,7 @@ ImatestStepchartSummary read_imatest_stepchart_summary(
     }
     if (const auto file_index = combined_file_row_index(key)) {
       if (cells.size() < 2 || cells[1].empty()) fail("missing file-list row");
+      validate_combined_file_name(cells[1]);
       // The row index must be the sequence 1..M — a duplicated or skipped
       // index with an intact count would otherwise be silently trusted.
       if (*file_index != static_cast<int>(summary.combined_files.size()) + 1) {
@@ -158,7 +169,8 @@ ImatestStepchartSummary read_imatest_stepchart_summary(
     }
 
     if (is_primary_header(cells)) {
-      if (!summary.zones.empty()) fail("duplicate primary table");
+      if (saw_primary_header) fail("duplicate primary table");
+      saw_primary_header = true;
       in_primary = true;
       expected_next_zone = 1;
       continue;

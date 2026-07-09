@@ -280,6 +280,22 @@ void TESTS() {
         "oecf-stepchart cmd: emits all six not-claimed caveats");
   check(json.find("/""Users/") == std::string::npos,
         "oecf-stepchart cmd: strips private Directory paths from JSON");
+  check(json.find("/""Volumes/") == std::string::npos,
+        "oecf-stepchart cmd: strips private volume paths from JSON");
+
+  {
+    const fs::path direct_out = root / "direct" / "out.json";
+    const int direct_ok = run_stepchart(
+        {dataset.string(), "--oracle-dir", "Results", "--out", direct_out.string()});
+    check(direct_ok == 0,
+          "oecf-stepchart cmd: direct dataset root mode succeeds");
+    const std::string direct_json = read_file(direct_out);
+    check(direct_json.find("\"dataset\":\"dataset-root:dataset\"") !=
+              std::string::npos,
+          "oecf-stepchart cmd: direct root mode emits basename label");
+    check(direct_json.find(dataset.string()) == std::string::npos,
+          "oecf-stepchart cmd: direct root mode does not leak absolute root");
+  }
 
   {
     DatasetOpts opts;
