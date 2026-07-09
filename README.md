@@ -19,10 +19,14 @@ noise diagnostics, OECF/linearity, and reproducible CSV/JSON/Markdown reports.
   parsed as camera spectral-sensitivity datasets rather than ColorChecker
   references. Legacy script outputs are fidelity checks, not correctness
   oracles.
-- **Objective IQ metrics** — dark-frame temporal noise / DSNU diagnostics,
-  OECF/linearity, with photon-transfer-curve summaries, dynamic range,
-  PRNU, and slanted-edge SFR/MTF still planned. D800/D810 SFR archive captures
-  and Imatest result CSVs have been identified; implementation remains pending.
+- **Objective IQ metrics** — dark-frame temporal noise / DSNU diagnostics;
+  OECF/linearity (CLRS exposure-response fits plus a D800 Imatest Stepchart
+  oracle path); slanted-edge SFR/MTF as green-linear center-ROI and 23-ROI
+  field maps for the D810 and D800 archives, hard-gated on offset-independent
+  aperture trends with per-file Imatest `_Y_multi.csv` values as advisory
+  references. Photon-transfer-curve summaries, dynamic range, and PRNU remain
+  planned: they need raw Stepchart zone extraction (corner-seeded, like the
+  existing chart localization) or new captures.
 - **Reporting** — batch runner, threshold checks, CSV/JSON export, Markdown reports.
 
 ## Build
