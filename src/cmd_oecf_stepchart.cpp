@@ -644,8 +644,10 @@ std::vector<StepchartRawIsoSummary> measure_raw_zone_summaries(
     for (const auto& raw_name : group.summary.combined_files) {
       frames.push_back(measure_raw_zones_for_file(dataset, raw_name, geometry));
     }
-    out.push_back(summarize_stepchart_raw_iso(
-        group.iso, group.shutter_token, group.summary.zones, frames));
+    auto summary = summarize_stepchart_raw_iso(
+        group.iso, group.shutter_token, group.summary.zones, frames);
+    validate_stepchart_raw_iso_against_oracle(summary);
+    out.push_back(std::move(summary));
   }
   return out;
 }

@@ -136,4 +136,80 @@ StepchartRawIsoSummary summarize_stepchart_raw_iso(
   return out;
 }
 
+void validate_stepchart_raw_iso_against_oracle(
+    const StepchartRawIsoSummary& summary) {
+  std::vector<double> green;
+  std::vector<double> rel_exposure;
+  green.reserve(summary.zones.size());
+  rel_exposure.reserve(summary.zones.size());
+  for (const auto& zone : summary.zones) {
+    double sum = 0.0;
+    int count = 0;
+    for (const auto& plane : zone.planes) {
+      if (!plane.channel.empty() &&
+          (plane.channel[0] == 'G' || plane.channel[0] == 'g')) {
+        sum += plane.mean_dn;
+        ++count;
+      }
+    }
+    if (count == 0) {
+      throw std::runtime_error(
+          "Stepchart raw gate: no green plane in zone summaries");
+    }
+    green.push_back(sum / count);
+    rel_exposure.push_back(std::pow(10.0, zone.log_exposure));
+  }
+  if (green.size() < 3) {
+    throw std::runtime_error(
+        "Stepchart raw gate: need at least 3 zones to validate");
+  }
+
+  // Non-increasing in oracle zone order, with a small tolerance so genuine
+  // noise-floor ties in the deepest zones pass.
+  for (std::size_t i = 0; i + 1 < green.size(); ++i) {
+    const double tolerance = std::max(5.0, 0.02 * green[i]);
+    if (green[i + 1] > green[i] + tolerance) {
+      throw std::runtime_error(
+          "Stepchart raw gate: green zone means are not monotone with the "
+          "oracle ladder (zone " + std::to_string(summary.zones[i].zone) +
+          " -> " + std::to_string(summary.zones[i + 1].zone) +
+          " rises); corner seed or chart-layout model is wrong");
+    }
+  }
+
+  // A linear sensor tracking the ladder correlates near-perfectly with
+  // relative exposure; scene background or misplaced ROIs do not.
+  const std::size_t n = green.size();
+  double mean_g = 0.0;
+  double mean_e = 0.0;
+  for (std::size_t i = 0; i < n; ++i) {
+    mean_g += green[i];
+    mean_e += rel_exposure[i];
+  }
+  mean_g /= static_cast<double>(n);
+  mean_e /= static_cast<double>(n);
+  double num = 0.0;
+  double den_g = 0.0;
+  double den_e = 0.0;
+  for (std::size_t i = 0; i < n; ++i) {
+    const double dg = green[i] - mean_g;
+    const double de = rel_exposure[i] - mean_e;
+    num += dg * de;
+    den_g += dg * dg;
+    den_e += de * de;
+  }
+  if (den_g <= 0.0 || den_e <= 0.0) {
+    throw std::runtime_error(
+        "Stepchart raw gate: degenerate (constant) zone means do not "
+        "correlate with the oracle ladder");
+  }
+  const double r = num / std::sqrt(den_g * den_e);
+  if (r < 0.98) {
+    throw std::runtime_error(
+        "Stepchart raw gate: green zone means do not correlate with the "
+        "oracle exposure ladder (r=" + std::to_string(r) +
+        " < 0.98); corner seed or chart-layout model is wrong");
+  }
+}
+
 }  // namespace camera_iq

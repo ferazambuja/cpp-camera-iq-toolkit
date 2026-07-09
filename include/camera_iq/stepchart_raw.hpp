@@ -56,4 +56,14 @@ StepchartRawIsoSummary summarize_stepchart_raw_iso(
     const std::vector<ImatestStepchartZone>& oracle_zones,
     const std::vector<StepchartRawFrameMeasurement>& frames);
 
+// Empirical oracle-ladder gate. The oracle already pins each zone's relative
+// exposure, so a correct extraction is checkable: green zone means must be
+// non-increasing in zone order (deep-shadow ties allowed) and strongly
+// linearly correlated with 10^log_exposure. A corner seed that lands off the
+// physical zones — wrong position or a chart-layout model mismatch (e.g. a
+// strip model on a ring-layout ISO 14524 chart) — otherwise produces
+// confident garbage. Throws std::runtime_error naming the violated check.
+void validate_stepchart_raw_iso_against_oracle(
+    const StepchartRawIsoSummary& summary);
+
 }  // namespace camera_iq

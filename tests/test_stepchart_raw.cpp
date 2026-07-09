@@ -1,6 +1,8 @@
 #include "camera_iq/stepchart_raw.hpp"
 
+#include <cmath>
 #include <stdexcept>
+#include <string>
 #include <vector>
 
 #include "harness.hpp"
@@ -11,6 +13,7 @@ using camera_iq::RoiRect;
 using camera_iq::StepchartRawFrameMeasurement;
 using camera_iq::StepchartRawZoneMeasurement;
 using camera_iq::summarize_stepchart_raw_iso;
+using camera_iq::validate_stepchart_raw_iso_against_oracle;
 using test::check;
 using test::check_near;
 
@@ -133,5 +136,63 @@ void TESTS() {
         100, "s1-40", oracle_zones(), {changed_roi_a, changed_roi_b});
     check(!summary.zones[0].measurement_roi.has_value(),
           "raw stepchart: varying clipped ROI is marked null");
+  }
+
+  // Empirical oracle-ladder gate: extracted green means must actually follow
+  // the oracle exposure ladder, or the extraction (corner seed / chart-layout
+  // model) is wrong and the command must refuse rather than emit garbage.
+  {
+    auto ladder_summary = [](const std::vector<double>& green_means,
+                             const std::vector<double>& log_exposures) {
+      camera_iq::StepchartRawIsoSummary s2;
+      s2.iso = 100;
+      for (std::size_t i = 0; i < green_means.size(); ++i) {
+        camera_iq::StepchartRawZoneSummary z;
+        z.zone = static_cast<int>(i + 1);
+        z.log_exposure = log_exposures[i];
+        for (auto& p2 : z.planes) {
+          p2.channel = "R";
+          p2.mean_dn = green_means[i] * 0.8;
+        }
+        z.planes[1].channel = "G1";
+        z.planes[1].mean_dn = green_means[i];
+        z.planes[2].channel = "G2";
+        z.planes[2].mean_dn = green_means[i];
+        s2.zones.push_back(z);
+      }
+      return s2;
+    };
+    auto gate_throws = [](const camera_iq::StepchartRawIsoSummary& s2,
+                          const std::string& needle) {
+      try {
+        validate_stepchart_raw_iso_against_oracle(s2);
+      } catch (const std::runtime_error& e) {
+        return std::string(e.what()).find(needle) != std::string::npos;
+      }
+      return false;
+    };
+
+    // A linear sensor tracking the ladder passes (deep-shadow ties allowed).
+    const std::vector<double> log_e{0.0,   -0.3,  -0.6,  -0.9, -1.2,
+                                    -1.6,  -2.0,  -2.6,  -3.2, -4.1};
+    std::vector<double> good;
+    for (double le : log_e) good.push_back(12000.0 * std::pow(10.0, le));
+    good[8] = good[9];  // noise-floor tie in the deepest zones.
+    validate_stepchart_raw_iso_against_oracle(ladder_summary(good, log_e));
+    check(true, "raw stepchart gate: oracle-consistent ladder accepted");
+
+    // A mid-ladder reversal (ROI landed on the wrong physical patch) fails.
+    std::vector<double> reversed = good;
+    reversed[5] = reversed[2] * 1.5;
+    check(gate_throws(ladder_summary(reversed, log_e), "monotone"),
+          "raw stepchart gate: rejects non-monotone zone means");
+
+    // Monotone but flat/uncorrelated means (background, not the chart) fail.
+    std::vector<double> flat;
+    for (std::size_t i = 0; i < log_e.size(); ++i) {
+      flat.push_back(600.0 - static_cast<double>(i));
+    }
+    check(gate_throws(ladder_summary(flat, log_e), "correlate"),
+          "raw stepchart gate: rejects means uncorrelated with the ladder");
   }
 }

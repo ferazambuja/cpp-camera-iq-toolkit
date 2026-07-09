@@ -100,46 +100,53 @@ This slice does not claim:
 
 ## Raw Zone Extraction
 
-The command now has an optional corner-seeded raw-zone path:
+The command has an optional corner-seeded raw-zone path (`--zone-corners`,
+`--zone-inner-fraction`), modeled as a 20x1 contiguous strip. **On this
+archive it correctly refuses**: the physical chart is NOT a linear 20-zone
+strip.
 
-```bash
-./build/camera_iq oecf-stepchart \
-  d800_oecf_2016 \
-  --oracle-dir Results \
-  --zone-corners "2240,1830;6260,1830;6260,2122;2240,2122" \
-  --zone-inner-fraction 1 \
-  --out out/d800_oecf_stepchart_raw_zone.json
+Raw-mosaic analysis of the actual scene (2026-07-09, `NIKON
+D800_i100_s1-40_2.NEF` dumped via `unprocessed_raw` and scanned for uniform
+patches) shows an ISO 14524-style layout: ~300x300 px gray patches arranged
+in a RING at roughly 1200-1400 px radius around the chart center, in
+scrambled density order, plus a continuous V-shaped sweep and auxiliary patch
+rows. The ring-patch green medians match the oracle's relative-exposure
+ladder within ~4-8% when scaled from the brightest patch (13476 DN at
+ISO100): predicted 11470/9762/8311/5618/4567/3627/2881/2186/1658 vs found
+11716/9978/8564/5802/4760/3794/3061/2351/1787. The sensor tracks the ladder
+linearly; the zones are just not where a strip model looks for them.
+
+A strip-rectangle seed cuts a chord through that ring: it clips two ring
+patches (oracle zones 7 and 8) and otherwise samples scene background, which
+produces non-monotone means, mid-zone spatial stddevs of 800-1300 DN
+(ROIs straddling structured content), and step-free deep zones — plausible
+endpoint numbers, garbage in between. An earlier revision of this report
+published exactly such endpoint numbers as zone data; they are withdrawn.
+
+The command now enforces an empirical oracle-ladder gate
+(`validate_stepchart_raw_iso_against_oracle`): per ISO group, green zone
+means must be non-increasing in oracle zone order (deep-shadow ties allowed)
+and correlate with `10^log_exposure` at r >= 0.98. The strip seed on this
+archive fails it immediately:
+
+```text
+Stepchart raw gate: green zone means are not monotone with the oracle ladder
+(zone 12 -> 13 rises); corner seed or chart-layout model is wrong
 ```
-
-The corner seed is an audited active-image OECF-20 strip rectangle selected from
-the same static D800 scene. `--zone-inner-fraction 1` uses the full 20 equal
-zones, matching the Imatest primary table geometry (`201x292` px for zones
-1-19 and `200x292` px for zone 20).
-
-Real raw-zone output summary from the local private cache:
-
-| ISO | Frames | Green zone 1 mean DN | Green zone 20 mean DN | Max green repeat-mean stddev DN |
-|---:|---:|---:|---:|---:|
-| 100 | 10 | 4760.1 | 577.1 | 26.06 |
-| 200 | 10 | 4792.8 | 581.0 | 26.07 |
-| 400 | 10 | 4809.5 | 583.0 | 33.27 |
-| 800 | 10 | 4857.7 | 588.4 | 24.50 |
-| 1600 | 10 | 4886.2 | 597.1 | 21.59 |
-| 3200 | 10 | 5126.1 | 630.9 | 36.66 |
-| 6400 | 10 | 5285.7 | 652.6 | 26.13 |
-| 12800 | 10 | 5526.4 | 675.0 | 144.35 |
 
 Scope boundaries for the raw-zone path:
 
 - It is corner-seeded, not automatic Stepchart detection.
-- It reuses the projective homography pattern from ColorChecker-SG work, but
-  the Stepchart strip has its own 20x1 geometry.
-- It reports black-subtracted raw-CFA DN means per ISO/zone/channel and the
-  repeat-frame spread of ROI means.
+- The 20x1 strip geometry applies to linear step wedges only. This archive
+  needs a ring-layout model (center/radius/roll seed plus the chart's
+  scrambled zone-order map) or measured per-zone coordinates — that is the
+  actual next slice.
+- When the gate passes, it reports black-subtracted raw-CFA DN means per
+  ISO/zone/channel and the repeat-frame spread of ROI means. On the D800
+  (which stores black already subtracted, effective black 0) DN values are
+  pedestal-free by construction.
 - It does **not** claim ISO 14524 conformance, electron-calibrated gain, PTC,
-  engineering dynamic range, measured ISO speed, or PRNU. True PTC still needs
-  per-pixel temporal variance and calibration evidence, not just repeat-mean
-  spread over corner-seeded chart zones.
+  engineering dynamic range, measured ISO speed, or PRNU.
 
 ## Validation
 
@@ -151,6 +158,7 @@ ctest --test-dir build --output-on-failure
 ./build/camera_iq oecf-stepchart d800_oecf_2016 \
   --oracle-dir Results \
   --out out/d800_oecf_stepchart_oracle.json
+# The strip seed refuses on this ring-layout archive (exit 1, gate message):
 ./build/camera_iq oecf-stepchart d800_oecf_2016 \
   --oracle-dir Results \
   --zone-corners "2240,1830;6260,1830;6260,2122;2240,2122" \
