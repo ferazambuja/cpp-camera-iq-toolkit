@@ -134,7 +134,8 @@ Implemented commands: `manifest`, `raw-stats`, `demosaic`,
 `oecf-stepchart`, `reference-info`, `ccm-fit`, `patches`, `spectral-response`,
 `spectral-closure`, `spectral-quality`, and `spectral-smi`.
 Evidence reports for completed phases live under
-[docs/reports/](docs/reports/).
+[docs/reports/](docs/reports/), with the consolidated coverage map at
+[docs/reports/CAMERA_IQ_COVERAGE.md](docs/reports/CAMERA_IQ_COVERAGE.md).
 
 ## Data
 
