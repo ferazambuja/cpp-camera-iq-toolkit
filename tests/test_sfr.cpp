@@ -201,6 +201,78 @@ void write_field_y_multi_fixture(const std::filesystem::path& path,
   }
 }
 
+// Real D800 f/8 rows from the 10-Dec-2016 12:47:10 batch. D800-specific label
+// trap: the Region column labels ALL FOUR physical corners (_C edge IDs)
+// "Pt Way" — unlike D810 where two are labeled "Corner". Physical corners must
+// come from the edge-ID suffix, never from Region.
+constexpr std::array<FixtureRow, 23> kD800F8FieldRows = {{
+    {1, "R", "Center", "0_0_R", 3839, 2203, 217, 340, 0.1831, 0.1831},
+    {2, "AL", "Pt Way", "-4_-2_L_C", 793, 941, 217, 333, 0.1618, 0.1612},
+    {3, "AR", "Pt Way", "4_-2_R_C", 6469, 851, 217, 338, 0.1585, 0.1585},
+    {4, "BL", "Pt Way", "-4_2_L_C", 779, 3565, 217, 332, 0.1365, 0.1348},
+    {5, "R", "Pt Way", "4_2_R_C", 6541, 3512, 217, 337, 0.1516, 0.1516},
+    {6, "AL", "Pt Way", "-2_-1_L", 2075, 1561, 217, 336, 0.1733, 0.1733},
+    {7, "L", "Pt Way", "-2_1_L", 2077, 2890, 217, 337, 0.1505, 0.1502},
+    {8, "AR", "Pt Way", "2_-1_R", 5169, 1519, 217, 340, 0.1860, 0.1860},
+    {9, "R", "Pt Way", "2_1_R", 5195, 2858, 217, 340, 0.1622, 0.1620},
+    {10, "L", "Pt Way", "-4_0_L_E", 778, 2243, 217, 332, 0.1530, 0.1530},
+    {11, "R", "Pt Way", "4_0_R_E", 6513, 2171, 217, 337, 0.1641, 0.1633},
+    {12, "A", "Pt Way", "0_-2_R_E", 3823, 878, 217, 339, 0.2175, 0.2175},
+    {13, "B", "Pt Way", "0_2_L_E", 3419, 3550, 217, 338, 0.1730, 0.1730},
+    {14, "L", "Pt Way", "-4_-1_L_E", 783, 1589, 217, 332, 0.1566, 0.1564},
+    {15, "R", "Pt Way", "4_-1_R_E", 6493, 1507, 217, 337, 0.1702, 0.1702},
+    {16, "L", "Pt Way", "-4_1_L_E", 777, 2903, 217, 332, 0.1399, 0.1394},
+    {17, "R", "Pt Way", "4_1_R_E", 6529, 2840, 217, 338, 0.1590, 0.1582},
+    {18, "AL", "Pt Way", "-2_-2_L_E", 2077, 906, 217, 337, 0.1889, 0.1888},
+    {19, "AR", "Pt Way", "2_-2_R_E", 5153, 861, 217, 339, 0.1871, 0.1870},
+    {20, "BL", "Pt Way", "-2_2_L_E", 2081, 3560, 217, 336, 0.1507, 0.1507},
+    {21, "BR", "Pt Way", "2_2_R_E", 5205, 3533, 217, 340, 0.1586, 0.1580},
+    {22, "L", "Pt Way", "-2_0_L", 2074, 2223, 217, 336, 0.1638, 0.1638},
+    {23, "R", "Pt Way", "2_0_R", 5183, 2186, 217, 339, 0.1781, 0.1776},
+}};
+
+void write_d800_f8_y_multi_fixture(const std::filesystem::path& path) {
+  std::ofstream os(path);
+  os << "Imatest,4.5.7, , SFRplus\n";
+  os << "File,NIKON D800_50mm_f8_.NEF\n";
+  os << "Run date,10-Dec-2016 12:47:10,,Build 2016-11-22\n\n";
+  os << "N,Distance %,Direction,X1,Y1,X2,Y2,Width,Height,Region,Edge ID,"
+        "X px from ctr,Y px from ctr,CSV summary file\n";
+  for (const auto& row : kD800F8FieldRows) {
+    os << row.n << ",  2.6," << row.direction << "," << row.x1 << ","
+       << row.y1 << "," << (row.x1 + row.width - 1) << ","
+       << (row.y1 + row.height - 1) << "," << row.width << ","
+       << row.height << "," << row.region << "," << row.edge_id << ","
+       << (row.x1 - 3689.0) << "," << (row.y1 - 2462.0)
+       << ",NIKON D800_50mm_f8__Y" << row.direction << " "
+       << row.n << "_MTF.csv\n";
+  }
+  os << "\n";
+  os << "N,MTF50 (Cy/Pxl),R1090 (pxl),CA area(pxl),MTF50 (LW/PH),"
+        "R1090 (/PH),Peak MTF,MTF50P (Cy/Pxl)\n";
+  for (const auto& row : kD800F8FieldRows) {
+    os << row.n << "," << row.mtf50 << ",2.3,0.000,2000,2000,1.001,"
+       << row.mtf50p << "\n";
+  }
+  os << "\n";
+  os << "Summary,10-Dec-2016 12:47:10,,NIKON D800_50mm_f8_.NEF\n";
+  os << "23,Regions,3,Center,20,Part way,0,Corner\n";
+  os << " ,MTF50 (Cy/Pxl),R1090 (pxl),CA (pxl),MTF50 (LW/PH),"
+        "R1090 (/PH),Peak MTF,MTF50P (Cy/Pxl),MTF50P (LW/PH),"
+        "MTF20 (Cy/Pxl)\n";
+  os << "Mean Ctr,0.1831,2.9,0.0000,1800.0,1700.0,1.0000,0.1831,"
+        "1800.0,0.3600\n";
+  os << "Worst Cor,0.1365,3.4,0.0000,1340.0,1500.0,1.0100,0.1348,"
+        "1330.0,0.2700\n\n";
+  os << "More results: C denotes standardized sharpening\n";
+  os << "N,MTF20 (Cy/Pxl),MTF20 (LW/PH),LSF PW50 (pxl),Gamma from chart,"
+        "R-G pixel shift,B-G pixel shift\n";
+  for (const auto& row : kD800F8FieldRows) {
+    os << row.n << "," << (row.n == 12 ? 0.9999 : 0.3500) << ",3500,1.6,"
+       << "0.505,0.00,0.00\n";
+  }
+}
+
 void write_center_compatible_y_multi_fixture(const std::filesystem::path& path) {
   std::ofstream os(path);
   os << "Imatest,4.5.7, , SFRplus\n";
@@ -496,5 +568,104 @@ void TESTS() {
                      "trend gate f16 value pinned");
     test::check_near(gate.argmax_aperture, 5.6, 1e-12,
                      "trend gate argmax aperture pinned");
+  }
+
+  {
+    // D800 f/8 oracle fixture (10-Dec-2016 12:47:10 single batch).
+    const auto path = temp_file("camera_iq_test_d800_f8_y_multi.csv");
+    write_d800_f8_y_multi_fixture(path);
+    const auto oracle = camera_iq::read_imatest_y_multi_file(path);
+    test::check(oracle.has_value(), "D800 f/8 fixture parses");
+    test::check(oracle->filename == "NIKON D800_50mm_f8_.NEF",
+                "D800 fixture filename parsed");
+    test::check(oracle->rois.size() == 23, "D800 fixture has 23 ROI rows");
+    for (int i = 1; i <= 4; ++i) {
+      const auto& roi = oracle->rois[static_cast<std::size_t>(i)];
+      test::check(roi.physical_corner && roi.region_label == "Pt Way",
+                  "D800 label trap: all four _C corners are Region 'Pt Way'");
+    }
+    test::check_near(oracle->rois[11].imatest_mtf50_cy_per_px, 0.2175, 1e-12,
+                     "D800 N=12 primary MTF50 pinned (MTF20 poison ignored)");
+
+    const auto summary = camera_iq::summarize_imatest_field_mtf(*oracle);
+    test::check(summary.has_value(), "D800 field summary computes");
+    test::check(summary->physical_corner_count == 4,
+                "D800 field summary finds 4 physical corners");
+    test::check(summary->field_argmax_n == 12,
+                "D800 field argmax is N=12 (top-center: field tilt)");
+    test::check(!summary->center_is_field_max,
+                "D800 center is not the field max at f/8");
+    test::check_near(summary->center_mtf50_cy_per_px, 0.1831, 1e-12,
+                     "D800 f/8 center MTF50 pinned");
+    test::check_near(summary->physical_corner_max_mtf50_cy_per_px, 0.1618,
+                     1e-12, "D800 f/8 corner max pinned");
+    test::check(summary->center_above_physical_corner_max,
+                "D800 f/8 center-corner gate passes");
+    std::filesystem::remove(path);
+  }
+
+  {
+    // D800 center-vs-corner oracle behavior differs from D810: the corner max
+    // BEATS center at f/4 and f/5.6 (field tilt + aberrations in this
+    // capture), so only f/8 and f/11 are gated; f/4 and f/5.6 are diagnostic.
+    auto make_file = [](double center, double corner_max) {
+      camera_iq::ImatestYMultiFile file;
+      file.filename = "fixture.NEF";
+      file.run_date = "fixture";
+      file.rois.push_back(camera_iq::ImatestYMultiRoi{
+          .n = 1, .edge_id = "0_0_R", .imatest_mtf50_cy_per_px = center});
+      for (int n = 2; n <= 5; ++n) {
+        camera_iq::ImatestYMultiRoi roi;
+        roi.n = n;
+        roi.edge_id = n == 2   ? "-4_-2_L_C"
+                      : n == 3 ? "4_-2_R_C"
+                      : n == 4 ? "-4_2_L_C"
+                               : "4_2_R_C";
+        roi.physical_corner = true;
+        roi.imatest_mtf50_cy_per_px = n == 2 ? corner_max : corner_max - 0.01;
+        file.rois.push_back(roi);
+      }
+      return file;
+    };
+    const auto f4 = camera_iq::summarize_imatest_field_mtf(
+        make_file(0.1385, 0.1647));
+    const auto f56 = camera_iq::summarize_imatest_field_mtf(
+        make_file(0.1649, 0.1711));
+    const auto f8 = camera_iq::summarize_imatest_field_mtf(
+        make_file(0.1831, 0.1618));
+    const auto f11 = camera_iq::summarize_imatest_field_mtf(
+        make_file(0.1707, 0.1536));
+    test::check(f4 && !f4->center_above_physical_corner_max,
+                "D800 f/4 corner beats center (diagnostic, not gated)");
+    test::check(f56 && !f56->center_above_physical_corner_max,
+                "D800 f/5.6 corner beats center (diagnostic, not gated)");
+    test::check(f8 && f8->center_above_physical_corner_max,
+                "D800 f/8 center-corner oracle gate passes");
+    test::check(f11 && f11->center_above_physical_corner_max,
+                "D800 f/11 center-corner oracle gate passes");
+  }
+
+  {
+    // The D810 aperture-trend gate does NOT transfer to the D800 capture:
+    // f/16 (0.1583) sits ABOVE the plateau minimum (f/4 = 0.1385), so the
+    // gate correctly fails. Pinning the failure documents that the trend
+    // gate is camera/capture-specific, not a tautology of the estimator.
+    std::vector<camera_iq::SfrSweepPoint> sweep = {
+        {1.4, 0.1029}, {1.8, 0.1204}, {2.0, 0.1377},
+        {2.8, 0.1395}, {4.0, 0.1385}, {5.6, 0.1649},
+        {8.0, 0.1831}, {11.0, 0.1707}, {16.0, 0.1583}};
+    const auto gate = camera_iq::evaluate_aperture_trend(sweep);
+    test::check(!gate.passed,
+                "D810-style trend gate correctly fails on D800 oracle");
+    test::check_near(gate.mid_plateau_min, 0.1385, 1e-12,
+                     "D800 trend plateau min pinned (f/4 depression)");
+    test::check_near(gate.f16_value, 0.1583, 1e-12,
+                     "D800 trend f16 value pinned");
+    test::check_near(gate.wide_open_max, 0.1377, 1e-12,
+                     "D800 trend wide-open max pinned");
+    test::check_near(gate.argmax_aperture, 8.0, 1e-12,
+                     "D800 trend argmax aperture pinned");
+    test::check_near(gate.argmax_mtf50, 0.1831, 1e-12,
+                     "D800 trend argmax MTF50 pinned");
   }
 }

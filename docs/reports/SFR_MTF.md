@@ -124,3 +124,50 @@ Verified D810 field-map plateau probe:
 future mode can later add an Imatest-replication path: demosaiced/luma pipeline,
 gamma/OECF handling, and an advisory absolute tolerance once the processing
 model is intentionally aligned to Imatest.
+
+## D800 Field Replication
+
+Full 9-aperture D800 field-map sweep against the per-file 10-Dec-2016 12:47:10
+oracle batch (see the inventory's D800 Oracle Contract). All 207 ROI
+measurements (23 ROIs x 9 apertures) accepted; all detected orientations
+vertical, matching the D810 chart geometry.
+
+| Aperture | Oracle center | Toolkit center | Delta | Toolkit corner max | Center > corner (oracle / toolkit) | Argmax N (oracle / toolkit) |
+|---|---:|---:|---:|---:|---|---|
+| f/1.4 | 0.1029 | 0.1082 | +0.0053 | 0.0978 | true / true | 1 / 1 |
+| f/1.8 | 0.1204 | 0.1304 | +0.0100 | 0.1058 | true / true | 1 / 1 |
+| f/2 | 0.1377 | 0.1439 | +0.0062 | 0.1113 | true / true | 1 / 1 |
+| f/2.8 | 0.1395 | 0.1447 | +0.0052 | 0.1535 | true / false | 12 / 8 |
+| f/4 | 0.1385 | 0.1428 | +0.0043 | 0.1885 | false / false | 12 / 12 |
+| f/5.6 | 0.1649 | 0.1647 | -0.0002 | 0.1886 | false / false | 12 / 12 |
+| f/8 | 0.1831 | 0.1684 | -0.0147 | 0.1849 | true / false | 12 / 12 |
+| f/11 | 0.1707 | 0.1674 | -0.0033 | 0.1592 | true / true | 12 / 12 |
+| f/16 | 0.1583 | 0.1478 | -0.0105 | 0.1367 | true / true | 1 / 13 |
+
+Findings (the D810 recipe does NOT transfer; gates are camera/capture-specific):
+
+- **Aperture-trend gate fails on D800 — correctly.** Oracle plateau minimum
+  (f/4 = 0.1385) sits BELOW f/16 (0.1583); the toolkit sweep agrees
+  (0.1428 < 0.1478). This is real behavior of the 2016 capture (f/4 center is
+  depressed to f/2.8 level), not an estimator bug. The failure is unit-pinned
+  so the gate stays honest about being capture-specific.
+- **Field tilt: the field maximum is N=12 (grid 0,-2, top-center) at
+  f/2.8-f/11 in BOTH oracle and toolkit.** Wide open (f/1.4-f/2) the center is
+  the field max. Compare D810, where N=13 (grid 0,2) won everywhere.
+- **Center-above-corner is only gate-worthy at f/8 and f/11 (oracle);
+  f/4 and f/5.6 have the corner max ABOVE center** (oracle and toolkit agree)
+  and stay diagnostic. f/2.8 is too marginal to pin (+0.0031 oracle margin,
+  toolkit disagrees).
+- **Toolkit reads physical-corner MTF50 higher than the Imatest oracle**
+  (green-linear vs luma+gamma pipelines diverge more off-axis); this flips the
+  center-corner comparison at f/2.8 and f/8. Center deltas stay within
+  +/-0.015. Absolute agreement remains advisory-only, as established.
+- D800 centers sit below D810 centers at matched plateau apertures
+  (f/5.6: 0.1649 vs 0.2400 oracle), directionally consistent with the D800's
+  OLPF, but the gap cannot be attributed to the OLPF alone (focus/field state
+  differs between the captures).
+
+Unit pins: D800 f/8 23-row fixture (all four `_C` corners Region-labeled
+`Pt Way` — harsher label trap than D810), `summarize_imatest_field_mtf` pins
+(argmax N=12, center 0.1831 > corner max 0.1618), the four-aperture
+center-corner block, and the pinned trend-gate FAILURE.

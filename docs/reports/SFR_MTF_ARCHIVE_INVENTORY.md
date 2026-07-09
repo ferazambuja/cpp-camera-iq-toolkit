@@ -147,5 +147,46 @@ Verified D810 field-map plateau probe:
 | f/8 | 23 | 23 | vertical | 0.2218 | 0.1955 | true |
 | f/11 | 23 | 23 | vertical | 0.2049 | 0.1831 | true |
 
-Natural follow-ons are a D800 replication run, a multi-aperture summary command,
-or an Imatest-replication A2 path with demosaic/luma/gamma handling.
+## D800 Oracle Contract
+
+The D800 counterpart sweep is oracled by the same per-file `_Y_multi.csv`
+pattern under `archive:2016_esensi_images/2016_12_09_D800_SFR/Results/`. All 9
+files carry the identical run date `10-Dec-2016 12:47:10` (single Imatest 4.5.7
+batch, Build 2016-11-22). The folder's `Results/SFR_cypx.csv` concatenates
+THREE batches (2016-12-09 22:55:41, 2016-12-09 23:14:11, 2016-12-10 12:47:10;
+207 rows each) — only the 12:47:10 rows match the `_Y_multi` files; never mix.
+
+| Aperture | Filename | Center ROI L,T,R,B | Center MTF50 | Oracle corner max | Argmax N |
+|---|---|---|---:|---:|---:|
+| f/1.4 | `NIKON D800_50mm_f1.4_.NEF` | `3841,2204,4057,2543` | 0.1029 | 0.0866 | 1 |
+| f/1.8 | `NIKON D800_50mm_f1.8_.NEF` | `3841,2204,4057,2543` | 0.1204 | 0.0890 | 1 |
+| f/2 | `NIKON D800_50mm_f2_.NEF` | `3841,2204,4057,2542` | 0.1377 | 0.0904 | 1 |
+| f/2.8 | `NIKON D800_50mm_f2.8_.NEF` | `3840,2204,4056,2542` | 0.1395 | 0.1364 | 12 |
+| f/4 | `NIKON D800_50mm_f4_.NEF` | `3840,2204,4056,2542` | 0.1385 | 0.1647 | 12 |
+| f/5.6 | `NIKON D800_50mm_f5.6_.NEF` | `3839,2203,4055,2542` | 0.1649 | 0.1711 | 12 |
+| f/8 | `NIKON D800_50mm_f8_.NEF` | `3839,2203,4055,2542` | 0.1831 | 0.1618 | 12 |
+| f/11 | `NIKON D800_50mm_f11_.NEF` | `3839,2204,4055,2542` | 0.1707 | 0.1536 | 12 |
+| f/16 | `NIKON D800_50mm_f16_.NEF` | `3839,2204,4055,2542` | 0.1583 | 0.1310 | 1 |
+
+D800-specific contract notes (all verified on the real files, 2026-07-08):
+
+- **Label trap is harsher than D810:** the `Region` column labels ALL FOUR
+  physical corners (`-4_-2_L_C`, `4_-2_R_C`, `-4_2_L_C`, `4_2_R_C`) as
+  `Pt Way`, and the Regions summary line reads `0,Corner`. Physical corners
+  come from the `_C` edge-ID suffix only.
+- **The D810 aperture-trend gate does not transfer:** oracle plateau minimum
+  (f/4 = 0.1385) is below f/16 (0.1583), so
+  `min(f/4..f/11) > f/16 > max(f/1.4..f/2)` correctly FAILS. The failure is
+  unit-pinned; do not redefine the gate to force a pass.
+- **Center-above-corner gates: f/8 and f/11 only.** f/4 and f/5.6 have the
+  corner max above center (both oracle and toolkit); f/2.8 is marginal
+  (+0.0031) and unpinned.
+- Field argmax is N=12 (`0_-2_R_E`, top-center) for f/2.8-f/11 in both oracle
+  and toolkit — a field-tilt signature of this capture. N=13 on D800 is edge
+  ID `0_2_L_E` (left-edge; the D810 counterpart is `0_2_R_E`).
+- Unoracled RAW files in the folder (no per-file `_Y_multi.csv`): the
+  tethered `2016_12_09_SFR_D800_f11_0032.NEF` and three
+  `2016_12_09_SFR_D800_test_*.NEF` frames — diagnostic only.
+
+Natural follow-ons are a multi-aperture summary command or an
+Imatest-replication A2 path with demosaic/luma/gamma handling.
