@@ -8,6 +8,7 @@
 
 namespace fs = std::filesystem;
 
+using camera_iq::dataset_display_label;
 using camera_iq::dataset_file_label;
 using camera_iq::dataset_root_label;
 using camera_iq::read_dataset_config;
@@ -170,6 +171,14 @@ void TESTS() {
   check(dataset_root_label("clrs589_project_camera") ==
             "dataset:clrs589_project_camera",
         "label: dataset root");
+  if (by_id) {
+    check(dataset_display_label(*by_id) == "dataset:clrs589_project_camera",
+          "display label: config dataset uses redacted id label");
+  }
+  if (by_path) {
+    check(dataset_display_label(*by_path) == "dataset-root:clrs",
+          "display label: direct path reduces to basename, never absolute");
+  }
   check(dataset_file_label("clrs589_project_camera",
                            fs::path("Images/CCSG/file.RAF")) ==
             "dataset:clrs589_project_camera/Images/CCSG/file.RAF",

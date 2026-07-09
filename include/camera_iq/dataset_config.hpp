@@ -66,4 +66,9 @@ std::string dataset_root_label(std::string_view dataset_id);
 std::string dataset_file_label(std::string_view dataset_id,
                                const std::filesystem::path& relative_path);
 
+// Display label for evidence JSON that never echoes an absolute path:
+// config-resolved datasets keep the redacted "dataset:<id>" label; direct
+// paths reduce to "dataset-root:<basename>".
+std::string dataset_display_label(const ResolvedDataset& dataset);
+
 }  // namespace camera_iq

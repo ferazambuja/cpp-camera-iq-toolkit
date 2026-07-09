@@ -98,8 +98,7 @@ void write_sfr_json(std::ostream& os, const ResolvedDataset& dataset,
   json.key("claim_scope");
   json.value("green_linear_single_roi_trend_gate_advisory_imatest");
   json.key("dataset");
-  json.value(dataset.from_config ? dataset_root_label(dataset.id)
-                                 : dataset.label);
+  json.value(dataset_display_label(dataset));
   json.key("raw");
   json.value(dataset.from_config ? dataset_file_label(dataset.id, raw_rel)
                                  : raw_rel.generic_string());
@@ -351,8 +350,7 @@ void write_sfr_field_json(std::ostream& os, const ResolvedDataset& dataset,
   json.key("claim_scope");
   json.value("green_linear_multi_roi_advisory_imatest");
   json.key("dataset");
-  json.value(dataset.from_config ? dataset_root_label(dataset.id)
-                                 : dataset.label);
+  json.value(dataset_display_label(dataset));
   json.key("raw");
   json.value(dataset.from_config ? dataset_file_label(dataset.id, raw_rel)
                                  : raw_rel.generic_string());

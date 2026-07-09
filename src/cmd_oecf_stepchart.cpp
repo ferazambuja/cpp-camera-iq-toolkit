@@ -113,12 +113,6 @@ std::string rel_label(const ResolvedDataset& dataset,
                              : rel.generic_string();
 }
 
-std::string root_label(const ResolvedDataset& dataset) {
-  if (dataset.from_config) return dataset_root_label(dataset.id);
-  const auto basename = dataset.root.filename().string();
-  return "dataset-root:" + (basename.empty() ? std::string(".") : basename);
-}
-
 bool has_suffix(std::string_view text, std::string_view suffix) {
   return text.size() >= suffix.size() &&
          text.substr(text.size() - suffix.size()) == suffix;
@@ -308,7 +302,7 @@ void write_json(std::ostream& os, const ResolvedDataset& dataset,
   w.key("mode");
   w.value("oecf_stepchart_oracle");
   w.key("dataset");
-  w.value(root_label(dataset));
+  w.value(dataset_display_label(dataset));
   w.key("oracle_summary_count");
   w.value(static_cast<int>(groups.size()));
   w.key("run_date_window");
