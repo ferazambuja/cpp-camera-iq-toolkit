@@ -98,6 +98,27 @@ This slice does not claim:
   summary, so the log-exposure axis is nominal chart density.
 - Measured ISO speed. ISO tokens are exposure-index settings from filenames.
 
+## Next Slice
+
+Raw Stepchart extraction is feasible but remains a separate slice. The Imatest
+summaries validate the grouping and 20-zone density axis, but they do **not**
+record image coordinates for the zones. The next defensible implementation is a
+corner-seeded planar localizer for the OECF-20 strip: one audited set of four
+outer chart corners produces 20 inner zone ROIs for the static D800 session,
+then the existing RAW/CFA ROI machinery can compute raw-DN means and repeated
+frame variance per ISO/zone.
+
+Scope boundaries for that slice:
+
+- It is corner-seeded, not automatic Stepchart detection.
+- It reuses the homography/localization pattern from ColorChecker-SG work, but
+  the SG-specific 14x10 geometry function is not a drop-in for the 20-zone
+  Stepchart strip.
+- It can report raw-DN OECF shape and DN-referred variance-vs-signal/noise
+  summaries from 10 repeats per ISO.
+- It must not claim ISO 14524 conformance, electron-calibrated gain, engineering
+  dynamic range, or PRNU without additional calibration/capture support.
+
 ## Validation
 
 Local verification after implementation:

@@ -24,9 +24,12 @@ noise diagnostics, OECF/linearity, and reproducible CSV/JSON/Markdown reports.
   oracle path); slanted-edge SFR/MTF as green-linear center-ROI and 23-ROI
   field maps for the D810 and D800 archives, hard-gated on offset-independent
   aperture trends with per-file Imatest `_Y_multi.csv` values as advisory
-  references. Photon-transfer-curve summaries, dynamic range, and PRNU remain
-  planned: they need raw Stepchart zone extraction (corner-seeded, like the
-  existing chart localization) or new captures.
+  references. Raw Stepchart zone extraction remains the strongest next slice:
+  the D800 OECF session has 10 repeats per ISO across 20 chart zones, but the
+  Imatest summaries do not include zone coordinates. A future corner-seeded
+  20-zone strip localizer can support raw-DN OECF and DN-referred
+  variance-vs-signal/noise summaries; electron-calibrated PTC, engineering
+  dynamic range, and PRNU still need additional calibration or capture support.
 - **Reporting** — batch runner, threshold checks, CSV/JSON export, Markdown reports.
 
 ## Build
