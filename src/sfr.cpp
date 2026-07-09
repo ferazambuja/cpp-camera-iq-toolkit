@@ -12,44 +12,12 @@
 #include <stdexcept>
 #include <string>
 
+#include "camera_iq/csv.hpp"
+
 namespace camera_iq {
 namespace {
 
 constexpr double kEps = 1e-12;
-
-std::vector<std::string> split_csv_line(const std::string& line) {
-  std::vector<std::string> out;
-  std::string cell;
-  std::istringstream in(line);
-  while (std::getline(in, cell, ',')) {
-    const auto first = cell.find_first_not_of(" \t\r\n");
-    const auto last = cell.find_last_not_of(" \t\r\n");
-    out.push_back(first == std::string::npos
-                      ? std::string{}
-                      : cell.substr(first, last - first + 1));
-  }
-  if (!line.empty() && line.back() == ',') out.emplace_back();
-  return out;
-}
-
-std::optional<double> parse_double(const std::string& text) {
-  try {
-    std::size_t consumed = 0;
-    const double value = std::stod(text, &consumed);
-    if (consumed != text.size() || !std::isfinite(value)) return std::nullopt;
-    return value;
-  } catch (...) {
-    return std::nullopt;
-  }
-}
-
-std::optional<int> parse_int(const std::string& text) {
-  const auto value = parse_double(text);
-  if (!value) return std::nullopt;
-  const double rounded = std::round(*value);
-  if (std::abs(*value - rounded) > 1e-9) return std::nullopt;
-  return static_cast<int>(rounded);
-}
 
 void parse_edge_id(ImatestYMultiRoi& roi) {
   std::vector<std::string> parts;

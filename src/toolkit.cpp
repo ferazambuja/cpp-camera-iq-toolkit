@@ -36,6 +36,8 @@ void print_usage() {
       "              Black-subtracted CFA summaries grouped by exposure series\n"
       "  oecf-fit\n"
       "              Relative-exposure linearity fit over usable OECF points\n"
+      "  oecf-stepchart\n"
+      "              Validate Imatest Stepchart oracle summaries and joins\n"
       "  reference-info\n"
       "              Inspect configured ColorChecker spectral reference metadata\n"
       "  ccm-fit\n"
@@ -94,6 +96,9 @@ int run(int argc, char** argv) {
   }
   if (arg == "oecf-fit") {
     return cmd_oecf_fit(argc - 2, argv + 2);
+  }
+  if (arg == "oecf-stepchart") {
+    return cmd_oecf_stepchart(argc - 2, argv + 2);
   }
   if (arg == "reference-info") {
     return cmd_reference_info(argc - 2, argv + 2);

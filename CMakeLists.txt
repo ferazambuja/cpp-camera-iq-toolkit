@@ -47,6 +47,7 @@ add_library(camera_iq_core STATIC
   src/sfr.cpp
   src/exposure_response.cpp
   src/oecf_fit.cpp
+  src/imatest_stepchart.cpp
   src/color_reference.cpp
   src/colorimetry.cpp
   src/patches.cpp
@@ -64,6 +65,7 @@ add_library(camera_iq_core STATIC
   src/cmd_sfr.cpp
   src/cmd_exposure_response.cpp
   src/cmd_oecf_fit.cpp
+  src/cmd_oecf_stepchart.cpp
   src/cmd_reference_info.cpp
   src/cmd_ccm_fit.cpp
   src/cmd_spectral_response.cpp
@@ -107,6 +109,8 @@ camera_iq_add_test(test_sfr tests/test_sfr.cpp)
 camera_iq_add_test(test_cmd_sfr tests/test_cmd_sfr.cpp)
 camera_iq_add_test(test_exposure_response tests/test_exposure_response.cpp)
 camera_iq_add_test(test_oecf_fit tests/test_oecf_fit.cpp)
+camera_iq_add_test(test_imatest_stepchart tests/test_imatest_stepchart.cpp)
+camera_iq_add_test(test_cmd_oecf_stepchart tests/test_cmd_oecf_stepchart.cpp)
 camera_iq_add_test(test_color_reference tests/test_color_reference.cpp)
 camera_iq_add_test(test_colorimetry tests/test_colorimetry.cpp)
 camera_iq_add_test(test_cmd_ccm_fit tests/test_cmd_ccm_fit.cpp)
