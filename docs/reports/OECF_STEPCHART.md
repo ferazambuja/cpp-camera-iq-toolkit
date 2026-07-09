@@ -138,9 +138,10 @@ Scope boundaries for the raw-zone path:
 
 - It is corner-seeded, not automatic Stepchart detection.
 - The 20x1 strip geometry applies to linear step wedges only. This archive
-  needs a ring-layout model (center/radius/roll seed plus the chart's
-  scrambled zone-order map) or measured per-zone coordinates — that is the
-  actual next slice.
+  needs a ring-layout model. The zone order turned out to be the
+  deterministic ISO 14524 alternating pattern — no external zone-order map is
+  required; see the plan's "Measured Ring Geometry" section for the verified
+  4-parameter seed and two-frame validation.
 - When the gate passes, it reports black-subtracted raw-CFA DN means per
   ISO/zone/channel and the repeat-frame spread of ROI means. On the D800
   (which stores black already subtracted, effective black 0) DN values are
