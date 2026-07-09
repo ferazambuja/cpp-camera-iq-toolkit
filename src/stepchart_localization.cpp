@@ -15,6 +15,7 @@ constexpr int kZones = 20;
 constexpr double kStripWidth = 20.0;
 constexpr double kStripHeight = 1.0;
 constexpr double kEpsilon = 1e-12;
+constexpr double kPi = 3.141592653589793238462643383279502884;
 
 using Matrix8 = std::array<std::array<double, 9>, 8>;
 using Homography = std::array<double, 8>;
@@ -160,6 +161,32 @@ PatchCoord projected_roi(const Homography& h, double left, double top,
   return PatchCoord{min_x + 1.0, min_y + 1.0, max_x - min_x, max_y - min_y};
 }
 
+void validate_ring_seed(const StepchartRingSeed& seed, double roi_size_px) {
+  if (!finite(seed.center) || !std::isfinite(seed.radius) ||
+      !std::isfinite(seed.theta1_degrees)) {
+    throw std::runtime_error("OECF Stepchart ring seed must be finite");
+  }
+  if (!(seed.radius > 0.0)) {
+    throw std::runtime_error("OECF Stepchart ring radius must be positive");
+  }
+  if (!std::isfinite(roi_size_px) || !(roi_size_px > 0.0)) {
+    throw std::runtime_error("OECF Stepchart ring ROI size must be positive");
+  }
+}
+
+double ring_zone_theta_degrees(int zone, double theta1_degrees) {
+  if (zone % 2 == 0) {
+    return theta1_degrees + 9.0 * static_cast<double>(zone);
+  }
+  return theta1_degrees - 9.0 * static_cast<double>(zone - 1);
+}
+
+PatchCoord square_roi_from_center(Point2d center, double size) {
+  const double left = center.x - size / 2.0;
+  const double top = center.y - size / 2.0;
+  return PatchCoord{left + 1.0, top + 1.0, size, size};
+}
+
 double parse_number(std::string_view field, std::string_view context) {
   const std::string text(field);
   try {
@@ -170,7 +197,7 @@ double parse_number(std::string_view field, std::string_view context) {
     }
     return value;
   } catch (...) {
-    throw std::runtime_error("invalid OECF Stepchart corner number in " +
+    throw std::runtime_error("invalid OECF Stepchart number in " +
                              std::string(context));
   }
 }
@@ -196,6 +223,7 @@ StepchartLocalizationResult localize_stepchart_20_zone_strip(
 
   StepchartLocalizationResult result;
   result.corners = corners;
+  result.inner_fraction = inner_fraction;
   result.zones.reserve(kZones);
 
   const double half_width = inner_fraction / 2.0;
@@ -211,6 +239,36 @@ StepchartLocalizationResult localize_stepchart_20_zone_strip(
     zone.extraction_coord =
         projected_roi(h, center_x - half_width, center_y - half_height,
                       center_x + half_width, center_y + half_height);
+    result.zones.push_back(zone);
+  }
+
+  return result;
+}
+
+StepchartLocalizationResult localize_stepchart_20_zone_ring(
+    const StepchartRingSeed& seed, double roi_size_px) {
+  validate_ring_seed(seed, roi_size_px);
+
+  StepchartLocalizationResult result;
+  result.chart_model = "OECF Stepchart 20-zone ring";
+  result.method = "ring_seeded_iso14524_style_alternating";
+  result.ring_seed = seed;
+  result.roi_size_px = roi_size_px;
+  result.zones.reserve(kZones);
+
+  for (int zone_index = 0; zone_index < kZones; ++zone_index) {
+    const int zone_number = zone_index + 1;
+    const double theta =
+        ring_zone_theta_degrees(zone_number, seed.theta1_degrees) * kPi /
+        180.0;
+    const Point2d center{seed.center.x + seed.radius * std::cos(theta),
+                         seed.center.y + seed.radius * std::sin(theta)};
+
+    StepchartZoneGeometry zone;
+    zone.zone = zone_number;
+    zone.row = 0;
+    zone.column = zone_index;
+    zone.extraction_coord = square_roi_from_center(center, roi_size_px);
     result.zones.push_back(zone);
   }
 
@@ -238,6 +296,31 @@ ChartCorners parse_stepchart_strip_corners(std::string_view text) {
         "OECF Stepchart corners must contain exactly four points");
   }
   return {points[0], points[1], points[2], points[3]};
+}
+
+StepchartRingSeed parse_stepchart_ring_seed(std::string_view text) {
+  std::vector<double> values;
+  std::size_t start = 0;
+  while (start <= text.size()) {
+    const std::size_t end = text.find(',', start);
+    const std::string_view field =
+        end == std::string_view::npos ? text.substr(start)
+                                      : text.substr(start, end - start);
+    if (field.empty()) {
+      throw std::runtime_error(
+          "OECF Stepchart ring seed must contain cx,cy,radius,theta1");
+    }
+    values.push_back(parse_number(field, "ring seed"));
+    if (end == std::string_view::npos) break;
+    start = end + 1;
+  }
+  if (values.size() != 4) {
+    throw std::runtime_error(
+        "OECF Stepchart ring seed must contain exactly four numbers");
+  }
+  StepchartRingSeed seed{{values[0], values[1]}, values[2], values[3]};
+  validate_ring_seed(seed, 1.0);
+  return seed;
 }
 
 std::vector<PatchCoord> patch_coords_from_stepchart_geometry(

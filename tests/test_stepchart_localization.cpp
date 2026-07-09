@@ -9,7 +9,10 @@
 using camera_iq::ChartCorners;
 using camera_iq::Point2d;
 using camera_iq::StepchartZoneGeometry;
+using camera_iq::StepchartRingSeed;
+using camera_iq::localize_stepchart_20_zone_ring;
 using camera_iq::localize_stepchart_20_zone_strip;
+using camera_iq::parse_stepchart_ring_seed;
 using camera_iq::parse_stepchart_strip_corners;
 using test::check;
 using test::check_near;
@@ -38,6 +41,24 @@ bool throws_for(const ChartCorners& corners, double inner_fraction = 0.65) {
 bool parse_throws_for(const std::string& text) {
   try {
     (void)parse_stepchart_strip_corners(text);
+  } catch (const std::runtime_error&) {
+    return true;
+  }
+  return false;
+}
+
+bool ring_parse_throws_for(const std::string& text) {
+  try {
+    (void)parse_stepchart_ring_seed(text);
+  } catch (const std::runtime_error&) {
+    return true;
+  }
+  return false;
+}
+
+bool ring_throws_for(const StepchartRingSeed& seed, double roi_size_px = 150.0) {
+  try {
+    (void)localize_stepchart_20_zone_ring(seed, roi_size_px);
   } catch (const std::runtime_error&) {
     return true;
   }
@@ -147,6 +168,83 @@ void TESTS() {
           "stepchart corners: rejects malformed point");
     check(parse_throws_for("0,0;200,0;200,100;0,100;9,9"),
           "stepchart corners: rejects extra corners");
+  }
+
+  {
+    const StepchartRingSeed seed{{200, 200}, 100, -90};
+    const auto result = localize_stepchart_20_zone_ring(seed, 20);
+
+    check(result.chart_model == "OECF Stepchart 20-zone ring",
+          "identity ring: chart model names ring layout");
+    check(result.method == "ring_seeded_iso14524_style_alternating",
+          "identity ring: method names alternating ring formula");
+    check(result.ring_seed.has_value(), "identity ring: seed is preserved");
+    check_near(result.roi_size_px, 20.0, 1e-12,
+               "identity ring: ROI size is preserved");
+    check(result.zones.size() == 20,
+          "identity ring: OECF Stepchart has 20 zones");
+    check(result.zones.front().zone == 1,
+          "identity ring: first zone is 1");
+    check(result.zones.back().zone == 20,
+          "identity ring: last zone is 20");
+
+    const auto z1 = center_zero_based(zone_at(result, 1).extraction_coord);
+    check_near(z1.x, 200.0, 1e-9,
+               "identity ring: zone 1 sits at theta1 x");
+    check_near(z1.y, 100.0, 1e-9,
+               "identity ring: zone 1 sits at theta1 y");
+    check_near(zone_at(result, 1).extraction_coord.width, 20.0, 1e-9,
+               "identity ring: zone ROI width");
+    check_near(zone_at(result, 1).extraction_coord.height, 20.0, 1e-9,
+               "identity ring: zone ROI height");
+
+    const auto z2 = center_zero_based(zone_at(result, 2).extraction_coord);
+    const auto z3 = center_zero_based(zone_at(result, 3).extraction_coord);
+    check(z2.x > z1.x && z3.x < z1.x,
+          "identity ring: zones alternate right then left after top patch");
+    check_near(z2.y, z3.y, 1e-9,
+               "identity ring: alternating pair has symmetric y");
+  }
+
+  {
+    const StepchartRingSeed d800{{3633, 2582}, 1341, -97.8};
+    const auto result = localize_stepchart_20_zone_ring(d800, 150);
+    const auto z12 = center_zero_based(zone_at(result, 12).extraction_coord);
+    const auto z13 = center_zero_based(zone_at(result, 13).extraction_coord);
+    const auto z14 = center_zero_based(zone_at(result, 14).extraction_coord);
+
+    check_near(z12.x, 4952.0, 1.0,
+               "D800 ring: zone 12 center follows +10.2 degree slot");
+    check_near(z12.y, 2819.0, 1.0,
+               "D800 ring: zone 12 center y");
+    check_near(z13.x, 2425.7, 1.0,
+               "D800 ring: zone 13 center follows -205.8 degree slot");
+    check_near(z13.y, 3165.6, 1.0,
+               "D800 ring: zone 13 center y");
+    check_near(z14.x, 4814.0, 1.0,
+               "D800 ring: zone 14 center follows +28.2 degree slot");
+    check_near(z14.y, 3215.7, 1.0,
+               "D800 ring: zone 14 center y");
+  }
+
+  {
+    const auto seed = parse_stepchart_ring_seed("3633,2582,1341,-97.8");
+    check_near(seed.center.x, 3633.0, 1e-12,
+               "stepchart ring seed: parses center x");
+    check_near(seed.center.y, 2582.0, 1e-12,
+               "stepchart ring seed: parses center y");
+    check_near(seed.radius, 1341.0, 1e-12,
+               "stepchart ring seed: parses radius");
+    check_near(seed.theta1_degrees, -97.8, 1e-12,
+               "stepchart ring seed: parses theta1");
+    check(ring_parse_throws_for("3633,2582,1341"),
+          "stepchart ring seed: rejects too few numbers");
+    check(ring_parse_throws_for("3633,2582,0,-97.8"),
+          "stepchart ring seed: rejects zero radius");
+    check(ring_parse_throws_for("3633,2582,1341,bad"),
+          "stepchart ring seed: rejects malformed theta");
+    check(ring_throws_for(StepchartRingSeed{{3633, 2582}, 1341, -97.8}, 0.0),
+          "stepchart ring seed: rejects zero ROI size");
   }
 
   {

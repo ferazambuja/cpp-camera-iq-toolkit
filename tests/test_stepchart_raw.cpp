@@ -12,6 +12,7 @@ using camera_iq::ImatestStepchartZone;
 using camera_iq::RoiRect;
 using camera_iq::StepchartRawFrameMeasurement;
 using camera_iq::StepchartRawZoneMeasurement;
+using camera_iq::evaluate_stepchart_raw_iso_against_oracle;
 using camera_iq::summarize_stepchart_raw_iso;
 using camera_iq::validate_stepchart_raw_iso_against_oracle;
 using test::check;
@@ -180,6 +181,21 @@ void TESTS() {
     good[8] = good[9];  // noise-floor tie in the deepest zones.
     validate_stepchart_raw_iso_against_oracle(ladder_summary(good, log_e));
     check(true, "raw stepchart gate: oracle-consistent ladder accepted");
+
+    const auto exact = ladder_summary({12010.0, 1210.0, 130.0},
+                                      {0.0, -1.0, -2.0});
+    const auto diag = evaluate_stepchart_raw_iso_against_oracle(exact);
+    check(diag.green_monotone_nonincreasing,
+          "raw stepchart gate diagnostics: monotone flag emitted");
+    check_near(diag.green_correlation, 1.0, 1e-12,
+               "raw stepchart gate diagnostics: correlation emitted");
+    check_near(diag.min_green_correlation, 0.98, 1e-12,
+               "raw stepchart gate diagnostics: threshold emitted");
+    check_near(diag.linear_gain, 12000.0, 1e-9,
+               "raw stepchart gate diagnostics: linear gain emitted");
+    check_near(diag.additive_offset, 10.0, 1e-9,
+               "raw stepchart gate diagnostics: additive offset emitted");
+    check(diag.passes, "raw stepchart gate diagnostics: pass flag emitted");
 
     // A mid-ladder reversal (ROI landed on the wrong physical patch) fails.
     std::vector<double> reversed = good;

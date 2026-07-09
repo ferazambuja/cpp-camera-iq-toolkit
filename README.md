@@ -24,12 +24,12 @@ noise diagnostics, OECF/linearity, and reproducible CSV/JSON/Markdown reports.
   oracle path); slanted-edge SFR/MTF as green-linear center-ROI and 23-ROI
   field maps for the D810 and D800 archives, hard-gated on offset-independent
   aperture trends with per-file Imatest `_Y_multi.csv` values as advisory
-  references; and a corner-seeded Stepchart raw-zone path guarded by an
+  references; and corner-seeded Stepchart raw-zone paths guarded by an
   empirical oracle-ladder gate. The D800 OECF chart turned out to be an ISO
   14524-style ring layout, so the 20x1 strip model refuses on that archive;
-  ring-geometry support is the open next slice. Electron-calibrated PTC,
-  engineering dynamic range, measured ISO speed, and PRNU still need
-  additional calibration or capture support.
+  the measured ring seed produces accepted raw-DN zone summaries.
+  Electron-calibrated PTC, engineering dynamic range, measured ISO speed, and
+  PRNU still need additional calibration or capture support.
 - **Reporting** — batch runner, threshold checks, CSV/JSON export, Markdown reports.
 
 ## Build

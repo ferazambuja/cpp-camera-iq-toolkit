@@ -32,7 +32,11 @@ struct Args {
   std::filesystem::path oracle_dir;
   std::filesystem::path out;
   std::string zone_corners;
+  std::string zone_ring;
   double zone_inner_fraction = 0.65;
+  bool zone_inner_fraction_explicit = false;
+  double zone_roi_size = 150.0;
+  bool zone_roi_size_explicit = false;
 };
 
 struct ParsedRunDate {
@@ -366,34 +370,72 @@ void write_raw_zone_summary(JsonWriter& w,
   w.end_object();
 }
 
+void write_raw_oracle_gate(JsonWriter& w,
+                           const StepchartRawOracleGateDiagnostics& gate) {
+  w.begin_object();
+  w.key("green_monotone_nonincreasing");
+  w.value(gate.green_monotone_nonincreasing);
+  w.key("green_correlation");
+  w.value(gate.green_correlation);
+  w.key("min_green_correlation");
+  w.value(gate.min_green_correlation);
+  w.key("linear_gain");
+  w.value(gate.linear_gain);
+  w.key("additive_offset");
+  w.value(gate.additive_offset);
+  w.key("passes");
+  w.value(gate.passes);
+  w.end_object();
+}
+
 void write_raw_zone_extraction(
     JsonWriter& w, const StepchartLocalizationResult& geometry,
     double inner_fraction, const std::vector<StepchartRawIsoSummary>& summaries) {
   w.begin_object();
   w.key("method");
-  w.value("corner_seeded_projective_20_zone_strip_raw_cfa_roi");
+  if (geometry.ring_seed) {
+    w.value("ring_seeded_iso14524_style_alternating_raw_cfa_roi");
+  } else {
+    w.value("corner_seeded_projective_20_zone_strip_raw_cfa_roi");
+  }
   w.key("chart_model");
   w.value(geometry.chart_model);
-  w.key("corner_order");
-  w.begin_array();
-  w.value("top_left");
-  w.value("top_right");
-  w.value("bottom_right");
-  w.value("bottom_left");
-  w.end_array();
-  w.key("corners");
-  w.begin_object();
-  w.key("top_left");
-  write_point(w, geometry.corners.top_left);
-  w.key("top_right");
-  write_point(w, geometry.corners.top_right);
-  w.key("bottom_right");
-  write_point(w, geometry.corners.bottom_right);
-  w.key("bottom_left");
-  write_point(w, geometry.corners.bottom_left);
-  w.end_object();
-  w.key("inner_fraction");
-  w.value(inner_fraction);
+  if (geometry.ring_seed) {
+    w.key("ring_seed");
+    w.begin_object();
+    w.key("center");
+    write_point(w, geometry.ring_seed->center);
+    w.key("radius");
+    w.value(geometry.ring_seed->radius);
+    w.key("theta1_degrees");
+    w.value(geometry.ring_seed->theta1_degrees);
+    w.key("zone_order");
+    w.value("zone1_top_then_alternating_right_left_9deg_steps");
+    w.end_object();
+    w.key("roi_size_px");
+    w.value(geometry.roi_size_px);
+  } else {
+    w.key("corner_order");
+    w.begin_array();
+    w.value("top_left");
+    w.value("top_right");
+    w.value("bottom_right");
+    w.value("bottom_left");
+    w.end_array();
+    w.key("corners");
+    w.begin_object();
+    w.key("top_left");
+    write_point(w, geometry.corners.top_left);
+    w.key("top_right");
+    write_point(w, geometry.corners.top_right);
+    w.key("bottom_right");
+    write_point(w, geometry.corners.bottom_right);
+    w.key("bottom_left");
+    write_point(w, geometry.corners.bottom_left);
+    w.end_object();
+    w.key("inner_fraction");
+    w.value(inner_fraction);
+  }
   w.key("zone_count");
   w.value(static_cast<int>(geometry.zones.size()));
   w.key("ptc_candidate");
@@ -401,11 +443,20 @@ void write_raw_zone_extraction(
   w.key("dynamic_range_candidate");
   w.value(false);
   w.key("limitations");
-  write_string_array(w, {
-      "corner-seeded OECF-20 strip geometry; no automatic Stepchart detection.",
-      "raw-CFA values are black-subtracted DN, not electron-calibrated gain.",
-      "repeat spread is over ROI means; not ISO 14524, PTC, PRNU, or "
-      "engineering dynamic range."});
+  if (geometry.ring_seed) {
+    write_string_array(w, {
+        "ring-seeded ISO 14524-style alternating geometry; no automatic "
+        "Stepchart detection or external standard-conformance claim.",
+        "raw-CFA values are black-subtracted DN, not electron-calibrated gain.",
+        "repeat spread is over ROI means; not ISO 14524, PTC, PRNU, or "
+        "engineering dynamic range."});
+  } else {
+    write_string_array(w, {
+        "corner-seeded OECF-20 strip geometry; no automatic Stepchart detection.",
+        "raw-CFA values are black-subtracted DN, not electron-calibrated gain.",
+        "repeat spread is over ROI means; not ISO 14524, PTC, PRNU, or "
+        "engineering dynamic range."});
+  }
   w.key("zones");
   w.begin_array();
   for (const auto& z : geometry.zones) {
@@ -445,6 +496,8 @@ void write_raw_zone_extraction(
     w.value(iso.ptc_candidate);
     w.key("dynamic_range_candidate");
     w.value(iso.dynamic_range_candidate);
+    w.key("oracle_ladder_gate");
+    write_raw_oracle_gate(w, evaluate_stepchart_raw_iso_against_oracle(iso));
     w.key("limitations");
     write_string_array(w, iso.limitations);
     w.key("zones");
@@ -673,7 +726,9 @@ bool require_value(int argc, int next, std::string_view arg) {
 void usage() {
   std::cout << "Usage: camera_iq oecf-stepchart <dataset-root-or-id>"
                " --oracle-dir REL [--zone-corners TL;TR;BR;BL]"
-               " [--zone-inner-fraction F] [--config FILE] [--out FILE]\n";
+               " [--zone-inner-fraction F]"
+               " [--zone-ring CX,CY,R,THETA1 --zone-roi-size PX]"
+               " [--config FILE] [--out FILE]\n";
 }
 
 }  // namespace
@@ -697,6 +752,9 @@ int cmd_oecf_stepchart(int argc, char** argv) {
     } else if (arg == "--zone-corners") {
       if (!require_value(argc, i + 1, arg)) return 2;
       args.zone_corners = argv[++i];
+    } else if (arg == "--zone-ring") {
+      if (!require_value(argc, i + 1, arg)) return 2;
+      args.zone_ring = argv[++i];
     } else if (arg == "--zone-inner-fraction") {
       if (!require_value(argc, i + 1, arg)) return 2;
       const auto value = parse_finite_double(argv[++i]);
@@ -706,6 +764,17 @@ int cmd_oecf_stepchart(int argc, char** argv) {
         return 2;
       }
       args.zone_inner_fraction = *value;
+      args.zone_inner_fraction_explicit = true;
+    } else if (arg == "--zone-roi-size") {
+      if (!require_value(argc, i + 1, arg)) return 2;
+      const auto value = parse_finite_double(argv[++i]);
+      if (!value || !(*value > 0.0)) {
+        std::cerr << "camera_iq oecf-stepchart: --zone-roi-size must be"
+                     " finite and positive\n";
+        return 2;
+      }
+      args.zone_roi_size = *value;
+      args.zone_roi_size_explicit = true;
     } else if (args.root_or_id.empty()) {
       args.root_or_id = std::string(arg);
     } else {
@@ -718,7 +787,9 @@ int cmd_oecf_stepchart(int argc, char** argv) {
   if (args.root_or_id.empty()) {
     std::cerr << "Usage: camera_iq oecf-stepchart <dataset-root-or-id>"
                  " --oracle-dir REL [--zone-corners TL;TR;BR;BL]"
-                 " [--zone-inner-fraction F] [--config FILE] [--out FILE]\n";
+                 " [--zone-inner-fraction F]"
+                 " [--zone-ring CX,CY,R,THETA1 --zone-roi-size PX]"
+                 " [--config FILE] [--out FILE]\n";
     return 2;
   }
   if (args.oracle_dir.empty()) {
@@ -728,6 +799,21 @@ int cmd_oecf_stepchart(int argc, char** argv) {
   if (!is_safe_dataset_subdir(args.oracle_dir)) {
     std::cerr << "camera_iq oecf-stepchart: --oracle-dir requires a relative"
                  " path inside the dataset root\n";
+    return 2;
+  }
+  if (!args.zone_corners.empty() && !args.zone_ring.empty()) {
+    std::cerr << "camera_iq oecf-stepchart: --zone-corners and --zone-ring"
+                 " are mutually exclusive\n";
+    return 2;
+  }
+  if (!args.zone_ring.empty() && args.zone_inner_fraction_explicit) {
+    std::cerr << "camera_iq oecf-stepchart: --zone-inner-fraction applies only"
+                 " to --zone-corners; use --zone-roi-size with --zone-ring\n";
+    return 2;
+  }
+  if (args.zone_ring.empty() && args.zone_roi_size_explicit) {
+    std::cerr << "camera_iq oecf-stepchart: --zone-roi-size requires"
+                 " --zone-ring\n";
     return 2;
   }
 
@@ -790,6 +876,11 @@ int cmd_oecf_stepchart(int argc, char** argv) {
       raw_geometry = localize_stepchart_20_zone_strip(
           parse_stepchart_strip_corners(args.zone_corners),
           args.zone_inner_fraction);
+      raw_summaries =
+          measure_raw_zone_summaries(*dataset, groups, *raw_geometry);
+    } else if (!args.zone_ring.empty()) {
+      raw_geometry = localize_stepchart_20_zone_ring(
+          parse_stepchart_ring_seed(args.zone_ring), args.zone_roi_size);
       raw_summaries =
           measure_raw_zone_summaries(*dataset, groups, *raw_geometry);
     }

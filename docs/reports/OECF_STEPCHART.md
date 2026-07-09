@@ -100,10 +100,13 @@ This slice does not claim:
 
 ## Raw Zone Extraction
 
-The command has an optional corner-seeded raw-zone path (`--zone-corners`,
-`--zone-inner-fraction`), modeled as a 20x1 contiguous strip. **On this
-archive it correctly refuses**: the physical chart is NOT a linear 20-zone
-strip.
+The command has two explicit raw-zone modes:
+
+- `--zone-corners` / `--zone-inner-fraction`: a 20x1 contiguous strip. **On
+  this archive it correctly refuses** because the physical chart is not a
+  linear 20-zone strip.
+- `--zone-ring` / `--zone-roi-size`: a measured ring layout. On this archive it
+  is the accepted raw-DN extraction path.
 
 Raw-mosaic analysis of the actual scene (2026-07-09, `NIKON
 D800_i100_s1-40_2.NEF` dumped via `unprocessed_raw` and scanned for uniform
@@ -142,6 +145,9 @@ Scope boundaries for the raw-zone path:
   deterministic ISO 14524-style alternating pattern — no external zone-order
   map was needed; see the plan's "Measured Ring Geometry" section for the
   verified 4-parameter seed and two-frame validation.
+- The ring mode uses `--zone-ring 3633,2582,1341,-97.8 --zone-roi-size 150` and
+  passes the oracle-ladder gate on all 8 oracled ISO groups. Green-channel
+  correlation with `10^log_exposure` is 0.999795-0.999938 across ISO 100-12800.
 - When the gate passes, it reports black-subtracted raw-CFA DN means per
   ISO/zone/channel and the repeat-frame spread of ROI means. On the D800
   (which stores black already subtracted, effective black 0) DN values are
@@ -165,9 +171,16 @@ ctest --test-dir build --output-on-failure
   --zone-corners "2240,1830;6260,1830;6260,2122;2240,2122" \
   --zone-inner-fraction 1 \
   --out out/d800_oecf_stepchart_raw_zone.json
+# The accepted ring seed writes raw-DN zone summaries:
+./build/camera_iq oecf-stepchart d800_oecf_2016 \
+  --oracle-dir Results \
+  --zone-ring "3633,2582,1341,-97.8" \
+  --zone-roi-size 150 \
+  --out out/d800_oecf_stepchart_ring.json
 bash tools/check_public_paths.sh
 git diff --check
 ```
 
-The strip-seed failure is intentional and must remain fail-closed; GitHub CI
-tracks the Stepchart hardening, raw-zone gate, and ring-contract commits.
+The strip-seed failure is intentional and must remain fail-closed; the ring
+seed is the accepted raw-DN path. GitHub CI tracks the Stepchart hardening,
+raw-zone gate, ring-contract, and ring-implementation commits.

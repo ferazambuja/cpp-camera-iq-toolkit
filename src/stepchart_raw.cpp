@@ -56,6 +56,47 @@ const StepchartRawZoneMeasurement& find_zone(
   return *found;
 }
 
+struct OracleGateVectors {
+  std::vector<double> green;
+  std::vector<double> rel_exposure;
+};
+
+OracleGateVectors oracle_gate_vectors(const StepchartRawIsoSummary& summary) {
+  OracleGateVectors out;
+  out.green.reserve(summary.zones.size());
+  out.rel_exposure.reserve(summary.zones.size());
+  for (const auto& zone : summary.zones) {
+    double sum = 0.0;
+    int count = 0;
+    for (const auto& plane : zone.planes) {
+      if (!plane.channel.empty() &&
+          (plane.channel[0] == 'G' || plane.channel[0] == 'g')) {
+        sum += plane.mean_dn;
+        ++count;
+      }
+    }
+    if (count == 0) {
+      throw std::runtime_error(
+          "Stepchart raw gate: no green plane in zone summaries");
+    }
+    out.green.push_back(sum / count);
+    out.rel_exposure.push_back(std::pow(10.0, zone.log_exposure));
+  }
+  if (out.green.size() < 3) {
+    throw std::runtime_error(
+        "Stepchart raw gate: need at least 3 zones to validate");
+  }
+  return out;
+}
+
+bool green_is_monotone_nonincreasing(const std::vector<double>& green) {
+  for (std::size_t i = 0; i + 1 < green.size(); ++i) {
+    const double tolerance = std::max(5.0, 0.02 * green[i]);
+    if (green[i + 1] > green[i] + tolerance) return false;
+  }
+  return true;
+}
+
 }  // namespace
 
 StepchartRawIsoSummary summarize_stepchart_raw_iso(
@@ -136,33 +177,52 @@ StepchartRawIsoSummary summarize_stepchart_raw_iso(
   return out;
 }
 
+StepchartRawOracleGateDiagnostics evaluate_stepchart_raw_iso_against_oracle(
+    const StepchartRawIsoSummary& summary) {
+  const auto vectors = oracle_gate_vectors(summary);
+  const auto& green = vectors.green;
+  const auto& rel_exposure = vectors.rel_exposure;
+
+  const std::size_t n = green.size();
+  double mean_g = 0.0;
+  double mean_e = 0.0;
+  for (std::size_t i = 0; i < n; ++i) {
+    mean_g += green[i];
+    mean_e += rel_exposure[i];
+  }
+  mean_g /= static_cast<double>(n);
+  mean_e /= static_cast<double>(n);
+  double num = 0.0;
+  double den_g = 0.0;
+  double den_e = 0.0;
+  for (std::size_t i = 0; i < n; ++i) {
+    const double dg = green[i] - mean_g;
+    const double de = rel_exposure[i] - mean_e;
+    num += dg * de;
+    den_g += dg * dg;
+    den_e += de * de;
+  }
+
+  StepchartRawOracleGateDiagnostics out;
+  out.green_monotone_nonincreasing =
+      green_is_monotone_nonincreasing(green);
+  if (den_e > 0.0) {
+    out.linear_gain = num / den_e;
+    out.additive_offset = mean_g - out.linear_gain * mean_e;
+  }
+  if (den_g > 0.0 && den_e > 0.0) {
+    out.green_correlation = num / std::sqrt(den_g * den_e);
+  }
+  out.passes = out.green_monotone_nonincreasing &&
+               out.green_correlation >= out.min_green_correlation;
+  return out;
+}
+
 void validate_stepchart_raw_iso_against_oracle(
     const StepchartRawIsoSummary& summary) {
-  std::vector<double> green;
-  std::vector<double> rel_exposure;
-  green.reserve(summary.zones.size());
-  rel_exposure.reserve(summary.zones.size());
-  for (const auto& zone : summary.zones) {
-    double sum = 0.0;
-    int count = 0;
-    for (const auto& plane : zone.planes) {
-      if (!plane.channel.empty() &&
-          (plane.channel[0] == 'G' || plane.channel[0] == 'g')) {
-        sum += plane.mean_dn;
-        ++count;
-      }
-    }
-    if (count == 0) {
-      throw std::runtime_error(
-          "Stepchart raw gate: no green plane in zone summaries");
-    }
-    green.push_back(sum / count);
-    rel_exposure.push_back(std::pow(10.0, zone.log_exposure));
-  }
-  if (green.size() < 3) {
-    throw std::runtime_error(
-        "Stepchart raw gate: need at least 3 zones to validate");
-  }
+  const auto vectors = oracle_gate_vectors(summary);
+  const auto& green = vectors.green;
+  const auto& rel_exposure = vectors.rel_exposure;
 
   // Non-increasing in oracle zone order, with a small tolerance so genuine
   // noise-floor ties in the deepest zones pass.
@@ -179,19 +239,18 @@ void validate_stepchart_raw_iso_against_oracle(
 
   // A linear sensor tracking the ladder correlates near-perfectly with
   // relative exposure; scene background or misplaced ROIs do not.
-  const std::size_t n = green.size();
   double mean_g = 0.0;
   double mean_e = 0.0;
-  for (std::size_t i = 0; i < n; ++i) {
+  for (std::size_t i = 0; i < green.size(); ++i) {
     mean_g += green[i];
     mean_e += rel_exposure[i];
   }
-  mean_g /= static_cast<double>(n);
-  mean_e /= static_cast<double>(n);
+  mean_g /= static_cast<double>(green.size());
+  mean_e /= static_cast<double>(green.size());
   double num = 0.0;
   double den_g = 0.0;
   double den_e = 0.0;
-  for (std::size_t i = 0; i < n; ++i) {
+  for (std::size_t i = 0; i < green.size(); ++i) {
     const double dg = green[i] - mean_g;
     const double de = rel_exposure[i] - mean_e;
     num += dg * de;

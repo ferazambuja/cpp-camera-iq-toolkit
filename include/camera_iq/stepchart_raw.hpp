@@ -51,6 +51,15 @@ struct StepchartRawIsoSummary {
   std::vector<StepchartRawZoneSummary> zones;
 };
 
+struct StepchartRawOracleGateDiagnostics {
+  bool green_monotone_nonincreasing = false;
+  double green_correlation = 0.0;
+  double min_green_correlation = 0.98;
+  double linear_gain = 0.0;
+  double additive_offset = 0.0;
+  bool passes = false;
+};
+
 StepchartRawIsoSummary summarize_stepchart_raw_iso(
     int iso, std::string shutter_token,
     const std::vector<ImatestStepchartZone>& oracle_zones,
@@ -63,6 +72,9 @@ StepchartRawIsoSummary summarize_stepchart_raw_iso(
 // physical zones — wrong position or a chart-layout model mismatch (e.g. a
 // strip model on a ring-layout ISO 14524 chart) — otherwise produces
 // confident garbage. Throws std::runtime_error naming the violated check.
+StepchartRawOracleGateDiagnostics evaluate_stepchart_raw_iso_against_oracle(
+    const StepchartRawIsoSummary& summary);
+
 void validate_stepchart_raw_iso_against_oracle(
     const StepchartRawIsoSummary& summary);
 

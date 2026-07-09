@@ -410,6 +410,37 @@ void TESTS() {
   }
 
   {
+    const auto [code, err] =
+        run_capture({"d800_oecf_fixture", "--config", config.string(),
+                     "--oracle-dir", "Results", "--zone-ring", "bad"});
+    check(code == 1,
+          "oecf-stepchart cmd: malformed Stepchart ring seed is runtime failure");
+    check(err.find("ring seed") != std::string::npos,
+          "oecf-stepchart cmd: malformed-ring message names the ring parser");
+  }
+
+  {
+    const auto [code, err] = run_capture(
+        {"d800_oecf_fixture", "--config", config.string(), "--oracle-dir",
+         "Results", "--zone-corners", "0,0;200,0;200,100;0,100",
+         "--zone-ring", "3633,2582,1341,-97.8"});
+    check(code == 2,
+          "oecf-stepchart cmd: strip corners and ring seed are mutually exclusive");
+    check(err.find("mutually exclusive") != std::string::npos,
+          "oecf-stepchart cmd: mutual-exclusion message names the conflict");
+  }
+
+  {
+    const auto [code, err] =
+        run_capture({"d800_oecf_fixture", "--config", config.string(),
+                     "--oracle-dir", "Results", "--zone-roi-size", "150"});
+    check(code == 2,
+          "oecf-stepchart cmd: ring ROI size without ring seed rejected");
+    check(err.find("--zone-roi-size requires --zone-ring") != std::string::npos,
+          "oecf-stepchart cmd: ROI-size message names missing ring seed");
+  }
+
+  {
     const auto [code, err] = run_capture(
         {"d800_oecf_fixture", "--config", config.string(), "--oracle-dir",
          "Results", "--zone-corners", "0,0;200,0;200,100;0,100"});
@@ -419,6 +450,19 @@ void TESTS() {
           "oecf-stepchart cmd: raw-zone path reports unreadable fixture RAW");
     check(err.find("unexpected argument") == std::string::npos,
           "oecf-stepchart cmd: --zone-corners is a recognized option");
+  }
+
+  {
+    const auto [code, err] = run_capture(
+        {"d800_oecf_fixture", "--config", config.string(), "--oracle-dir",
+         "Results", "--zone-ring", "3633,2582,1341,-97.8",
+         "--zone-roi-size", "150"});
+    check(code == 1,
+          "oecf-stepchart cmd: valid ring seed triggers raw-zone extraction path");
+    check(err.find("cannot read raw zone file") != std::string::npos,
+          "oecf-stepchart cmd: ring raw-zone path reports unreadable fixture RAW");
+    check(err.find("unexpected argument") == std::string::npos,
+          "oecf-stepchart cmd: --zone-ring and --zone-roi-size are recognized");
   }
 
   fs::remove_all(root);
