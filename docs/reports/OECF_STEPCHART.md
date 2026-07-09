@@ -168,5 +168,5 @@ bash tools/check_public_paths.sh
 git diff --check
 ```
 
-CI passed on `3b904bd` before the final hardening challenge and on the follow-up
-fix commit recorded in git history.
+CI passed on the Stepchart hardening and raw-zone gate commits through
+`3a0374a`; the strip-seed failure is intentional and must remain fail-closed.
