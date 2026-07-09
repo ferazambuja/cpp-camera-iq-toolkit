@@ -93,7 +93,7 @@ This slice does not claim:
 - ISO 14524 OECF conformance.
 - Raw-DN OECF or raw Stepchart zone extraction unless `--zone-corners` is
   provided; the default oracle-only command stays rendered-luma only.
-- PTC or dynamic range.
+- Electron-calibrated PTC, full well, PRNU, or dynamic range.
 - Chart-density traceability. The `Lux (patch)` column is empty in every
   summary, so the log-exposure axis is nominal chart density.
 - Measured ISO speed. ISO tokens are exposure-index settings from filenames.
@@ -149,11 +149,35 @@ Scope boundaries for the raw-zone path:
   passes the oracle-ladder gate on all 8 oracled ISO groups. Green-channel
   correlation with `10^log_exposure` is 0.999795-0.999938 across ISO 100-12800.
 - When the gate passes, it reports black-subtracted raw-CFA DN means per
-  ISO/zone/channel and the repeat-frame spread of ROI means. On the D800
-  (which stores black already subtracted, effective black 0) DN values are
-  pedestal-free by construction.
-- It does **not** claim ISO 14524 conformance, electron-calibrated gain, PTC,
-  engineering dynamic range, measured ISO speed, or PRNU.
+  ISO/zone/channel, the repeat-frame spread of ROI means, and aligned same-pixel
+  temporal variance over the 10 repeated frames. On the D800 (which stores
+  black already subtracted, effective black 0) DN values are pedestal-free by
+  construction.
+- The DN-referred variance-vs-mean diagnostic fits the signal-dominated zones
+  (`Log(exp) >= -1.6`) per ISO and CFA plane, excluding saturated zones at high
+  ISO and the flare/noise-floor tail.
+- It does **not** claim ISO 14524 conformance, electron-calibrated gain/read
+  noise, full well, engineering dynamic range, measured ISO speed, or PRNU.
+
+DN-referred per-pixel temporal-variance result from the accepted ring seed
+(`--zone-ring 3633,2582,1341,-97.8 --zone-roi-size 150`, G1 shown for
+compactness):
+
+| ISO | min R^2 across planes | G1 slope (DN^2/DN) | G1 intercept (DN^2) | fit zones per plane |
+|---:|---:|---:|---:|---:|
+| 100 | 0.9844 | 0.656 | -570.7 | 15 |
+| 200 | 0.9892 | 1.013 | -708.3 | 15 |
+| 400 | 0.9904 | 1.900 | -1243.1 | 15 |
+| 800 | 0.9985 | 2.759 | -681.3 | 15 |
+| 1600 | 0.9996 | 5.023 | -480.2 | 15 |
+| 3200 | 0.9995 | 10.203 | -1103.3 | 14-15 |
+| 6400 | 0.9996 | 19.274 | 607.2 | 14-15 |
+| 12800 | 0.9954 | 45.277 | -11665.9 | 13-15 |
+
+These slopes are useful DN-domain ISO-dependent variance diagnostics. The
+intercepts are not reported as read noise: the chart density axis is nominal,
+deep patches are flare/noise-floor dominated, and no electron calibration or
+full-well evidence is present.
 
 ## Validation
 

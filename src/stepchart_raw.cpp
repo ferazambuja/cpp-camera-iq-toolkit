@@ -61,6 +61,19 @@ struct OracleGateVectors {
   std::vector<double> rel_exposure;
 };
 
+struct LinearFit {
+  std::size_t n = 0;
+  double slope = 0.0;
+  double intercept = 0.0;
+  double r_squared = 0.0;
+  bool valid = false;
+};
+
+struct PixelVarianceStats {
+  std::size_t aligned_pixel_count = 0;
+  double temporal_variance_per_pixel = 0.0;
+};
+
 OracleGateVectors oracle_gate_vectors(const StepchartRawIsoSummary& summary) {
   OracleGateVectors out;
   out.green.reserve(summary.zones.size());
@@ -95,6 +108,74 @@ bool green_is_monotone_nonincreasing(const std::vector<double>& green) {
     if (green[i + 1] > green[i] + tolerance) return false;
   }
   return true;
+}
+
+PixelVarianceStats temporal_pixel_variance(
+    const std::vector<std::vector<double>>& samples_by_frame) {
+  PixelVarianceStats out;
+  if (samples_by_frame.empty()) return out;
+  const std::size_t pixel_count = samples_by_frame.front().size();
+  if (pixel_count == 0) return out;
+  if (samples_by_frame.size() < 2) return out;
+  for (const auto& samples : samples_by_frame) {
+    if (samples.size() != pixel_count) {
+      throw std::runtime_error(
+          "Stepchart raw: aligned temporal pixel sample count mismatch");
+    }
+  }
+
+  double variance_sum = 0.0;
+  for (std::size_t pixel = 0; pixel < pixel_count; ++pixel) {
+    double mean = 0.0;
+    for (const auto& samples : samples_by_frame) mean += samples[pixel];
+    mean /= static_cast<double>(samples_by_frame.size());
+    double ss = 0.0;
+    for (const auto& samples : samples_by_frame) {
+      const double d = samples[pixel] - mean;
+      ss += d * d;
+    }
+    variance_sum += ss / static_cast<double>(samples_by_frame.size() - 1);
+  }
+  out.aligned_pixel_count = pixel_count;
+  out.temporal_variance_per_pixel =
+      variance_sum / static_cast<double>(pixel_count);
+  return out;
+}
+
+LinearFit fit_line(const std::vector<double>& x, const std::vector<double>& y) {
+  LinearFit out;
+  if (x.size() != y.size() || x.size() < 2) return out;
+  out.n = x.size();
+  double mean_x = 0.0;
+  double mean_y = 0.0;
+  for (std::size_t i = 0; i < x.size(); ++i) {
+    mean_x += x[i];
+    mean_y += y[i];
+  }
+  mean_x /= static_cast<double>(x.size());
+  mean_y /= static_cast<double>(y.size());
+  double sxx = 0.0;
+  double sxy = 0.0;
+  double syy = 0.0;
+  for (std::size_t i = 0; i < x.size(); ++i) {
+    const double dx = x[i] - mean_x;
+    const double dy = y[i] - mean_y;
+    sxx += dx * dx;
+    sxy += dx * dy;
+    syy += dy * dy;
+  }
+  if (sxx <= 0.0 || syy <= 0.0) return out;
+  out.slope = sxy / sxx;
+  out.intercept = mean_y - out.slope * mean_x;
+  double sse = 0.0;
+  for (std::size_t i = 0; i < x.size(); ++i) {
+    const double residual = y[i] - (out.slope * x[i] + out.intercept);
+    sse += residual * residual;
+  }
+  out.r_squared = 1.0 - sse / syy;
+  out.valid = std::isfinite(out.slope) && std::isfinite(out.intercept) &&
+              std::isfinite(out.r_squared);
+  return out;
 }
 
 }  // namespace
@@ -133,6 +214,7 @@ StepchartRawIsoSummary summarize_stepchart_raw_iso(
     bool common_roi_valid = true;
     std::array<std::vector<double>, 4> means;
     std::array<std::vector<double>, 4> spatial_stddevs;
+    std::array<std::vector<std::vector<double>>, 4> samples_by_frame;
     std::array<double, 4> max_below{0, 0, 0, 0};
     std::array<double, 4> max_sat{0, 0, 0, 0};
     std::array<std::string, 4> labels;
@@ -153,6 +235,9 @@ StepchartRawIsoSummary summarize_stepchart_raw_iso(
         if (labels[p].empty()) labels[p] = plane.label;
         means[p].push_back(plane.mean);
         spatial_stddevs[p].push_back(plane.stddev);
+        if (!measurement.plane_samples[p].empty()) {
+          samples_by_frame[p].push_back(measurement.plane_samples[p]);
+        }
         max_below[p] = std::max(max_below[p], plane.below_black_fraction);
         max_sat[p] = std::max(max_sat[p], plane.saturated_fraction);
       }
@@ -167,6 +252,24 @@ StepchartRawIsoSummary summarize_stepchart_raw_iso(
       plane.frame_count = means[p].size();
       plane.mean_dn = mean_value(means[p]);
       plane.temporal_stddev_of_zone_mean_dn = population_stddev(means[p]);
+      if (!samples_by_frame[p].empty()) {
+        if (!common_roi_valid) {
+          throw std::runtime_error(
+              "Stepchart raw: aligned temporal pixel samples require identical "
+              "actual ROI across frames");
+        }
+        if (samples_by_frame[p].size() != frames.size()) {
+          throw std::runtime_error(
+              "Stepchart raw: aligned temporal pixel samples missing in one or "
+              "more frames");
+        }
+        const auto pixel_stats = temporal_pixel_variance(samples_by_frame[p]);
+        plane.aligned_pixel_count = pixel_stats.aligned_pixel_count;
+        plane.temporal_variance_per_pixel_dn2 =
+            pixel_stats.temporal_variance_per_pixel;
+        plane.temporal_stddev_per_pixel_dn =
+            std::sqrt(plane.temporal_variance_per_pixel_dn2);
+      }
       plane.mean_spatial_stddev_dn = mean_value(spatial_stddevs[p]);
       plane.max_below_black_fraction = max_below[p];
       plane.max_saturated_fraction = max_sat[p];
@@ -174,6 +277,76 @@ StepchartRawIsoSummary summarize_stepchart_raw_iso(
     out.zones.push_back(std::move(zone));
   }
 
+  return out;
+}
+
+StepchartRawPtcDiagnostic analyze_stepchart_raw_ptc_diagnostic(
+    StepchartRawIsoSummary& summary) {
+  constexpr double kMinLogExposure = -1.6;
+  constexpr std::size_t kMinFitZones = 5;
+
+  StepchartRawPtcDiagnostic out;
+  out.dn_referred_ptc_candidate = true;
+  out.electron_calibrated_gain_candidate = false;
+  out.dynamic_range_candidate = false;
+  out.limitations = {
+      "PTC fit is DN-referred: slope/intercept are in raw DN units, not "
+      "electron-calibrated gain or read noise.",
+      "Fit uses per-pixel temporal variance over aligned repeat frames; "
+      "low-signal flare/noise-floor tail zones are excluded.",
+      "No full-well, ISO speed, PRNU, or engineering dynamic range is claimed."};
+
+  for (std::size_t p = 0; p < out.planes.size(); ++p) {
+    StepchartRawPtcPlaneFit& fit = out.planes[p];
+    fit.min_log_exposure = kMinLogExposure;
+    if (!summary.zones.empty()) {
+      fit.channel = summary.zones.front().planes[p].channel;
+    }
+
+    std::vector<double> means;
+    std::vector<double> variances;
+    for (auto& zone : summary.zones) {
+      auto& plane = zone.planes[p];
+      plane.ptc_fit_included = false;
+      plane.ptc_fit_exclusion_reason = "not_evaluated";
+      if (fit.channel.empty()) fit.channel = plane.channel;
+
+      if (plane.aligned_pixel_count == 0 ||
+          !(plane.temporal_variance_per_pixel_dn2 > 0.0)) {
+        plane.ptc_fit_exclusion_reason = "no_aligned_pixel_temporal_variance";
+      } else if (plane.max_saturated_fraction > 0.0) {
+        plane.ptc_fit_exclusion_reason = "saturated";
+      } else if (plane.max_below_black_fraction > 0.0) {
+        plane.ptc_fit_exclusion_reason = "below_black";
+      } else if (zone.log_exposure < kMinLogExposure) {
+        plane.ptc_fit_exclusion_reason = "low_signal_flare_noise_floor_tail";
+      } else if (!(plane.mean_dn > 0.0)) {
+        plane.ptc_fit_exclusion_reason = "nonpositive_mean";
+      } else {
+        plane.ptc_fit_included = true;
+        plane.ptc_fit_exclusion_reason = "included";
+        means.push_back(plane.mean_dn);
+        variances.push_back(plane.temporal_variance_per_pixel_dn2);
+      }
+    }
+
+    if (means.size() < kMinFitZones) {
+      fit.fitted_zone_count = means.size();
+      fit.fit_valid = false;
+      fit.reason = "insufficient_signal_zones";
+      out.dn_referred_ptc_candidate = false;
+      continue;
+    }
+
+    const auto line = fit_line(means, variances);
+    fit.fitted_zone_count = line.n;
+    fit.slope_variance_dn2_per_mean_dn = line.slope;
+    fit.intercept_variance_dn2 = line.intercept;
+    fit.r_squared = line.r_squared;
+    fit.fit_valid = line.valid && line.slope > 0.0 && line.r_squared >= 0.90;
+    fit.reason = fit.fit_valid ? "ok" : "fit_not_linear_or_nonpositive_slope";
+    if (!fit.fit_valid) out.dn_referred_ptc_candidate = false;
+  }
   return out;
 }
 

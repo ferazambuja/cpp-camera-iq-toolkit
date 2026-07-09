@@ -343,12 +343,24 @@ void write_raw_plane_summary(JsonWriter& w,
   w.value(plane.mean_dn);
   w.key("temporal_stddev_of_zone_mean_dn");
   w.value(plane.temporal_stddev_of_zone_mean_dn);
+  w.key("aligned_pixel_count");
+  w.value(static_cast<std::int64_t>(plane.aligned_pixel_count));
+  w.key("temporal_variance_per_pixel_dn2");
+  w.value(plane.temporal_variance_per_pixel_dn2);
+  w.key("temporal_stddev_per_pixel_dn");
+  w.value(plane.temporal_stddev_per_pixel_dn);
+  w.key("variance_estimator");
+  w.value("unbiased_sample_variance_across_aligned_repeat_pixels");
   w.key("mean_spatial_stddev_dn");
   w.value(plane.mean_spatial_stddev_dn);
   w.key("max_below_black_fraction");
   w.value(plane.max_below_black_fraction);
   w.key("max_saturated_fraction");
   w.value(plane.max_saturated_fraction);
+  w.key("ptc_fit_included");
+  w.value(plane.ptc_fit_included);
+  w.key("ptc_fit_exclusion_reason");
+  w.value(plane.ptc_fit_exclusion_reason);
   w.end_object();
 }
 
@@ -385,6 +397,52 @@ void write_raw_oracle_gate(JsonWriter& w,
   w.value(gate.additive_offset);
   w.key("passes");
   w.value(gate.passes);
+  w.end_object();
+}
+
+void write_raw_ptc_plane_fit(JsonWriter& w,
+                             const StepchartRawPtcPlaneFit& fit) {
+  w.begin_object();
+  w.key("channel");
+  w.value(fit.channel);
+  w.key("fitted_zone_count");
+  w.value(static_cast<std::int64_t>(fit.fitted_zone_count));
+  w.key("min_log_exposure");
+  w.value(fit.min_log_exposure);
+  w.key("slope_variance_dn2_per_mean_dn");
+  w.value(fit.slope_variance_dn2_per_mean_dn);
+  w.key("intercept_variance_dn2");
+  w.value(fit.intercept_variance_dn2);
+  w.key("r_squared");
+  w.value(fit.r_squared);
+  w.key("fit_valid");
+  w.value(fit.fit_valid);
+  w.key("reason");
+  w.value(fit.reason);
+  w.end_object();
+}
+
+void write_raw_ptc_diagnostic(JsonWriter& w,
+                              const StepchartRawPtcDiagnostic& diagnostic) {
+  w.begin_object();
+  w.key("method");
+  w.value(diagnostic.method);
+  w.key("dn_referred_ptc_candidate");
+  w.value(diagnostic.dn_referred_ptc_candidate);
+  w.key("electron_calibrated_gain_candidate");
+  w.value(diagnostic.electron_calibrated_gain_candidate);
+  w.key("dynamic_range_candidate");
+  w.value(diagnostic.dynamic_range_candidate);
+  w.key("not_claimed");
+  write_string_array(w, {"electron_calibrated_gain", "electron_read_noise",
+                         "full_well_capacity", "engineering_dynamic_range",
+                         "prnu", "iso_14524_ptc_conformance"});
+  w.key("limitations");
+  write_string_array(w, diagnostic.limitations);
+  w.key("plane_fits");
+  w.begin_array();
+  for (const auto& fit : diagnostic.planes) write_raw_ptc_plane_fit(w, fit);
+  w.end_array();
   w.end_object();
 }
 
@@ -438,6 +496,8 @@ void write_raw_zone_extraction(
   }
   w.key("zone_count");
   w.value(static_cast<int>(geometry.zones.size()));
+  w.key("dn_referred_ptc_diagnostic");
+  w.value(geometry.ring_seed.has_value());
   w.key("ptc_candidate");
   w.value(false);
   w.key("dynamic_range_candidate");
@@ -448,8 +508,9 @@ void write_raw_zone_extraction(
         "ring-seeded ISO 14524-style alternating geometry; no automatic "
         "Stepchart detection or external standard-conformance claim.",
         "raw-CFA values are black-subtracted DN, not electron-calibrated gain.",
-        "repeat spread is over ROI means; not ISO 14524, PTC, PRNU, or "
-        "engineering dynamic range."});
+        "per-pixel temporal variance is DN-referred only; no electron gain, "
+        "read noise in electrons, full well, PRNU, or engineering dynamic "
+        "range is claimed."});
   } else {
     write_string_array(w, {
         "corner-seeded OECF-20 strip geometry; no automatic Stepchart detection.",
@@ -498,11 +559,17 @@ void write_raw_zone_extraction(
     w.value(iso.dynamic_range_candidate);
     w.key("oracle_ladder_gate");
     write_raw_oracle_gate(w, evaluate_stepchart_raw_iso_against_oracle(iso));
+    StepchartRawIsoSummary iso_with_ptc = iso;
+    const auto ptc = analyze_stepchart_raw_ptc_diagnostic(iso_with_ptc);
+    w.key("raw_ptc_diagnostic");
+    write_raw_ptc_diagnostic(w, ptc);
     w.key("limitations");
-    write_string_array(w, iso.limitations);
+    write_string_array(w, iso_with_ptc.limitations);
     w.key("zones");
     w.begin_array();
-    for (const auto& zone : iso.zones) write_raw_zone_summary(w, zone);
+    for (const auto& zone : iso_with_ptc.zones) {
+      write_raw_zone_summary(w, zone);
+    }
     w.end_array();
     w.end_object();
   }
@@ -633,7 +700,8 @@ void write_json(std::ostream& os, const ResolvedDataset& dataset,
   if (raw_geometry) {
     write_string_array(w, {"iso_14524_oecf_conformance",
                            "electron_calibrated_gain",
-                           "ptc_or_dynamic_range", "prnu",
+                           "electron_read_noise", "full_well_capacity",
+                           "engineering_dynamic_range", "prnu",
                            "chart_density_traceability",
                            "measured_iso_speed"});
   } else {
@@ -655,6 +723,32 @@ RoiRect roi_from_patch_coord(const PatchCoord& coord) {
     throw std::runtime_error("invalid rounded Stepchart raw zone ROI");
   }
   return RoiRect{x, y, width, height};
+}
+
+std::array<std::vector<double>, 4> raw_cfa_samples_for_roi(
+    const RawCfaImage& image, const RoiRect& requested) {
+  const auto roi = cfa_balanced_roi(requested, image.width, image.height);
+  if (!roi || image.row_stride_pixels < image.width ||
+      image.samples.size() <
+          static_cast<std::size_t>(image.row_stride_pixels) *
+              static_cast<std::size_t>(image.height)) {
+    throw std::runtime_error("invalid Stepchart raw sample ROI");
+  }
+  std::array<std::vector<double>, 4> out;
+  const std::size_t per_plane =
+      static_cast<std::size_t>(roi->width / 2) *
+      static_cast<std::size_t>(roi->height / 2);
+  for (auto& samples : out) samples.reserve(per_plane);
+
+  for (int r = roi->y; r < roi->y + roi->height; ++r) {
+    const std::size_t row = static_cast<std::size_t>(r) *
+                            static_cast<std::size_t>(image.row_stride_pixels);
+    for (int c = roi->x; c < roi->x + roi->width; ++c) {
+      const std::size_t pos = static_cast<std::size_t>((r & 1) * 2 + (c & 1));
+      out[pos].push_back(image.samples[row + static_cast<std::size_t>(c)]);
+    }
+  }
+  return out;
 }
 
 StepchartRawFrameMeasurement measure_raw_zones_for_file(
@@ -681,6 +775,8 @@ StepchartRawFrameMeasurement measure_raw_zones_for_file(
     measurement.zone = zone.zone;
     measurement.measurement_roi = report->measurement_roi;
     measurement.planes = report->planes;
+    measurement.plane_samples =
+        raw_cfa_samples_for_roi(*image, roi_from_patch_coord(zone.extraction_coord));
     frame.zones.push_back(std::move(measurement));
   }
   return frame;

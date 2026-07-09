@@ -16,6 +16,7 @@ struct StepchartRawZoneMeasurement {
   int zone = 0;
   std::optional<RoiRect> measurement_roi;
   std::array<ChannelStats, 4> planes;
+  std::array<std::vector<double>, 4> plane_samples;
 };
 
 struct StepchartRawFrameMeasurement {
@@ -28,9 +29,14 @@ struct StepchartRawPlaneSummary {
   std::size_t frame_count = 0;
   double mean_dn = 0.0;
   double temporal_stddev_of_zone_mean_dn = 0.0;
+  std::size_t aligned_pixel_count = 0;
+  double temporal_variance_per_pixel_dn2 = 0.0;
+  double temporal_stddev_per_pixel_dn = 0.0;
   double mean_spatial_stddev_dn = 0.0;
   double max_below_black_fraction = 0.0;
   double max_saturated_fraction = 0.0;
+  bool ptc_fit_included = false;
+  std::string ptc_fit_exclusion_reason = "not_evaluated";
 };
 
 struct StepchartRawZoneSummary {
@@ -60,6 +66,27 @@ struct StepchartRawOracleGateDiagnostics {
   bool passes = false;
 };
 
+struct StepchartRawPtcPlaneFit {
+  std::string channel;
+  std::size_t fitted_zone_count = 0;
+  double min_log_exposure = -1.6;
+  double slope_variance_dn2_per_mean_dn = 0.0;
+  double intercept_variance_dn2 = 0.0;
+  double r_squared = 0.0;
+  bool fit_valid = false;
+  std::string reason = "not_evaluated";
+};
+
+struct StepchartRawPtcDiagnostic {
+  std::string method =
+      "dn_referred_per_pixel_temporal_variance_vs_mean";
+  bool dn_referred_ptc_candidate = false;
+  bool electron_calibrated_gain_candidate = false;
+  bool dynamic_range_candidate = false;
+  std::array<StepchartRawPtcPlaneFit, 4> planes;
+  std::vector<std::string> limitations;
+};
+
 StepchartRawIsoSummary summarize_stepchart_raw_iso(
     int iso, std::string shutter_token,
     const std::vector<ImatestStepchartZone>& oracle_zones,
@@ -77,5 +104,8 @@ StepchartRawOracleGateDiagnostics evaluate_stepchart_raw_iso_against_oracle(
 
 void validate_stepchart_raw_iso_against_oracle(
     const StepchartRawIsoSummary& summary);
+
+StepchartRawPtcDiagnostic analyze_stepchart_raw_ptc_diagnostic(
+    StepchartRawIsoSummary& summary);
 
 }  // namespace camera_iq
