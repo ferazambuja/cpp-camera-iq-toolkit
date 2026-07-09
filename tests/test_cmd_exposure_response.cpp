@@ -59,6 +59,9 @@ void TESTS() {
   check(run_exposure_response(
             {dataset.string(), "--subdir", (root / "escape").string()}) == 2,
         "exposure-response cmd: absolute subdir rejected");
+  check(run_exposure_response({dataset.string(), "--subdir", "../escape"}) ==
+            2,
+        "exposure-response cmd: parent-path subdir traversal rejected");
 
   fs::remove_all(root);
 }

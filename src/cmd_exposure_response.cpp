@@ -96,9 +96,9 @@ int cmd_exposure_response(int argc, char** argv) {
                 << "' is not a directory or dataset id in " << config << "\n";
       return 1;
     }
-    if (!subdir.empty() && subdir.is_absolute()) {
+    if (!subdir.empty() && !is_safe_dataset_subdir(subdir)) {
       std::cerr
-          << "camera_iq exposure-response: --subdir requires a relative path\n";
+          << "camera_iq exposure-response: --subdir requires a relative path inside the dataset root\n";
       return 2;
     }
     const std::filesystem::path scan_root = subdir.empty()

@@ -119,9 +119,9 @@ int cmd_dark_calibration(int argc, char** argv) {
                 << "' is not a directory or dataset id in " << config << "\n";
       return 1;
     }
-    if (!subdir.empty() && subdir.is_absolute()) {
+    if (!subdir.empty() && !is_safe_dataset_subdir(subdir)) {
       std::cerr
-          << "camera_iq dark-calibration: --subdir requires a relative path\n";
+          << "camera_iq dark-calibration: --subdir requires a relative path inside the dataset root\n";
       return 2;
     }
 

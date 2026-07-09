@@ -69,6 +69,10 @@ void TESTS() {
                   {dataset.string(), "--subdir", (root / "escape").string(),
                    "--no-exif"}) == 2,
           "manifest direct-root fixture rejects absolute subdir");
+    check(run_cmd(camera_iq::cmd_manifest,
+                  {dataset.string(), "--subdir", "../escape", "--no-exif"}) ==
+              2,
+          "manifest rejects parent-path subdir traversal");
   }
 
   {
@@ -80,6 +84,9 @@ void TESTS() {
     check_sanitized_dataset_label(read_file(out), dataset,
                                   "\"root\":\"dataset-root:dataset\"",
                                   "oecf-fit");
+    check(run_cmd(camera_iq::cmd_oecf_fit,
+                  {dataset.string(), "--subdir", "../escape"}) == 2,
+          "oecf-fit rejects parent-path subdir traversal");
   }
 
   {
@@ -92,6 +99,9 @@ void TESTS() {
         read_file(out), dataset,
         "\"root\":\"dataset-root:dataset/Images/Dark Frame\"",
         "dark-calibration");
+    check(run_cmd(camera_iq::cmd_dark_calibration,
+                  {dataset.string(), "--subdir", "../escape"}) == 2,
+          "dark-calibration rejects parent-path subdir traversal");
   }
 
   {
@@ -103,6 +113,9 @@ void TESTS() {
     check_sanitized_dataset_label(
         read_file(out), dataset,
         "\"root\":\"dataset-root:dataset/Images/Dark Frame\"", "noise");
+    check(run_cmd(camera_iq::cmd_noise,
+                  {dataset.string(), "--subdir", "Images/../../escape"}) == 2,
+          "noise rejects parent-path subdir traversal");
   }
 
   fs::remove_all(root);

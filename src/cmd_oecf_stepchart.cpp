@@ -456,16 +456,10 @@ int cmd_oecf_stepchart(int argc, char** argv) {
     std::cerr << "camera_iq oecf-stepchart: --oracle-dir is required\n";
     return 2;
   }
-  if (args.oracle_dir.is_absolute()) {
-    std::cerr << "camera_iq oecf-stepchart: --oracle-dir must be relative\n";
+  if (!is_safe_dataset_subdir(args.oracle_dir)) {
+    std::cerr << "camera_iq oecf-stepchart: --oracle-dir requires a relative"
+                 " path inside the dataset root\n";
     return 2;
-  }
-  for (const auto& part : args.oracle_dir) {
-    if (part == "..") {
-      std::cerr << "camera_iq oecf-stepchart: --oracle-dir must not contain"
-                   " '..' (evidence must stay inside the dataset root)\n";
-      return 2;
-    }
   }
 
   try {

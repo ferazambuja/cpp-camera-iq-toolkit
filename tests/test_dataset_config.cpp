@@ -10,6 +10,7 @@ namespace fs = std::filesystem;
 
 using camera_iq::dataset_display_label;
 using camera_iq::dataset_file_label;
+using camera_iq::is_safe_dataset_subdir;
 using camera_iq::dataset_root_label;
 using camera_iq::dataset_scan_label;
 using camera_iq::read_dataset_config;
@@ -190,6 +191,17 @@ void TESTS() {
                            fs::path("Images/CCSG/file.RAF")) ==
             "dataset:clrs589_project_camera/Images/CCSG/file.RAF",
         "label: dataset file");
+
+  check(is_safe_dataset_subdir(fs::path("Images/Dark Frame")),
+        "safe subdir: plain relative path accepted");
+  check(is_safe_dataset_subdir(fs::path("")),
+        "safe subdir: empty path accepted");
+  check(!is_safe_dataset_subdir(fs::path("/abs/path")),
+        "safe subdir: absolute path rejected");
+  check(!is_safe_dataset_subdir(fs::path("../escape")),
+        "safe subdir: leading parent component rejected");
+  check(!is_safe_dataset_subdir(fs::path("Images/../../escape")),
+        "safe subdir: embedded parent component rejected");
 
   fs::remove_all(root);
 }

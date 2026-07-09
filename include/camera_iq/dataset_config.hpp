@@ -76,4 +76,9 @@ std::string dataset_display_label(const ResolvedDataset& dataset);
 std::string dataset_scan_label(const ResolvedDataset& dataset,
                                const std::filesystem::path& relative_subdir);
 
+// A dataset-relative scan path must stay inside the dataset root: relative,
+// with no `..` components. `..` would scan outside the root while the JSON
+// still labels the evidence under the dataset — provenance misattribution.
+bool is_safe_dataset_subdir(const std::filesystem::path& relative_subdir);
+
 }  // namespace camera_iq

@@ -152,8 +152,8 @@ int cmd_noise(int argc, char** argv) {
                 << "' is not a directory or dataset id in " << config << "\n";
       return 1;
     }
-    if (!subdir.empty() && subdir.is_absolute()) {
-      std::cerr << "camera_iq noise: --subdir requires a relative path\n";
+    if (!subdir.empty() && !is_safe_dataset_subdir(subdir)) {
+      std::cerr << "camera_iq noise: --subdir requires a relative path inside the dataset root\n";
       return 2;
     }
 

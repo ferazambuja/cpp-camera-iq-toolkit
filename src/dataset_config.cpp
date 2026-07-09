@@ -342,4 +342,12 @@ std::string dataset_scan_label(const ResolvedDataset& dataset,
   return label;
 }
 
+bool is_safe_dataset_subdir(const std::filesystem::path& relative_subdir) {
+  if (relative_subdir.is_absolute()) return false;
+  for (const auto& part : relative_subdir) {
+    if (part == "..") return false;
+  }
+  return true;
+}
+
 }  // namespace camera_iq
