@@ -21,8 +21,8 @@ New command:
 
 ```bash
 camera_iq sfr <dataset-root-or-id> \
-  --raw "NIKON D810_50mm_f5.6_.NEF" \
-  --oracle-y-multi "Results/NIKON D810_50mm_f5.6__Y_multi.csv" \
+  --raw "2016_12_09_D810_SFR/NIKON D810_50mm_f5.6_.NEF" \
+  --oracle-y-multi "2016_12_09_D810_SFR/Results/NIKON D810_50mm_f5.6__Y_multi.csv" \
   --out out/sfr_f5_6.json
 ```
 
@@ -93,8 +93,8 @@ Example:
 
 ```bash
 camera_iq sfr d800_d810_sfr_2016 \
-  --raw "NIKON D810_50mm_f5.6_.NEF" \
-  --oracle-y-multi "Results/NIKON D810_50mm_f5.6__Y_multi.csv" \
+  --raw "2016_12_09_D810_SFR/NIKON D810_50mm_f5.6_.NEF" \
+  --oracle-y-multi "2016_12_09_D810_SFR/Results/NIKON D810_50mm_f5.6__Y_multi.csv" \
   --field-map \
   --out out/sfr_field_f5_6.json
 ```

@@ -26,7 +26,10 @@ Use archive labels in public docs, not absolute mount paths:
 | Consolidated SFR results | `archive:2016_esensi_images/SFR_Results/` |
 
 Recommended local cache id when a slice stages files:
-`d800_d810_sfr_2016`.
+`d800_d810_sfr_2016`. Its root should mirror the `2016_esensi_images`
+umbrella, so RAW/oracle paths remain subdirectory-relative
+(`2016_12_09_D810_SFR/...`, `2016_12_09_D800_SFR/...`) instead of flattening
+one camera folder into the dataset root.
 
 ## Filename Inventory
 
