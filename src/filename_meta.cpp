@@ -1,6 +1,7 @@
 #include "camera_iq/filename_meta.hpp"
 
 #include <cctype>
+#include <cmath>
 #include <string>
 #include <vector>
 
@@ -87,7 +88,11 @@ std::optional<double> parse_shutter_token(std::string_view tok) {
   const auto num = to_double(body.substr(0, sep));
   const auto den = to_double(body.substr(sep + 1));
   if (!num || !den || *den == 0.0) return std::nullopt;
-  return *num / *den;
+  const double seconds = *num / *den;
+  // A nonsensical token like 1e300-1e-300 must not surface as +inf shutter
+  // seconds downstream (JSON cannot represent it).
+  if (!std::isfinite(seconds)) return std::nullopt;
+  return seconds;
 }
 
 // "ISO200" or "i100" -> integer ISO.

@@ -41,7 +41,10 @@ bool is_primary_header(const std::vector<std::string>& cells) {
 }
 
 bool looks_like_stepchart_header(const std::vector<std::string>& cells) {
-  return cells.size() >= 4 && cells[0] == "Imatest" && cells[1] == "4.5.7" &&
+  // The Imatest version is captured as per-summary data, never pinned here:
+  // fusing a version equality into format detection would reject genuine
+  // Stepchart summaries from other builds with a misleading reason.
+  return cells.size() >= 4 && cells[0] == "Imatest" && !cells[1].empty() &&
          cells[3] == "Stepchart";
 }
 
@@ -49,12 +52,20 @@ int parse_file_count_line(const std::string& line) {
   static const std::regex kPattern(R"(^\s*(\d+)\s+files combined for analysis\.\s*$)");
   std::smatch m;
   if (!std::regex_match(line, m, kPattern)) return 0;
-  return std::stoi(m[1].str());
+  const auto value = parse_int(m[1].str());
+  if (!value || *value <= 0) fail("invalid file-count line: '" + line + "'");
+  return *value;
 }
 
-bool is_combined_file_row(const std::string& key) {
-  static const std::regex kPattern(R"(^File\s+\d+$)");
-  return std::regex_match(key, kPattern);
+// Returns the N of a "File N" key, or nullopt for non-file-list rows
+// (including the Exif decoys "File Name"/"File Size"/"File Source").
+std::optional<int> combined_file_row_index(const std::string& key) {
+  static const std::regex kPattern(R"(^File\s+(\d+)$)");
+  std::smatch m;
+  if (!std::regex_match(key, m, kPattern)) return std::nullopt;
+  const auto value = parse_int(m[1].str());
+  if (!value || *value <= 0) fail("invalid file-list index: '" + key + "'");
+  return value;
 }
 
 void validate_zones(const std::vector<ImatestStepchartZone>& zones) {
@@ -135,8 +146,13 @@ ImatestStepchartSummary read_imatest_stepchart_summary(
       summary.declared_file_count = declared_count;
       continue;
     }
-    if (is_combined_file_row(key)) {
+    if (const auto file_index = combined_file_row_index(key)) {
       if (cells.size() < 2 || cells[1].empty()) fail("missing file-list row");
+      // The row index must be the sequence 1..M — a duplicated or skipped
+      // index with an intact count would otherwise be silently trusted.
+      if (*file_index != static_cast<int>(summary.combined_files.size()) + 1) {
+        fail("missing or non-contiguous file-list rows");
+      }
       summary.combined_files.push_back(cells[1]);
       continue;
     }
@@ -153,6 +169,10 @@ ImatestStepchartSummary read_imatest_stepchart_summary(
       in_primary = false;
       continue;
     }
+    if (summary.declared_zone_count > 0 &&
+        static_cast<int>(summary.zones.size()) >= summary.declared_zone_count) {
+      fail("primary table has more rows than Zones,N");
+    }
 
     ImatestStepchartZone z;
     z.zone = require_int(cells[0], "zone");
@@ -166,10 +186,6 @@ ImatestStepchartSummary read_imatest_stepchart_summary(
     z.height_px = require_int(cells[6], "Height px");
     z.pixels_total = require_int(cells[7], "Pixels total");
     summary.zones.push_back(z);
-    if (summary.declared_zone_count > 0 &&
-        static_cast<int>(summary.zones.size()) == summary.declared_zone_count) {
-      in_primary = false;
-    }
   }
 
   if (!saw_stepchart) fail("not a Stepchart CSV");

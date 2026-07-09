@@ -1,6 +1,8 @@
 #pragma once
 
 #include <cmath>
+#include <cstddef>
+#include <limits>
 #include <optional>
 #include <sstream>
 #include <string>
@@ -43,6 +45,12 @@ inline std::optional<int> parse_int(std::string_view text) {
   if (!value) return std::nullopt;
   const double rounded = std::round(*value);
   if (std::abs(*value - rounded) > 1e-9) return std::nullopt;
+  // Guard the float-to-int cast: out-of-range conversion is UB and silently
+  // platform-divergent (arm64 saturates, x86-64 wraps).
+  if (rounded < static_cast<double>(std::numeric_limits<int>::min()) ||
+      rounded > static_cast<double>(std::numeric_limits<int>::max())) {
+    return std::nullopt;
+  }
   return static_cast<int>(rounded);
 }
 

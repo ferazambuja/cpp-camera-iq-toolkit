@@ -2,7 +2,11 @@
 
 #include <filesystem>
 #include <fstream>
+#include <iostream>
+#include <sstream>
 #include <string>
+#include <tuple>
+#include <utility>
 #include <vector>
 
 #include "harness.hpp"
@@ -27,22 +31,40 @@ int run_stepchart(const std::vector<std::string>& args) {
                                        argv.data());
 }
 
+// Runs the command with std::cerr captured so tests can assert the
+// gate-naming failure messages the plan requires.
+std::pair<int, std::string> run_capture(const std::vector<std::string>& args) {
+  std::ostringstream captured;
+  std::streambuf* old = std::cerr.rdbuf(captured.rdbuf());
+  const int code = run_stepchart(args);
+  std::cerr.rdbuf(old);
+  return {code, captured.str()};
+}
+
 std::string summary_csv(int iso, const std::string& shutter_token, int frame,
                         const std::string& run_date, int zones = 20) {
   std::string text;
   const std::string prefix = "NIKON D800_i" + std::to_string(iso) + "_" +
                              shutter_token + "_";
   text += "Imatest,4.5.7, , Stepchart\n";
-  text += "Run date," + run_date + ",,Build 2016-11-22\n";
+  text += "Title,10 file avg (" + prefix + std::to_string(frame) +
+          ".NEF & 9 more)\n";
+  if (!run_date.empty()) {
+    text += "Run date," + run_date + ",,Build 2016-11-22\n";
+  }
   text += "File name," + prefix + std::to_string(frame) + ".NEF\n";
+  text += "\n";
   text += "10 files combined for analysis.\n";
   for (int i = 0; i < 10; ++i) {
     const int f = (iso == 100 && i == 8) ? 91 : (frame + i);
     text += "File " + std::to_string(i + 1) + ", " + prefix +
             std::to_string(f) + ".NEF\n";
   }
+  text += "\n";
   text += "Zones," + std::to_string(zones) + "\n";
+  text += "\n";
   text += "Pixel offset,0\n";
+  text += "\n";
   text += "OECF primary table follows\n";
   text +=
       "Zone,Pixel,Pixel/255,Log(exp),Log(px/255),Width px,Height px,"
@@ -52,15 +74,21 @@ std::string summary_csv(int iso, const std::string& shutter_token, int frame,
                    static_cast<double>(z - 1) * 2.0;
     if (z >= 19) pixel = 0.2;
     const int width = z == zones ? 200 : 201;
-    text += (z < 10 ? " " : "") + std::to_string(z) + "," +
-            std::to_string(pixel) + "," + std::to_string(pixel / 255.0) +
-            "," + (z == 1 ? "-0.0000" : std::to_string(-0.15 * (z - 1))) +
-            ",-1.0000," + std::to_string(width) + ",50," +
+    text += (z < 10 ? " " : "") + std::to_string(z) + ", " +
+            std::to_string(pixel) + ", " + std::to_string(pixel / 255.0) +
+            ", " + (z == 1 ? "-0.0000" : std::to_string(-0.15 * (z - 1))) +
+            ", -1.0000," + std::to_string(width) + ",50," +
             std::to_string(width * 50) + "\n";
   }
   text += "\n";
-  text += "Zone,(-)Log(exp),Y-density\n1,0,0,0,0,0\n";
-  text += "Frequency (C/P),Noise power\n1,999\n";
+  text += "Zone,(-)Log(exp),Y-density\n";
+  for (int z = 1; z <= 20; ++z) {
+    text += std::to_string(z) + ",0.15,0.5,0,0,0\n";
+  }
+  text += "\n";
+  text += "1,Low,6.19\n";
+  text += "0.5,Medium,4.77\n";
+  text += "Frequency (C/P),Noise power\n  0.005,  0.069\n";
   text += "Zone,Mean noise,S/N\n1,,Inf\n";
   text +=
       "Directory                       , /""Users/private/absolute/D800_OECF\n";
@@ -93,28 +121,48 @@ std::vector<std::tuple<int, std::string, int, std::string>> groups() {
           {12800, "s1-5000", 71, "11-Dec-2016 03:39:54"}};
 }
 
-void write_dataset(const fs::path& root, bool missing_nef = false,
-                   bool duplicate_summary = false,
-                   bool bad_date = false, bool mixed_day = false,
-                   bool bad_zones = false) {
+struct DatasetOpts {
+  bool missing_nef = false;
+  bool duplicate_summary = false;
+  bool bad_date = false;      // unparseable token
+  bool mixed_day = false;     // one summary on a different calendar day
+  bool bad_zones = false;     // one 19-zone summary
+  bool over_window = false;   // same-day span of 3600 s
+  bool boundary_window = false;  // same-day span of exactly 1800 s
+  bool missing_date = false;  // one summary with no Run date line
+  bool impossible_date = false;  // 31-Feb must not renormalize
+  bool lenient_date = false;  // single-digit day/hour must be rejected
+  bool skip_last_group = false;  // only 7 of 8 summaries
+};
+
+void write_dataset(const fs::path& root, const DatasetOpts& opts = {}) {
   fs::create_directories(root / "Results");
   for (const auto& [iso, shutter, frame, date] : groups()) {
     std::string run_date = date;
-    if (bad_date && iso == 100) run_date = "not-a-date";
-    if (mixed_day && iso == 12800) run_date = "12-Dec-2016 03:39:54";
-    const int zones = bad_zones && iso == 100 ? 19 : 20;
-    write_file(root / "Results" /
-                   ("NIKON D800_i" + std::to_string(iso) + "_" + shutter +
-                    "_" + std::to_string(frame) + "_comb_10_summary.csv"),
-               summary_csv(iso, shutter, frame, run_date, zones));
+    if (opts.bad_date && iso == 100) run_date = "not-a-date";
+    if (opts.mixed_day && iso == 12800) run_date = "12-Dec-2016 03:39:54";
+    if (opts.over_window && iso == 12800) run_date = "11-Dec-2016 04:19:31";
+    if (opts.boundary_window && iso == 12800)
+      run_date = "11-Dec-2016 03:49:31";
+    if (opts.missing_date && iso == 100) run_date = "";
+    if (opts.impossible_date && iso == 100)
+      run_date = "31-Feb-2016 03:19:31";
+    if (opts.lenient_date && iso == 100) run_date = "1-Dec-2016 3:19:31";
+    const int zones = opts.bad_zones && iso == 100 ? 19 : 20;
+    if (!(opts.skip_last_group && iso == 12800)) {
+      write_file(root / "Results" /
+                     ("NIKON D800_i" + std::to_string(iso) + "_" + shutter +
+                      "_" + std::to_string(frame) + "_comb_10_summary.csv"),
+                 summary_csv(iso, shutter, frame, run_date, zones));
+    }
     for (int i = 0; i < 10; ++i) {
       const int f = (iso == 100 && i == 8) ? 91 : (frame + i);
-      if (missing_nef && iso == 100 && i == 0) continue;
+      if (opts.missing_nef && iso == 100 && i == 0) continue;
       write_file(root / ("NIKON D800_i" + std::to_string(iso) + "_" +
                          shutter + "_" + std::to_string(f) + ".NEF"));
     }
   }
-  if (duplicate_summary) {
+  if (opts.duplicate_summary) {
     write_file(root / "Results" / "duplicate_i100_summary.csv",
                summary_csv(100, "s1-40", 2, "11-Dec-2016 03:20:00"));
   }
@@ -133,6 +181,29 @@ std::string read_file(const fs::path& path) {
                      std::istreambuf_iterator<char>());
 }
 
+std::size_t count_occurrences(const std::string& text,
+                              const std::string& needle) {
+  std::size_t count = 0;
+  for (auto pos = text.find(needle); pos != std::string::npos;
+       pos = text.find(needle, pos + needle.size())) {
+    ++count;
+  }
+  return count;
+}
+
+// Writes a fresh fixture dataset + config with the given options and runs the
+// command with stderr captured.
+std::pair<int, std::string> run_variant(const fs::path& root,
+                                        const std::string& name,
+                                        const DatasetOpts& opts) {
+  const fs::path dataset = root / name;
+  const fs::path config = root / (name + "_config.json");
+  write_dataset(dataset, opts);
+  write_dataset_config(config, dataset);
+  return run_capture({"d800_oecf_fixture", "--config", config.string(),
+                      "--oracle-dir", "Results"});
+}
+
 }  // namespace
 
 void TESTS() {
@@ -148,12 +219,20 @@ void TESTS() {
         "oecf-stepchart cmd: dataset argument required");
   check(run_stepchart({"d800_oecf_fixture", "--config", config.string()}) == 2,
         "oecf-stepchart cmd: oracle dir required");
+  check(run_stepchart({"--help"}) == 0,
+        "oecf-stepchart cmd: --help prints usage and exits 0");
+  check(run_stepchart({"d800_oecf_fixture", "--config", config.string(),
+                       "--oracle-dir", "../outside"}) == 2,
+        "oecf-stepchart cmd: --oracle-dir traversal rejected as arg error");
 
-  const fs::path out = root / "out.json";
+  // Nested --out parent directories must be created (house cmd_sfr pattern).
+  const fs::path out = root / "nested" / "deep" / "out.json";
   const int ok = run_stepchart({"d800_oecf_fixture", "--config",
                                 config.string(), "--oracle-dir", "Results",
                                 "--out", out.string()});
   check(ok == 0, "oecf-stepchart cmd: fixture archive succeeds");
+  check(fs::exists(out),
+        "oecf-stepchart cmd: creates nested --out parent directories");
   const std::string json = read_file(out);
   check(json.find("\"command\":\"oecf-stepchart\"") != std::string::npos,
         "oecf-stepchart cmd: emits command");
@@ -168,6 +247,9 @@ void TESTS() {
         "oecf-stepchart cmd: emits pinned run-date span");
   check(json.find("\"iso\":25600") != std::string::npos,
         "oecf-stepchart cmd: emits ISO25600 diagnostic group");
+  check(json.find("diagnostic_iso25600_unoracled_one_stop_over_compensated") !=
+            std::string::npos,
+        "oecf-stepchart cmd: ISO25600 group carries the diagnostic reason");
   check(json.find("2016_12_09_OECF_D800_test_0148.NEF") !=
             std::string::npos,
         "oecf-stepchart cmd: emits test-file orphan group");
@@ -180,53 +262,126 @@ void TESTS() {
   check(json.find("\"zone\":20,\"min\":0.2,\"max\":0.2,\"spread\":0") !=
             std::string::npos,
         "oecf-stepchart cmd: advisory pins all 20 zones through shadow end");
-  check(json.find("\"chart_density_traceability\"") != std::string::npos &&
+  {
+    const auto adv_begin =
+        json.find("\"advisory_cross_iso_pixel_spread_by_zone\":[");
+    const auto adv_end = json.find("]", adv_begin);
+    const std::string advisory = json.substr(adv_begin, adv_end - adv_begin);
+    check(count_occurrences(advisory, "\"zone\":") == 20,
+          "oecf-stepchart cmd: advisory has exactly 20 zone entries");
+  }
+  check(json.find("\"iso_14524_oecf_conformance\"") != std::string::npos &&
+            json.find("\"raw_dn_oecf\"") != std::string::npos &&
+            json.find("\"raw_stepchart_zone_extraction\"") !=
+                std::string::npos &&
+            json.find("\"ptc_or_dynamic_range\"") != std::string::npos &&
+            json.find("\"chart_density_traceability\"") != std::string::npos &&
             json.find("\"measured_iso_speed\"") != std::string::npos,
-        "oecf-stepchart cmd: emits required not-claimed caveats");
+        "oecf-stepchart cmd: emits all six not-claimed caveats");
   check(json.find("/""Users/") == std::string::npos,
         "oecf-stepchart cmd: strips private Directory paths from JSON");
 
-  const fs::path missing = root / "missing";
-  const fs::path missing_config = root / "missing_config.json";
-  write_dataset(missing, true);
-  write_dataset_config(missing_config, missing);
-  check(run_stepchart({"d800_oecf_fixture", "--config", missing_config.string(),
-                       "--oracle-dir", "Results"}) == 1,
-        "oecf-stepchart cmd: missing listed NEF is runtime failure");
+  {
+    DatasetOpts opts;
+    opts.missing_nef = true;
+    const auto [code, err] = run_variant(root, "missing", opts);
+    check(code == 1, "oecf-stepchart cmd: missing listed NEF is runtime failure");
+    check(err.find("listed NEF missing") != std::string::npos,
+          "oecf-stepchart cmd: missing-NEF message names the join gate");
+  }
 
-  const fs::path dup = root / "duplicate";
-  const fs::path dup_config = root / "dup_config.json";
-  write_dataset(dup, false, true);
-  write_dataset_config(dup_config, dup);
-  check(run_stepchart({"d800_oecf_fixture", "--config", dup_config.string(),
-                       "--oracle-dir", "Results"}) == 1,
-        "oecf-stepchart cmd: duplicate ISO/shutter summary rejected");
+  {
+    DatasetOpts opts;
+    opts.duplicate_summary = true;
+    const auto [code, err] = run_variant(root, "duplicate", opts);
+    check(code == 1, "oecf-stepchart cmd: duplicate ISO/shutter summary rejected");
+    check(err.find("duplicate summary ISO/shutter") != std::string::npos,
+          "oecf-stepchart cmd: duplicate message names the gate");
+  }
 
-  const fs::path bad_date_root = root / "bad_date";
-  const fs::path bad_date_config = root / "bad_date_config.json";
-  write_dataset(bad_date_root, false, false, true);
-  write_dataset_config(bad_date_config, bad_date_root);
-  check(run_stepchart({"d800_oecf_fixture", "--config",
-                       bad_date_config.string(), "--oracle-dir",
-                       "Results"}) == 1,
-        "oecf-stepchart cmd: unparseable run date rejected");
+  {
+    DatasetOpts opts;
+    opts.bad_date = true;
+    const auto [code, err] = run_variant(root, "bad_date", opts);
+    check(code == 1, "oecf-stepchart cmd: unparseable run date rejected");
+    check(err.find("unparseable run date") != std::string::npos,
+          "oecf-stepchart cmd: unparseable-date message names the gate");
+  }
 
-  const fs::path mixed_root = root / "mixed_day";
-  const fs::path mixed_config = root / "mixed_config.json";
-  write_dataset(mixed_root, false, false, false, true);
-  write_dataset_config(mixed_config, mixed_root);
-  check(run_stepchart({"d800_oecf_fixture", "--config", mixed_config.string(),
-                       "--oracle-dir", "Results"}) == 1,
-        "oecf-stepchart cmd: mixed-day run window rejected");
+  {
+    DatasetOpts opts;
+    opts.missing_date = true;
+    const auto [code, err] = run_variant(root, "missing_date", opts);
+    check(code == 1,
+          "oecf-stepchart cmd: summary without Run date line rejected");
+    check(err.find("missing run date") != std::string::npos,
+          "oecf-stepchart cmd: missing-date failure is parser hard-fail");
+  }
 
-  const fs::path bad_zones_root = root / "bad_zones";
-  const fs::path bad_zones_config = root / "bad_zones_config.json";
-  write_dataset(bad_zones_root, false, false, false, false, true);
-  write_dataset_config(bad_zones_config, bad_zones_root);
-  check(run_stepchart({"d800_oecf_fixture", "--config",
-                       bad_zones_config.string(), "--oracle-dir",
-                       "Results"}) == 1,
-        "oecf-stepchart cmd: archive-level zone-count gate rejected");
+  {
+    DatasetOpts opts;
+    opts.impossible_date = true;
+    const auto [code, err] = run_variant(root, "impossible_date", opts);
+    check(code == 1,
+          "oecf-stepchart cmd: impossible 31-Feb date rejected, not renormalized");
+    check(err.find("unparseable run date") != std::string::npos,
+          "oecf-stepchart cmd: impossible-date message names the gate");
+  }
+
+  {
+    DatasetOpts opts;
+    opts.lenient_date = true;
+    const auto [code, err] = run_variant(root, "lenient_date", opts);
+    check(code == 1,
+          "oecf-stepchart cmd: single-digit day/hour date rejected (strict shape)");
+    check(err.find("unparseable run date") != std::string::npos,
+          "oecf-stepchart cmd: lenient-date message names the gate");
+  }
+
+  {
+    DatasetOpts opts;
+    opts.mixed_day = true;
+    const auto [code, err] = run_variant(root, "mixed_day", opts);
+    check(code == 1, "oecf-stepchart cmd: mixed-day run window rejected");
+    check(err.find("multiple calendar days") != std::string::npos,
+          "oecf-stepchart cmd: mixed-day message names the window gate");
+  }
+
+  {
+    DatasetOpts opts;
+    opts.over_window = true;
+    const auto [code, err] = run_variant(root, "over_window", opts);
+    check(code == 1,
+          "oecf-stepchart cmd: same-day over-30-minute window rejected");
+    check(err.find("exceeds 30 minutes") != std::string::npos,
+          "oecf-stepchart cmd: over-window message names the window gate");
+  }
+
+  {
+    DatasetOpts opts;
+    opts.boundary_window = true;
+    const auto [code, err] = run_variant(root, "boundary_window", opts);
+    check(code == 0 && err.empty(),
+          "oecf-stepchart cmd: exactly-30-minute window accepted");
+  }
+
+  {
+    DatasetOpts opts;
+    opts.bad_zones = true;
+    const auto [code, err] = run_variant(root, "bad_zones", opts);
+    check(code == 1, "oecf-stepchart cmd: archive-level zone-count gate rejected");
+    check(err.find("expected 20 zones") != std::string::npos,
+          "oecf-stepchart cmd: zone-count message names the violated gate");
+  }
+
+  {
+    DatasetOpts opts;
+    opts.skip_last_group = true;
+    const auto [code, err] = run_variant(root, "seven_of_eight", opts);
+    check(code == 1, "oecf-stepchart cmd: 7-of-8 ISO groups rejected");
+    check(err.find("expected 8 summaries") != std::string::npos,
+          "oecf-stepchart cmd: summary-count message names the violated gate");
+  }
 
   fs::remove_all(root);
 }

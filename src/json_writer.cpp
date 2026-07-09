@@ -1,6 +1,7 @@
 #include "camera_iq/json_writer.hpp"
 
 #include <charconv>
+#include <cmath>
 #include <cstdio>
 #include <string>
 
@@ -57,6 +58,12 @@ void JsonWriter::value(const char* v) { value(std::string_view(v)); }
 
 void JsonWriter::value(double v) {
   separator();
+  // JSON has no Inf/NaN tokens; std::to_chars would emit bare "inf"/"nan"
+  // and corrupt the document. Emit null for non-finite values.
+  if (!std::isfinite(v)) {
+    os_ << "null";
+    return;
+  }
   // Shortest round-trip representation ("9", "0.001", "1.5").
   char buf[32];
   const auto res = std::to_chars(buf, buf + sizeof(buf), v);

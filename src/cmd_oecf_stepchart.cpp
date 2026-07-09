@@ -1,15 +1,14 @@
 #include "camera_iq/commands.hpp"
 
 #include <algorithm>
-#include <ctime>
+#include <array>
 #include <filesystem>
 #include <fstream>
-#include <iomanip>
 #include <iostream>
 #include <map>
 #include <optional>
+#include <regex>
 #include <set>
-#include <sstream>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -31,8 +30,15 @@ struct Args {
 };
 
 struct ParsedRunDate {
-  std::tm tm{};
-  std::time_t time = 0;
+  int year = 0;
+  int month = 0;
+  int day = 0;
+  // Seconds on a timezone-free civil timeline (days-from-civil * 86400 +
+  // time-of-day). Window math must be a function of the token text only —
+  // routing through mktime would make the gate depend on the machine
+  // timezone (a DST spring-forward can shrink a 62-minute wall-clock span
+  // to a passing 2 minutes).
+  long long civil_seconds = 0;
 };
 
 struct SummaryGroup {
@@ -50,22 +56,55 @@ struct OrphanGroup {
   std::vector<std::string> files;
 };
 
+// Strict parse of Imatest's exact `11-Dec-2016 03:19:31` shape. Impossible
+// calendar dates hard-fail here instead of being renormalized the way
+// std::mktime silently would (31-Feb -> 02-Mar).
 std::optional<ParsedRunDate> parse_run_date(const std::string& text) {
-  std::tm tm{};
-  std::istringstream in(text);
-  in >> std::get_time(&tm, "%d-%b-%Y %H:%M:%S");
-  if (!in || !in.eof()) return std::nullopt;
-  tm.tm_isdst = -1;
+  static const std::regex kShape(
+      R"(^(\d{2})-([A-Z][a-z]{2})-(\d{4}) (\d{2}):(\d{2}):(\d{2})$)");
+  static const std::map<std::string, int> kMonths{
+      {"Jan", 1}, {"Feb", 2}, {"Mar", 3},  {"Apr", 4},  {"May", 5},
+      {"Jun", 6}, {"Jul", 7}, {"Aug", 8},  {"Sep", 9},  {"Oct", 10},
+      {"Nov", 11}, {"Dec", 12}};
+  std::smatch m;
+  if (!std::regex_match(text, m, kShape)) return std::nullopt;
+  const auto month_it = kMonths.find(m[2].str());
+  if (month_it == kMonths.end()) return std::nullopt;
+  const int day = std::stoi(m[1].str());
+  const int year = std::stoi(m[3].str());
+  const int hour = std::stoi(m[4].str());
+  const int minute = std::stoi(m[5].str());
+  const int second = std::stoi(m[6].str());
+  const int month = month_it->second;
+  if (day < 1 || hour > 23 || minute > 59 || second > 59) return std::nullopt;
+  static constexpr std::array<int, 12> kDaysInMonth{31, 28, 31, 30, 31, 30,
+                                                    31, 31, 30, 31, 30, 31};
+  const bool leap = (year % 4 == 0 && year % 100 != 0) || year % 400 == 0;
+  const int days_in_month =
+      (month == 2 && leap) ? 29 : kDaysInMonth[static_cast<std::size_t>(month - 1)];
+  if (day > days_in_month) return std::nullopt;
+  // Howard Hinnant's days-from-civil: proleptic-Gregorian day count from
+  // 1970-01-01, no timezone involvement.
+  const int y = year - (month <= 2 ? 1 : 0);
+  const int era = (y >= 0 ? y : y - 399) / 400;
+  const unsigned yoe = static_cast<unsigned>(y - era * 400);
+  const unsigned doy = static_cast<unsigned>(
+      (153 * (month + (month > 2 ? -3 : 9)) + 2) / 5 + day - 1);
+  const unsigned doe = yoe * 365 + yoe / 4 - yoe / 100 + doy;
+  const long long days =
+      static_cast<long long>(era) * 146097 + static_cast<long long>(doe) -
+      719468;
   ParsedRunDate out;
-  out.tm = tm;
-  out.time = std::mktime(&out.tm);
-  if (out.time == static_cast<std::time_t>(-1)) return std::nullopt;
+  out.year = year;
+  out.month = month;
+  out.day = day;
+  out.civil_seconds =
+      days * 86400LL + hour * 3600LL + minute * 60LL + second;
   return out;
 }
 
-bool same_calendar_day(const std::tm& a, const std::tm& b) {
-  return a.tm_year == b.tm_year && a.tm_mon == b.tm_mon &&
-         a.tm_mday == b.tm_mday;
+bool same_calendar_day(const ParsedRunDate& a, const ParsedRunDate& b) {
+  return a.year == b.year && a.month == b.month && a.day == b.day;
 }
 
 std::string rel_label(const ResolvedDataset& dataset,
@@ -166,13 +205,13 @@ void validate_run_date_window(const std::vector<SummaryGroup>& groups,
   }
   auto [min_it, max_it] = std::minmax_element(
       dates.begin(), dates.end(), [](const auto& a, const auto& b) {
-        return a.first.time < b.first.time;
+        return a.first.civil_seconds < b.first.civil_seconds;
       });
-  if (!same_calendar_day(min_it->first.tm, max_it->first.tm)) {
+  if (!same_calendar_day(min_it->first, max_it->first)) {
     throw std::runtime_error("run-date window spans multiple calendar days");
   }
-  const int span = static_cast<int>(
-      std::difftime(max_it->first.time, min_it->first.time));
+  const int span = static_cast<int>(max_it->first.civil_seconds -
+                                    min_it->first.civil_seconds);
   if (span > 1800) {
     throw std::runtime_error("run-date window exceeds 30 minutes");
   }
@@ -192,11 +231,18 @@ std::vector<OrphanGroup> classify_orphans(
     const auto meta = e.filename_meta;
     std::string key;
     OrphanGroup group;
-    group.iso = meta.iso;
-    if (meta.shutter_str) group.shutter_token = *meta.shutter_str;
     if (meta.iso && *meta.iso == 25600) {
+      group.iso = meta.iso;
+      if (meta.shutter_str) group.shutter_token = *meta.shutter_str;
       group.reason = "diagnostic_iso25600_unoracled_one_stop_over_compensated";
       key = "iso25600";
+    } else if (meta.iso && meta.shutter_str) {
+      // One group per distinct (ISO, shutter) pair so a stray unlisted
+      // ISO-tagged NEF cannot mislabel the iso-less test-file group.
+      group.iso = meta.iso;
+      group.shutter_token = *meta.shutter_str;
+      group.reason = "unoracled_test_or_unmatched_raw";
+      key = "i" + std::to_string(*meta.iso) + "_" + *meta.shutter_str;
     } else {
       group.reason = "unoracled_test_or_unmatched_raw";
       key = "test";
@@ -370,13 +416,21 @@ bool require_value(int argc, int next, std::string_view arg) {
   return false;
 }
 
+void usage() {
+  std::cout << "Usage: camera_iq oecf-stepchart <dataset-root-or-id>"
+               " --oracle-dir REL [--config FILE] [--out FILE]\n";
+}
+
 }  // namespace
 
 int cmd_oecf_stepchart(int argc, char** argv) {
   Args args;
   for (int i = 0; i < argc; ++i) {
     const std::string_view arg = argv[i];
-    if (arg == "--config") {
+    if (arg == "-h" || arg == "--help") {
+      usage();
+      return 0;
+    } else if (arg == "--config") {
       if (!require_value(argc, i + 1, arg)) return 2;
       args.config = argv[++i];
     } else if (arg == "--oracle-dir") {
@@ -407,6 +461,13 @@ int cmd_oecf_stepchart(int argc, char** argv) {
     std::cerr << "camera_iq oecf-stepchart: --oracle-dir must be relative\n";
     return 2;
   }
+  for (const auto& part : args.oracle_dir) {
+    if (part == "..") {
+      std::cerr << "camera_iq oecf-stepchart: --oracle-dir must not contain"
+                   " '..' (evidence must stay inside the dataset root)\n";
+      return 2;
+    }
+  }
 
   try {
     const auto dataset = resolve_dataset_root(args.root_or_id, args.config);
@@ -423,12 +484,6 @@ int cmd_oecf_stepchart(int argc, char** argv) {
     groups.reserve(summary_files.size());
     std::set<std::pair<int, std::string>> seen_groups;
     std::set<std::string> listed_basenames;
-    std::set<std::string> nef_basenames;
-    for (const auto& e : entries) {
-      if (is_nef_entry(e)) {
-        nef_basenames.insert(std::filesystem::path(e.relative_path).filename());
-      }
-    }
 
     for (const auto& path : summary_files) {
       SummaryGroup group;
@@ -445,7 +500,10 @@ int cmd_oecf_stepchart(int argc, char** argv) {
       }
       for (const auto& f : group.summary.combined_files) {
         listed_basenames.insert(f);
-        if (nef_basenames.count(f) == 0) {
+        // Exact-location join: the capture files live at the dataset root; a
+        // basename match anywhere in the tree (e.g. a stray Results/ backup
+        // copy) must not satisfy the existence gate.
+        if (!std::filesystem::exists(dataset->root / f)) {
           std::cerr << "camera_iq oecf-stepchart: listed NEF missing: " << f
                     << "\n";
           return 1;
@@ -470,6 +528,9 @@ int cmd_oecf_stepchart(int argc, char** argv) {
                  span_seconds);
       std::cout << "\n";
     } else {
+      if (!args.out.parent_path().empty()) {
+        std::filesystem::create_directories(args.out.parent_path());
+      }
       std::ofstream os(args.out, std::ios::binary);
       if (!os) {
         std::cerr << "camera_iq oecf-stepchart: cannot write " << args.out
