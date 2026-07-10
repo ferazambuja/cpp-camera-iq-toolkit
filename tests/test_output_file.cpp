@@ -5,6 +5,7 @@
 #include <filesystem>
 #include <fstream>
 #include <sstream>
+#include <stdexcept>
 
 using namespace camera_iq;
 
@@ -75,6 +76,26 @@ void TESTS() {
     test::check(!ok, "checked writer rejects unwritable path");
     test::check(err.str().find("cannot write") != std::string::npos,
                 "checked writer reports open failure");
+  }
+
+  {
+    std::ostringstream err;
+    const auto path = root / "thrown.json";
+    bool threw = false;
+    try {
+      write_output_file_checked(
+          path, "fixture",
+          [](std::ostream& os) {
+            os << "{\"partial\":";
+            throw std::runtime_error("serialization failed");
+          },
+          err);
+    } catch (const std::runtime_error&) {
+      threw = true;
+    }
+    test::check(threw, "checked writer rethrows write-body exceptions");
+    test::check(!std::filesystem::exists(path),
+                "checked writer removes partial file when the body throws");
   }
 
   std::filesystem::remove_all(root);
