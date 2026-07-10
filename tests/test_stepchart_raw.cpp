@@ -1,6 +1,7 @@
 #include "camera_iq/stepchart_raw.hpp"
 
 #include <cmath>
+#include <limits>
 #include <stdexcept>
 #include <string>
 #include <vector>
@@ -322,5 +323,26 @@ void TESTS() {
     }
     check(gate_throws(ladder_summary(flat, log_e), "correlate"),
           "raw stepchart gate: rejects means uncorrelated with the ladder");
+
+    // Failing summaries must be visible in the serialized diagnostics too.
+    const auto reversed_diag = evaluate_stepchart_raw_iso_against_oracle(
+        ladder_summary(reversed, log_e));
+    check(!reversed_diag.green_monotone_nonincreasing,
+          "raw stepchart gate diagnostics: reversal clears monotone flag");
+    check(!reversed_diag.passes,
+          "raw stepchart gate diagnostics: reversal clears pass flag");
+
+    const auto flat_diag =
+        evaluate_stepchart_raw_iso_against_oracle(ladder_summary(flat, log_e));
+    check(flat_diag.green_correlation < 0.98,
+          "raw stepchart gate diagnostics: background correlation below gate");
+    check(!flat_diag.passes,
+          "raw stepchart gate diagnostics: background clears pass flag");
+
+    // Non-finite zone means must refuse, not sneak past NaN comparisons.
+    std::vector<double> poisoned = good;
+    poisoned[3] = std::numeric_limits<double>::quiet_NaN();
+    check(gate_throws(ladder_summary(poisoned, log_e), "oracle"),
+          "raw stepchart gate: rejects non-finite zone means");
   }
 }

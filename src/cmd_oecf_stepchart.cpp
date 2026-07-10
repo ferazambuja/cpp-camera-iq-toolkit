@@ -6,6 +6,7 @@
 #include <filesystem>
 #include <fstream>
 #include <iostream>
+#include <limits>
 #include <map>
 #include <optional>
 #include <regex>
@@ -715,14 +716,19 @@ void write_json(std::ostream& os, const ResolvedDataset& dataset,
 }
 
 RoiRect roi_from_patch_coord(const PatchCoord& coord) {
-  const int x = static_cast<int>(std::llround(coord.x)) - 1;
-  const int y = static_cast<int>(std::llround(coord.y)) - 1;
-  const int width = static_cast<int>(std::llround(coord.width));
-  const int height = static_cast<int>(std::llround(coord.height));
-  if (x < 0 || y < 0 || width <= 0 || height <= 0) {
+  // llround results must be range-checked before narrowing: a coordinate near
+  // 2^32 would otherwise wrap back into a valid-looking in-image ROI.
+  const long long x1 = std::llround(coord.x);
+  const long long y1 = std::llround(coord.y);
+  const long long width = std::llround(coord.width);
+  const long long height = std::llround(coord.height);
+  constexpr long long kIntMax = std::numeric_limits<int>::max();
+  if (x1 < 1 || y1 < 1 || width <= 0 || height <= 0 || x1 > kIntMax ||
+      y1 > kIntMax || width > kIntMax || height > kIntMax) {
     throw std::runtime_error("invalid rounded Stepchart raw zone ROI");
   }
-  return RoiRect{x, y, width, height};
+  return RoiRect{static_cast<int>(x1) - 1, static_cast<int>(y1) - 1,
+                 static_cast<int>(width), static_cast<int>(height)};
 }
 
 std::array<std::vector<double>, 4> raw_cfa_samples_for_roi(
@@ -764,8 +770,17 @@ StepchartRawFrameMeasurement measure_raw_zones_for_file(
   frame.file_label = file_label;
   frame.zones.reserve(geometry.zones.size());
   for (const auto& zone : geometry.zones) {
-    const auto report =
-        raw_cfa_report_for_roi(*image, roi_from_patch_coord(zone.extraction_coord));
+    const RoiRect roi = roi_from_patch_coord(zone.extraction_coord);
+    // Fail closed on right/bottom overhang too: cfa_balanced_roi would
+    // silently clamp it, measuring a partial patch that can still pass the
+    // oracle gate with quietly degraded statistics.
+    if (static_cast<long long>(roi.x) + roi.width > image->width ||
+        static_cast<long long>(roi.y) + roi.height > image->height) {
+      throw std::runtime_error("Stepchart raw zone " +
+                               std::to_string(zone.zone) +
+                               " ROI exceeds image bounds in " + file_label);
+    }
+    const auto report = raw_cfa_report_for_roi(*image, roi);
     if (!report || !report->measurement_roi) {
       throw std::runtime_error("cannot measure raw zone " +
                                std::to_string(zone.zone) + " in " +
@@ -775,8 +790,7 @@ StepchartRawFrameMeasurement measure_raw_zones_for_file(
     measurement.zone = zone.zone;
     measurement.measurement_roi = report->measurement_roi;
     measurement.planes = report->planes;
-    measurement.plane_samples =
-        raw_cfa_samples_for_roi(*image, roi_from_patch_coord(zone.extraction_coord));
+    measurement.plane_samples = raw_cfa_samples_for_roi(*image, roi);
     frame.zones.push_back(std::move(measurement));
   }
   return frame;
@@ -848,9 +862,19 @@ int cmd_oecf_stepchart(int argc, char** argv) {
     } else if (arg == "--zone-corners") {
       if (!require_value(argc, i + 1, arg)) return 2;
       args.zone_corners = argv[++i];
+      if (args.zone_corners.empty()) {
+        std::cerr << "camera_iq oecf-stepchart: --zone-corners value must not"
+                     " be empty\n";
+        return 2;
+      }
     } else if (arg == "--zone-ring") {
       if (!require_value(argc, i + 1, arg)) return 2;
       args.zone_ring = argv[++i];
+      if (args.zone_ring.empty()) {
+        std::cerr << "camera_iq oecf-stepchart: --zone-ring value must not"
+                     " be empty\n";
+        return 2;
+      }
     } else if (arg == "--zone-inner-fraction") {
       if (!require_value(argc, i + 1, arg)) return 2;
       const auto value = parse_finite_double(argv[++i]);
@@ -1000,6 +1024,16 @@ int cmd_oecf_stepchart(int argc, char** argv) {
                  span_seconds, raw_geometry, args.zone_inner_fraction,
                  raw_summaries);
       os << "\n";
+      os.flush();
+      if (!os) {
+        // A mid-write failure (disk full, quota) must not leave a truncated
+        // JSON behind with exit 0.
+        std::cerr << "camera_iq oecf-stepchart: failed while writing "
+                  << args.out << "\n";
+        std::error_code ec;
+        std::filesystem::remove(args.out, ec);
+        return 1;
+      }
     }
     return 0;
   } catch (const std::exception& ex) {

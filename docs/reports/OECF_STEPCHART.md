@@ -91,8 +91,10 @@ Observed envelope:
 This slice does not claim:
 
 - ISO 14524 OECF conformance.
-- Raw-DN OECF or raw Stepchart zone extraction unless `--zone-corners` is
-  provided; the default oracle-only command stays rendered-luma only.
+- Raw-DN OECF or raw Stepchart zone extraction unless a raw-zone mode
+  (`--zone-corners` or `--zone-ring`) is provided; the default oracle-only
+  command stays rendered-luma only. On this archive only the ring mode yields
+  accepted raw-DN output — the strip mode refuses at the oracle-ladder gate.
 - Electron-calibrated PTC, full well, PRNU, or dynamic range.
 - Chart-density traceability. The `Lux (patch)` column is empty in every
   summary, so the log-exposure axis is nominal chart density.

@@ -24,9 +24,10 @@ noise diagnostics, OECF/linearity, and reproducible CSV/JSON/Markdown reports.
   oracle path); slanted-edge SFR/MTF as green-linear center-ROI and 23-ROI
   field maps for the D810 and D800 archives, hard-gated on offset-independent
   aperture trends with per-file Imatest `_Y_multi.csv` values as advisory
-  references; and corner-seeded Stepchart raw-zone paths guarded by an
-  empirical oracle-ladder gate. The D800 OECF chart turned out to be an ISO
-  14524-style ring layout, so the 20x1 strip model refuses on that archive;
+  references; and seeded Stepchart raw-zone paths (strip corners or ring
+  center/radius/angle) guarded by an empirical oracle-ladder gate. The D800
+  OECF chart turned out to be an ISO 14524-style ring layout, so the 20x1
+  strip model refuses on that archive;
   the measured ring seed produces accepted raw-DN zone summaries plus
   DN-referred per-pixel temporal variance diagnostics. Electron-calibrated
   gain/read noise, full well, engineering dynamic range, measured ISO speed,

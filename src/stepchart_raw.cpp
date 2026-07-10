@@ -393,6 +393,12 @@ StepchartRawOracleGateDiagnostics evaluate_stepchart_raw_iso_against_oracle(
 
 void validate_stepchart_raw_iso_against_oracle(
     const StepchartRawIsoSummary& summary) {
+  // The verdict comes from the diagnostics evaluation — a single source of
+  // truth — so the serialized gate block can never disagree with the
+  // accept/reject decision. The loops below only shape the error message.
+  const auto diagnostics = evaluate_stepchart_raw_iso_against_oracle(summary);
+  if (diagnostics.passes) return;
+
   const auto vectors = oracle_gate_vectors(summary);
   const auto& green = vectors.green;
   const auto& rel_exposure = vectors.rel_exposure;
@@ -442,6 +448,11 @@ void validate_stepchart_raw_iso_against_oracle(
         "oracle exposure ladder (r=" + std::to_string(r) +
         " < 0.98); corner seed or chart-layout model is wrong");
   }
+  // The diagnostics rejected but no specific check above fired: non-finite
+  // zone means defeat NaN comparisons in the loops. Refuse anyway.
+  throw std::runtime_error(
+      "Stepchart raw gate: green zone means fail the oracle ladder gate "
+      "with non-finite diagnostics");
 }
 
 }  // namespace camera_iq

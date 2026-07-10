@@ -161,6 +161,10 @@ PatchCoord projected_roi(const Homography& h, double left, double top,
   return PatchCoord{min_x + 1.0, min_y + 1.0, max_x - min_x, max_y - min_y};
 }
 
+// No sensor is remotely this large; beyond it, rounded pixel coordinates can
+// no longer be trusted through integer narrowing in downstream ROI math.
+constexpr double kMaxRingCoordinatePx = 1.0e7;
+
 void validate_ring_seed(const StepchartRingSeed& seed, double roi_size_px) {
   if (!finite(seed.center) || !std::isfinite(seed.radius) ||
       !std::isfinite(seed.theta1_degrees)) {
@@ -168,6 +172,12 @@ void validate_ring_seed(const StepchartRingSeed& seed, double roi_size_px) {
   }
   if (!(seed.radius > 0.0)) {
     throw std::runtime_error("OECF Stepchart ring radius must be positive");
+  }
+  if (std::abs(seed.center.x) > kMaxRingCoordinatePx ||
+      std::abs(seed.center.y) > kMaxRingCoordinatePx ||
+      seed.radius > kMaxRingCoordinatePx) {
+    throw std::runtime_error(
+        "OECF Stepchart ring seed exceeds plausible sensor coordinates");
   }
   if (!std::isfinite(roi_size_px) || !(roi_size_px > 0.0)) {
     throw std::runtime_error("OECF Stepchart ring ROI size must be positive");

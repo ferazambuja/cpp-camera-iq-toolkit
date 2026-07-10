@@ -98,10 +98,17 @@ StepchartRawIsoSummary summarize_stepchart_raw_iso(
 // linearly correlated with 10^log_exposure. A corner seed that lands off the
 // physical zones — wrong position or a chart-layout model mismatch (e.g. a
 // strip model on a ring-layout ISO 14524 chart) — otherwise produces
-// confident garbage. Throws std::runtime_error naming the violated check.
+// confident garbage.
+//
+// evaluate_ returns the gate diagnostics (monotone flag, correlation, linear
+// fit, pass flag) without deciding; it throws only for malformed summaries
+// (no green plane, fewer than 3 zones).
 StepchartRawOracleGateDiagnostics evaluate_stepchart_raw_iso_against_oracle(
     const StepchartRawIsoSummary& summary);
 
+// Throwing form: refuses with a std::runtime_error naming the violated
+// check. Its verdict is evaluate_'s pass flag, so the serialized diagnostics
+// and the accept/reject decision cannot drift apart.
 void validate_stepchart_raw_iso_against_oracle(
     const StepchartRawIsoSummary& summary);
 

@@ -243,6 +243,12 @@ void TESTS() {
           "stepchart ring seed: rejects zero radius");
     check(ring_parse_throws_for("3633,2582,1341,bad"),
           "stepchart ring seed: rejects malformed theta");
+    check(ring_parse_throws_for("3633,2582,1341,-97.8,5"),
+          "stepchart ring seed: rejects too many numbers");
+    check(ring_parse_throws_for("40000000,2582,1341,-97.8"),
+          "stepchart ring seed: rejects implausibly large center");
+    check(ring_parse_throws_for("3633,2582,20000000,-97.8"),
+          "stepchart ring seed: rejects implausibly large radius");
     check(ring_throws_for(StepchartRingSeed{{3633, 2582}, 1341, -97.8}, 0.0),
           "stepchart ring seed: rejects zero ROI size");
   }

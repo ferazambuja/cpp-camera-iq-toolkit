@@ -465,5 +465,38 @@ void TESTS() {
           "oecf-stepchart cmd: --zone-ring and --zone-roi-size are recognized");
   }
 
+  {
+    const auto [code, err] =
+        run_capture({"d800_oecf_fixture", "--config", config.string(),
+                     "--oracle-dir", "Results", "--zone-ring", ""});
+    check(code == 2,
+          "oecf-stepchart cmd: empty --zone-ring value is a usage error");
+    check(err.find("--zone-ring value must not be empty") != std::string::npos,
+          "oecf-stepchart cmd: empty-ring message names the flag");
+  }
+
+  {
+    const auto [code, err] =
+        run_capture({"d800_oecf_fixture", "--config", config.string(),
+                     "--oracle-dir", "Results", "--zone-corners", ""});
+    check(code == 2,
+          "oecf-stepchart cmd: empty --zone-corners value is a usage error");
+    check(err.find("--zone-corners value must not be empty") !=
+              std::string::npos,
+          "oecf-stepchart cmd: empty-corners message names the flag");
+  }
+
+  {
+    const fs::path failed_out = root / "unwritten" / "ring_failed.json";
+    const auto [code, err] = run_capture(
+        {"d800_oecf_fixture", "--config", config.string(), "--oracle-dir",
+         "Results", "--zone-ring", "3633,2582,1341,-97.8", "--zone-roi-size",
+         "150", "--out", failed_out.string()});
+    check(code == 1,
+          "oecf-stepchart cmd: ring raw-zone failure stays fail-closed");
+    check(!fs::exists(failed_out),
+          "oecf-stepchart cmd: ring raw-zone failure writes no output JSON");
+  }
+
   fs::remove_all(root);
 }
