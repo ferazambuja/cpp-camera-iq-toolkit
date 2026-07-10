@@ -8,6 +8,7 @@
 
 #include "camera_iq/dataset_config.hpp"
 #include "camera_iq/json_writer.hpp"
+#include "camera_iq/output_file.hpp"
 #include "camera_iq/raw_meta.hpp"
 
 namespace camera_iq {
@@ -152,13 +153,12 @@ int cmd_raw_stats(int argc, char** argv) {
     write_report_json(std::cout, file_label, *report);
     std::cout << "\n";
   } else {
-    std::ofstream os(out, std::ios::binary);
-    if (!os) {
-      std::cerr << "camera_iq raw-stats: cannot write " << out << "\n";
+    if (!write_output_file_checked(
+            out, "raw-stats",
+            [&](std::ostream& os) { write_report_json(os, file_label, *report); },
+            std::cerr)) {
       return 1;
     }
-    write_report_json(os, file_label, *report);
-    os << "\n";
     std::cerr << "raw-stats written to " << out << "\n";
   }
   return 0;

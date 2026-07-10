@@ -9,6 +9,7 @@
 #include "camera_iq/color_reference.hpp"
 #include "camera_iq/dataset_config.hpp"
 #include "camera_iq/json_writer.hpp"
+#include "camera_iq/output_file.hpp"
 
 namespace camera_iq {
 namespace {
@@ -265,13 +266,14 @@ int cmd_reference_info(int argc, char** argv) {
       write_report(std::cout, dataset_id, spec, summary, pairing);
       std::cout << "\n";
     } else {
-      std::ofstream os(args.out, std::ios::binary);
-      if (!os) {
-        std::cerr << "camera_iq reference-info: cannot write " << args.out
-                  << "\n";
+      if (!write_output_file_checked(
+              args.out, "reference-info",
+              [&](std::ostream& os) {
+                write_report(os, dataset_id, spec, summary, pairing);
+              },
+              std::cerr)) {
         return 1;
       }
-      write_report(os, dataset_id, spec, summary, pairing);
       std::cerr << "reference info written to " << args.out << "\n";
     }
   } catch (const std::exception& ex) {

@@ -17,6 +17,7 @@
 #include "camera_iq/dataset_config.hpp"
 #include "camera_iq/manifest.hpp"
 #include "camera_iq/noise.hpp"
+#include "camera_iq/output_file.hpp"
 #include "camera_iq/raw_meta.hpp"
 #include "camera_iq/roi.hpp"
 
@@ -344,13 +345,12 @@ int cmd_noise(int argc, char** argv) {
       write_noise_json(std::cout, summary);
       std::cout << "\n";
     } else {
-      std::ofstream os(out, std::ios::binary);
-      if (!os) {
-        std::cerr << "camera_iq noise: cannot write " << out << "\n";
+      if (!write_output_file_checked(
+              out, "noise",
+              [&](std::ostream& os) { write_noise_json(os, summary); },
+              std::cerr)) {
         return 1;
       }
-      write_noise_json(os, summary);
-      os << "\n";
       std::cerr << "noise summary written to " << out << "\n";
     }
     return 0;

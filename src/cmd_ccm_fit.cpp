@@ -14,6 +14,7 @@
 #include "camera_iq/colorimetry.hpp"
 #include "camera_iq/dataset_config.hpp"
 #include "camera_iq/json_writer.hpp"
+#include "camera_iq/output_file.hpp"
 
 namespace camera_iq {
 namespace {
@@ -601,19 +602,20 @@ int cmd_ccm_fit(int argc, char** argv) {
                    dark_diagnostics, pairing);
       std::cout << "\n";
     } else {
-      std::ofstream os(args.out, std::ios::binary);
-      if (!os) {
-        std::cerr << "camera_iq ccm-fit: cannot write " << args.out << "\n";
+      if (!write_output_file_checked(
+              args.out, "ccm-fit",
+              [&](std::ostream& os) {
+                write_report(os, args.dataset_id, it->second, spec,
+                             camera_rgb_path, args.illuminant_spd, ref,
+                             rendered, fit, cv, baseline_all_patch_fit,
+                             baseline_cv, all_patches_with_fit_matrix,
+                             fit_set_evaluation, excluded_evaluation,
+                             args.exclude_ref_lightness_below,
+                             lightness_selection, dark_diagnostics, pairing);
+              },
+              std::cerr)) {
         return 1;
       }
-      write_report(os, args.dataset_id, it->second, spec, camera_rgb_path,
-                   args.illuminant_spd, ref, rendered, fit, cv,
-                   baseline_all_patch_fit, baseline_cv,
-                   all_patches_with_fit_matrix, fit_set_evaluation,
-                   excluded_evaluation,
-                   args.exclude_ref_lightness_below, lightness_selection,
-                   dark_diagnostics, pairing);
-      os << "\n";
       std::cerr << "CCM fit report written to " << args.out << "\n";
     }
   } catch (const std::exception& ex) {

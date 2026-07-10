@@ -7,6 +7,7 @@
 #include <optional>
 #include <string>
 
+#include "camera_iq/output_file.hpp"
 #include "camera_iq/roi.hpp"
 #include "camera_iq/spectral_response.hpp"
 
@@ -130,19 +131,18 @@ int cmd_spectral_response(int argc, char** argv) {
           response, args.raw_dir, args.dark_raw,
           args.has_roi ? args.roi : RoiRect{}, args.near_saturation_fraction);
     }
-    if (!args.out.parent_path().empty()) {
-      std::filesystem::create_directories(args.out.parent_path());
-    }
-    std::ofstream os(args.out, std::ios::binary);
-    if (!os) {
-      std::cerr << "camera_iq spectral-response: cannot write " << args.out
-                << "\n";
+    if (!write_output_file_checked(
+            args.out, "spectral-response",
+            [&](std::ostream& os) {
+              if (raw_extraction) {
+                write_spectral_raw_extraction_json(os, response,
+                                                   *raw_extraction);
+              } else {
+                write_spectral_response_json(os, response);
+              }
+            },
+            std::cerr)) {
       return 1;
-    }
-    if (raw_extraction) {
-      write_spectral_raw_extraction_json(os, response, *raw_extraction);
-    } else {
-      write_spectral_response_json(os, response);
     }
 
     // Emit the TOOLKIT-extracted SSF (dark-subtracted, saturation-guarded,
@@ -155,18 +155,17 @@ int cmd_spectral_response(int argc, char** argv) {
         return 2;
       }
       const auto& r = raw_extraction->response;
-      if (!args.ssf_csv_out.parent_path().empty())
-        std::filesystem::create_directories(args.ssf_csv_out.parent_path());
-      std::ofstream ss(args.ssf_csv_out, std::ios::binary);
-      if (!ss) {
-        std::cerr << "camera_iq spectral-response: cannot write "
-                  << args.ssf_csv_out << "\n";
+      if (!write_output_file_checked(
+              args.ssf_csv_out, "spectral-response",
+              [&](std::ostream& ss) {
+                ss << "Wavelength (nm),Red,Green,Blue\n";
+                for (std::size_t i = 0; i < r.axis_nm.size(); ++i) {
+                  ss << r.axis_nm[i] << "," << r.response_r[i] << ","
+                     << r.response_g[i] << "," << r.response_b[i] << "\n";
+                }
+              },
+              std::cerr, /*append_newline=*/false)) {
         return 1;
-      }
-      ss << "Wavelength (nm),Red,Green,Blue\n";
-      for (std::size_t i = 0; i < r.axis_nm.size(); ++i) {
-        ss << r.axis_nm[i] << "," << r.response_r[i] << "," << r.response_g[i]
-           << "," << r.response_b[i] << "\n";
       }
     }
   } catch (const std::exception& e) {

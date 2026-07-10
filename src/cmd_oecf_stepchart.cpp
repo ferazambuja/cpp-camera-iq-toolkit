@@ -20,6 +20,7 @@
 #include "camera_iq/imatest_stepchart.hpp"
 #include "camera_iq/json_writer.hpp"
 #include "camera_iq/manifest.hpp"
+#include "camera_iq/output_file.hpp"
 #include "camera_iq/raw_meta.hpp"
 #include "camera_iq/stepchart_localization.hpp"
 #include "camera_iq/stepchart_raw.hpp"
@@ -1011,27 +1012,14 @@ int cmd_oecf_stepchart(int argc, char** argv) {
                  raw_summaries);
       std::cout << "\n";
     } else {
-      if (!args.out.parent_path().empty()) {
-        std::filesystem::create_directories(args.out.parent_path());
-      }
-      std::ofstream os(args.out, std::ios::binary);
-      if (!os) {
-        std::cerr << "camera_iq oecf-stepchart: cannot write " << args.out
-                  << "\n";
-        return 1;
-      }
-      write_json(os, *dataset, groups, orphans, first_date, last_date,
-                 span_seconds, raw_geometry, args.zone_inner_fraction,
-                 raw_summaries);
-      os << "\n";
-      os.flush();
-      if (!os) {
-        // A mid-write failure (disk full, quota) must not leave a truncated
-        // JSON behind with exit 0.
-        std::cerr << "camera_iq oecf-stepchart: failed while writing "
-                  << args.out << "\n";
-        std::error_code ec;
-        std::filesystem::remove(args.out, ec);
+      if (!write_output_file_checked(
+              args.out, "oecf-stepchart",
+              [&](std::ostream& os) {
+                write_json(os, *dataset, groups, orphans, first_date, last_date,
+                           span_seconds, raw_geometry, args.zone_inner_fraction,
+                           raw_summaries);
+              },
+              std::cerr)) {
         return 1;
       }
     }

@@ -7,6 +7,7 @@
 
 #include "camera_iq/dataset_config.hpp"
 #include "camera_iq/manifest.hpp"
+#include "camera_iq/output_file.hpp"
 
 namespace camera_iq {
 
@@ -103,13 +104,14 @@ int cmd_manifest(int argc, char** argv) {
       write_manifest_json(std::cout, root_label, entries, series);
       std::cout << "\n";
     } else {
-      std::ofstream os(out, std::ios::binary);
-      if (!os) {
-        std::cerr << "camera_iq manifest: cannot write " << out << "\n";
+      if (!write_output_file_checked(
+              out, "manifest",
+              [&](std::ostream& os) {
+                write_manifest_json(os, root_label, entries, series);
+              },
+              std::cerr)) {
         return 1;
       }
-      write_manifest_json(os, root_label, entries, series);
-      os << "\n";
       std::cerr << "manifest written to " << out << "\n";
     }
     return 0;

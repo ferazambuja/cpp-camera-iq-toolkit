@@ -18,6 +18,7 @@
 #include "camera_iq/dataset_config.hpp"
 #include "camera_iq/demosaic.hpp"
 #include "camera_iq/localization_diagnosis.hpp"
+#include "camera_iq/output_file.hpp"
 #include "camera_iq/patches.hpp"
 #include "camera_iq/raw_meta.hpp"
 
@@ -678,13 +679,12 @@ int cmd_patches(int argc, char** argv) {
       comparison = compare_patch_means_to_rgb(patches, *embedded_reference_rgb);
     }
     if (!args.rgb_csv_out.empty()) {
-      std::ofstream os(args.rgb_csv_out, std::ios::binary);
-      if (!os) {
-        std::cerr << "camera_iq patches: cannot write " << args.rgb_csv_out
-                  << "\n";
+      if (!write_output_file_checked(
+              args.rgb_csv_out, "patches",
+              [&](std::ostream& os) { write_camera_rgb_csv(os, patches); },
+              std::cerr, /*append_newline=*/false)) {
         return 1;
       }
-      write_camera_rgb_csv(os, patches);
     }
 
     if (args.out.empty()) {
@@ -696,18 +696,19 @@ int cmd_patches(int argc, char** argv) {
           localization_validation);
       std::cout << "\n";
     } else {
-      std::ofstream os(args.out, std::ios::binary);
-      if (!os) {
-        std::cerr << "camera_iq patches: cannot write " << args.out << "\n";
+      if (!write_output_file_checked(
+              args.out, "patches",
+              [&](std::ostream& os) {
+                write_patch_report_json(
+                    os, file_label, coords_label, coordinate_source_format,
+                    cfa->meta, cfa->width, cfa->height, flat_label,
+                    flat_summary, applied_wb, wb_policy, patches, sample_names,
+                    comparison, reference_label, sg_geometry_report,
+                    orientation_report, localization_validation);
+              },
+              std::cerr)) {
         return 1;
       }
-      write_patch_report_json(os, file_label, coords_label,
-                              coordinate_source_format, cfa->meta, cfa->width,
-                              cfa->height, flat_label, flat_summary, applied_wb,
-                              wb_policy, patches, sample_names, comparison,
-                              reference_label, sg_geometry_report,
-                              orientation_report, localization_validation);
-      os << "\n";
       std::cerr << "patch means written to " << args.out << "\n";
     }
     if (localization_validation && !localization_validation->passes) {

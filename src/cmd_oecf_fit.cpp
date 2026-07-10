@@ -13,6 +13,7 @@
 #include "camera_iq/exposure_response.hpp"
 #include "camera_iq/manifest.hpp"
 #include "camera_iq/oecf_fit.hpp"
+#include "camera_iq/output_file.hpp"
 #include "camera_iq/raw_meta.hpp"
 
 namespace camera_iq {
@@ -146,13 +147,12 @@ int cmd_oecf_fit(int argc, char** argv) {
       write_oecf_fit_json(std::cout, root_label, fits);
       std::cout << "\n";
     } else {
-      std::ofstream os(out, std::ios::binary);
-      if (!os) {
-        std::cerr << "camera_iq oecf-fit: cannot write " << out << "\n";
+      if (!write_output_file_checked(
+              out, "oecf-fit",
+              [&](std::ostream& os) { write_oecf_fit_json(os, root_label, fits); },
+              std::cerr)) {
         return 1;
       }
-      write_oecf_fit_json(os, root_label, fits);
-      os << "\n";
       std::cerr << "OECF fit summary written to " << out << "\n";
     }
     return 0;

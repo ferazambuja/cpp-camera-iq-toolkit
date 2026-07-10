@@ -12,6 +12,7 @@
 #include "camera_iq/dataset_config.hpp"
 #include "camera_iq/exposure_response.hpp"
 #include "camera_iq/manifest.hpp"
+#include "camera_iq/output_file.hpp"
 #include "camera_iq/raw_meta.hpp"
 
 namespace camera_iq {
@@ -148,14 +149,14 @@ int cmd_exposure_response(int argc, char** argv) {
       write_exposure_response_json(std::cout, root_label, summaries);
       std::cout << "\n";
     } else {
-      std::ofstream os(out, std::ios::binary);
-      if (!os) {
-        std::cerr << "camera_iq exposure-response: cannot write " << out
-                  << "\n";
+      if (!write_output_file_checked(
+              out, "exposure-response",
+              [&](std::ostream& os) {
+                write_exposure_response_json(os, root_label, summaries);
+              },
+              std::cerr)) {
         return 1;
       }
-      write_exposure_response_json(os, root_label, summaries);
-      os << "\n";
       std::cerr << "exposure-response summary written to " << out << "\n";
     }
     return 0;

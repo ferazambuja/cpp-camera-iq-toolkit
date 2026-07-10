@@ -15,6 +15,7 @@
 #include "camera_iq/dark_calibration.hpp"
 #include "camera_iq/dataset_config.hpp"
 #include "camera_iq/manifest.hpp"
+#include "camera_iq/output_file.hpp"
 #include "camera_iq/raw_meta.hpp"
 
 namespace camera_iq {
@@ -160,14 +161,14 @@ int cmd_dark_calibration(int argc, char** argv) {
       write_dark_calibration_json(std::cout, root_label, summary);
       std::cout << "\n";
     } else {
-      std::ofstream os(out, std::ios::binary);
-      if (!os) {
-        std::cerr << "camera_iq dark-calibration: cannot write " << out
-                  << "\n";
+      if (!write_output_file_checked(
+              out, "dark-calibration",
+              [&](std::ostream& os) {
+                write_dark_calibration_json(os, root_label, summary);
+              },
+              std::cerr)) {
         return 1;
       }
-      write_dark_calibration_json(os, root_label, summary);
-      os << "\n";
       std::cerr << "dark-calibration summary written to " << out << "\n";
     }
     return 0;

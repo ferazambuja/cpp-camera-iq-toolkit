@@ -36,6 +36,7 @@ add_library(camera_iq_core STATIC
   src/toolkit.cpp
   src/filename_meta.cpp
   src/json_writer.cpp
+  src/output_file.cpp
   src/dataset_config.cpp
   src/manifest.cpp
   src/raw_meta.cpp
@@ -97,6 +98,7 @@ camera_iq_add_test(camera_iq_tests tests/test_validation.cpp)
 camera_iq_add_test(test_filename_meta tests/test_filename_meta.cpp)
 camera_iq_add_test(test_dataset_config tests/test_dataset_config.cpp)
 camera_iq_add_test(test_json_writer tests/test_json_writer.cpp)
+camera_iq_add_test(test_output_file tests/test_output_file.cpp)
 camera_iq_add_test(test_manifest_scan tests/test_manifest_scan.cpp)
 camera_iq_add_test(test_exposure_series tests/test_exposure_series.cpp)
 camera_iq_add_test(test_raw_meta tests/test_raw_meta.cpp)

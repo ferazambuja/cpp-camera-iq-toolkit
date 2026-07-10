@@ -14,6 +14,7 @@
 #include "camera_iq/dataset_config.hpp"
 #include "camera_iq/filename_meta.hpp"
 #include "camera_iq/json_writer.hpp"
+#include "camera_iq/output_file.hpp"
 #include "camera_iq/raw_meta.hpp"
 #include "camera_iq/roi.hpp"
 #include "camera_iq/sfr.hpp"
@@ -595,16 +596,15 @@ int cmd_sfr(int argc, char** argv) {
         points.push_back(std::move(point));
       }
 
-      if (!args.out.parent_path().empty()) {
-        std::filesystem::create_directories(args.out.parent_path());
-      }
-      std::ofstream os(args.out, std::ios::binary);
-      if (!os) {
-        std::cerr << "camera_iq sfr: cannot write " << args.out << "\n";
+      if (!write_output_file_checked(
+              args.out, "sfr",
+              [&](std::ostream& os) {
+                write_sfr_field_json(os, *dataset, args.raw_rel, image->meta,
+                                     *field_oracle, points);
+              },
+              std::cerr)) {
         return 1;
       }
-      write_sfr_field_json(os, *dataset, args.raw_rel, image->meta,
-                           *field_oracle, points);
       return 0;
     }
 
@@ -624,15 +624,15 @@ int cmd_sfr(int argc, char** argv) {
 
     const auto result = analyze_green_sfr(*image, roi, options);
 
-    if (!args.out.parent_path().empty()) {
-      std::filesystem::create_directories(args.out.parent_path());
-    }
-    std::ofstream os(args.out, std::ios::binary);
-    if (!os) {
-      std::cerr << "camera_iq sfr: cannot write " << args.out << "\n";
+    if (!write_output_file_checked(
+            args.out, "sfr",
+            [&](std::ostream& os) {
+              write_sfr_json(os, *dataset, args.raw_rel, image->meta, result,
+                             oracle);
+            },
+            std::cerr)) {
       return 1;
     }
-    write_sfr_json(os, *dataset, args.raw_rel, image->meta, result, oracle);
   } catch (const std::exception& e) {
     std::cerr << "camera_iq sfr: " << e.what() << "\n";
     return 1;

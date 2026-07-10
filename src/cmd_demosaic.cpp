@@ -10,6 +10,7 @@
 #include "camera_iq/dataset_config.hpp"
 #include "camera_iq/demosaic.hpp"
 #include "camera_iq/json_writer.hpp"
+#include "camera_iq/output_file.hpp"
 #include "camera_iq/raw_meta.hpp"
 
 namespace camera_iq {
@@ -180,13 +181,14 @@ int cmd_demosaic(int argc, char** argv) {
     write_report_json(std::cout, file_label, *cfa, stats);
     std::cout << "\n";
   } else {
-    std::ofstream os(out, std::ios::binary);
-    if (!os) {
-      std::cerr << "camera_iq demosaic: cannot write " << out << "\n";
+    if (!write_output_file_checked(
+            out, "demosaic",
+            [&](std::ostream& os) {
+              write_report_json(os, file_label, *cfa, stats);
+            },
+            std::cerr)) {
       return 1;
     }
-    write_report_json(os, file_label, *cfa, stats);
-    os << "\n";
     std::cerr << "demosaic summary written to " << out << "\n";
   }
   return 0;

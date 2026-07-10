@@ -12,6 +12,7 @@
 #include <vector>
 
 #include "camera_iq/json_writer.hpp"
+#include "camera_iq/output_file.hpp"
 #include "camera_iq/spectral_quality.hpp"
 
 namespace camera_iq {
@@ -151,8 +152,11 @@ int cmd_spectral_quality(int argc, char** argv) {
 
     const std::string json = os.str();
     if (!out_path.empty()) {
-      std::ofstream ofs(out_path, std::ios::binary);
-      ofs << json << "\n";
+      if (!write_output_file_checked(
+              out_path, "spectral-quality",
+              [&](std::ostream& ofs) { ofs << json; }, std::cerr)) {
+        return 1;
+      }
     } else {
       std::cout << json << "\n";
     }
