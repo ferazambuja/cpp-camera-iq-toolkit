@@ -1,13 +1,16 @@
 # camera-iq-toolkit
 
+[![CI](https://github.com/ferazambuja/cpp-camera-iq-toolkit/actions/workflows/ci.yml/badge.svg)](https://github.com/ferazambuja/cpp-camera-iq-toolkit/actions/workflows/ci.yml)
+
 A C++ toolkit for camera image-quality analysis from RAW and reference-chart data:
 RAW/CFA handling, ColorChecker patch statistics, color-correction (CCM) and ΔE,
 noise diagnostics, OECF/linearity, and reproducible CSV/JSON/Markdown reports.
 
-> **Status: early development.** This is a portfolio research project, not a
-> production ISP. Interfaces and outputs will change.
+> **Status: portfolio/research toolkit.** The implemented slices are tested and
+> documented, but this is not a production ISP or certified ISO lab suite.
+> Interfaces and outputs may still change.
 
-## What it does (planned tracks)
+## What it covers
 
 - **RAW front-end** — LibRaw unpack, black-level subtraction, hand-written demosaic,
   raw-CFA channel statistics.
@@ -32,7 +35,8 @@ noise diagnostics, OECF/linearity, and reproducible CSV/JSON/Markdown reports.
   DN-referred per-pixel temporal variance diagnostics. Electron-calibrated
   gain/read noise, full well, engineering dynamic range, measured ISO speed,
   and PRNU still need additional calibration or capture support.
-- **Reporting** — batch runner, threshold checks, CSV/JSON export, Markdown reports.
+- **Reporting** — CSV/JSON export, phase evidence reports, and deeper study
+  reports with explicit claim boundaries.
 
 ## Build
 
@@ -50,6 +54,16 @@ ctest --test-dir build --output-on-failure
 ```bash
 ./build/camera_iq --help
 
+# Public no-private-data demo using tiny synthetic fixtures:
+./build/camera_iq manifest data/samples/manifest_fixture --no-exif \
+  --out out/public_manifest_fixture.json
+```
+
+The examples below assume you have configured local private dataset roots as
+described in [Data](#data). The large RAW captures and measured references are
+not committed to this repository.
+
+```bash
 # Enumerate a dataset folder into a JSON manifest:
 #   file inventory, filename-encoded exposure metadata, LibRaw EXIF + CFA
 #   pattern, CSV shape probes, and candidate exposure series. This is a
@@ -125,9 +139,6 @@ ctest --test-dir build --output-on-failure
   --camera-rgb out/raw-flat-wb-patches.csv \
   --exclude-ref-lightness-below 25 \
   --out out/raw-flat-wb-ccm-kept-l25.json
-
-# Public no-private-data demo:
-./build/camera_iq manifest data/samples/manifest_fixture --no-exif
 ```
 
 Implemented commands: `manifest`, `raw-stats`, `demosaic`,
@@ -137,6 +148,7 @@ Implemented commands: `manifest`, `raw-stats`, `demosaic`,
 Evidence reports for completed phases live under
 [docs/reports/](docs/reports/), with the consolidated coverage map at
 [docs/reports/CAMERA_IQ_COVERAGE.md](docs/reports/CAMERA_IQ_COVERAGE.md).
+Public-release checks are listed in [docs/DATASETS.md](docs/DATASETS.md).
 
 ## Data
 
