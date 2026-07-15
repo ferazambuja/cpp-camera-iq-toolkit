@@ -154,7 +154,8 @@ Every claim above is regenerable from the raw dataset:
 
 - Manifest (RAW EXIF, CFA, **black level**, CSV shape, exposure series):
   `camera_iq manifest "<Project Camera>" --out out/clrs589_manifest.json`.
-  Regenerated after `ac5ac35`; `black_level` is now **1024** for all 480 RAF.
+  Regenerated after the raw-metadata correction; `black_level` is now **1024**
+  for all 480 RAF.
 - MAT/PRD claims (wavelength axis, scene→numbered mapping over **all 45** files,
   CSV duplicate row, Old/patch reclassification): install deps with
   `pip install -r tools/requirements.txt` (numpy, scipy), then

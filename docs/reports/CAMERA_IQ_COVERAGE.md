@@ -1,7 +1,8 @@
 # Camera IQ Coverage Report
 
 Date: 2026-07-09
-Implementation state audited before this report: through `b853e5c`
+Implementation state audited before this report: through the coverage-map
+baseline available on 2026-07-09
 Source evidence: the phase reports and archive inventories in `docs/reports/`
 
 ## Executive Verdict
