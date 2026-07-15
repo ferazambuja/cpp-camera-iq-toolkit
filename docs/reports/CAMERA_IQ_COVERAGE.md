@@ -91,7 +91,7 @@ Defensible summary:
 > parser/fixture tests, and explicit non-claim boundaries.
 
 Do not compress that into "complete ISO camera certification." The project is a
-portfolio-grade reimplementation and evidence harness, not a certified ISO lab
+technical reimplementation and evidence harness, not a certified ISO lab
 suite.
 
 ## Remaining Work, Ranked
@@ -114,7 +114,7 @@ suite.
 
 The available archives have been mined for the major objective still-camera IQ
 families they can support. The toolkit is now broad enough to present as a
-camera-IQ portfolio: color/spectral is especially deep, OECF/noise/MTF are
+camera-IQ toolkit: color/spectral is especially deep, OECF/noise/MTF are
 covered with honest scope boundaries, and the remaining gaps require either
 additional calibration evidence or new target-specific captures rather than just
 more parser work.

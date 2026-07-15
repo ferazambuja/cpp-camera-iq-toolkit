@@ -70,7 +70,7 @@ Command used:
 
 ```bash
 ./build/camera_iq ccm-fit clrs589_project_camera \
-  --illuminant-spd "data/private/datasets/clrs589_project_camera/Sphere measurments/fernando_ff2.csv" \
+  --illuminant-spd "data/private/datasets/clrs589_project_camera/Sphere measurments/sphere_ff2.csv" \
   --out /tmp/clrs589_ccm_fit_ff2.json
 ```
 
@@ -120,11 +120,11 @@ The three copied sphere SPDs give stable first-slice DeltaE76 results:
 
 | Illuminant file | White Z | Mean DeltaE76 | RMS DeltaE76 | Max DeltaE76 |
 |---|---:|---:|---:|---:|
-| `fernando_ff1.csv` | 84.180 | 7.044 | 9.661 | 39.317 |
-| `fernando_ff2.csv` | 83.504 | 7.028 | 9.643 | 39.312 |
-| `fernando_ff3.csv` | 83.358 | 7.025 | 9.640 | 39.311 |
+| `sphere_ff1.csv` | 84.180 | 7.044 | 9.661 | 39.317 |
+| `sphere_ff2.csv` | 83.504 | 7.028 | 9.643 | 39.312 |
+| `sphere_ff3.csv` | 83.358 | 7.025 | 9.640 | 39.311 |
 
-`fernando_ff1.csv` contains negative spectrometer noise beyond the SG reference
+`sphere_ff1.csv` contains negative spectrometer noise beyond the SG reference
 axis, around 991 nm. The reader ignores that unused tail and still rejects any
 negative interpolated value on the actual 380-730 nm target axis.
 
@@ -147,7 +147,7 @@ CCM command:
 
 ```bash
 ./build/camera_iq ccm-fit clrs589_project_camera \
-  --illuminant-spd "data/private/datasets/clrs589_project_camera/Sphere measurments/fernando_ff2.csv" \
+  --illuminant-spd "data/private/datasets/clrs589_project_camera/Sphere measurments/sphere_ff2.csv" \
   --camera-rgb /tmp/clrs589_raw_flat_wb_patches.csv \
   --out /tmp/clrs589_raw_flat_wb_ccm.json
 ```
@@ -190,7 +190,7 @@ Opt-in dark-patch exclusion command:
 
 ```bash
 ./build/camera_iq ccm-fit clrs589_project_camera \
-  --illuminant-spd "data/private/datasets/clrs589_project_camera/Sphere measurments/fernando_ff2.csv" \
+  --illuminant-spd "data/private/datasets/clrs589_project_camera/Sphere measurments/sphere_ff2.csv" \
   --camera-rgb /tmp/clrs589_raw_flat_wb_patches.csv \
   --exclude-ref-lightness-below 25 \
   --out /tmp/clrs589_raw_flat_wb_ccm_exclude_l25.json

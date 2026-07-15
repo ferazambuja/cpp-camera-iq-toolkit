@@ -109,7 +109,7 @@ Fit the first linear CCM with an explicit local illuminant SPD:
 
 ```bash
 ./build/camera_iq ccm-fit clrs589_project_camera \
-  --illuminant-spd "data/private/datasets/clrs589_project_camera/Sphere measurments/fernando_ff2.csv"
+  --illuminant-spd "data/private/datasets/clrs589_project_camera/Sphere measurments/sphere_ff2.csv"
 ```
 
 Extract RAW-space SG patch means with RawDigger's local coordinate export:
@@ -134,7 +134,7 @@ Extract a corrected RAW-derived RGB table for `ccm-fit`:
   --out out/raw-flat-wb-patches.json
 
 ./build/camera_iq ccm-fit clrs589_project_camera \
-  --illuminant-spd "data/private/datasets/clrs589_project_camera/Sphere measurments/fernando_ff2.csv" \
+  --illuminant-spd "data/private/datasets/clrs589_project_camera/Sphere measurments/sphere_ff2.csv" \
   --camera-rgb out/raw-flat-wb-patches.csv
 ```
 

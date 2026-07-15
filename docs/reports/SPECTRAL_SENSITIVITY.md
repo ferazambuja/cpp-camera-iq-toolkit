@@ -125,10 +125,10 @@ must not drive dataset pairing or reference selection.
 
 ## Provenance Boundaries
 
-- The camera captures are Fernando's archive captures.
-- The original DPMI-era analysis was a team effort; do not claim Fernando alone
+- The camera captures are author-captured archive data.
+- The original DPMI-era analysis was a team effort; do not claim one author alone
   performed that original analysis.
-- `spectral_v2_1.py` is legacy Gold legacy method context. A new C++ pipeline
+- `spectral_v2_1.py` is legacy method context. A new C++ pipeline
   should reimplement the method fresh.
 - `2016_Monochromator` in this report means camera spectral-sensitivity sweeps.
   It is not the SG chart reflectance reference directory named
@@ -184,7 +184,7 @@ positive 48-sample line SPD, the original legacy RGB response, normalization
 
 The second implementation slice adds toolkit-derived RAW extraction over the
 same 48 sweep CR2s plus the matched dark frame. This remains tier-1 fidelity
-evidence only: the comparison target is legacy Gold's legacy `*_mono.csv`, not an
+evidence only: the comparison target is the legacy `*_mono.csv`, not an
 independent camera spectral-sensitivity oracle.
 
 The command shape is:
@@ -251,7 +251,7 @@ legacy curve is scientifically correct.
 
 The command now also emits the toolkit-derived SSF as `Wavelength,R,G,B` CSV via
 `--ssf-csv-out`, so downstream closure and quality slices can consume the C++
-extraction directly instead of the legacy Gold `*_mono.csv`. The legacy CSV stays
+extraction directly instead of the legacy `*_mono.csv`. The legacy CSV stays
 as a tier-1 fidelity comparison target only. This distinction matters because the
 legacy `spectral_v2_1.py` path is method context, not a scientific oracle:
 

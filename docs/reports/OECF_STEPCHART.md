@@ -208,5 +208,5 @@ git diff --check
 ```
 
 The strip-seed failure is intentional and must remain fail-closed; the ring
-seed is the accepted raw-DN path. GitHub CI tracks the Stepchart hardening,
+seed is the accepted raw-DN path. The test suite tracks the Stepchart hardening,
 raw-zone gate, ring-contract, and ring-implementation commits.

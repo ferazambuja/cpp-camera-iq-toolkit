@@ -6,7 +6,7 @@ A C++ toolkit for camera image-quality analysis from RAW and reference-chart dat
 RAW/CFA handling, ColorChecker patch statistics, color-correction (CCM) and ΔE,
 noise diagnostics, OECF/linearity, and reproducible CSV/JSON/Markdown reports.
 
-> **Status: portfolio/research toolkit.** The implemented slices are tested and
+> **Status: research toolkit.** The implemented slices are tested and
 > documented, but this is not a production ISP or certified ISO lab suite.
 > Interfaces and outputs may still change.
 
@@ -35,8 +35,8 @@ noise diagnostics, OECF/linearity, and reproducible CSV/JSON/Markdown reports.
   DN-referred per-pixel temporal variance diagnostics. Electron-calibrated
   gain/read noise, full well, engineering dynamic range, measured ISO speed,
   and PRNU still need additional calibration or capture support.
-- **Reporting** — CSV/JSON export, phase evidence reports, and deeper study
-  reports with explicit claim boundaries.
+- **Reporting** — CSV/JSON export, phase evidence reports, and deeper technical
+  notes with explicit claim boundaries.
 
 ## Build
 
@@ -59,86 +59,24 @@ ctest --test-dir build --output-on-failure
   --out out/public_manifest_fixture.json
 ```
 
-The examples below assume you have configured local private dataset roots as
-described in [Data](#data). The large RAW captures and measured references are
-not committed to this repository.
+The full command surface is exercised by the test suite and documented in the
+coverage report. Real RAW validation examples use local dataset IDs configured
+outside git; large RAW captures and measured references are not committed to
+this repository.
 
 ```bash
-# Enumerate a dataset folder into a JSON manifest:
-#   file inventory, filename-encoded exposure metadata, LibRaw EXIF + CFA
-#   pattern, CSV shape probes, and candidate exposure series. This is a
-#   metadata-only pass; some makers finalize black/pitch only during unpack().
-./build/camera_iq manifest clrs589_project_camera --out out/manifest.json
-
-# Compute signed black-subtracted per-CFA-position stats for one RAW file:
+# Private-data examples use dataset IDs rather than absolute paths:
 ./build/camera_iq raw-stats --dataset clrs589_project_camera \
-  "Images/CCSG/CCSG_f9.0_1:100_ISO200_DSCF0299.RAF" \
-  --out out/raw-stats.json
-
-# Compute hand-written bilinear demosaic summary stats for one RAW file:
-./build/camera_iq demosaic --dataset clrs589_project_camera \
-  "Images/CCSG/CCSG_f9.0_1:100_ISO200_DSCF0299.RAF" \
-  --out out/demosaic.json
-
-# Reconcile metadata black against measured dark frames:
-./build/camera_iq dark-calibration clrs589_project_camera \
-  --subdir "Images/Dark Frame" \
-  --out out/dark-calibration.json
-
-# Estimate DN-only temporal noise and DSNU from matched dark-frame pairs:
-#   this is not gain/PTC/electron read noise/dynamic range.
-./build/camera_iq noise clrs589_project_camera \
-  --subdir "Images/Dark Frame" \
-  --out out/noise.json
-
-# Group black-subtracted CFA stats by detected exposure series:
-#   this is a readiness/response summary, not a final ISO OECF/PTC metric.
-./build/camera_iq exposure-response clrs589_project_camera --series-min 3 \
-  --roi 1000,1000,500,500 \
-  --out out/exposure-response.json
-
-# Fit relative-exposure sensor linearity over usable OECF points:
-#   assumes constant illumination; not ISO 14524; no PTC/noise/DR.
-./build/camera_iq oecf-fit clrs589_project_camera --series-min 3 \
-  --subdir "Images/Sphere" --series-limit 3 \
-  --roi 1000,1000,500,500 \
-  --out out/oecf-fit.json
-
-# Inspect the configured ColorChecker-SG spectral reference and pairing gate:
-./build/camera_iq reference-info clrs589_project_camera --out out/reference-info.json
-
-# Fit a first linear RGB-to-XYZ CCM under an explicit illuminant SPD:
-./build/camera_iq ccm-fit clrs589_project_camera \
-  --illuminant-spd "data/private/datasets/clrs589_project_camera/Sphere measurments/fernando_ff2.csv" \
-  --out out/ccm-fit.json
-
-# Extract RAW-space SG patch means from a RawDigger coordinate export:
-./build/camera_iq patches \
-  "Images/CCSG_f8/CCSG_f8.0_1:10_DSCF0402.RAF" \
-  --dataset clrs589_project_camera \
-  --rawdigger-csv Images/CCSG_rawdigger.csv \
-  --out out/patches.json
-
-# Extract corrected RAW patch means and feed them into the CCM fitter:
-./build/camera_iq patches \
-  "Images/CCSG_f8/CCSG_f8.0_1:10_DSCF0402.RAF" \
-  --dataset clrs589_project_camera \
-  --rawdigger-csv Images/CCSG_rawdigger.csv \
-  --flat-field-raw "Images/Sphere/Sphere_f8.0_1:1000_DSCF0387.RAF" \
-  --wb-from-flat-field \
-  --rgb-csv-out out/raw-flat-wb-patches.csv \
-  --out out/raw-flat-wb-patches.json
-./build/camera_iq ccm-fit clrs589_project_camera \
-  --illuminant-spd "data/private/datasets/clrs589_project_camera/Sphere measurments/fernando_ff2.csv" \
-  --camera-rgb out/raw-flat-wb-patches.csv \
-  --out out/raw-flat-wb-ccm.json
-
-# Optional, explicit dark-patch exclusion for flare-suspect SG patches:
-./build/camera_iq ccm-fit clrs589_project_camera \
-  --illuminant-spd "data/private/datasets/clrs589_project_camera/Sphere measurments/fernando_ff2.csv" \
-  --camera-rgb out/raw-flat-wb-patches.csv \
-  --exclude-ref-lightness-below 25 \
-  --out out/raw-flat-wb-ccm-kept-l25.json
+  "<relative/raw/file.RAF>" --out out/raw-stats.json
+./build/camera_iq sfr d800_d810_sfr_2016 \
+  --raw "<relative/slanted-edge/file.NEF>" \
+  --oracle-y-multi "<relative/imatest/file_Y_multi.csv>" \
+  --out out/sfr.json
+./build/camera_iq spectral-smi \
+  --ssf-csv "<camera-ssf.csv>" \
+  --reflectance-csv "<chart-reflectance.csv>" \
+  --illuminant-spd data/cie_d55.csv \
+  --out out/smi.json
 ```
 
 Implemented commands: `manifest`, `raw-stats`, `demosaic`,
@@ -148,7 +86,7 @@ Implemented commands: `manifest`, `raw-stats`, `demosaic`,
 Evidence reports for completed phases live under
 [docs/reports/](docs/reports/), with the consolidated coverage map at
 [docs/reports/CAMERA_IQ_COVERAGE.md](docs/reports/CAMERA_IQ_COVERAGE.md).
-Public-release checks are listed in [docs/DATASETS.md](docs/DATASETS.md).
+Selected technical deep dives with plots live under [docs/reports/](docs/reports/).
 
 ## Data
 
