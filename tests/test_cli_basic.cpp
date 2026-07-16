@@ -4,7 +4,7 @@
 #include <sstream>
 #include <string>
 
-// Minimal dependency-free test harness. Later phases can adopt a framework.
+// Minimal dependency-free test harness.
 static int failures = 0;
 
 static void check(bool condition, const std::string& name) {
@@ -30,7 +30,7 @@ int main() {
     check(rc == 0, "help command succeeds");
     check(help.find("Commands (planned)") == std::string::npos &&
               help.find("  noise") != std::string::npos,
-          "help lists implemented noise command and no planned block");
+          "help lists implemented noise command");
   }
 
   {
