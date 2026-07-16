@@ -105,7 +105,7 @@ struct RawCfaImage {
 // mosaic, black-subtracted with the effective black levels. Returns nullopt if
 // the file cannot be opened/unpacked, is not an ordinary 2x2 Bayer layout, or
 // has no Bayer `raw_image` (X-Trans, Foveon, monochrome/full-color and
-// already-demosaiced formats are unsupported this phase). Never throws.
+// already-demosaiced formats are unsupported). Never throws.
 std::optional<RawCfaReport> read_raw_cfa_stats(const std::filesystem::path& raw);
 
 // Unpacks a RAW file and returns the active Bayer mosaic as signed
