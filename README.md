@@ -73,7 +73,7 @@ this repository.
 
 Implemented commands: `manifest`, `raw-stats`, `demosaic`,
 `dark-calibration`, `noise`, `exposure-response`, `oecf-fit`,
-`oecf-stepchart`, `reference-info`, `ccm-fit`, `patches`, `spectral-response`,
+`oecf-stepchart`, `reference-info`, `ccm-fit`, `patches`, `sfr`, `spectral-response`,
 `spectral-closure`, `spectral-quality`, and `spectral-smi`.
 Evidence reports for completed phases live under
 [docs/reports/](docs/reports/), with the consolidated coverage map at
