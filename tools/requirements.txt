@@ -1,0 +1,3 @@
+# Dependencies for public helper scripts.
+# Install: pip install -r tools/requirements.txt
+openpyxl>=3.1
