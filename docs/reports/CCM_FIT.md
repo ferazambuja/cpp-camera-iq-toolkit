@@ -1,4 +1,4 @@
-# Evidence CCM Fit
+# CCM Fit Evidence Report
 
 Date: 2026-07-04
 Dataset: `clrs589_project_camera`

@@ -1,4 +1,4 @@
-# Evidence Report - Exposure Response Readiness
+# Exposure Response Readiness
 
 Date: 2026-07-03
 Tool: `camera_iq exposure-response` (this repository, v0.1.0)

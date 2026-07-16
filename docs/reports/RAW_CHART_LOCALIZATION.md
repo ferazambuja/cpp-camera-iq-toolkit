@@ -1,4 +1,4 @@
-# Evidence RAW Chart Localization
+# RAW Chart Localization
 
 Date: 2026-07-06
 Dataset: `clrs589_project_camera`
@@ -42,7 +42,7 @@ does not apply flat-field or white-balance corrections:
   --sg-corners "1242.489159,707.131935;4835.468326,692.253409;4816.545845,3254.656481;1252.609404,3220.163201" \
   --sg-corner-source "RawDigger A1/A14/J14/J1 center-derived outer corners; zero-based active-image coordinates" \
   --rawdigger-oracle-csv Images/CCSG_rawdigger.csv \
-  --out /tmp/camera_iq_rawdigger_oracle_rawdigger_oracle.json
+  --out /tmp/camera_iq_rawdigger_oracle_validation.json
 ```
 
 Exit status: `1` by design, because the hard localization gate fails. The JSON

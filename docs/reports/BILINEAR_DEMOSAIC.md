@@ -1,4 +1,4 @@
-# Evidence Report - Bilinear Demosaic
+# Bilinear Demosaic Evidence Report
 
 Date: 2026-07-02
 Tool: `camera_iq demosaic` (this repository, v0.1.0)
@@ -25,7 +25,7 @@ This slice adds the first hand-written demosaic:
   from the 21 dark frames after finding LibRaw's *scalar* `black`
   reports 0 for the X-T100. This slice instead reads the LibRaw `cblack` **tile**
   via `effective_black_levels()`, which correctly recovers the ~1024 DN pedestal
-  the scalar hides (Fuji matches the Evidence dark-frame mean of 1023.99). This is
+  the scalar hides (Fuji matches the X-T100 dark-frame mean of 1023.99). This is
   adequate for a DN-space demosaic preview, and the later dark-calibration slice
   reconciles it against the CLRS-589 X-T100 dark frames. It is still not a
   substitute for camera-by-camera dark-current/noise modeling: the Nikon D800
@@ -161,8 +161,8 @@ cmake --build build --parallel
 ctest --test-dir build --output-on-failure
 ```
 
-Current repository gate after later Evidence and data-privacy hardening:
-16/16 CTest tests passed, including public-path and sample-fixture guards.
+Current repository validation:
+16/16 CTest tests passed, including repository privacy and sample-fixture checks.
 
 ## Not Claimed
 
@@ -179,4 +179,4 @@ Current repository gate after later Evidence and data-privacy hardening:
   phase should stream per-pixel statistics instead of holding the full image.
 - **Black-level provenance.** See `DARK_CALIBRATION.md` for the CLRS-589
   dark-frame reconciliation. Camera-by-camera dark-current/noise modeling still
-  belongs to later objective-IQ phases.
+  belongs to later objective-IQ work.

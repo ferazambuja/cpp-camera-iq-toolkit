@@ -27,7 +27,7 @@ void TESTS() {
 
   // LibRaw uses filters >= 1000 for ordinary Bayer masks. Special values below
   // 1000 include 0 (full color/monochrome), 1 (16x16 Leaf), and 9 (Fuji X-Trans),
-  // none of which the Evidence 2x2 CFA stats path supports.
+  // none of which the 2x2 CFA stats path supports.
   check(is_supported_bayer_filter(0x94949494u), "filters: Bayer mask accepted");
   check(!is_supported_bayer_filter(0u), "filters: full-color/monochrome rejected");
   check(!is_supported_bayer_filter(9u), "filters: X-Trans rejected");

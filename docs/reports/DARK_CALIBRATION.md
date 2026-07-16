@@ -1,4 +1,4 @@
-# Evidence Report - Dark Calibration Reconciliation
+# Dark Calibration Reconciliation
 
 Date: 2026-07-03
 Tool: `camera_iq dark-calibration` (this repository, v0.1.0)

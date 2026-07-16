@@ -71,12 +71,12 @@ The consolidated evidence map is
 `docs/reports/CAMERA_IQ_COVERAGE.md`. Dataset-specific details are intentionally
 kept in reports rather than in this public data-policy page.
 
-## Guardrail
+## Public Repository Checks
 
 `check_public_paths` runs in CTest and fails if tracked files contain private
 absolute path prefixes such as local home or mounted-share paths.
 
 `check_sample_fixtures` also runs in CTest. It keeps public samples small and
-requires RAW-like fixtures under `data/samples/` to be tiny text placeholders
+requires RAW-like fixtures under `data/samples/` to be tiny text placeholders.
 with an explicit synthetic/not-real marker. Real RAW captures belong in
 `data/private/` or another local dataset root, not in tracked sample folders.

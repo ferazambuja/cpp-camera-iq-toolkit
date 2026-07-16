@@ -75,7 +75,7 @@ Implemented commands: `manifest`, `raw-stats`, `demosaic`,
 `dark-calibration`, `noise`, `exposure-response`, `oecf-fit`,
 `oecf-stepchart`, `reference-info`, `ccm-fit`, `patches`, `sfr`, `spectral-response`,
 `spectral-closure`, `spectral-quality`, and `spectral-smi`.
-Evidence reports for completed phases live under
+Evidence reports live under
 [docs/reports/](docs/reports/), with the consolidated coverage map at
 [docs/reports/CAMERA_IQ_COVERAGE.md](docs/reports/CAMERA_IQ_COVERAGE.md).
 
@@ -96,8 +96,8 @@ config:
   camera systems. Large RAW sets are excluded from git and referenced through
   local dataset configuration. A small sample under `data/samples/` lets
   `build → test` run with no private data.
-- CTest runs public-path and sample-fixture guards so tracked docs avoid local
-  absolute paths and tracked samples stay tiny synthetic placeholders.
+- CTest verifies that tracked docs avoid local absolute paths and that public
+  sample fixtures stay tiny synthetic placeholders.
 - See [docs/DATASETS.md](docs/DATASETS.md) for the local-cache policy.
 
 ## Method references

@@ -1,4 +1,4 @@
-# Evidence Report — Spectral Sensitivity Archive
+# Spectral Sensitivity Archive
 
 Date: 2026-07-06
 Tool: `camera_iq manifest` (this repository, v0.1.0)
@@ -529,7 +529,7 @@ ColorChecker SG.
 | Phase One IQ3 100 | 90.4 | 90.6 | 88.3 |
 
 What is robust and what is not:
-- **Endpoints are rock-solid.** Canon 5D2 is best and the Phase One IQ3 is worst
+- **Endpoint ordering is stable across the tested sets.** Canon 5D2 is best and the Phase One IQ3 is worst
   under every test set and under the Luther residual. (IQ3 run 2 gives SMI 88.4 on
   CC-18, still last.)
 - **Sony A7RII is clearly second** under all three sets.

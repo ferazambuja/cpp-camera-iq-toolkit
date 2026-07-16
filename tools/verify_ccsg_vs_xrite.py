@@ -19,10 +19,10 @@ camera capture, by:
      relative to the direct alignment; that separation is the orientation proof.
 
 All inputs are private/gitignored; this tool records the method and numbers only.
-No absolute paths are hardcoded (keeps the tracked file clean for the public-path
-guard). DeltaE76 (not DeltaE00) is used here because X-Rite ships Lab directly and
-Lab DeltaE76 is the most transparent first check; the C++ ccm-fit path reports
-DeltaE00 for the camera fit.
+No absolute paths are hardcoded, so the tracked file stays safe for public
+repository checks. DeltaE76 (not DeltaE00) is used here because X-Rite ships Lab
+directly and Lab DeltaE76 is the most transparent first check; the C++ ccm-fit
+path reports DeltaE00 for the camera fit.
 
 Usage
 -----
@@ -252,7 +252,7 @@ def main() -> int:
         return 4
 
     print("\nConclusion:")
-    print("  ccsg.xlsx is manufacturer-accurate SG reference data "
+    print("  ccsg.xlsx is manufacturer-consistent SG reference data "
           "(mean ΔE76 ~1.34 vs X-Rite nominal).")
     if geom_ok is True:
         print("  A1..N10 labels are physically correct (letter=column, number=row), "

@@ -1,4 +1,4 @@
-# Evidence Report — CLRS-589 "Project Camera" Dataset Manifest
+# Fujifilm X-T100 ColorChecker-SG Dataset Manifest
 
 Date: 2026-07-02
 Tool: `camera_iq manifest` (this repository, v0.1.0)
@@ -75,7 +75,7 @@ within 0.11, ISO exact). Filename-encoded exposure metadata is trustworthy.
    `black + cblack[color] + cblack[6 + (r%bh)*bw + (c%bw)]` and reports
    **black = 1024 DN** across all four RGGB positions. A sampled dark frame
    (`Dark_Frame_f8.0_1:1000_DSCF0437.RAF`, mean ≈ **1024 DN**, min 1005)
-   independently confirms it. The Evidence `raw-stats` and `demosaic` paths now
+   independently confirms it. The `raw-stats` and `demosaic` paths now
    subtract the LibRaw-derived pedestal directly; the 21 dark frames remain a
    cross-check, not the sole source.
 3. **`PRD_SPD_all.csv` has 46 rows for 45 measurements** — the last row is an
@@ -99,7 +99,7 @@ purpose — EXIF confirms ISO 200 across the set):
 | Validation_CC f8 | 14 | 14 |
 
 The sphere series are fixed-illumination by construction (integrating sphere),
-so **PTC/OECF feasibility is promising** — pending Phase 2/3 checks on framing
+so **PTC/OECF feasibility is promising** — pending follow-up checks on framing
 and illumination stability from the pixel data itself. The `Images/PRD` group
 is deliberately *not* a series: 23 frames all at f9, 1/30 s, ISO 200.
 
@@ -181,7 +181,7 @@ locally. The black-level logic is independently proven in CI by `test_raw_meta`
   repository; this project reprocesses the raw data with new, independently
   written code.
 
-## Status after Evidence slices
+## Current validated status
 
 Completed follow-on slices now cover:
 

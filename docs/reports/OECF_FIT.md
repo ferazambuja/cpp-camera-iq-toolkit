@@ -1,4 +1,4 @@
-# Evidence Report - Relative OECF Fit
+# Relative OECF Fit
 
 Date: 2026-07-04
 Tool: `camera_iq oecf-fit` (this repository, v0.1.0)

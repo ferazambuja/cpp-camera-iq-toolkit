@@ -10,7 +10,7 @@ type is silently ignored. When a slice needs a camera SSF, illuminant, or chart
 reflectance, take it from the row below — do not re-walk the archive.
 
 All paths are archive labels or repo-relative private labels; no absolute mount
-paths are recorded (public-path guard). Read-only: nothing here is bulk-copied.
+paths are recorded. Read-only: nothing here is bulk-copied.
 
 ## Archive roots
 
@@ -70,12 +70,13 @@ Closure uses the **2016-11-21 set 1** (Target_1 / WhiteCard_1 / DarkFrame_1,
 additional same-chart session; it must carry its own white-card/dark pairing if
 used later.
 
-## Correctness verdict
+## File-Selection Check
 
-The monochromator SSF chosen for every camera is the correct camera, correct day
-(11-21), and byte-identical to the curated authoritative file. The closure
-illuminant and SG reflectance are likewise byte-identical to the authoritative
-`Data_Collected` copies. No incorrect file is in use in any spectral slice.
+The monochromator SSF chosen for every camera matches the expected camera and
+day (11-21), and is byte-identical to the curated authoritative file. The
+closure illuminant and SG reflectance are likewise byte-identical to the
+authoritative `Data_Collected` copies. No mismatch was found among the checked
+staged files.
 
 ## Hazards (do not trip on these)
 

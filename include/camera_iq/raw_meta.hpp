@@ -66,7 +66,7 @@ std::array<double, 4> effective_black_levels(
 
 // True only for ordinary 2x2 Bayer masks represented by LibRaw's filters bitmask.
 // Special values below 1000 include full-color/monochrome, Leaf 16x16 and Fuji
-// X-Trans; Evidence raw-stats intentionally rejects those layouts.
+// X-Trans; The raw-stats command intentionally rejects those layouts.
 bool is_supported_bayer_filter(unsigned filters);
 
 // Converts LibRaw raw_pitch bytes to uint16 pixel stride. Some unpackers leave

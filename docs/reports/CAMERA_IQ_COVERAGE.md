@@ -3,12 +3,12 @@
 Date: 2026-07-09
 Implementation state audited before this report: through the coverage-map
 baseline available on 2026-07-09
-Source evidence: the phase reports and archive inventories in `docs/reports/`
+Source evidence: the evidence reports and archive inventories in `docs/reports/`
 
 ## Executive Verdict
 
-The toolkit now covers every major objective still-image IQ dimension that the
-available image archives can support with defensible evidence:
+The toolkit implements a broad set of objective still-image IQ analyses
+supported by the available image archives:
 
 - RAW front-end and CFA statistics.
 - Patch extraction, chart reference provenance, CCM fitting, and Delta E color
@@ -39,8 +39,9 @@ Current CLI verbs:
 | Spectral workflow | `spectral-response`, `spectral-closure`, `spectral-quality`, `spectral-smi` |
 | Sharpness | `sfr` |
 
-The implementation is accompanied by CTest coverage and public-path guards; the
-large RAW data and generated outputs stay in private or ignored locations.
+The implementation is accompanied by CTest coverage and repository privacy
+checks; the large RAW data and generated outputs stay in private or ignored
+locations.
 
 ## Coverage Matrix
 
@@ -48,7 +49,7 @@ large RAW data and generated outputs stay in private or ignored locations.
 |---|---|---|---|---|
 | RAW file inventory and metadata | Covered | `FUJI_XT100_CCSG_MANIFEST.md`, `SPECTRAL_SENSITIVITY.md` | Dataset scans, filename/EXIF checks, candidate exposure series, private-data labeling. | `manifest` is metadata/open-file oriented; maker black and pitch are authoritative only after unpack where needed. |
 | RAW CFA statistics | Covered | `RAW_STATS.md` | Black-subtracted per-CFA-position stats over full frames or ROIs, cross-maker regression fixtures. | Not a full ISP or rendered-image analysis. |
-| Demosaic | Covered as transparent baseline | `BILINEAR_DEMOSAIC.md` | Hand-written bilinear demosaic with synthetic and real validation validation. | Not bit-exact LibRaw parity or production demosaic quality. |
+| Demosaic | Covered as transparent baseline | `BILINEAR_DEMOSAIC.md` | Hand-written bilinear demosaic with synthetic and real validation. | Not bit-exact LibRaw parity or production demosaic quality. |
 | ColorChecker-SG reference provenance | Covered | `SG_REFERENCE_PROVENANCE.md` | Spectral reference inventory, X-Rite verification, orientation/layout checks. | Not a measured per-unit CLRS-589 SG reference. |
 | RAW patch extraction | Covered | `PATCH_EXTRACTION.md` | RawDigger coordinate extraction, flat-field/WB correction, CSV handoff to CCM, orientation checks. | RawDigger-independent replacement remains constrained by localization diagnostics. |
 | RAW chart localization | Partial but bounded | `RAW_CHART_LOCALIZATION.md` | Projective grid geometry, CLI corner input, residual diagnostics, de-biased detector arbitration. | Final RawDigger replacement stayed unresolved for the centered capture; detector was too unstable to arbitrate. |
@@ -87,7 +88,7 @@ Defensible summary:
 > spectral sensitivity with physical closure and SMI-style ranking, OECF and
 > Stepchart analysis, dark-frame noise/DSNU, DN-referred temporal-variance
 > diagnostics, and slanted-edge SFR/MTF center/field maps. Large private RAW
-> datasets stay out of git; every public result is tied to a phase report,
+> datasets stay out of git; every public result is tied to an evidence report,
 > parser/fixture tests, and explicit non-claim boundaries.
 
 Do not compress that into "complete ISO camera certification." The project is a

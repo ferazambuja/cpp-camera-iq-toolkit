@@ -1,4 +1,4 @@
-# Evidence Report - Raw CFA Statistics
+# Raw CFA Statistics
 
 Date: 2026-07-02
 Tool: `camera_iq raw-stats` (this repository, v0.1.0)
@@ -162,8 +162,8 @@ cmake --build build --parallel
 ctest --test-dir build --output-on-failure
 ```
 
-Current repository gate after later Evidence and data-privacy hardening:
-16/16 CTest tests passed, including public-path and sample-fixture guards.
+Current repository validation:
+16/16 CTest tests passed, including repository privacy and sample-fixture checks.
 
 ## Not Claimed
 

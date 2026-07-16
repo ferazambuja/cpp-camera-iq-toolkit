@@ -1,4 +1,4 @@
-# Evidence SFR / MTF
+# SFR / MTF
 
 Date: 2026-07-08
 
@@ -121,7 +121,7 @@ Verified D810 field-map plateau probe:
 | f/8 | 23 | 23 | vertical | 0.2218 | 0.1955 | true |
 | f/11 | 23 | 23 | vertical | 0.2049 | 0.1831 | true |
 
-future mode can later add an Imatest-replication path: demosaiced/luma pipeline,
+A future command mode can add an Imatest-replication path: demosaiced/luma pipeline,
 gamma/OECF handling, and an advisory absolute tolerance once the processing
 model is intentionally aligned to Imatest.
 

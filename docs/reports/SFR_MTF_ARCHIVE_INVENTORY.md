@@ -58,7 +58,7 @@ The result CSVs contain Imatest SFR fields including `MTF50`, `MTF50P`,
 readouts. These are comparison/fidelity references for a fresh C++
 implementation, not correctness oracles by themselves.
 
-## D810 SFR Oracle Contract
+## D810 Oracle Contract
 
 The first implementation slice should use the D810 50 mm aperture sweep because
 it has exact filename-keyed NEFs, per-file ROI tables, and a complete f/1.4..f/16
@@ -72,7 +72,7 @@ Use a **single Imatest batch** for any advisory comparison. The per-folder
 carry both the exact center ROI and the matching center MTF50 values. Do not mix
 the first `SFR_cypx.csv` batch with the per-file ROI tables.
 
-For the green-linear SFR trend gate, these 10-Dec center rows are the
+For the green-linear trend gate, these 10-Dec center rows are the
 coherent advisory oracle:
 
 | Aperture | Filename | Center ROI L,T,R,B | Imatest MTF50 cy/px | Edge angle deg |

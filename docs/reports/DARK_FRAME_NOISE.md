@@ -1,4 +1,4 @@
-# Evidence Report - Dark-Frame Noise Diagnostics
+# Dark-Frame Noise Diagnostics
 
 Date: 2026-07-07
 Tool: `camera_iq noise` (this repository, v0.1.0)

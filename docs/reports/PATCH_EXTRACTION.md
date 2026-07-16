@@ -1,4 +1,4 @@
-# Evidence RAW Patch Extraction
+# RAW Patch Extraction
 
 Date: 2026-07-04
 Dataset: `clrs589_project_camera`
@@ -109,7 +109,7 @@ DN, so the agreement is absolute-DN agreement, not a scale/offset artifact.
 
 ## Corner-Seeded Orientation Gate Validation
 
-The orientation orientation gate was validation-tested on the f/8 CCSG RAW using a
+The orientation gate was validated on the f/8 CCSG RAW using a
 RawDigger-derived four-corner seed. The seed was computed from the A1, A14, J14,
 and J1 patch centers and then projected back to the SG outer chart corners, so
 this is **not** an independent localization result; it verifies the command
@@ -140,10 +140,10 @@ The output reports `orientation_valid: true` and `best_orientation: "direct"`.
 
 ## RawDigger Oracle Localization Gate
 
-Task 4 added the RawDigger-oracle validation path, but the first f/8 `1:10`
+The RawDigger-oracle validation path was added, but the first f/8 `1:10`
 corner-seeded run **does not pass** the predeclared geometry gate. With corners
 derived from RawDigger A1/A14/J14/J1 centers, the command writes
-`/tmp/camera_iq_rawdigger_oracle_rawdigger_oracle.json` and exits `1` because:
+`/tmp/camera_iq_rawdigger_oracle_validation.json` and exits `1` because:
 
 - patch count: 140, pass
 - max center error: **16.449 px**, fail against the 5 px gate
@@ -250,8 +250,8 @@ cross-aperture approximation, not a measured same-aperture correction.
   those coordinates belong to the same image domain as the RAW being read.
 - `--sg-corners` removes the 140-rectangle dependency but still depends on
   caller-supplied chart corners; there is no blind chart detection yet. The
-  orientation orientation gate confirms the direct physical sweep beats flip
-  controls, but the first RawDigger-oracle RawDigger-oracle run fails the predeclared 5 px
+  orientation gate confirms the direct physical sweep beats flip
+  controls, but the first RawDigger-oracle run fails the predeclared 5 px
   center gate, so the corner-seeded path must not replace RawDigger coordinates
   in evidence reports yet.
 
