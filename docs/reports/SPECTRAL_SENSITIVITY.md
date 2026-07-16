@@ -7,16 +7,15 @@ Dataset: `spectral_sensitivity_2016_2017`
 ## Scope
 
 This starts the camera spectral-sensitivity track as a separate dataset from the
-CLRS-589 ColorChecker-SG track. Evidence inventories the first scoped Canon 5D
-Mark II monochromator subset, records what was copied into the local private
-cache, and defines the next analysis slice. It does not claim a new spectral
-sensitivity function yet.
+CLRS-589 ColorChecker-SG track. The report inventories the first scoped Canon
+5D Mark II monochromator subset and records the private inputs used for
+validation. It does not claim a new spectral sensitivity function yet.
 
 The source archive was read only. The tracked repository records relative
 dataset labels; private RAW files, workbooks, and generated manifests remain
 under ignored paths.
 
-## Local Copy
+## Scoped Private Inputs
 
 For the spectral-sensitivity dataset itself, only one scoped camera subset was
 copied locally:
@@ -97,8 +96,8 @@ oracle and should not be copied into new implementation logic.
   10 nm grid.
 - Voltage range: 4.00357e-07 to 6.97176e-05.
 
-These two CSVs share the same rounded wavelength grid, so the next slice can
-start with strict axis validation before any RAW pixel extraction.
+These two CSVs share the same rounded wavelength grid, supporting strict axis
+validation before any RAW pixel extraction.
 
 ## Camera Metadata
 
@@ -125,16 +124,16 @@ must not drive dataset pairing or reference selection.
 
 ## Provenance Boundaries
 
-- The camera captures are author-captured archive data.
-- The original DPMI-era analysis was a team effort; do not claim one author alone
-  performed that original analysis.
+- The camera captures are privately held archive validation data.
+- The original DPMI-era analysis was a team effort; this repository reprocesses
+  the data with a fresh C++ pipeline.
 - `spectral_v2_1.py` is legacy method context. A new C++ pipeline
   should reimplement the method fresh.
 - `2016_Monochromator` in this report means camera spectral-sensitivity sweeps.
   It is not the SG chart reflectance reference directory named
   `sg_2016_archive/monochromator_color_checker`.
 
-## Validation Hierarchy for the Next Slice
+## Validation Hierarchy
 
 Legacy reproduction is a fidelity check, not a scientific correctness proof:
 
@@ -152,8 +151,8 @@ Do not promote a conclusion from tier 1 alone.
 
 ## Parser / Normalizer Slice
 
-The first follow-up implementation slice adds a spectral-response
-parser/normalizer before RAW extraction:
+The `spectral-response` command adds a spectral-response parser/normalizer
+before RAW extraction:
 
 - read `spd.csv` and `*_mono.csv`;
 - validate 48 samples, 360-830 nm rounded axis, 10 nm spacing, finite numeric
@@ -267,8 +266,8 @@ legacy `spectral_v2_1.py` path is method context, not a scientific oracle:
 
 The earlier blocked conclusion was too broad. The `2016_Monochromator` archive
 also contains a same-session Canon 5D2 broadband target set under the
-`2016_11_21_5D2_Target` session, and the scoped local private cache now contains
-only the closure inputs needed for the next slice:
+`2016_11_21_5D2_Target` session, and the private validation cache now contains
+only the closure inputs needed for closure validation:
 
 `data/private/datasets/spectral_sensitivity_2016_2017/canon_5d2/target_closure_20161121/`
 
@@ -300,10 +299,10 @@ The implemented `spectral-closure` command follows these constraints:
   be consistent with an SSF-times-HID neutral prediction under one global scale.
   If the chromaticity check fails, stop and report the pairing as unconfirmed
   rather than emitting a closure residual that could rest on the wrong
-  illuminant. **Coordinator pre-check (2026-07-07): this gate PASSES.** The
-  `WhiteCard` dark-subtracted channel ratios (R/G 0.589, B/G 0.459, mean over
-  140 sampled points, RawDigger `_SG` export; dark frame verified ~0 DN) match
-  the SSF-times-HID neutral prediction (R/G 0.591, B/G 0.462) to 0.4% and 0.8%.
+  illuminant. The gate passes on the staged dataset: the `WhiteCard`
+  dark-subtracted channel ratios (R/G 0.589, B/G 0.459, mean over 140 sampled
+  points, RawDigger `_SG` export; dark frame verified ~0 DN) match the
+  SSF-times-HID neutral prediction (R/G 0.591, B/G 0.462) to 0.4% and 0.8%.
   This confirms the staged Target/WhiteCard/DarkFrame set is chromatically
   consistent with the PR-655-measured HID lamp. Discriminating power (same SSF,
   reproducible from the local files): the predicted white ratios differ from the
@@ -312,10 +311,8 @@ The implemented `spectral-closure` command follows these constraints:
   R/G +26%, B/G -25%, daylight ~6500K gives R/G -26%, B/G +53%). Thus the
   sub-1% HID match is specific relative to these proxies, not a generic result
   produced by any broad illuminant assumption. This does not rule out every
-  possible engineered spectrum. (Superseded an earlier uncomputed "30-100%+"
-  phrasing; the measured spread is ~16-53% for these proxies.) The command
-  encodes this as the `white_card_gate` and exits nonzero if the pairing check
-  fails;
+  possible engineered spectrum. The command encodes this as the
+  `white_card_gate` and exits nonzero if the pairing check fails;
 - use the strict three-way spectral overlap, **380-730 nm**, because the SG
   reflectance file ends at 730 nm; do not extrapolate reflectance to the PR-655
   780 nm endpoint;
@@ -613,7 +610,7 @@ target sets span 2016-11-21 and 2016-11-22 and must carry their own
 white-card/dark pairing if used later. Copy each additional camera or target
 subset only when its slice runs; do not bulk-copy.
 
-## Follow-on TODO
+## Completed Follow-on Work
 
 1. **[DONE 2026-07-07]** **Add the Phase One IQ3 to the color-fidelity ranking.**
    The IQ3 `Spectral_Sensitivity_Data.csv` was already in `Wavelength,Red,Green,

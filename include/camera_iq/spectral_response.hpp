@@ -75,7 +75,7 @@ struct SpectralRawExtraction {
   SpectralFidelityComparison tier1_legacy_fidelity;
 };
 
-// Parses legacy Gold legacy monochromator outputs and the corresponding line-SPD
+// Parses legacy monochromator outputs and the corresponding line-SPD
 // sidecar. The returned response is a fidelity reference only; it is not a
 // toolkit-derived camera spectral sensitivity function.
 SpectralResponse parse_spectral_response(

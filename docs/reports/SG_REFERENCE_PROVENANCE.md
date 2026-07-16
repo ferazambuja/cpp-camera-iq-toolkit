@@ -12,8 +12,8 @@ provenance and numbers only, not the data.
 The CLRS-589 spectroradiometry inside the project folder is **neutral-only**: a
 grayscale luminance ramp (`Old/`, 15 steps) and a Perfect Reflecting Diffuser
 (`PRD measurments/`, 45 readings), under two distinct illuminant conditions. That
-project folder still has no measured colored-patch SG reference. However, local
-course documents contain a compatible 2019 ColorChecker-SG workbook:
+project folder still has no measured colored-patch SG reference. However,
+archived reference workbooks include a compatible 2019 ColorChecker-SG workbook:
 `ccsg.xlsx`, sheet `ccsg_2_FIXED_ref`, with 140 cell-labeled spectral
 reflectances (380-730 nm @ 10 nm). Its native workbook order is
 `A1, B1, ... N1, A2, ... N10` and aligns strongly with the CLRS-589 camera
@@ -57,7 +57,7 @@ Build pipeline confirmed by `Old/load_all.m` + `PRD measurments/create_single_fi
 | Row 16 = mean(prd_1, prd_2), not a chart patch | mean of `prd_{1,2}.mat` XYZ vs xlsx row 16 | max\|Δ\| = **4.55e-13**; no `patch_16*` file exists |
 | Camera order ≠ reference order | corr(camera green[:16], reference Y[:16]) | **−0.07**, ratio CV 126% |
 | `ccsg.xlsx` copies are identical | SHA-256 across 2020 HW12, 2020 HW13, 2022 CSCI-631 copies | **8c067562f16f8340b4d980e787703e250915d6c8d7b0f769c7e6154c3998a52a** |
-| Additional course workbooks checked | original `all_1nm_data.xlsx` copies in 2020 HW12/HW13, 2021 CLRS-820, and 2022 CSCI-631 | CMF/illuminant/course support data; not a 140-patch SG reference and not a replacement for `ccsg.xlsx` |
+| Additional reference workbooks checked | original `all_1nm_data.xlsx` copies in related archive folders | CMF/illuminant support data; not a 140-patch SG reference and not a replacement for `ccsg.xlsx` |
 | `ccsg.xlsx` shape/order | openpyxl read of `ccsg_2_FIXED_ref` | 140 rows × 40 columns; labels `A1,B1,...N1,A2,...N10`; 36 spectral bands, 380-730 nm @ 10 nm |
 | `ccsg.xlsx` order matches camera extraction | corr(`ccsg_matlab.csv` green, workbook luminance proxies) | L*-proxy **0.915**, Y-proxy **0.972**, 550/560-nm proxy **0.963** |
 | RawDigger and MATLAB extraction agree | corr(`CCSG_rawdigger.csv` Gavg, `ccsg_matlab.csv` green) in current row order | **0.99984** for f/8 `1:10`; confirms RawDigger values are faithful to the MATLAB patch order |

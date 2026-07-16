@@ -21,8 +21,8 @@ This slice adds the first hand-written demosaic:
 - Input CFA samples are copied after LibRaw `unpack()`, cropped to
   `sizes.width` / `sizes.height`, and black-subtracted with the same effective
   per-position black levels used by `raw-stats`.
-- **Black-level source (deviation from the Evidence plan).** Evidence anticipated
-  deriving black from the 21 dark frames after finding LibRaw's *scalar* `black`
+- **Black-level source.** An earlier manifest pass anticipated deriving black
+  from the 21 dark frames after finding LibRaw's *scalar* `black`
   reports 0 for the X-T100. This slice instead reads the LibRaw `cblack` **tile**
   via `effective_black_levels()`, which correctly recovers the ~1024 DN pedestal
   the scalar hides (Fuji matches the Evidence dark-frame mean of 1023.99). This is
@@ -131,17 +131,6 @@ This slice adds the first hand-written demosaic:
 `raw2image_ex(1)` followed by `lin_interpolate()`, with matching dimensions on
 all three files above. Because LibRaw's image buffer is unsigned, this tool's
 signed residuals are clipped to zero for the comparison only.
-
-Build command used locally:
-
-```bash
-c++ -std=c++20 -Iinclude $(pkg-config --cflags libraw) \
-  tools/libraw_bilinear_compare.cpp build/libcamera_iq_core.a \
-  $(pkg-config --libs libraw) -o /tmp/libraw_bilinear_compare
-```
-
-On this macOS/Homebrew machine, the compile also needed the local libomp include
-and library paths from `brew --prefix libomp`.
 
 | File | Mean abs diff R/G/B | Max abs diff R/G/B |
 |---|---:|---:|

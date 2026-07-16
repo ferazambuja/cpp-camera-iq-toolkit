@@ -39,7 +39,7 @@ void TESTS() {
       "clrs589_project_camera": {
         "root": ")json" + (root / "clrs").string() + R"json(",
         "description": "CLRS fixture",
-        "capture_project": "CLRS-589 Project Camera",
+        "capture_project": "camera_iq_project_camera_archive",
         "capture_year": "2020",
         "timeline_note": "different project timelines",
         "color_reference": {
@@ -51,7 +51,7 @@ void TESTS() {
           "source_sheet": "ccsg_2_FIXED_ref",
           "selection_basis": "project_provenance_not_camera_date",
           "source": "compatible_2019_ccsg_workbook",
-          "reference_project": "CLRS-601 Homework 12 compatible CCSG workbook",
+          "reference_project": "compatible ColorChecker-SG spectral workbook",
           "reference_year": "2019",
           "physical_chart_identity": "compatible_reference_not_proven_same_physical_chart",
           "illuminant": "not_applicable_reflectance",

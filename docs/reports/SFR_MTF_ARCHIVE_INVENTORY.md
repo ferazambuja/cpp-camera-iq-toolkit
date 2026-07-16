@@ -94,20 +94,20 @@ because Imatest's own repeated batch differs materially on some apertures
 (for example f/1.8 center is 0.1215 in the first batch and 0.0899 in the
 10-Dec per-file batch).
 
-The per-file tables also expose 23 ROIs per aperture. SFR should use only
-the center ROI above; the field-sweep ROIs are useful for a later field-MTF
-phase, not for the first single-edge implementation gate.
+The per-file tables also expose 23 ROIs per aperture. The center-ROI sweep and
+the 23-ROI field maps are reported separately so the single-edge aperture trend
+and field behavior do not get conflated.
 
-SFR toolkit orientation convention: the center ROI is processed as a
-near-vertical edge (edge-position x as a function of y), with measured edge
-angles around -6.3 degrees. Avoid describing this ROI as "horizontal" in future
-prompts; that shorthand mismatches the actual green-plane detector convention.
+Toolkit orientation convention: the center ROI is processed as a near-vertical
+edge (edge-position x as a function of y), with measured edge angles around
+-6.3 degrees. Describing this ROI as "horizontal" mismatches the actual
+green-plane detector convention.
 
 ## Field-MTF Slice
 
-SFR center SFR and the follow-on field-MTF slice are complete for the D810
-50 mm sweep. `camera_iq sfr --field-map` now processes all 23 per-aperture ROIs
-from a single per-file `_Y_multi.csv` table:
+Center SFR and field MTF are complete for the D810 50 mm sweep.
+`camera_iq sfr --field-map` processes all 23 per-aperture ROIs from a single
+per-file `_Y_multi.csv` table:
 
 1. The `_Y_multi.csv` parser reads all 23 rows, preserving the row number,
    region (`Center`, `Corner`, `Pt Way`), direction label, edge ID, full-frame

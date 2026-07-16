@@ -78,7 +78,7 @@ large RAW data and generated outputs stay in private or ignored locations.
 | 2016 esensi D810/D800 SFR | Center and field SFR/MTF, aperture trend gates, Imatest `_Y_multi.csv` oracle comparisons. |
 | 2016 D800 OECF Stepchart | Imatest oracle parsing, raw ring-zone extraction, DN-referred per-pixel temporal variance diagnostics. |
 
-## What We Can Say Publicly
+## Public Summary
 
 Defensible summary:
 
@@ -94,7 +94,7 @@ Do not compress that into "complete ISO camera certification." The project is a
 technical reimplementation and evidence harness, not a certified ISO lab
 suite.
 
-## Remaining Work, Ranked
+## Known Gaps
 
 1. **Calibration-backed electron PTC/DR** — highest scientific gap, but requires
    calibration evidence beyond the current DN-domain Stepchart fits: electron

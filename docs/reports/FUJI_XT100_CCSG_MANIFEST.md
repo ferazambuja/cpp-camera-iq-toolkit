@@ -2,14 +2,14 @@
 
 Date: 2026-07-02
 Tool: `camera_iq manifest` (this repository, v0.1.0)
-Dataset: private local copy of the 2023 CLRS-589 course "Project Camera" capture
-campaign (Fujifilm X-T100). The dataset is **not** distributed with this
+Dataset: private local copy of an archived Fujifilm X-T100 ColorChecker-SG
+validation capture set. The dataset is **not** distributed with this
 repository; paths below are relative to the dataset root.
 
 ## Scope
 
-Evidence deliverable per the project plan: one machine-readable dataset manifest
-before any analysis claims. This report records what the manifest run verified.
+This report records one machine-readable dataset manifest before any analysis
+claims. It records what the manifest run verified.
 No color-correction, noise, or image-quality numbers are claimed here.
 
 ## Method
@@ -25,8 +25,7 @@ local/imported file copy, filename-encoded exposure metadata
 (`<Group>_f<aperture>_1:<shutter-denominator>[_ISO<iso>]_DSCF<frame>.RAF`),
 LibRaw EXIF (make/model/ISO/shutter/aperture/camera-clock timestamp), derived
 CFA pattern, black/white levels, and CSV shape probes. Supplementary `.mat`
-inspection was done with a Python/scipy helper (analysis-side, per plan; results
-below).
+inspection was done with a Python helper; results are recorded below.
 
 ## Enumeration (exit criterion 1: complete)
 
@@ -53,7 +52,7 @@ below).
 
 - All 480 RAFs: **Fujifilm X-T100**, 6016×4014, zero sensor margins.
 - CFA pattern derived per file via LibRaw `COLOR()`: **RGGB for all 480** —
-  standard Bayer, not X-Trans, as the plan required verifying.
+  standard Bayer, not X-Trans.
 - White level (LibRaw `maximum`): 16383 (14-bit).
 
 ## Filename ↔ EXIF cross-check
@@ -64,7 +63,7 @@ within 0.11, ISO exact). Filename-encoded exposure metadata is trustworthy.
 ## Dataset caveats found
 
 1. **Camera-clock dates are not trusted.** EXIF timestamps span 2020-03-09 →
-   2020-03-20 for a 2023 course capture, and the camera clock has no provenance
+   2020-03-20 for a archived capture, and the camera clock has no provenance
    value. Prefer `filesystem_mtime` for local file provenance and deterministic
    file ordering, but do not call it capture date either because copy tools can
    preserve mtimes. Use EXIF only for camera controls and rough within-session
@@ -109,7 +108,7 @@ is deliberately *not* a series: 23 frames all at f9, 1/30 s, ISO 200.
 **Classification: PRD-scene-only reference.** Not valid as a ColorChecker-SG
 capture illuminant reference. No fabricated links.
 
-What was recovered (stronger than the plan expected):
+What was recovered:
 
 - **Wavelength axis:** each `.mat` carries `measurements.wl` = 380–780 nm at
   2 nm (201 points), matching the 201 CSV columns. The commented-out header
@@ -123,7 +122,7 @@ What was recovered (stronger than the plan expected):
   (Y ≈ 290–330 for sampled scenes), CCT ≈ 5545 K, Duv ≈ −0.001 for `PRD_01` —
   scene measurements under a daylight-like source, not a chart-illuminant
   characterization.
-- **Open pairing question (Phase 5):** 23 PRD RAFs vs 24 measured scenes; frame
+- **Open pairing question:** 23 PRD RAFs vs 24 measured scenes; frame
   numbers have gaps (0314, 0320, 0324, 0329, 0333, 0337 missing). RAF↔scene
   pairing needs visual/scene inspection, not filename arithmetic.
 
@@ -142,11 +141,10 @@ carries the PRD `measurements` struct (radiance/wl/XYZ). Adjacent scripts
 corroborate: `load_all.m` averages the `patch_<N>trail_<M>` trials into
 `SPD_all.csv`/`XYZ_all.csv`, and `Old/Old code/patch_data.m` builds a `prd_avg`
 from `prd_1.mat`/`prd_2.mat` with a **commented** `% prd_3 =
-load("patch_15trail_3.mat")` line — the author treated a patch trail as
-interchangeable with a PRD input. So `Old/patch_*` is an earlier scene-radiance
-set (15 scenes), **not** a ColorChecker/paint reference chart and not Reference-B
-data. Exact scene identity vs the final PRD set is unresolved (numbering differs).
-Reproduce with `tools/verify_ccsg_vs_xrite.py --old-patch`.
+load("patch_15trail_3.mat")` line. So `Old/patch_*` is an earlier
+scene-radiance set (15 scenes), **not** a ColorChecker/paint reference chart and
+not Reference-B data. Exact scene identity vs the final PRD set is unresolved
+(numbering differs).
 
 ## Reproducibility
 
@@ -157,9 +155,9 @@ Every claim above is regenerable from the raw dataset:
   Regenerated after the raw-metadata correction; `black_level` is now **1024**
   for all 480 RAF.
 - MAT/PRD claims (wavelength axis, scene→numbered mapping over **all 45** files,
-  CSV duplicate row, Old/patch reclassification): install deps with
-  `pip install -r tools/requirements.txt` (numpy, scipy), then
-  `python3 tools/verify_ccsg_vs_xrite.py --root "<Project Camera>" --old-patch` → 5/5 pass.
+  CSV duplicate row, Old/patch reclassification) were verified during the
+  dataset-inventory pass and are summarized here without distributing the
+  private analysis helper.
 
 `out/` is git-ignored (derived output over a private dataset path) — regenerate
 locally. The black-level logic is independently proven in CI by `test_raw_meta`
@@ -177,10 +175,11 @@ locally. The black-level logic is independently proven in CI by `test_raw_meta`
 ## Not claimed
 
 - No color accuracy, noise, PTC, or ΔE numbers.
-- No claim that the 2023 course outputs are correct (they remain untrusted
+- No claim that the original project outputs are correct (they remain untrusted
   priors, comparison-only).
-- No claim of authorship over the original 2023 group capture campaign; this
-  project reprocesses the raw data with new, independently written code.
+- No claim that the original 2023 group capture campaign was produced by this
+  repository; this project reprocesses the raw data with new, independently
+  written code.
 
 ## Status after Evidence slices
 

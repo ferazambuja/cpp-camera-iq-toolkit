@@ -3,10 +3,10 @@
   "datasets": {
     "clrs589_project_camera": {
       "root": "data/private/datasets/clrs589_project_camera",
-      "description": "Fujifilm X-T100 ColorChecker-SG / dark / flat / sphere / validation captures",
-      "capture_project": "CLRS-589 Project Camera",
+      "description": "Fujifilm X-T100 ColorChecker-SG / dark / flat / sphere validation archive",
+      "capture_project": "camera_iq_project_camera_archive",
       "capture_year": "2020",
-      "timeline_note": "Capture and reference are different course/project timelines; use project provenance, not camera EXIF dates.",
+      "timeline_note": "Capture and reference provenance are explicit; do not infer pairing from camera EXIF dates.",
       "_reference_note": "Local CLRS-589 spectroradiometry is neutral-only, but a compatible 2019 ColorChecker-SG spectral-reflectance workbook can be used for the colored CCM/deltaE demo when copied locally. Keep all private/reference files under data/private/references/ and document whether each reference is official nominal, compatible standard, representative measured, or exact per-unit.",
       "sg_chart_edition": "after_nov2014 | before_nov2014 (set to match the physical chart)",
       "manufacturer_sg_lab_ref": "path/to/manufacturer_SG_Lab_<edition>.csv (external; provide in datasets.local.json)",
@@ -19,7 +19,7 @@
         "source_sheet": "ccsg_2_FIXED_ref",
         "selection_basis": "project_provenance_not_camera_date",
         "source": "compatible_2019_ccsg_workbook",
-        "reference_project": "CLRS-601 Homework 12 compatible CCSG workbook",
+        "reference_project": "compatible ColorChecker-SG spectral workbook",
         "reference_year": "2019",
         "physical_chart_identity": "compatible_reference_not_proven_same_physical_chart",
         "illuminant": "not_applicable_reflectance",
@@ -44,8 +44,8 @@
       "capture_project": "2016/2017 camera spectral-sensitivity archive",
       "capture_year": "2016/2017",
       "timeline_note": "Use project/archive provenance, not camera EXIF dates. This dataset is camera spectral-sensitivity sweep data, not ColorChecker-SG chart reflectance.",
-      "_provenance_note": "Captures are Fernando's archive captures; the original 2017 DPMI analysis was a team effort. Treat spectral_v2_1.py as legacy Gold legacy method context and reimplement fresh in C++.",
-      "_copy_policy": "Do not bulk-copy the full archive by default. Keep the archive read-only and copy only the scoped camera subset, dark frames, SPD sidecars, and metadata needed for the current slice.",
+      "_provenance_note": "Treat historical scripts and CSVs as method/fidelity context, not independent correctness oracles.",
+      "_copy_policy": "Do not bulk-copy the full archive by default. Keep the archive read-only and copy only the scoped camera subset, dark frames, SPD sidecars, and metadata needed for a run.",
       "_reference_note": "Do not confuse this camera-sensitivity dataset with data/private/references/sg_2016_archive/monochromator_color_checker, which is SG chart reflectance reference data."
     },
     "canon_5d2_repro": {
@@ -57,7 +57,7 @@
       "description": "Nikon D800 OECF/noise-chart archive mirror",
       "capture_project": "2016 esensi OECF / Stepchart archive",
       "capture_year": "2016",
-      "_copy_policy": "Stage the scoped NEF/TIFF files plus the per-group Imatest Results/*_summary.csv files needed for the Stepchart oracle slice. Do not commit private RAW/TIFF/summary outputs.",
+      "_copy_policy": "Stage only the scoped NEF/TIFF files plus the per-group Imatest Results/*_summary.csv files needed for local validation. Do not commit private RAW/TIFF/summary outputs.",
       "_archive_note": "Canonical archive label: archive:2016_esensi_images/2016_12_10_D800_OECF. The Stepchart summaries live under Results/ and include rendered Imatest luma Y tables; they are not raw CFA OECF data."
     },
     "d800_d810_sfr_2016": {
@@ -65,7 +65,7 @@
       "description": "Nikon D800/D810 slanted-edge SFR/MTF archive subset",
       "capture_project": "2016 esensi SFR archive",
       "capture_year": "2016",
-      "_copy_policy": "Do not bulk-copy by default. Stage only the scoped NEF(s) and Imatest result CSVs needed for an SFR/MTF implementation slice.",
+      "_copy_policy": "Do not bulk-copy by default. Stage only the scoped NEF(s) and Imatest result CSVs needed for local validation.",
       "_archive_note": "Canonical archive labels: archive:2016_esensi_images/2016_12_09_D800_SFR, archive:2016_esensi_images/2016_12_09_D810_SFR, and archive:2016_esensi_images/SFR_Results. Mirror the 2016_esensi_images umbrella under this root so command paths stay subdirectory-relative. This is not part of the CLRS589 Fuji dataset."
     }
   }

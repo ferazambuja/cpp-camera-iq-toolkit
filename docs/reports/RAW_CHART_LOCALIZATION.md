@@ -17,7 +17,7 @@ not independence from RawDigger.
 
 ## Predeclared Gates
 
-These gates were committed in the plan before this real-data run:
+These gates were defined before this real-data run:
 
 | Gate | Hard threshold |
 |---|---:|
@@ -147,7 +147,7 @@ global shift. Mean `dx_px` is near zero at columns A/N, but reaches about
 
 The toolkit now emits a diagnostics-only `model_comparison` block under
 `localization_validation`. It does not revise the predeclared 5 px gate and it
-does not promote any candidate to the production coordinate path. The comparison
+does not promote any candidate to the default coordinate path. The comparison
 is run against regenerated `center_residuals` from the same f/8 `1:10` command
 above, using spatial holdouts rather than fitted RMS alone.
 
@@ -230,7 +230,7 @@ not enough: the generated grid keeps the SG tonal ordering and the patch means
 remain close, but the ROI centers are too far from the RawDigger oracle to claim
 coordinate replacement under the predeclared 5 px gate.
 
-Do not mark the corner-seeded SG grid as the production replacement for
+Do not mark the corner-seeded SG grid as the default replacement for
 RawDigger rectangles yet. The residual evidence narrows the mismatch: it is not
 a coordinate-origin convention error, not a simple global shift, and not
 uncorrelated manual jitter. The corner-pinned homography agrees at the four
@@ -239,15 +239,14 @@ especially the middle columns. That is consistent with a model mismatch such as
 lens distortion, a different chart/cell geometry assumption, or RawDigger's
 rectangle placement following a non-projective warp.
 
-The next slice should diagnose that systematic interior bow before any
-threshold change:
+Any threshold change should first diagnose that systematic interior bow:
 
 - improve the independent RAW center detector until its repeatability is a
   usable pixel-scale noise floor and its dual seedings agree, or use a separate
   off-center/multi-position capture to break the centered-chart confound;
 - keep the existing radial and affine rows as held-out baselines, not skipped
   dead ends;
-- only then decide whether the production path needs lens-distortion
+- only then decide whether the default path needs lens-distortion
   compensation, a different chart/cell geometry model, a different
   corner-estimation method, or a separately justified pre-run gate revision.
 
@@ -256,7 +255,7 @@ threshold change:
 - Validation is scoped to the f/8 CCSG `1:10` RAW and uncorrected RGB means.
 - The available RawDigger oracle export covers only
   `CCSG_f8.0_1:10_DSCF0402.RAF`. Other CLRS-589 CCSG RAW exposures exist in the
-  local private cache, but this slice has no matching per-frame RawDigger oracle
+  private validation cache, but this slice has no matching per-frame RawDigger oracle
   export or off-center capture proof to use for disambiguation.
 - The f/9 CCSG series still lacks a usable same-aperture flat-field frame.
 - The color reference remains a compatible 2019 SG spectral reference, not a

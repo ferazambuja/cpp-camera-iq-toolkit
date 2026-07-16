@@ -22,21 +22,13 @@ noise diagnostics, OECF/linearity, and reproducible CSV/JSON/Markdown reports.
   parsed as camera spectral-sensitivity datasets rather than ColorChecker
   references. Legacy script outputs are fidelity checks, not correctness
   oracles.
-- **Objective IQ metrics** — dark-frame temporal noise / DSNU diagnostics;
-  OECF/linearity (CLRS exposure-response fits plus a D800 Imatest Stepchart
-  oracle path); slanted-edge SFR/MTF as green-linear center-ROI and 23-ROI
-  field maps for the D810 and D800 archives, hard-gated on offset-independent
-  aperture trends with per-file Imatest `_Y_multi.csv` values as advisory
-  references; and seeded Stepchart raw-zone paths (strip corners or ring
-  center/radius/angle) guarded by an empirical oracle-ladder gate. The D800
-  OECF chart turned out to be an ISO 14524-style ring layout, so the 20x1
-  strip model refuses on that archive;
-  the measured ring seed produces accepted raw-DN zone summaries plus
-  DN-referred per-pixel temporal variance diagnostics. Electron-calibrated
-  gain/read noise, full well, engineering dynamic range, measured ISO speed,
-  and PRNU still need additional calibration or capture support.
-- **Reporting** — CSV/JSON export, phase evidence reports, and deeper technical
-  notes with explicit claim boundaries.
+- **Objective IQ metrics** — dark-frame temporal noise / DSNU diagnostics,
+  OECF/linearity, slanted-edge SFR/MTF center and field maps, and D800 Stepchart
+  raw-zone summaries guarded by oracle-ladder checks. Electron-calibrated
+  gain/read noise, full well, engineering dynamic range, measured ISO speed, and
+  PRNU still need additional calibration or capture support.
+- **Reporting** — CSV/JSON export and concise evidence reports with explicit
+  claim boundaries.
 
 ## Build
 
@@ -86,7 +78,6 @@ Implemented commands: `manifest`, `raw-stats`, `demosaic`,
 Evidence reports for completed phases live under
 [docs/reports/](docs/reports/), with the consolidated coverage map at
 [docs/reports/CAMERA_IQ_COVERAGE.md](docs/reports/CAMERA_IQ_COVERAGE.md).
-Selected technical deep dives with plots live under [docs/reports/](docs/reports/).
 
 ## Data
 
@@ -101,9 +92,9 @@ config:
 - Public docs and JSON labels use stable dataset IDs such as
   `clrs589_project_camera` and `spectral_sensitivity_2016_2017`, never
   machine-specific absolute paths.
-- All captures used by the author were shot by the author on DSLR, mirrorless,
-  and medium-format camera systems; large RAW sets are kept out of git for size
-  and reproducibility, not licensing. A small sample under `data/samples/` lets
+- The private validation datasets include DSLR, mirrorless, and medium-format
+  camera systems. Large RAW sets are excluded from git and referenced through
+  local dataset configuration. A small sample under `data/samples/` lets
   `build → test` run with no private data.
 - CTest runs public-path and sample-fixture guards so tracked docs avoid local
   absolute paths and tracked samples stay tiny synthetic placeholders.

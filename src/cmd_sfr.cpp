@@ -38,7 +38,7 @@ void usage() {
       << "Usage: camera_iq sfr <dataset-root-or-id> --raw REL "
          "(--edge-roi x,y,w,h | --oracle-y-multi REL) [--out FILE] "
          "[--config FILE] [--near-saturation-fraction F] [--field-map]\n"
-      << "SFR: green-linear, single explicit ROI slanted-edge SFR/MTF. "
+      << "Green-linear slanted-edge SFR/MTF for an explicit center ROI or field map. "
          "Imatest _Y_multi data is advisory only. --field-map processes every "
          "ROI row in a single _Y_multi file.\n";
 }

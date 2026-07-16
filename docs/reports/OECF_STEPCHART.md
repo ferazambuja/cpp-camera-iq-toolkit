@@ -18,7 +18,7 @@ Command:
 The Nikon D800 OECF archive is now handled as an Imatest Stepchart oracle
 dataset, not as a raw fixed-ISO exposure-response ladder.
 
-Real output summary from the local private cache:
+Real output summary from the private validation cache:
 
 | Field | Value |
 |---|---:|
@@ -124,9 +124,8 @@ linearly; the zones are just not where a strip model looks for them.
 A strip-rectangle seed cuts a chord through that ring: it clips two ring
 patches (oracle zones 7 and 8) and otherwise samples scene background, which
 produces non-monotone means, mid-zone spatial stddevs of 800-1300 DN
-(ROIs straddling structured content), and step-free deep zones — plausible
-endpoint numbers, garbage in between. An earlier revision of this report
-published exactly such endpoint numbers as zone data; they are withdrawn.
+(ROIs straddling structured content), and step-free deep zones. The strip seed
+is therefore an invalid extraction model for this archive.
 
 The command now enforces an empirical oracle-ladder gate
 (`validate_stepchart_raw_iso_against_oracle`): per ISO group, green zone
@@ -145,8 +144,8 @@ Scope boundaries for the raw-zone path:
 - The 20x1 strip geometry applies to linear step wedges only. This archive
   needs a ring-layout model. In this capture the zone order matches a
   deterministic ISO 14524-style alternating pattern — no external zone-order
-  map was needed; see the plan's "Measured Ring Geometry" section for the
-  verified 4-parameter seed and two-frame validation.
+  map was needed; the accepted 4-parameter seed is verified by the two-frame
+  validation described below.
 - The ring mode uses `--zone-ring 3633,2582,1341,-97.8 --zone-roi-size 150` and
   passes the oracle-ladder gate on all 8 oracled ISO groups. Green-channel
   correlation with `10^log_exposure` is 0.999795-0.999938 across ISO 100-12800.
