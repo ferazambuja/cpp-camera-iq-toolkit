@@ -5,10 +5,12 @@
 #include <filesystem>
 #include <fstream>
 #include <iomanip>
+#include <map>
 #include <sstream>
 #include <stdexcept>
 #include <string>
 
+#include "camera_iq/dataset_config.hpp"
 #include "harness.hpp"
 
 namespace fs = std::filesystem;
@@ -19,6 +21,7 @@ using camera_iq::RoiRect;
 using camera_iq::discover_spectral_sweep_files;
 using camera_iq::extract_raw_spectral_response;
 using camera_iq::parse_spectral_response;
+using camera_iq::read_dataset_config;
 using camera_iq::write_spectral_raw_extraction_json;
 using camera_iq::write_spectral_response_json;
 using test::check;
@@ -146,6 +149,45 @@ std::vector<RawCfaImage> synthetic_sweep_with_one_clipped_r_pixel(
   return images;
 }
 
+fs::path repo_root_for_optional_private_data() {
+  fs::path source_root = fs::current_path();
+  if (!fs::exists(source_root / "configs")) {
+    source_root = source_root.parent_path();
+  }
+  return source_root;
+}
+
+fs::path optional_real_5d2_subset_root() {
+  const fs::path source_root = repo_root_for_optional_private_data();
+  const fs::path config = source_root / "configs/datasets.local.json";
+  if (fs::exists(config)) {
+    try {
+      const auto datasets = read_dataset_config(config);
+      const auto it = datasets.find("spectral_sensitivity_2016_2017");
+      if (it != datasets.end()) {
+        const fs::path direct_subset =
+            it->second.root / "2016_11_21_5D2_Monochromator_OK";
+        if (fs::exists(direct_subset / "2016_11_21_5D2_mono.csv") &&
+            fs::exists(direct_subset / "spd.csv")) {
+          return direct_subset;
+        }
+        const fs::path staged_subset =
+            it->second.root / "canon_5d2/2016_11_21_5D2_Monochromator_OK";
+        if (fs::exists(staged_subset / "2016_11_21_5D2_mono.csv") &&
+            fs::exists(staged_subset / "spd.csv")) {
+          return staged_subset;
+        }
+      }
+    } catch (const std::runtime_error&) {
+      // Optional private-data validation should not make public CI depend on a
+      // local config file being present and readable.
+    }
+  }
+  return source_root /
+         "data/private/datasets/spectral_sensitivity_2016_2017/canon_5d2/"
+         "2016_11_21_5D2_Monochromator_OK";
+}
+
 }  // namespace
 
 void TESTS() {
@@ -223,13 +265,7 @@ void TESTS() {
   check(throws_parse(response, root / "negative_spd.csv"),
         "spectral response: negative SPD voltage rejected");
 
-  fs::path source_root = fs::current_path();
-  if (!fs::exists(source_root / "data")) {
-    source_root = source_root.parent_path();
-  }
-  const fs::path real_root = source_root /
-      "data/private/datasets/spectral_sensitivity_2016_2017/canon_5d2/"
-      "2016_11_21_5D2_Monochromator_OK";
+  const fs::path real_root = optional_real_5d2_subset_root();
   const fs::path real_response = real_root / "2016_11_21_5D2_mono.csv";
   const fs::path real_spd = real_root / "spd.csv";
   if (fs::exists(real_response) && fs::exists(real_spd)) {

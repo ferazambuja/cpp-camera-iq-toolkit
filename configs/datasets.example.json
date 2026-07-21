@@ -1,5 +1,5 @@
 {
-  "_comment": "Copy to datasets.local.json (gitignored). Keep RAW files under data/private/datasets/<dataset_id>/ or point roots at your own local mirrors. Public docs should use dataset IDs, not absolute machine paths.",
+  "_comment": "Copy to datasets.local.json (gitignored). Roots may point at local gitignored caches or mounted private archives. Public docs should use dataset IDs, not absolute machine paths.",
   "datasets": {
     "clrs589_project_camera": {
       "root": "data/private/datasets/clrs589_project_camera",

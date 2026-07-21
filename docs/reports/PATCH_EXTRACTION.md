@@ -226,7 +226,7 @@ ceiling and preserve spatial variation. The command now rejects
 ceiling for correction`.
 
 Same-aperture flat coverage is not available for the f/9 CCSG series in the
-local cache. The f/9 sphere folder contains 13 frames (`1:10` through `1:180`);
+private dataset. The f/9 sphere folder contains 13 frames (`1:10` through `1:180`);
 all 13 are rejected by the near-ceiling guard, including the shortest
 exposure, `Sphere_f9.0_1:180_DSCF0400.RAF`. The f/8 folder has usable
 same-aperture candidates (`1:500`, two `1:1000` frames, and `1:1600`). This

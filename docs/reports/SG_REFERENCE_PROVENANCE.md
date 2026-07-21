@@ -3,9 +3,10 @@
 Date: 2026-07-04
 Purpose: establish what colorimetric ground truth exists for the SG color slice
 (white balance -> CCM -> DeltaE) before broadening the color pipeline beyond the
-first linear CCM. All source data is private and gitignored
-(`data/private/datasets/clrs589_project_camera/`); this report records
-provenance and numbers only, not the data.
+first linear CCM. All source data is private and gitignored. Heavy image
+captures are read through the configured private dataset root; small
+sidecar/reference files may remain local. This report records provenance and
+numbers only, not the data.
 
 ## Summary
 
@@ -35,7 +36,7 @@ exact per-unit chart ground truth unless that identity is proven.
 | Neutral ramp reference (XYZ, derived) | `Old/Patches_XYZ.xlsx`, `Old/XYZ_all.csv` | same 16 rows | neutral | absolute XYZ, CIE 1931 2° |
 | Ramp trials | `Old/{1 to 6,7 to 9,10 to 15}/patch_Ntrail_M.mat` | steps **1–15** | neutral | spectroradiometer `measurements{wl,radiance,XYZ,totalRadiance,CCT,Duv}` |
 | PRD (white ref) | `Old/prd/prd_{1,2}.mat`; `PRD measurments/PRD_NN.mat` (+`PRD_SPD_all.csv`,`XYZ_all.csv`) | 2 + 45 readings | neutral | Perfect Reflecting Diffuser radiance/XYZ |
-| Illuminant SPD | `Sphere measurments/sphere_ff{1,2,3}.csv` | 3 | — | integrating-sphere spectral radiance (W/m²·µm·sr) |
+| Illuminant SPD | `Sphere measurments/fernando_ff{1,2,3}.csv` | 3 | — | integrating-sphere spectral radiance (W/m²·µm·sr) |
 | Camera measurement | `Images/ccsg_matlab.csv` | **140 patches** | colored | linear camera RGB (dark-subtracted + sphere vignette-corrected) |
 | Camera measurement (alt) | `Images/CCSG_rawdigger.csv` (A1… labels), `ccsg_matlab_dark_frame_corrected.csv` | 140 | colored | RawDigger export / dark-corrected |
 | Compatible colored SG reference | `data/private/references/ccsg_2019_workbook/ccsg.xlsx`, sheet `ccsg_2_FIXED_ref`; exported to `ccsg_2_FIXED_ref.csv` | **140 patches** | colored | spectral reflectance, 380-730 nm @ 10 nm, cell-labeled A1..N10 |

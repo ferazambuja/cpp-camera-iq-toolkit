@@ -26,8 +26,8 @@ data/private/datasets/clrs589_project_camera/Images/ccsg_matlab.csv
 `camera_iq patches` can now emit a corrected RAW-derived 140-row RGB table via
 `--rgb-csv-out`; the MATLAB table remains the historical baseline input.
 
-The illuminant is supplied explicitly from the local copied sphere measurements;
-it is not inferred from EXIF or camera dates.
+The illuminant is supplied explicitly from the private sphere-measurement
+sidecars; it is not inferred from EXIF or camera dates.
 
 The reference and capture are cross-timeline by design: the colored SG
 reflectance comes from the compatible 2019 CLRS-601 workbook, while the Fuji
@@ -70,7 +70,8 @@ Command used:
 
 ```bash
 ./build/camera_iq ccm-fit clrs589_project_camera \
-  --illuminant-spd "data/private/datasets/clrs589_project_camera/Sphere measurments/sphere_ff2.csv" \
+  --config configs/datasets.local.json \
+  --illuminant-spd "data/private/datasets/clrs589_project_camera/Sphere measurments/fernando_ff2.csv" \
   --out /tmp/clrs589_ccm_fit_ff2.json
 ```
 
@@ -120,11 +121,11 @@ The three copied sphere SPDs give stable first-slice DeltaE76 results:
 
 | Illuminant file | White Z | Mean DeltaE76 | RMS DeltaE76 | Max DeltaE76 |
 |---|---:|---:|---:|---:|
-| `sphere_ff1.csv` | 84.180 | 7.044 | 9.661 | 39.317 |
-| `sphere_ff2.csv` | 83.504 | 7.028 | 9.643 | 39.312 |
-| `sphere_ff3.csv` | 83.358 | 7.025 | 9.640 | 39.311 |
+| `fernando_ff1.csv` | 84.180 | 7.044 | 9.661 | 39.317 |
+| `fernando_ff2.csv` | 83.504 | 7.028 | 9.643 | 39.312 |
+| `fernando_ff3.csv` | 83.358 | 7.025 | 9.640 | 39.311 |
 
-`sphere_ff1.csv` contains negative spectrometer noise beyond the SG reference
+`fernando_ff1.csv` contains negative spectrometer noise beyond the SG reference
 axis, around 991 nm. The reader ignores that unused tail and still rejects any
 negative interpolated value on the actual 380-730 nm target axis.
 
@@ -136,6 +137,7 @@ Patch table command:
 ./build/camera_iq patches \
   "Images/CCSG_f8/CCSG_f8.0_1:10_DSCF0402.RAF" \
   --dataset clrs589_project_camera \
+  --config configs/datasets.local.json \
   --rawdigger-csv Images/CCSG_rawdigger.csv \
   --flat-field-raw "Images/Sphere/Sphere_f8.0_1:1000_DSCF0387.RAF" \
   --wb-from-flat-field \
@@ -147,7 +149,8 @@ CCM command:
 
 ```bash
 ./build/camera_iq ccm-fit clrs589_project_camera \
-  --illuminant-spd "data/private/datasets/clrs589_project_camera/Sphere measurments/sphere_ff2.csv" \
+  --config configs/datasets.local.json \
+  --illuminant-spd "data/private/datasets/clrs589_project_camera/Sphere measurments/fernando_ff2.csv" \
   --camera-rgb /tmp/clrs589_raw_flat_wb_patches.csv \
   --out /tmp/clrs589_raw_flat_wb_ccm.json
 ```
@@ -190,7 +193,8 @@ Opt-in dark-patch exclusion command:
 
 ```bash
 ./build/camera_iq ccm-fit clrs589_project_camera \
-  --illuminant-spd "data/private/datasets/clrs589_project_camera/Sphere measurments/sphere_ff2.csv" \
+  --config configs/datasets.local.json \
+  --illuminant-spd "data/private/datasets/clrs589_project_camera/Sphere measurments/fernando_ff2.csv" \
   --camera-rgb /tmp/clrs589_raw_flat_wb_patches.csv \
   --exclude-ref-lightness-below 25 \
   --out /tmp/clrs589_raw_flat_wb_ccm_exclude_l25.json
@@ -218,9 +222,9 @@ RAW patch extraction path now has explicit flat-field/WB provenance and can feed
 the same CCM fitter as the historical MATLAB table.
 
 The corrected RAW-patch validation is intentionally scoped to the f/8 CCSG capture.
-The local f/9 sphere set has 13 frames from `1:10` through `1:180`, and every
+The private f/9 sphere set has 13 frames from `1:10` through `1:180`, and every
 frame is rejected by the flat-field near-ceiling guard. There is no usable
-same-aperture f/9 sphere flat in the local cache. Applying the f/8 flat to f/9
+same-aperture f/9 sphere flat in the private dataset. Applying the f/8 flat to f/9
 CCSG frames would be a labeled cross-aperture approximation, not the evidence
 used for this result.
 

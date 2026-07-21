@@ -331,7 +331,7 @@ The implemented `spectral-closure` command follows these constraints:
   computed and reviewed. Do not tune the RAW extraction to improve closure.
 
 Canon 5D2 Target set 1 tier-3 closure result using the toolkit-derived SSF
-(`out/spectral_response_5d2_toolkit_ssf.csv`, fresh challenged run, with
+(`out/spectral_response_5d2_toolkit_ssf.csv`, fresh verified run, with
 same-session dark sidecar subtraction):
 
 ```bash
@@ -582,10 +582,10 @@ SMI caveats (honest scope):
   absolute SMI scale but not the ranking (a positive affine map).
 - **Reproducibility.** The `spectral-smi` command and its unit tests are fully
   reproducible from the committed repo (synthetic fixtures + committed D50/D55).
-  The five-camera *numbers* depend on the private measured reflectances (CC-24 /
-  SG) and per-camera SSFs under `data/private`, so they are not regenerable from
-  the public tree alone. Both committed daylight illuminants are white-point-
-  verified by generator scripts.
+  The five-camera *numbers* depend on private measured reflectances (CC-24 /
+  SG) and per-camera SSFs supplied through configured private dataset roots, so
+  they are not regenerable from the public tree alone. Both committed daylight
+  illuminants are white-point-verified by generator scripts.
 - **Mixed SSF sources / cross-timeline**, exactly as the Luther table: Canon uses
   the toolkit extraction, the rest legacy; the IQ3 is the 2017 camSPECS SSF. SMI,
   like Luther, is a per-camera SSF property, so this is valid for ranking.
@@ -620,7 +620,7 @@ subset only when its slice runs; do not bulk-copy.
 1. **[DONE 2026-07-07]** **Add the Phase One IQ3 to the color-fidelity ranking.**
    The IQ3 `Spectral_Sensitivity_Data.csv` was already in `Wavelength,Red,Green,
    Blue` form — no conversion needed — so `spectral-quality` runs on it directly
-   (the SSF is scoped-copied to `data/private/.../iq3_100_2017camspec/`). Added as
+   (the SSF is supplied through the private spectral archive root). Added as
    rank 5 above (combined residual 0.348 run 1 / 0.336 run 2, worst of the five).
    The medium-format back has the highest CMF-fit residual of the set.
 2. **[DONE 2026-07-07]** **Upgrade from the Luther CMF-fit proxy to the CIE

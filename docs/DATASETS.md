@@ -3,9 +3,13 @@
 RAW captures and generated outputs are private working data. They are not part
 of the public repository.
 
-## Local Private Cache
+## Private Dataset Roots
 
-Use this gitignored layout for local mirrors:
+Private data can live in a local gitignored cache or in mounted archive folders.
+The checked-in example uses relative `data/private/...` roots because they are
+safe placeholders, not because the heavy captures must be copied into this repo.
+
+Typical local-cache layout:
 
 ```text
 data/private/datasets/
@@ -19,9 +23,9 @@ data/private/references/
 ```
 
 Copy `configs/datasets.example.json` to `configs/datasets.local.json` and point
-each dataset ID at the matching local mirror. The checked-in example uses
-relative `data/private/...` roots so public docs never need machine-specific
-paths.
+each dataset ID at the matching private root. On this machine, the heavy RAW /
+TIFF datasets can point at mounted archive roots while small CSV/XLSX/reference
+sidecars remain under `data/private/...`.
 
 ## Public References
 
