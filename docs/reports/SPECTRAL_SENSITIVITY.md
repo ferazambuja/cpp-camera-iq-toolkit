@@ -269,9 +269,11 @@ legacy `spectral_v2_1.py` path is method context, not a scientific oracle:
 ## Tier-3 Feasibility Check
 
 The earlier blocked conclusion was too broad. The `2016_Monochromator` archive
-also contains a same-session Canon 5D2 broadband target set under
-`Data_Collected/Canon 5D Mk II/Target/`, plus the shared illuminant and chart
-reflectance files under `Data_Collected/Light Source/` and
+also contains a same-session Canon 5D2 broadband target set: the RAW frames
+live in the top-level `2016_11_21_5D2_Target/` session folder, their per-frame
+patch-extraction sidecars are mirrored under
+`Data_Collected/Canon 5D Mk II/Target/`, and the shared illuminant and chart
+reflectance files sit under `Data_Collected/Light Source/` and
 `Data_Collected/Color Checker/`. No local staged closure cache is required.
 
 | Input | Archive file | Verified role |
