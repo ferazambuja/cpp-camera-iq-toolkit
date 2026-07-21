@@ -27,9 +27,9 @@ subset is:
 | Derived manifest | `out/spectral_sensitivity_5d2_20161121_manifest.json` |
 
 No local RAW cache is required for the current workflow. Earlier validation used
-a scoped 57-file local cache; the same 57 files are now read directly from the
-archive-mounted dataset root. This remains intentionally narrower than a bulk
-mirror of the full archive.
+temporary 57-file local staging; the same 57 files are now read directly from
+the archive-mounted dataset root. This remains intentionally narrower than a
+bulk mirror of the full archive.
 
 Derived manifests remain gitignored under `out/`. No RAW, workbook, PDF, or
 generated manifest is intended for commit.
@@ -347,7 +347,7 @@ MONO="<archive-2016-monochromator>"
   --dark-rgb "$MONO/Data_Collected/Canon 5D Mk II/Target/2016_11_21_5D2_Target_1_DarkFrame_0118_CR2_SG.txt" \
   --camera-model "Canon EOS 5D Mark II" \
   --dataset-id spectral_sensitivity_2016_2017 \
-  --archive-subset "Data_Collected/Canon 5D Mk II/Target/2016-11-21 set 1" \
+  --archive-subset "2016_11_21_5D2_Target set 1 (Data_Collected sidecars)" \
   --out out/spectral_closure_5d2_20161121.json
 ```
 
@@ -427,7 +427,7 @@ the generalized `discover_spectral_sweep_files`). Distinguish reproducibility:
   runs confirm the ranking is stable across legacy-vs-toolkit SSFs (combined
   residuals 0.297 / 0.297 / 0.309, unchanged at the reported precision from the
   legacy `mono.csv` values), but those toolkit SSF artifacts are **not retained
-  in the local cache**. The committed local closure pipeline for these three
+  as local artifacts**. The committed local closure pipeline for these three
   still uses legacy SSFs until the archive-backed toolkit CSVs and closure JSONs
   are regenerated and kept under ignored `out/`.
 
