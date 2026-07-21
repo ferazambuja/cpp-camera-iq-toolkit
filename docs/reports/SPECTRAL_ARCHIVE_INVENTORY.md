@@ -58,7 +58,17 @@ byte-identical. No wrong-camera or wrong-day file is in use.
 
 ## Target capture sessions (closure broadband captures)
 
-Per camera, `Data_Collected/<camera>/Target/` holds RawDigger ROI sidecars for
+Per camera, the top-level 11-21 target session folder holds the broadband RAW
+captures plus same-named ROI sidecars:
+
+| Camera | RAW/session folder | Files verified |
+|---|---|---:|
+| Canon 5D2 | `archive:2016_Monochromator/2016_11_21_5D2_Target/` | 15 RAW + 30 TXT sidecars |
+| Nikon D810 | `archive:2016_Monochromator/2016_11_21_D810_Target/` | 15 RAW + 30 TXT sidecars |
+| Sony A7RII | `archive:2016_Monochromator/2016_11_21_A7R2_Target/` | 15 RAW + 30 TXT sidecars |
+| Sony A7SII | `archive:2016_Monochromator/2016_11_21_A7S2_Target/` | 15 RAW + 30 TXT sidecars |
+
+`Data_Collected/<camera>/Target/` holds the curated RawDigger ROI sidecars for
 **two** Target sessions, `2016-11-21` and `2016-11-22`, each with numbered
 Target / WhiteCard / DarkFrame captures and two sidecar flavors:
 
