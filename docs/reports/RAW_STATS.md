@@ -5,6 +5,8 @@ Tool: `camera_iq raw-stats` (this repository, v0.1.0)
 Dataset: private local RAW captures: CLRS-589 "Project Camera" for the Fuji
 validation run, plus local Canon CR2 and Nikon NEF files for cross-maker regression.
 Source RAW files are not distributed with this repository.
+Commands using dataset IDs require a local `configs/datasets.local.json` that
+points those IDs at private data or an archive mount.
 
 ## Scope
 

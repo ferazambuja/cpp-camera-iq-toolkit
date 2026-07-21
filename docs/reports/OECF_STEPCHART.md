@@ -9,6 +9,7 @@ Command:
 ```bash
 ./build/camera_iq oecf-stepchart \
   d800_oecf_2016 \
+  --config configs/datasets.local.json \
   --oracle-dir Results \
   --out out/d800_oecf_stepchart_oracle.json
 ```
@@ -18,7 +19,7 @@ Command:
 The Nikon D800 OECF archive is now handled as an Imatest Stepchart oracle
 dataset, not as a raw fixed-ISO exposure-response ladder.
 
-Real output summary from the private validation cache:
+Real output summary from the configured private dataset:
 
 | Field | Value |
 |---|---:|
@@ -38,7 +39,8 @@ the rendered-luminance oracle axis.
 
 ## Archive Shape
 
-The private cache mirrors `2016_12_10_D800_OECF` as:
+The `d800_oecf_2016` dataset points at the `2016_12_10_D800_OECF` archive
+directory and contains:
 
 - 94 NEF files.
 - 8 `Results/*_summary.csv` Imatest Stepchart summaries.
@@ -188,16 +190,19 @@ Local verification after implementation:
 cmake --build build --parallel
 ctest --test-dir build --output-on-failure
 ./build/camera_iq oecf-stepchart d800_oecf_2016 \
+  --config configs/datasets.local.json \
   --oracle-dir Results \
   --out out/d800_oecf_stepchart_oracle.json
 # The strip seed refuses on this ring-layout archive (exit 1, gate message):
 ./build/camera_iq oecf-stepchart d800_oecf_2016 \
+  --config configs/datasets.local.json \
   --oracle-dir Results \
   --zone-corners "2240,1830;6260,1830;6260,2122;2240,2122" \
   --zone-inner-fraction 1 \
   --out out/d800_oecf_stepchart_raw_zone.json
 # The accepted ring seed writes raw-DN zone summaries:
 ./build/camera_iq oecf-stepchart d800_oecf_2016 \
+  --config configs/datasets.local.json \
   --oracle-dir Results \
   --zone-ring "3633,2582,1341,-97.8" \
   --zone-roi-size 150 \

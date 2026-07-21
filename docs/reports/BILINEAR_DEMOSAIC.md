@@ -4,6 +4,8 @@ Date: 2026-07-02
 Tool: `camera_iq demosaic` (this repository, v0.1.0)
 Dataset: private local RAW captures used only for validation. Source RAW files
 are not distributed with this repository.
+Commands using dataset IDs require a local `configs/datasets.local.json` that
+points those IDs at private data or an archive mount.
 
 ## Scope
 

@@ -15,29 +15,31 @@ The source archive was read only. The tracked repository records relative
 dataset labels; private RAW files, workbooks, and generated manifests remain
 under ignored paths.
 
-## Scoped Private Inputs
+## Archive-Mounted Inputs
 
-For the spectral-sensitivity dataset itself, only one scoped camera subset was
-copied locally:
+The spectral-sensitivity dataset is intended to run from the read-only archive
+root configured as `spectral_sensitivity_2016_2017`. The first scoped camera
+subset is:
 
 | Role | Location |
 |---|---|
 | Archive label | `archive:2016_Monochromator/2016_11_21_5D2_Monochromator_OK` |
-| Local private cache | `data/private/datasets/spectral_sensitivity_2016_2017/canon_5d2/2016_11_21_5D2_Monochromator_OK/` |
 | Derived manifest | `out/spectral_sensitivity_5d2_20161121_manifest.json` |
 
-Copy result: 57 files, 1.09 GB transferred. This is intentionally not a bulk
+No local RAW cache is required for the current workflow. Earlier validation used
+a scoped 57-file local cache; the same 57 files are now read directly from the
+archive-mounted dataset root. This remains intentionally narrower than a bulk
 mirror of the full archive.
 
-The private cache and derived manifest are gitignored (`data/private/` and
-`out/`). No RAW, workbook, PDF, or generated manifest is intended for commit.
+Derived manifests remain gitignored under `out/`. No RAW, workbook, PDF, or
+generated manifest is intended for commit.
 
 ## Manifest Run
 
 ```bash
 ./build/camera_iq manifest spectral_sensitivity_2016_2017 \
   --config configs/datasets.local.json \
-  --subdir canon_5d2/2016_11_21_5D2_Monochromator_OK \
+  --subdir 2016_11_21_5D2_Monochromator_OK \
   --out out/spectral_sensitivity_5d2_20161121_manifest.json
 # scanned 57 files; exif read for 50/50 raw files; 0 exposure-series candidates
 ```
@@ -165,16 +167,17 @@ before RAW extraction:
 The command shape is:
 
 ```bash
+SUBSET="<archive-2016-monochromator>/2016_11_21_5D2_Monochromator_OK"
 ./build/camera_iq spectral-response \
-  --response-csv "<local-subset>/2016_11_21_5D2_mono.csv" \
-  --spd-csv "<local-subset>/spd.csv" \
+  --response-csv "$SUBSET/2016_11_21_5D2_mono.csv" \
+  --spd-csv "$SUBSET/spd.csv" \
   --camera-model "Canon EOS 5D Mark II" \
   --dataset-id spectral_sensitivity_2016_2017 \
-  --archive-subset canon_5d2/2016_11_21_5D2_Monochromator_OK \
+  --archive-subset 2016_11_21_5D2_Monochromator_OK \
   --out out/spectral_response_5d2_20161121.json
 ```
 
-On the local Canon 5D2 subset this emits 48 samples, axis 360-830 nm, a
+On the Canon 5D2 archive subset this emits 48 samples, axis 360-830 nm, a
 positive 48-sample line SPD, the original legacy RGB response, normalization
 `legacy_peak_channel_normalized_green_1_no_rescale`, and
 `validation_tier: "legacy_fidelity_only"`.
@@ -189,14 +192,15 @@ independent camera spectral-sensitivity oracle.
 The command shape is:
 
 ```bash
+SUBSET="<archive-2016-monochromator>/2016_11_21_5D2_Monochromator_OK"
 ./build/camera_iq spectral-response \
-  --response-csv "<local-subset>/2016_11_21_5D2_mono.csv" \
-  --spd-csv "<local-subset>/spd.csv" \
+  --response-csv "$SUBSET/2016_11_21_5D2_mono.csv" \
+  --spd-csv "$SUBSET/spd.csv" \
   --camera-model "Canon EOS 5D Mark II" \
   --dataset-id spectral_sensitivity_2016_2017 \
-  --archive-subset canon_5d2/2016_11_21_5D2_Monochromator_OK \
-  --raw-dir "<local-subset>/raw" \
-  --dark-raw "<local-subset>/2016_11_21_5D2_mono_DARK_FRAME_0640.CR2" \
+  --archive-subset 2016_11_21_5D2_Monochromator_OK \
+  --raw-dir "$SUBSET/raw" \
+  --dark-raw "$SUBSET/2016_11_21_5D2_mono_DARK_FRAME_0640.CR2" \
   --ssf-csv-out out/spectral_response_5d2_toolkit_ssf.csv \
   --out out/spectral_response_5d2_raw_20161121.json
 ```
@@ -265,13 +269,12 @@ legacy `spectral_v2_1.py` path is method context, not a scientific oracle:
 ## Tier-3 Feasibility Check
 
 The earlier blocked conclusion was too broad. The `2016_Monochromator` archive
-also contains a same-session Canon 5D2 broadband target set under the
-`2016_11_21_5D2_Target` session, and the private validation cache now contains
-only the closure inputs needed for closure validation:
+also contains a same-session Canon 5D2 broadband target set under
+`Data_Collected/Canon 5D Mk II/Target/`, plus the shared illuminant and chart
+reflectance files under `Data_Collected/Light Source/` and
+`Data_Collected/Color Checker/`. No local staged closure cache is required.
 
-`data/private/datasets/spectral_sensitivity_2016_2017/canon_5d2/target_closure_20161121/`
-
-| Input | Local file | Verified role |
+| Input | Archive file | Verified role |
 |---|---|---|
 | Target RAW | `2016_11_21_5D2_Target_1_Target_0116.CR2` | Canon EOS 5D Mark II, EF50mm f/2.5 Compact Macro, ISO 100, 1/200 s, f/5.6, 50 mm, 5616 x 3744 |
 | White RAW | `2016_11_21_5D2_Target_1_WhiteCard_0117.CR2` | Same camera/lens/exposure metadata as target |
@@ -293,19 +296,19 @@ The implemented `spectral-closure` command follows these constraints:
   session, standard SSF-plus-known-light design). That the `Target` ColorChecker
   frames were actually shot under that HID lamp is inferred, not documented. The
   closure slice must verify it via a white-card cross-check before using the
-  target patches. Because no measured white-card reflectance is staged here,
+  target patches. Because no measured white-card reflectance is available here,
   this is an illuminant-pairing / chromaticity sanity gate, not the physical
   closure result: the `WhiteCard` frame's dark-subtracted channel ratios should
   be consistent with an SSF-times-HID neutral prediction under one global scale.
   If the chromaticity check fails, stop and report the pairing as unconfirmed
   rather than emitting a closure residual that could rest on the wrong
-  illuminant. The gate passes on the staged dataset: the `WhiteCard`
+  illuminant. The gate passes on the archive-mounted dataset: the `WhiteCard`
   dark-subtracted channel ratios (R/G 0.589, B/G 0.459, mean over 140 sampled
   points, RawDigger `_SG` export; dark frame verified ~0 DN) match the
   SSF-times-HID neutral prediction (R/G 0.591, B/G 0.462) to 0.4% and 0.8%.
-  This confirms the staged Target/WhiteCard/DarkFrame set is chromatically
+  This confirms the Target/WhiteCard/DarkFrame set is chromatically
   consistent with the PR-655-measured HID lamp. Discriminating power (same SSF,
-  reproducible from the local files): the predicted white ratios differ from the
+  reproducible from the archive files): the predicted white ratios differ from the
   HID result by roughly 16-53% under the tested broad proxy set (equal energy
   plus 2856K, 5000K, and 6500K blackbodies; examples: tungsten ~2856K gives
   R/G +26%, B/G -25%, daylight ~6500K gives R/G -26%, B/G +53%). Thus the
@@ -332,16 +335,17 @@ Canon 5D2 Target set 1 tier-3 closure result using the toolkit-derived SSF
 same-session dark sidecar subtraction):
 
 ```bash
+MONO="<archive-2016-monochromator>"
 ./build/camera_iq spectral-closure \
   --ssf-csv out/spectral_response_5d2_toolkit_ssf.csv \
-  --illuminant data/private/datasets/spectral_sensitivity_2016_2017/canon_5d2/target_closure_20161121/PR655_HID_avg.txt \
-  --reflectance data/private/datasets/spectral_sensitivity_2016_2017/canon_5d2/target_closure_20161121/SGMeasurements_CGATS.txt \
-  --target-rgb data/private/datasets/spectral_sensitivity_2016_2017/canon_5d2/target_closure_20161121/2016_11_21_5D2_Target_1_Target_0116_CR2_SG.txt \
-  --white-rgb data/private/datasets/spectral_sensitivity_2016_2017/canon_5d2/target_closure_20161121/2016_11_21_5D2_Target_1_WhiteCard_0117_CR2_SG.txt \
-  --dark-rgb data/private/datasets/spectral_sensitivity_2016_2017/canon_5d2/target_closure_20161121/2016_11_21_5D2_Target_1_DarkFrame_0118_CR2_SG.txt \
+  --illuminant "$MONO/Data_Collected/Light Source/PR655_HID_avg.txt" \
+  --reflectance "$MONO/Data_Collected/Color Checker/SGMeasurements_CGATS.txt" \
+  --target-rgb "$MONO/Data_Collected/Canon 5D Mk II/Target/2016_11_21_5D2_Target_1_Target_0116_CR2_SG.txt" \
+  --white-rgb "$MONO/Data_Collected/Canon 5D Mk II/Target/2016_11_21_5D2_Target_1_WhiteCard_0117_CR2_SG.txt" \
+  --dark-rgb "$MONO/Data_Collected/Canon 5D Mk II/Target/2016_11_21_5D2_Target_1_DarkFrame_0118_CR2_SG.txt" \
   --camera-model "Canon EOS 5D Mark II" \
   --dataset-id spectral_sensitivity_2016_2017 \
-  --archive-subset canon_5d2/target_closure_20161121 \
+  --archive-subset "Data_Collected/Canon 5D Mk II/Target/2016-11-21 set 1" \
   --out out/spectral_closure_5d2_20161121.json
 ```
 
@@ -412,9 +416,10 @@ The suite was also re-run on the toolkit's **own** RAW extractions via
 `spectral-response --raw-dir --ssf-csv-out` (CR2/NEF/ARW sweeps discovered by
 the generalized `discover_spectral_sweep_files`). Distinguish reproducibility:
 
-- **Canon 5D2 is fully self-contained** — its 48 sweep RAW are in the local
-  private cache, so closure and quality run on our extraction end-to-end and
-  reproduce from the committed repo.
+- **Canon 5D2 was the retained end-to-end validation case** — its 48 sweep RAW
+  and same-session closure inputs are private archive data, while the public
+  repo retains the code, tests, and report evidence. Reproduction requires a
+  configured private dataset or archive mount.
 - **D810 / A7RII / A7SII were extracted by reading the mounted archive
   read-only** (their RAW are not scoped-copied locally, ~1-4 GB each). Those
   runs confirm the ranking is stable across legacy-vs-toolkit SSFs (combined
@@ -605,7 +610,7 @@ spectral sweeps and a lamp SPD but no broadband Target capture and no chart
 reflectance, so it is SSF-only (tier-1/tier-2), not physically closable. The
 four 2016 cameras are archive input-complete and share the single measured HID
 illuminant and the single measured proven-identity SG reflectance. Target set 1
-has now been staged and gate-checked for all four 2016 cameras. The additional
+has now been gate-checked for all four 2016 cameras. The additional
 target sets span 2016-11-21 and 2016-11-22 and must carry their own
 white-card/dark pairing if used later. Copy each additional camera or target
 subset only when its slice runs; do not bulk-copy.
