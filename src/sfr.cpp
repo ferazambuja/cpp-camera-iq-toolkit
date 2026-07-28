@@ -491,6 +491,7 @@ std::optional<ImatestYMultiOracle> read_imatest_y_multi(
   }
   if (oracle.filename.empty() || oracle.run_date.empty() ||
       oracle.center_roi_full_frame.width <= 0 ||
+      oracle.center_roi_full_frame.height <= 0 ||
       oracle.center_mtf50_cy_per_px <= 0.0) {
     return std::nullopt;
   }

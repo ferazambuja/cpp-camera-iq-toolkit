@@ -48,4 +48,7 @@ void TESTS() {
   check(run_sfr({"missing_dataset", "--raw", "edge.NEF", "--edge-roi",
                  "10,10,40,40", "--near-saturation-fraction", "1.5"}) == 2,
         "sfr command: bad saturation fraction rejected");
+  check(run_sfr({"missing_dataset", "--raw", "edge.NEF", "--edge-roi",
+                 "10,10,40,40", "--near-saturation-fraction", "nan"}) == 2,
+        "sfr command: non-finite saturation fraction rejected");
 }
