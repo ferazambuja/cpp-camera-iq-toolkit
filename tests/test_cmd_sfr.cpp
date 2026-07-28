@@ -1,6 +1,10 @@
 #include "camera_iq/commands.hpp"
 
+#include <filesystem>
+#include <fstream>
+#include <sstream>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "harness.hpp"
@@ -17,6 +21,15 @@ int run_sfr(const std::vector<std::string>& args) {
     argv.push_back(const_cast<char*>(arg.c_str()));
   }
   return cmd_sfr(static_cast<int>(argv.size()), argv.data());
+}
+
+std::pair<int, std::string> run_sfr_with_stderr(
+    const std::vector<std::string>& args) {
+  std::ostringstream captured;
+  auto* original = std::cerr.rdbuf(captured.rdbuf());
+  const int result = run_sfr(args);
+  std::cerr.rdbuf(original);
+  return {result, captured.str()};
 }
 
 }  // namespace
@@ -57,4 +70,28 @@ void TESTS() {
   check(run_sfr({"missing_dataset", "--raw", "edge.NEF", "--edge-roi",
                  "10,10,40,40", "--oracle-y-multi", "oracle.csv"}) == 2,
         "sfr command: explicit and oracle ROI sources are mutually exclusive");
+
+  {
+    const auto root =
+        std::filesystem::temp_directory_path() / "camera_iq_cmd_sfr_mismatch";
+    std::filesystem::create_directories(root);
+    {
+      std::ofstream os(root / "oracle.csv");
+      os << "File,expected.NEF\n"
+            "Run date,fixture\n\n"
+            "N,Distance %,Direction,X1,Y1,X2,Y2,Width,Height,Region,Edge ID\n"
+            "1,0,AL,1,1,24,24,24,24,Center,0_0_R\n\n"
+            "N,MTF50 (Cy/Pxl),R1090 (pxl),CA area(pxl),MTF50 (LW/PH),"
+            "R1090 (/PH),Peak MTF,MTF50P (Cy/Pxl)\n"
+            "1,0.2,2.0,0,100,100,1.0,0.2\n";
+    }
+    const auto [result, error] =
+        run_sfr_with_stderr({root.string(), "--raw", "wrong.NEF",
+                             "--oracle-y-multi", "oracle.csv"});
+    check(result == 1 &&
+              error.find("RAW filename does not match oracle File entry") !=
+                  std::string::npos,
+          "sfr command: center mode rejects a mismatched RAW/oracle pair");
+    std::filesystem::remove_all(root);
+  }
 }

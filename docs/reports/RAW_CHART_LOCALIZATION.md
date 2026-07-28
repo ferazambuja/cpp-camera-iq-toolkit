@@ -6,7 +6,7 @@ Command: `camera_iq patches --sg-corners --rawdigger-oracle-csv`
 
 ## Scope
 
-This slice validates the corner-seeded ColorChecker-SG grid against RawDigger as
+The study validates the corner-seeded ColorChecker-SG grid against RawDigger as
 an oracle. RawDigger is not used as the coordinate source for extraction; it is
 used only after extraction to compare generated ROI centers and uncorrected RGB
 means.
@@ -42,7 +42,7 @@ does not apply flat-field or white-balance corrections:
   --sg-corners "1242.489159,707.131935;4835.468326,692.253409;4816.545845,3254.656481;1252.609404,3220.163201" \
   --sg-corner-source "RawDigger A1/A14/J14/J1 center-derived outer corners; zero-based active-image coordinates" \
   --rawdigger-oracle-csv Images/CCSG_rawdigger.csv \
-  --out /tmp/camera_iq_rawdigger_oracle_validation.json
+  --out out/camera_iq_rawdigger_oracle_validation.json
 ```
 
 Exit status: `1` by design, because the hard localization gate fails. The JSON
@@ -62,8 +62,9 @@ Coordinates are zero-based active-image coordinates consumed by
 | bottom-right | 4816.545845 | 3254.656481 |
 | bottom-left | 1252.609404 | 3220.163201 |
 
-This corner source is not independent of RawDigger. The blind detector follow-on
-is the first slice that can remove the RawDigger dependency.
+This corner source is not independent of RawDigger. A blind detector would be
+required to remove that dependency; the tested detector did not meet the
+localization threshold.
 
 ## Geometry Summary
 
@@ -151,7 +152,7 @@ does not promote any candidate to the default coordinate path. The comparison
 is run against regenerated `center_residuals` from the same f/8 `1:10` command
 above, using spatial holdouts rather than fitted RMS alone.
 
-Summary from `/tmp/camera_iq_model_comparison.json`:
+Summary from `out/camera_iq_model_comparison.json`:
 
 | Model | DOF | In-sample RMS px | Checkerboard held-out RMS px | Row-block held-out RMS px | Column-block held-out RMS px |
 |---|---:|---:|---:|---:|---:|
@@ -255,7 +256,7 @@ Any threshold change should first diagnose that systematic interior bow:
 - Validation is scoped to the f/8 CCSG `1:10` RAW and uncorrected RGB means.
 - The available RawDigger oracle export covers only
   `CCSG_f8.0_1:10_DSCF0402.RAF`. Other CLRS-589 CCSG RAW exposures exist in the
-  private validation cache, but this slice has no matching per-frame RawDigger oracle
+  private validation cache, but this report has no matching per-frame RawDigger oracle
   export or off-center capture proof to use for disambiguation.
 - The f/9 CCSG series still lacks a usable same-aperture flat-field frame.
 - The color reference remains a compatible 2019 SG spectral reference, not a
@@ -265,3 +266,11 @@ Any threshold change should first diagnose that systematic interior bow:
   one-sided generated-grid anchor, but it still depends on coordinate priors and
   is unusable on this capture because the seedings disagree and repeatability is
   poor.
+
+## Implementation and tests
+
+- [`src/chart_localization.cpp`](../../src/chart_localization.cpp)
+- [`src/localization_diagnosis.cpp`](../../src/localization_diagnosis.cpp)
+- [`src/patches.cpp`](../../src/patches.cpp)
+- [`tests/test_chart_localization.cpp`](../../tests/test_chart_localization.cpp)
+- [`tests/test_localization_diagnosis.cpp`](../../tests/test_localization_diagnosis.cpp)

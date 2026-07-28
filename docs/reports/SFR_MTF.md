@@ -1,67 +1,65 @@
-# SFR / MTF
+# D800/D810 slanted-edge SFR and field analysis
 
-Date: 2026-07-08
+Evidence runs: 2026-07-08<br>
+Implementation validation refreshed: 2026-07-28
 
-## Scope
+**Result:** the C++ green-linear SFR path accepted all 299 field ROIs in the
+published D800/D810 sweeps. The D810 center response peaked at f/5.6 and showed
+positive center-to-corner margin from f/5.6 through f/11. The same trend did not
+transfer to the D800; that camera/capture set retained a different center curve
+and field maximum.
 
-This slice implements a first slanted-edge SFR/MTF path for the Nikon D810
-archive, limited to:
+[Portfolio case study](../case-studies/sfr-mtf-aperture-field.md) ·
+[publication-safe aggregate CSV](../data/sfr_aperture_summary.csv) ·
+[archive and oracle contract](SFR_MTF_ARCHIVE_INVENTORY.md)
 
-- green-plane linear RAW samples only;
-- one explicit center ROI per aperture;
-- no demosaic, no luma conversion, and no gamma replication of Imatest;
-- Imatest `_Y_multi.csv` values as advisory tier-1 fidelity references only.
+![D800 and D810 SFR aperture and field summary](../figures/sfr_aperture_field.svg)
 
-The hard validation target is the offset-independent aperture trend, not
-absolute equality with Imatest.
+## Measurement model
 
-## Implementation
-
-New command:
-
-```bash
-camera_iq sfr <dataset-root-or-id> \
-  --raw "2016_12_09_D810_SFR/NIKON D810_50mm_f5.6_.NEF" \
-  --oracle-y-multi "2016_12_09_D810_SFR/Results/NIKON D810_50mm_f5.6__Y_multi.csv" \
-  --out out/sfr_f5_6.json
-```
-
-Core algorithm:
+The `sfr` command:
 
 - reads LibRaw active-area, black-subtracted Bayer samples;
-- uses only green CFA positions, preserving native sensor pixel coordinates;
-- parses the per-file Imatest `_Y_multi.csv` center ROI and translates the
-  full-frame ROI into active-area coordinates;
-- estimates a slanted edge by per-line 50% crossing plus local
-  derivative-centroid refinement;
-- bins the projected ESF at 0.25 px, differentiates to an LSF, applies a
-  Hamming window, and computes an in-repo DFT;
-- applies the adjacent-difference finite-difference correction
-  `sinc(pi * f * delta)`, with `delta = 0.25 px`;
+- uses green CFA positions in native sensor coordinates;
+- converts a full-frame advisory ROI into active-area coordinates;
+- estimates the slanted edge from per-line derivative centroids;
+- projects samples into a 0.25 px ESF and bounds missing-bin interpolation;
+- differentiates to an LSF, applies a Hamming window, and runs an in-repo DFT;
+- applies adjacent-difference attenuation correction;
 - reports MTF50, MTF50P, MTF at sensor Nyquist, R1090, edge angle, saturation,
-  and filename/EXIF provenance checks.
+  rejection diagnostics, and filename/EXIF checks.
 
-## D810 50 mm Center ROI Result
+`--field-map` applies the same estimator to all 23 ROIs in one coherent
+per-file advisory table. The parser preserves row, grid/edge identity,
+field offset, ROI, and reference values, but emits only basenames for any
+referenced summary file.
+
+The implementation validates finite/ranged options at CLI and public-library
+boundaries, rejects non-finite RAW samples and metadata, bounds ESF allocation,
+uses the configured minimum scan-line sample count, validates oracle geometry
+and duplicate rows, and emits measurement-only values as JSON `null` when a
+center is rejected.
+
+## D810 50 mm center sweep
 
 Dataset label: `archive:2016_esensi_images/2016_12_09_D810_SFR/`
 
-Oracle source: the 10-Dec-2016 per-file `Results/NIKON D810_50mm_f...__Y_multi.csv`
-files documented in `SFR_MTF_ARCHIVE_INVENTORY.md`. The center ROI is processed
-as a near-vertical edge in the toolkit convention.
+The advisory rows come from one 10-Dec-2016 per-file batch. The center edge is
+near-vertical in the toolkit convention.
 
-| Aperture | Accepted | Orientation | Angle deg | Toolkit MTF50 | Imatest MTF50 | Delta | MTF@Nyq | R1090 px | Filename/EXIF checks |
-|---|---:|---|---:|---:|---:|---:|---:|---:|---|
-| f/1.4 | true | vertical | -6.320 | 0.1074 | 0.1158 | -0.0084 | 0.0210 | 5.142 | pass |
-| f/1.8 | true | vertical | -6.320 | 0.0837 | 0.0899 | -0.0062 | 0.0802 | 6.852 | pass |
-| f/2 | true | vertical | -6.326 | 0.1085 | 0.1121 | -0.0036 | 0.0271 | 5.311 | pass |
-| f/2.8 | true | vertical | -6.428 | 0.1992 | 0.1707 | +0.0285 | 0.0928 | 2.727 | pass |
-| f/4 | true | vertical | -6.528 | 0.2000 | 0.1949 | +0.0051 | 0.0894 | 2.639 | pass |
-| f/5.6 | true | vertical | -6.423 | 0.2714 | 0.2400 | +0.0314 | 0.1727 | 2.249 | pass |
-| f/8 | true | vertical | -6.438 | 0.2218 | 0.2388 | -0.0170 | 0.1682 | 2.703 | pass |
-| f/11 | true | vertical | -6.419 | 0.2049 | 0.1989 | +0.0060 | 0.0862 | 3.060 | pass |
-| f/16 | true | vertical | -6.431 | 0.1666 | 0.1735 | -0.0069 | 0.0237 | 3.560 | pass |
+| Aperture | Accepted | Angle deg | Toolkit MTF50 | Advisory MTF50 | Delta | MTF@Nyq | R1090 px |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| f/1.4 | true | -6.320 | 0.1074 | 0.1158 | -0.0084 | 0.0210 | 5.142 |
+| f/1.8 | true | -6.320 | 0.0837 | 0.0899 | -0.0062 | 0.0802 | 6.852 |
+| f/2 | true | -6.326 | 0.1085 | 0.1121 | -0.0036 | 0.0271 | 5.311 |
+| f/2.8 | true | -6.428 | 0.1992 | 0.1707 | +0.0285 | 0.0928 | 2.727 |
+| f/4 | true | -6.528 | 0.2000 | 0.1949 | +0.0051 | 0.0894 | 2.639 |
+| f/5.6 | true | -6.423 | 0.2714 | 0.2400 | +0.0314 | 0.1727 | 2.249 |
+| f/8 | true | -6.438 | 0.2218 | 0.2388 | -0.0170 | 0.1682 | 2.703 |
+| f/11 | true | -6.419 | 0.2049 | 0.1989 | +0.0060 | 0.0862 | 3.060 |
+| f/16 | true | -6.431 | 0.1666 | 0.1735 | -0.0069 | 0.0237 | 3.560 |
 
-Trend gate:
+The predeclared D810 center trend passed:
 
 ```text
 min(f/4,f/5.6,f/8,f/11) = 0.2000
@@ -70,69 +68,29 @@ max(f/1.4,f/1.8,f/2)    = 0.1085
 argmax                  = f/5.6 at 0.2714
 ```
 
-Result: **PASS**.
+## D810 field result
 
-## Not Claimed
+All 92 ROIs across the four field apertures were accepted. Detected orientation
+was near-vertical for every ROI; direction labels from the advisory table were
+not used as a substitute for pixel measurement.
 
-- Absolute Imatest equivalence. The Imatest archives contain repeat batches with
-  material self-disagreement, so absolute deltas are advisory.
-- Luma/gamma parity with Imatest. This slice is linear green-plane only.
-- lp/mm or LW/PH final reporting. Pixel-pitch and output-unit policy are a later
-  reporting layer.
-- Full sagittal/tangential lens MTF. Field-map mode is green-linear CFA SFR
-  over Imatest-selected ROIs, not a full lens-characterization replacement.
+| Aperture | ROIs | Center MTF50 | Physical-corner max | Center − corner |
+|---|---:|---:|---:|---:|
+| f/4 | 23 | 0.2000 | 0.2005 | -0.0005 |
+| f/5.6 | 23 | 0.2714 | 0.2001 | +0.0712 |
+| f/8 | 23 | 0.2218 | 0.1955 | +0.0263 |
+| f/11 | 23 | 0.2049 | 0.1830 | +0.0219 |
 
-## Next
+The f/4 near tie is retained. A strict center-above-corner rule would
+misrepresent both the pixels and the advisory comparison.
 
-Implemented next: field-MTF over all 23 ROIs per aperture from the same
-per-file `_Y_multi.csv` oracle tables. `camera_iq sfr --field-map` reuses the
-green-linear SFR core for every ROI and emits one JSON field map per
-RAW/aperture.
+## D800 replication and non-transfer finding
 
-Example:
+The D800 sweep used nine matching per-file advisory tables from one
+10-Dec-2016 batch. All **207/207 ROIs** were accepted and detected as
+near-vertical.
 
-```bash
-camera_iq sfr d800_d810_sfr_2016 \
-  --raw "2016_12_09_D810_SFR/NIKON D810_50mm_f5.6_.NEF" \
-  --oracle-y-multi "2016_12_09_D810_SFR/Results/NIKON D810_50mm_f5.6__Y_multi.csv" \
-  --field-map \
-  --out out/sfr_field_f5_6.json
-```
-
-Field-map implementation gates and caveats:
-
-- parse all 23 ROI rows and matching MTF rows from one `_Y_multi.csv` batch;
-- preserve row number, region, direction label, edge ID, field offsets, ROI, and
-  per-ROI advisory MTF50/MTF50P. Per-ROI `CSV summary file` values are emitted
-  as basenames only, not absolute Imatest paths;
-- report detected orientation from pixels, not from Imatest `L`/`R`/`AL` labels;
-  a real f/5.6 probe classified all 23 ROIs as near-vertical in the toolkit
-  convention;
-- do not make strict center > corner a universal plateau gate. The f/4 oracle
-  and toolkit probes are effectively tied with a slight corner win; f/5.6, f/8,
-  and f/11 show the expected center-above-corner relationship.
-
-Verified D810 field-map plateau probe:
-
-| Aperture | ROIs | Accepted | Detected orientations | Center MTF50 | Physical-corner max | Center > corner |
-|---|---:|---:|---|---:|---:|---|
-| f/4 | 23 | 23 | vertical | 0.2000 | 0.2005 | false |
-| f/5.6 | 23 | 23 | vertical | 0.2714 | 0.2002 | true |
-| f/8 | 23 | 23 | vertical | 0.2218 | 0.1955 | true |
-| f/11 | 23 | 23 | vertical | 0.2049 | 0.1831 | true |
-
-A future command mode can add an Imatest-replication path: demosaiced/luma pipeline,
-gamma/OECF handling, and an advisory absolute tolerance once the processing
-model is intentionally aligned to Imatest.
-
-## D800 Field Replication
-
-Full 9-aperture D800 field-map sweep against the per-file 10-Dec-2016 12:47:10
-oracle batch (see the inventory's D800 Oracle Contract). All 207 ROI
-measurements (23 ROIs x 9 apertures) accepted; all detected orientations
-vertical, matching the D810 chart geometry.
-
-| Aperture | Oracle center | Toolkit center | Delta | Toolkit corner max | Center > corner (oracle / toolkit) | Argmax N (oracle / toolkit) |
+| Aperture | Advisory center | Toolkit center | Delta | Toolkit corner max | Center > corner (advisory / toolkit) | Argmax N (advisory / toolkit) |
 |---|---:|---:|---:|---:|---|---|
 | f/1.4 | 0.1029 | 0.1082 | +0.0053 | 0.0978 | true / true | 1 / 1 |
 | f/1.8 | 0.1204 | 0.1304 | +0.0100 | 0.1058 | true / true | 1 / 1 |
@@ -144,32 +102,55 @@ vertical, matching the D810 chart geometry.
 | f/11 | 0.1707 | 0.1674 | -0.0033 | 0.1592 | true / true | 12 / 12 |
 | f/16 | 0.1583 | 0.1478 | -0.0105 | 0.1367 | true / true | 1 / 13 |
 
-Findings (the D810 recipe does NOT transfer; gates are camera/capture-specific):
+Load-bearing findings:
 
-- **Aperture-trend gate fails on D800 — correctly.** Oracle plateau minimum
-  (f/4 = 0.1385) sits BELOW f/16 (0.1583); the toolkit sweep agrees
-  (0.1428 < 0.1478). This is real behavior of the 2016 capture (f/4 center is
-  depressed to f/2.8 level), not an estimator bug. The failure is unit-pinned
-  so the gate stays honest about being capture-specific.
-- **Field tilt: the oracle field maximum is N=12 (grid 0,-2, top-center) at
-  f/2.8-f/11.** The toolkit agrees at f/4-f/11; at f/2.8 its maximum is N=8,
-  and at f/16 the oracle returns to center while the toolkit maximum is N=13.
-  Wide open (f/1.4-f/2) both oracle and toolkit put the center on top. Compare
-  D810, where N=13 (grid 0,2) won everywhere.
-- **Center-above-corner is only gate-worthy at f/8 and f/11 (oracle);
-  f/4 and f/5.6 have the corner max ABOVE center** (oracle and toolkit agree)
-  and stay diagnostic. f/2.8 is too marginal to pin (+0.0031 oracle margin,
-  toolkit disagrees).
-- **Toolkit reads physical-corner MTF50 higher than the Imatest oracle**
-  (green-linear vs luma+gamma pipelines diverge more off-axis); this flips the
-  center-corner comparison at f/2.8 and f/8. Center deltas stay within
-  +/-0.015. Absolute agreement remains advisory-only, as established.
-- D800 centers sit below D810 centers at matched plateau apertures
-  (f/5.6: 0.1649 vs 0.2400 oracle), directionally consistent with the D800's
-  OLPF, but the gap cannot be attributed to the OLPF alone (focus/field state
-  differs between the captures).
+- **The D810 aperture gate correctly fails on D800.** D800 f/4 center is below
+  f/16 in both toolkit and advisory results.
+- **The field maximum moves off center.** The advisory maximum is grid point
+  N=12 at f/2.8 through f/11; the toolkit agrees from f/4 through f/11.
+- **Center/corner behavior is not monotonic.** At f/4 and f/5.6 the strongest
+  physical corner exceeds center in both paths.
+- **Off-axis reference deltas are larger.** Green-linear CFA SFR and
+  rendered-luma processing diverge more away from center. The disagreement is
+  reported rather than used as evidence of equivalence.
+- D800 center values remain below D810 at matched plateau apertures, but the
+  difference cannot be attributed to optical low-pass filtering alone because
+  focus and field state also differ.
 
-Unit pins: D800 f/8 23-row fixture (all four `_C` corners Region-labeled
-`Pt Way` — harsher label trap than D810), `summarize_imatest_field_mtf` pins
-(argmax N=12, center 0.1831 > corner max 0.1618), the four-aperture
-center-corner block, and the pinned trend-gate FAILURE.
+## Validation
+
+Automated coverage includes:
+
+- synthetic vertical and horizontal edges;
+- MTF50/MTF50P, R1090, Nyquist, sinc correction, and DFT behavior;
+- CFA-balanced ROI conversion and saturation rejection;
+- missing/oversized ESF grids and bounded gap interpolation;
+- non-finite inputs, option ranges, unknown options, and conflicting ROI modes;
+- center/field advisory parsing, duplicate rows, geometry overflow, and missing
+  required rows;
+- rejected-result JSON nullability with retained diagnostics;
+- D810 and D800 trend/field fixture pins, including the intentional D800 gate
+  failure.
+
+Local archive verification after validation hardening retained all 207 D800 and
+92 D810 accepted ROIs. Acceptance, aperture ordering, and the engineering
+interpretations above were unchanged; two D810 corner values moved by 0.0001
+cycles/pixel at four-decimal reporting precision.
+
+## Interpretation limits
+
+- The toolkit does not claim absolute Imatest equivalence. Repeated advisory
+  batches disagree with each other at some apertures.
+- The path is linear green CFA, not demosaiced/luma/gamma parity.
+- MTF is reported in cycles/pixel; no lp/mm or LW/PH conversion is claimed.
+- Field maps sample the provided slanted edges. They are not a complete
+  sagittal/tangential lens model.
+
+## Implementation and tests
+
+- [`include/camera_iq/sfr.hpp`](../../include/camera_iq/sfr.hpp)
+- [`src/sfr.cpp`](../../src/sfr.cpp)
+- [`src/cmd_sfr.cpp`](../../src/cmd_sfr.cpp)
+- [`tests/test_sfr.cpp`](../../tests/test_sfr.cpp)
+- [`tests/test_cmd_sfr.cpp`](../../tests/test_cmd_sfr.cpp)
+- [`tools/generate_portfolio_figures.py`](../../tools/generate_portfolio_figures.py)

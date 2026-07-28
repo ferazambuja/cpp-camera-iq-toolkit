@@ -1,9 +1,8 @@
 # ColorChecker-SG Reference Provenance (dataset: clrs589_project_camera)
 
 Date: 2026-07-04
-Purpose: establish what colorimetric ground truth exists for the SG color slice
-(white balance -> CCM -> DeltaE) before broadening the color pipeline beyond the
-first linear CCM. All source data is private and gitignored. Heavy image
+Purpose: establish the colorimetric ground truth used by the SG white-balance,
+CCM, and Delta E workflow. All source data is private and gitignored. Heavy image
 captures are read through the configured private dataset root; small
 sidecar/reference files may remain local. This report records provenance and
 numbers only, not the data.
@@ -18,7 +17,7 @@ archived reference workbooks include a compatible 2019 ColorChecker-SG workbook:
 `ccsg.xlsx`, sheet `ccsg_2_FIXED_ref`, with 140 cell-labeled spectral
 reflectances (380-730 nm @ 10 nm). Its native workbook order is
 `A1, B1, ... N1, A2, ... N10` and aligns strongly with the CLRS-589 camera
-extraction order. R0 exports that workbook to `ccsg_2_FIXED_ref.csv`, the stable
+extraction order. The local export helper writes `ccsg_2_FIXED_ref.csv`, the stable
 text format consumed by the C++ toolkit.
 
 Honest scope: `ccsg.xlsx` is a compatible/standard full-gamut SG reflectance
@@ -36,7 +35,7 @@ exact per-unit chart ground truth unless that identity is proven.
 | Neutral ramp reference (XYZ, derived) | `Old/Patches_XYZ.xlsx`, `Old/XYZ_all.csv` | same 16 rows | neutral | absolute XYZ, CIE 1931 2° |
 | Ramp trials | `Old/{1 to 6,7 to 9,10 to 15}/patch_Ntrail_M.mat` | steps **1–15** | neutral | spectroradiometer `measurements{wl,radiance,XYZ,totalRadiance,CCT,Duv}` |
 | PRD (white ref) | `Old/prd/prd_{1,2}.mat`; `PRD measurments/PRD_NN.mat` (+`PRD_SPD_all.csv`,`XYZ_all.csv`) | 2 + 45 readings | neutral | Perfect Reflecting Diffuser radiance/XYZ |
-| Illuminant SPD | `Sphere measurments/fernando_ff{1,2,3}.csv` | 3 | — | integrating-sphere spectral radiance (W/m²·µm·sr) |
+| Illuminant SPD | three configured sphere-SPD files | 3 | — | integrating-sphere spectral radiance (W/m²·µm·sr) |
 | Camera measurement | `Images/ccsg_matlab.csv` | **140 patches** | colored | linear camera RGB (dark-subtracted + sphere vignette-corrected) |
 | Camera measurement (alt) | `Images/CCSG_rawdigger.csv` (A1… labels), `ccsg_matlab_dark_frame_corrected.csv` | 140 | colored | RawDigger export / dark-corrected |
 | Compatible colored SG reference | `data/private/references/ccsg_2019_workbook/ccsg.xlsx`, sheet `ccsg_2_FIXED_ref`; exported to `ccsg_2_FIXED_ref.csv` | **140 patches** | colored | spectral reflectance, 380-730 nm @ 10 nm, cell-labeled A1..N10 |
@@ -132,7 +131,7 @@ to be the sole mechanism, and not a bad reference.
 
 1. **Source of truth for neutrals is the SPD, not the XYZ file.** Regenerate XYZ
    in-code from the SPD; the xlsx XYZ carries no independent information.
-2. **The project spectroradiometry is neutral-only, but R0 now has a compatible
+2. **The project spectroradiometry is neutral-only, but the toolkit has a compatible
    colored spectral reference.** Use `ccsg.xlsx` for the colored CCM/ΔE demo and
    label it as compatible/standard until physical chart identity is proven.
 3. **PRD = white/illuminant reference** (candidate white point), not a color
@@ -147,14 +146,14 @@ to be the sole mechanism, and not a bad reference.
    `patch_col` are parsed from the reference label text and should not be treated
    as authoritative physical SG geometry.
 
-## Recommendation for the color slice
+## Implemented reference contract
 
-**R0 — reference ingestion + typed provenance (before any CCM/ΔE):**
+Reference ingestion uses typed provenance:
 `ColorReference { source, illuminant, observer, patch_count, numbering_order,
 unit, white_reference }`. No hardcoded reference table.
 
-Status: R0 is implemented by `reference-info`; the first bounded linear CCM
-slice is implemented by `ccm-fit` and reported in `CCM_FIT.md`.
+`reference-info` implements the validation contract; `ccm-fit` consumes it for
+the bounded linear CCM reported in [CCM_FIT.md](CCM_FIT.md).
 
 - **Primary colored spectral demo reference:** ingest local
   `ccsg_2019_workbook/ccsg_2_FIXED_ref.csv`, exported from `ccsg.xlsx` sheet
@@ -183,7 +182,7 @@ slice is implemented by `ccm-fit` and reported in `CCM_FIT.md`.
   reference, but the local PRD readings sit at ~5510 K (numbered/copy) / ~5612 K
   (`Old/prd`) while the ramp is ~5984 K — different illuminant conditions. Do not
   treat "PRD = white point" blindly. The white point for the SG camera color
-  slice must come from the illuminant **under the same capture condition** —
+  workflow must come from the illuminant **under the same capture condition** —
   prefer the `Sphere` illuminant SPD (the flat-field/vignetting source actually
   used on the CCSG capture) or a proven neutral/white measured under that
   condition. Use PRD only when paired to a matching condition.
@@ -211,3 +210,11 @@ unless chart identity is proven or the chart is remeasured. The current honest
 claim is stronger than before but still bounded: neutral local measurement
 anchor, compatible colored spectral SG reference, and optional manufacturer
 nominal comparison.
+
+## Implementation and tests
+
+- [`src/color_reference.cpp`](../../src/color_reference.cpp)
+- [`src/cmd_reference_info.cpp`](../../src/cmd_reference_info.cpp)
+- [`tests/test_color_reference.cpp`](../../tests/test_color_reference.cpp)
+- [`tools/verify_ccsg_vs_xrite.py`](../../tools/verify_ccsg_vs_xrite.py)
+- [ColorChecker/CCM case study](../case-studies/colorchecker-ccm.md)

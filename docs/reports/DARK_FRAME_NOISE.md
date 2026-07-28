@@ -7,7 +7,7 @@ are not distributed with this repository.
 
 ## Scope
 
-This slice adds the first sensor-noise command, scoped only to what the local
+The sensor-noise command is scoped to what the local
 CLRS-589 dark-frame data supports:
 
 - Reuse the existing post-`unpack()` RAW/CFA path and the
@@ -130,15 +130,19 @@ ctest --test-dir build --output-on-failure
 bash tools/check_public_paths.sh
 ```
 
-## Not Claimed
+## Interpretation limits
 
-- No electron read noise. The command reports DN only because no system gain is
-  measured here.
-- No PRNU. The local `Flat Image` folder has two different exposures, not a
-  same-level flat pair.
-- No PTC. Photon-transfer needs repeated uniform flat-field data over a signal
-  ladder, not this single clean dark pair.
-- No engineering dynamic range. DR requires gain, read noise in electrons, and
-  a defensible full-well/saturation model.
-- No independent pair cross-check. Only one clean matched dark-frame pair
-  survives the dark-calibration gate.
+- Results remain DN-referred because system gain was not measured; electron
+  read noise, full well, and engineering dynamic range therefore remain open.
+- The available flats are not a repeated same-level signal ladder, so they do
+  not support PRNU or photon-transfer claims.
+- Only one clean matched dark pair survives calibration, without an independent
+  pair cross-check.
+
+## Implementation and tests
+
+- [`src/noise.cpp`](../../src/noise.cpp)
+- [`src/cmd_noise.cpp`](../../src/cmd_noise.cpp)
+- [`tests/test_noise.cpp`](../../tests/test_noise.cpp)
+- [`tests/test_cmd_noise.cpp`](../../tests/test_cmd_noise.cpp)
+- [Dark-calibration report](DARK_CALIBRATION.md)

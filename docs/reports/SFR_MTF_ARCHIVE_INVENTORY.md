@@ -1,8 +1,8 @@
 # SFR / MTF Archive Inventory
 
 Date: 2026-07-07
-Scope: filename-level inventory of the available slanted-edge SFR/MTF archive
-inputs. No RAW files were copied.
+Scope: filename-level inventory and measurement contract for the available
+slanted-edge SFR/MTF archive inputs.
 
 ## Verdict
 
@@ -11,9 +11,12 @@ X-T100 dataset does not contain a slanted-edge / resolution target, but the
 mounted 2016 esensi archive contains Nikon D800 and D810 SFR captures plus
 Imatest-derived SFR/MTF result CSVs.
 
-This means the next SFR/MTF slice should start from the 2016 Nikon archive, not
-from a new capture by default. A new capture is only needed for Fuji X-T100 or
-for a camera/lens condition not covered by the archive.
+The completed SFR/MTF study uses this 2016 Nikon archive. New capture work is
+needed only for the Fuji X-T100 or for a camera/lens condition not represented
+in the archive.
+
+[Finished SFR/MTF report](SFR_MTF.md) ·
+[portfolio case study](../case-studies/sfr-mtf-aperture-field.md)
 
 ## Archive Labels
 
@@ -25,9 +28,8 @@ Use archive labels in public docs, not absolute mount paths:
 | D810 SFR RAW + per-folder results | `archive:2016_esensi_images/2016_12_09_D810_SFR/` |
 | Consolidated SFR results | `archive:2016_esensi_images/SFR_Results/` |
 
-Recommended local cache id when a slice stages files:
-`d800_d810_sfr_2016`. Its root should mirror the `2016_esensi_images`
-umbrella, so RAW/oracle paths remain subdirectory-relative
+The dataset ID is `d800_d810_sfr_2016`. Its configured root mirrors the
+`2016_esensi_images` umbrella, so RAW/oracle paths remain subdirectory-relative
 (`2016_12_09_D810_SFR/...`, `2016_12_09_D800_SFR/...`) instead of flattening
 one camera folder into the dataset root.
 
@@ -60,9 +62,9 @@ implementation, not correctness oracles by themselves.
 
 ## D810 Oracle Contract
 
-The first implementation slice should use the D810 50 mm aperture sweep because
-it has exact filename-keyed NEFs, per-file ROI tables, and a complete f/1.4..f/16
-series. The actual filenames include the `NIKON ` prefix and a space:
+The implemented D810 center sweep uses exact filename-keyed NEFs, per-file ROI
+tables, and the complete f/1.4..f/16 series. The actual filenames include the
+`NIKON ` prefix and a space:
 `NIKON D810_50mm_f<aperture>_.NEF`. Do not split these names with whitespace-
 delimited shell tools.
 
@@ -103,7 +105,7 @@ edge (edge-position x as a function of y), with measured edge angles around
 -6.3 degrees. Describing this ROI as "horizontal" mismatches the actual
 green-plane detector convention.
 
-## Field-MTF Slice
+## Field-MTF measurement contract
 
 Center SFR and field MTF are complete for the D810 50 mm sweep.
 `camera_iq sfr --field-map` processes all 23 per-aperture ROIs from a single
@@ -143,9 +145,9 @@ Verified D810 field-map plateau probe:
 | Aperture | ROIs | Accepted | Detected orientations | Center MTF50 | Physical-corner max | Center > corner |
 |---|---:|---:|---|---:|---:|---|
 | f/4 | 23 | 23 | vertical | 0.2000 | 0.2005 | false |
-| f/5.6 | 23 | 23 | vertical | 0.2714 | 0.2002 | true |
+| f/5.6 | 23 | 23 | vertical | 0.2714 | 0.2001 | true |
 | f/8 | 23 | 23 | vertical | 0.2218 | 0.1955 | true |
-| f/11 | 23 | 23 | vertical | 0.2049 | 0.1831 | true |
+| f/11 | 23 | 23 | vertical | 0.2049 | 0.1830 | true |
 
 ## D800 Oracle Contract
 
@@ -189,5 +191,12 @@ D800-specific contract notes (all verified on the real files, 2026-07-08):
   tethered `2016_12_09_SFR_D800_f11_0032.NEF` and three
   `2016_12_09_SFR_D800_test_*.NEF` frames — diagnostic only.
 
-Natural follow-ons are a multi-aperture summary command or an
-Imatest-replication A2 path with demosaic/luma/gamma handling.
+Possible extensions are a multi-aperture summary command or an advisory
+rendered-luma comparison path with demosaic/OECF handling.
+
+## Implementation and tests
+
+- [`src/sfr.cpp`](../../src/sfr.cpp)
+- [`src/cmd_sfr.cpp`](../../src/cmd_sfr.cpp)
+- [`tests/test_sfr.cpp`](../../tests/test_sfr.cpp)
+- [`tests/test_cmd_sfr.cpp`](../../tests/test_cmd_sfr.cpp)

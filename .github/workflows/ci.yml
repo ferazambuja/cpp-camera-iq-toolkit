@@ -8,12 +8,23 @@ on:
 
 jobs:
   build-and-test:
+    name: build-and-test (${{ matrix.name }})
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: gcc
+            cxx: g++
+          - name: clang
+            cxx: clang++
+    env:
+      CXX: ${{ matrix.cxx }}
     steps:
       - uses: actions/checkout@v5
 
       - name: Install dependencies
-        run: sudo apt-get update && sudo apt-get install -y libraw-dev pkg-config
+        run: sudo apt-get update && sudo apt-get install -y clang libraw-dev pkg-config
 
       - name: Configure
         run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
@@ -23,3 +34,29 @@ jobs:
 
       - name: Test
         run: ctest --test-dir build --output-on-failure
+
+  undefined-behavior-sanitizer:
+    name: undefined-behavior-sanitizer (clang)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Install dependencies
+        run: sudo apt-get update && sudo apt-get install -y clang libraw-dev pkg-config
+
+      - name: Configure
+        env:
+          CXX: clang++
+        run: >-
+          cmake -S . -B build-ubsan
+          -DCMAKE_BUILD_TYPE=Debug
+          -DCMAKE_CXX_FLAGS="-fsanitize=undefined -fno-omit-frame-pointer"
+          -DCMAKE_EXE_LINKER_FLAGS="-fsanitize=undefined"
+
+      - name: Build
+        run: cmake --build build-ubsan --parallel
+
+      - name: Test
+        env:
+          UBSAN_OPTIONS: print_stacktrace=1:halt_on_error=1
+        run: ctest --test-dir build-ubsan --output-on-failure

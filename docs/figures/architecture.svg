@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="470" viewBox="0 0 1000 470" role="img" aria-labelledby="title desc">
+  <title id="title">Camera IQ toolkit processing architecture</title>
+  <desc id="desc">Dataset IDs and public fixtures enter a thin command-line launcher. A single static core contains command parsing, measurement algorithms, validation and serialization, backed by LibRaw and spectral references.</desc>
+  <style>
+    text { font-family: Helvetica; fill: #172033; }
+    .title { font-size: 25px; font-weight: 700; }
+    .subtitle { font-size: 14px; fill: #5f6b7a; }
+    .panel-title { font-size: 16px; font-weight: 700; }
+    .axis { font-size: 12px; fill: #5f6b7a; }
+    .legend { font-size: 12px; }
+    .value { font-size: 11px; font-weight: 600; }
+    .node-title { font-size: 15px; font-weight: 700; }
+    .node-detail { font-size: 12px; fill: #5f6b7a; }
+  </style>
+  <defs><marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#5f6b7a"/></marker></defs>
+  <rect width="1000" height="470" rx="16" fill="#ffffff"/>
+  <text x="44" y="48" class="title">Measurement architecture</text>
+  <text x="44" y="74" class="subtitle">The executable is a thin launcher; command and algorithm layers currently share one C++20 static core.</text>
+  <rect x="42" y="120" width="190" height="96" rx="12" fill="#eff6ff" stroke="#d8dee8"/>
+  <text x="60" y="151" class="node-title">Inputs</text>
+  <text x="60" y="177" class="node-detail">RAW via dataset IDs</text>
+  <text x="60" y="197" class="node-detail">CSV / spectra / fixtures</text>
+  <rect x="278" y="120" width="170" height="96" rx="12" fill="#f5f3ff" stroke="#d8dee8"/>
+  <text x="296" y="151" class="node-title">CLI launcher</text>
+  <text x="296" y="177" class="node-detail">camera_iq</text>
+  <text x="296" y="197" class="node-detail">argument routing</text>
+  <rect x="494" y="104" width="292" height="128" rx="12" fill="#ecfdf5" stroke="#d8dee8"/>
+  <text x="512" y="135" class="node-title">camera_iq_core</text>
+  <text x="512" y="161" class="node-detail">commands + validation</text>
+  <text x="512" y="181" class="node-detail">algorithms + JSON/CSV</text>
+  <rect x="832" y="120" width="126" height="96" rx="12" fill="#fff7ed" stroke="#d8dee8"/>
+  <text x="850" y="151" class="node-title">Outputs</text>
+  <text x="850" y="177" class="node-detail">JSON / CSV</text>
+  <text x="850" y="197" class="node-detail">evidence reports</text>
+  <line x1="232" y1="168" x2="270" y2="168" stroke="#5f6b7a" stroke-width="2" marker-end="url(#arrow)"/>
+  <line x1="448" y1="168" x2="486" y2="168" stroke="#5f6b7a" stroke-width="2" marker-end="url(#arrow)"/>
+  <line x1="786" y1="168" x2="824" y2="168" stroke="#5f6b7a" stroke-width="2" marker-end="url(#arrow)"/>
+  <rect x="162" y="278" width="202" height="92" rx="10" fill="#eff6ff" stroke="#d8dee8"/>
+  <text x="176" y="307" class="node-title">LibRaw front end</text>
+  <text x="176" y="330" class="node-detail">unpack · active CFA</text>
+  <text x="176" y="348" class="node-detail">black handling</text>
+  <line x1="640" y1="232" x2="263" y2="270" stroke="#d8dee8" stroke-width="1.5"/>
+  <rect x="400" y="278" width="202" height="92" rx="10" fill="#f0fdfa" stroke="#d8dee8"/>
+  <text x="414" y="307" class="node-title">Measurement methods</text>
+  <text x="414" y="330" class="node-detail">patches · CCM · spectral</text>
+  <text x="414" y="348" class="node-detail">OECF · noise · SFR</text>
+  <line x1="640" y1="232" x2="501" y2="270" stroke="#d8dee8" stroke-width="1.5"/>
+  <rect x="638" y="278" width="202" height="92" rx="10" fill="#f5f3ff" stroke="#d8dee8"/>
+  <text x="652" y="307" class="node-title">Verification</text>
+  <text x="652" y="330" class="node-detail">synthetic · fixture</text>
+  <text x="652" y="348" class="node-detail">archive · negative paths</text>
+  <line x1="640" y1="232" x2="739" y2="270" stroke="#d8dee8" stroke-width="1.5"/>
+  <text x="44" y="445" class="subtitle">Bulk capture data remains outside Git; committed public artifacts are code, tests, safe aggregates, figures and technical reports.</text>
+</svg>

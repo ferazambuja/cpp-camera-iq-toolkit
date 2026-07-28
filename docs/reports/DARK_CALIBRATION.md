@@ -7,7 +7,7 @@ are not distributed with this repository.
 
 ## Scope
 
-This slice reconciles LibRaw-derived metadata black against measured dark-frame
+The command reconciles LibRaw-derived metadata black against measured dark-frame
 RAW data:
 
 - Scan a selected dark-frame folder using the existing dataset-ID path privacy
@@ -32,8 +32,8 @@ DSNU/PRNU result, temporal-noise result, PTC, or dynamic-range metric.
   mislabeled files. Therefore this tool does **not** replace metadata black with
   a dark-frame mean. It reports agreement and outliers before later
   noise/dynamic-range work decides which frames are scientifically usable.
-- The default tolerance is 2 DN. It is a diagnostic guard for this development
-  slice, not an ISO/EMVA threshold.
+- The default tolerance is 2 DN. It is a dataset-specific diagnostic guard, not
+  an ISO/EMVA threshold.
 - Aggregate means are reported two ways: all readable frames, and only frames
   whose per-plane mean residuals stay within tolerance.
 - The JSON deliberately separates two questions:
@@ -99,10 +99,17 @@ Targeted checks:
 - `camera_iq_tests` verifies the CLI command is routed.
 - The real-data validation output was written under `out/`, not tracked in git.
 
-## Not Claimed
+## Interpretation limits
 
-- No dark-current slope, DSNU, PRNU, read-noise, PTC, or dynamic-range metric.
-- No automatic decision that the outlier is a bad capture; only that it is not
-  consistent with the rest of this dark-frame set at the configured tolerance.
-- No reconciliation for every archive camera body yet; this report validates the
-  CLRS-589 Fujifilm X-T100 dark-frame set used by the first public slices.
+- The comparison does not estimate dark-current slope, DSNU/PRNU, read noise,
+  PTC, or dynamic range.
+- The outlier is identified as inconsistent at the configured tolerance, not
+  automatically classified as a bad capture. The result is scoped to the
+  CLRS-589 Fujifilm X-T100 dark-frame set.
+
+## Implementation and tests
+
+- [`src/dark_calibration.cpp`](../../src/dark_calibration.cpp)
+- [`src/cmd_dark_calibration.cpp`](../../src/cmd_dark_calibration.cpp)
+- [`tests/test_dark_calibration.cpp`](../../tests/test_dark_calibration.cpp)
+- [Dark-frame noise report](DARK_FRAME_NOISE.md)

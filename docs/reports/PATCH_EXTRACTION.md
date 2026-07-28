@@ -6,9 +6,10 @@ Command: `camera_iq patches`
 
 ## Scope
 
-This slice extracts ColorChecker-SG patch RGB means from a RAW capture using the
+The command extracts ColorChecker-SG patch RGB means from a RAW capture using the
 toolkit's own LibRaw unpack, black handling, and hand-written bilinear demosaic.
-It is a patch-statistics slice, not a full color pipeline replacement yet.
+It is the patch-statistics component of the documented extraction-to-CCM
+pipeline.
 
 Two coordinate sources are supported:
 
@@ -86,7 +87,7 @@ Command:
   "Images/CCSG_f8/CCSG_f8.0_1:10_DSCF0402.RAF" \
   --dataset clrs589_project_camera \
   --rawdigger-csv Images/CCSG_rawdigger.csv \
-  --out /tmp/clrs589_patches_rawdigger.json
+  --out out/clrs589_patches_rawdigger.json
 ```
 
 Result against RawDigger's own exported patch averages:
@@ -124,7 +125,7 @@ Command excerpt:
   --sg-corners "1242.489159,707.131935;4835.468326,692.253409;4816.545845,3254.656481;1252.609404,3220.163201" \
   --flat-field-raw "Images/Sphere/Sphere_f8.0_1:1000_DSCF0387.RAF" \
   --wb-from-flat-field \
-  --out /tmp/camera_iq_sg_orientation_validation.json
+  --out out/camera_iq_sg_orientation_validation.json
 ```
 
 Result:
@@ -143,7 +144,7 @@ The output reports `orientation_valid: true` and `best_orientation: "direct"`.
 The RawDigger-oracle validation path was added, but the first f/8 `1:10`
 corner-seeded run **does not pass** the predeclared geometry gate. With corners
 derived from RawDigger A1/A14/J14/J1 centers, the command writes
-`/tmp/camera_iq_rawdigger_oracle_validation.json` and exits `1` because:
+`out/camera_iq_rawdigger_oracle_validation.json` and exits `1` because:
 
 - patch count: 140, pass
 - max center error: **16.449 px**, fail against the 5 px gate
@@ -197,8 +198,8 @@ Command:
   --rawdigger-csv Images/CCSG_rawdigger.csv \
   --flat-field-raw "Images/Sphere/Sphere_f8.0_1:1000_DSCF0387.RAF" \
   --wb-from-flat-field \
-  --rgb-csv-out /tmp/clrs589_raw_flat_wb_patches.csv \
-  --out /tmp/clrs589_raw_flat_wb_patches.json
+  --rgb-csv-out out/clrs589_raw_flat_wb_patches.csv \
+  --out out/clrs589_raw_flat_wb_patches.json
 ```
 
 Result:
@@ -255,7 +256,7 @@ cross-aperture approximation, not a measured same-aperture correction.
   center gate, so the corner-seeded path must not replace RawDigger coordinates
   in evidence reports yet.
 
-## Next Risks
+## Open engineering questions
 
 1. Decide whether to reproduce the historical TIFF workflow for parity or move
    directly to RAW-space chart localization.
@@ -267,3 +268,12 @@ cross-aperture approximation, not a measured same-aperture correction.
 3. Diagnose the dark-patch / neutral-axis error before adding higher-order color
    models; root-polynomial variants need held-out evidence before they are
    treated as an improvement.
+
+## Implementation and tests
+
+- [`src/patches.cpp`](../../src/patches.cpp)
+- [`src/cmd_patches.cpp`](../../src/cmd_patches.cpp)
+- [`src/chart_localization.cpp`](../../src/chart_localization.cpp)
+- [`tests/test_patches.cpp`](../../tests/test_patches.cpp)
+- [`tests/test_cmd_patches.cpp`](../../tests/test_cmd_patches.cpp)
+- [Portfolio case study](../case-studies/colorchecker-ccm.md)

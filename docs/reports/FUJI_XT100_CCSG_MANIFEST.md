@@ -27,7 +27,7 @@ LibRaw EXIF (make/model/ISO/shutter/aperture/camera-clock timestamp), derived
 CFA pattern, black/white levels, and CSV shape probes. Supplementary `.mat`
 inspection was done with a Python helper; results are recorded below.
 
-## Enumeration (exit criterion 1: complete)
+## Dataset enumeration
 
 690 files total: 480 RAF, 150 MAT, 16 CSV, 23 TIF, 8 MATLAB scripts, misc.
 
@@ -83,7 +83,7 @@ within 0.11, ISO exact). Filename-encoded exposure metadata is trustworthy.
    The `.mat` files are the source of truth; the combined CSVs are derived and
    partially stale.
 
-## Exposure-series candidates (exit criterion 2: complete)
+## Exposure-series candidates
 
 9 candidates with ≥ 3 distinct shutter values (keyed by directory, filename
 group, aperture, ISO token; missing ISO token kept as a separate key on
@@ -103,7 +103,7 @@ so **PTC/OECF feasibility is promising** — pending follow-up checks on framing
 and illumination stability from the pixel data itself. The `Images/PRD` group
 is deliberately *not* a series: 23 frames all at f9, 1/30 s, ISO 200.
 
-## PRD relationship (exit criterion 3: classified)
+## PRD relationship
 
 **Classification: PRD-scene-only reference.** Not valid as a ColorChecker-SG
 capture illuminant reference. No fabricated links.
@@ -172,7 +172,7 @@ locally. The black-level logic is independently proven in CI by `test_raw_meta`
   (21) stands; directory-fallback grouping is a candidate refinement, not a data
   gap.
 
-## Not claimed
+## Interpretation limits
 
 - No color accuracy, noise, PTC, or ΔE numbers.
 - No claim that the original project outputs are correct (they remain untrusted
@@ -181,24 +181,18 @@ locally. The black-level logic is independently proven in CI by `test_raw_meta`
   repository; this project reprocesses the raw data with new, independently
   written code.
 
-## Current validated status
+## Relationship to implemented analyses
 
-Completed follow-on slices now cover:
+This manifest is the dataset/provenance foundation for the implemented RAW/CFA,
+demosaic, dark calibration/noise, exposure/OECF, ColorChecker extraction, and
+CCM reports. The [portfolio index](../README.md) separates those completed
+analyses from the remaining calibration gaps: electron gain/read noise, full
+well, engineering dynamic range, exact ISO conformance, and blind chart
+localization.
 
-- LibRaw `unpack()` raw-CFA plane statistics over the active Bayer area.
-- Post-`unpack()` black/pitch metadata for maker-dependent RAW formats.
-- Active-area-local `cblack` tile handling, matching LibRaw's black subtraction
-  convention.
-- First hand-written bilinear demosaic summary command.
-- Dark-frame-vs-metadata black reconciliation for the CLRS-589 X-T100 dark
-  folder: 20/21 candidates agree with the 1024 DN pedestal within 2 DN, with one
-  outlier preserved for provenance review.
-- Dark-frame temporal noise / DSNU diagnostics over the only clean matched dark
-  pair, with gain/PTC/DR still explicitly not claimed.
-- Exposure-response readiness grouping with conservative OECF candidate gates.
-- First relative-exposure OECF linearity fit over usable ROI response points.
+## Implementation and tests
 
-Remaining objective-IQ work starts from the exposure-response candidates and
-still needs chart/patch selection beyond manual ROI coordinates, ISO 14524
-OECF conformance work, longer-exposure dark-current modeling, PTC/gain handling,
-and color-reference pairing before any final camera-IQ metric is claimed.
+- [`src/manifest.cpp`](../../src/manifest.cpp)
+- [`src/cmd_manifest.cpp`](../../src/cmd_manifest.cpp)
+- [`tests/test_manifest_scan.cpp`](../../tests/test_manifest_scan.cpp)
+- [`tests/test_manifest_json.cpp`](../../tests/test_manifest_json.cpp)

@@ -9,7 +9,7 @@ points those IDs at private data or an archive mount.
 
 ## Scope
 
-This slice adds the first hand-written demosaic:
+The command implements a transparent hand-written demosaic:
 
 - `demosaic_bilinear()` over the active, black-subtracted Bayer mosaic.
 - RGGB-family phase support via LibRaw `COLOR()` positions plus `cdesc`; the
@@ -25,11 +25,12 @@ This slice adds the first hand-written demosaic:
   per-position black levels used by `raw-stats`.
 - **Black-level source.** An earlier manifest pass anticipated deriving black
   from the 21 dark frames after finding LibRaw's *scalar* `black`
-  reports 0 for the X-T100. This slice instead reads the LibRaw `cblack` **tile**
+  reports 0 for the X-T100. The implemented path reads the LibRaw `cblack` **tile**
   via `effective_black_levels()`, which correctly recovers the ~1024 DN pedestal
   the scalar hides (Fuji matches the X-T100 dark-frame mean of 1023.99). This is
-  adequate for a DN-space demosaic preview, and the later dark-calibration slice
-  reconciles it against the CLRS-589 X-T100 dark frames. It is still not a
+  adequate for a DN-space demosaic preview, and the implemented
+  [dark-calibration analysis](DARK_CALIBRATION.md) reconciles it against the
+  CLRS-589 X-T100 dark frames. It is still not a
   substitute for camera-by-camera dark-current/noise modeling: the Nikon D800
   above reports black `[0,0,0,0]`, which is not validated by this CLRS-only dark
   reconciliation.
@@ -163,22 +164,24 @@ cmake --build build --parallel
 ctest --test-dir build --output-on-failure
 ```
 
-Current repository validation:
-16/16 CTest tests passed, including repository privacy and sample-fixture checks.
+The complete CTest suite covers this command together with repository privacy,
+sample-fixture, documentation, and figure-freshness checks.
 
-## Not Claimed
+## Interpretation limits
 
-- No full image export yet.
-- No colorimetric output claim.
-- No white balance, CCM, gamma, tone curve, or perceptual image quality claim.
-- No X-Trans or non-2x2 Bayer demosaic support.
-
-## Known Limitations (carried forward)
-
+- The command emits channel summaries rather than a full image or colorimetric
+  pipeline; white balance, CCM, tone/gamma, and perceptual quality are outside
+  this result. Only 2×2 Bayer mosaics are supported.
 - **Memory.** `camera_iq demosaic` materializes the entire RGB image
   (~872 MB for a 36 MP Nikon frame, plus the CFA sample copy) only to emit
-  three channel summaries. Acceptable one-shot; the batch runner in a later
-  phase should stream per-pixel statistics instead of holding the full image.
+  three channel summaries. A streaming summary path would reduce batch memory.
 - **Black-level provenance.** See `DARK_CALIBRATION.md` for the CLRS-589
   dark-frame reconciliation. Camera-by-camera dark-current/noise modeling still
-  belongs to later objective-IQ work.
+  requires matched calibration captures.
+
+## Implementation and tests
+
+- [`src/demosaic.cpp`](../../src/demosaic.cpp)
+- [`src/cmd_demosaic.cpp`](../../src/cmd_demosaic.cpp)
+- [`tests/test_demosaic.cpp`](../../tests/test_demosaic.cpp)
+- [Dark-calibration report](DARK_CALIBRATION.md)
