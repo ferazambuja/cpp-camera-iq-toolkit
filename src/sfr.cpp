@@ -10,6 +10,7 @@
 #include <map>
 #include <numbers>
 #include <numeric>
+#include <set>
 #include <sstream>
 #include <stdexcept>
 #include <string>
@@ -747,6 +748,28 @@ std::optional<ImatestYMultiFile> read_imatest_y_multi_file(
   for (const auto& [n, _] : mtf_by_n) {
     if (n != expected_n++) return std::nullopt;
   }
+
+  std::set<std::string> edge_ids;
+  std::set<std::pair<int, int>> grid_positions;
+  std::set<std::pair<int, int>> physical_corners;
+  for (const auto& [n, roi] : roi_by_n) {
+    const auto grid_position =
+        std::pair{roi.edge_id_grid_x, roi.edge_id_grid_y};
+    if (!edge_ids.insert(roi.edge_id).second ||
+        !grid_positions.insert(grid_position).second) {
+      return std::nullopt;
+    }
+    if (n == 1 &&
+        (grid_position != std::pair{0, 0} || roi.physical_corner ||
+         roi.physical_edge)) {
+      return std::nullopt;
+    }
+    if (roi.physical_corner) physical_corners.insert(grid_position);
+  }
+  const std::set<std::pair<int, int>> expected_physical_corners = {
+      {-4, -2}, {4, -2}, {-4, 2}, {4, 2}};
+  if (physical_corners != expected_physical_corners) return std::nullopt;
+
   file.rois.reserve(roi_by_n.size());
   for (auto& [n, roi] : roi_by_n) {
     const auto mtf = mtf_by_n.find(n);

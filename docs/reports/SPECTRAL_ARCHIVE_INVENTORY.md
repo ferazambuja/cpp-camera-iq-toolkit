@@ -2,15 +2,12 @@
 
 Date: 2026-07-07
 Scope: the camera monochromator / camSPECS archive feeding the `spectral-response`,
-`spectral-closure`, `spectral-quality`, and `spectral-smi` slices.
+`spectral-closure`, `spectral-quality`, and `spectral-smi` methods.
 
-This is the **canonical file->role map** for the spectral track. It exists so the
-correct per-camera reading is chosen once and never re-searched, and so no file
-type is silently ignored. When a slice needs a camera SSF, illuminant, or chart
-reflectance, take it from the row below — do not re-walk the archive.
-
-All paths are archive labels or generated-artifact labels; no absolute mount
-paths are recorded. Read-only: nothing here is bulk-copied.
+This is the **canonical file->role map** for the spectral track. It records the
+per-camera SSF, illuminant, and chart-reflectance selections used by the
+published results. All paths are archive labels or generated-artifact labels;
+no absolute mount paths are recorded.
 
 ## Archive roots
 
@@ -25,7 +22,7 @@ paths are recorded. Read-only: nothing here is bulk-copied.
 measured on several days (see below); the loose per-day session folders are raw
 inputs. Prefer the curated `Data_Collected/<camera>/Monochromator/` CSV.
 
-## Per-camera monochromator SSF (the reading each slice uses)
+## Per-camera monochromator SSF selections
 
 Each camera has **five** monochromator measurements (11-18 through 11-21, some
 with a second "II" run the same day). The **canonical choice is 2016-11-21**,
@@ -121,9 +118,9 @@ curation for 2017; the two capture runs (`IQ3_100_1st`, `IQ3_100_2nd`) are both
 archive inputs. Luther/SMI are per-camera SSF properties, so ranking the 2017 IQ3
 alongside the 2016 cameras is valid; a closure comparison would not be.
 
-## Follow-ups
+## Implemented and optional extensions
 
-1. **[DONE 2026-07-07] Adopt CC-24 for the ISO-style SMI.** `CC24Patch_CGATS.txt`
+1. **CC-24 adoption for the ISO-style SMI.** `CC24Patch_CGATS.txt`
    is converted to canonical CSV and `spectral-smi` runs over the 18 chromatic
    patches (ISO), the full 24, and the SG-140. The primary SMI run uses D55, as
    ISO DSC/SMI specifies by default; D50 is retained as a cross-check. The three
@@ -132,7 +129,7 @@ alongside the 2016 cameras is valid; a closure comparison would not be.
    The command also reports a white-preserving constrained-fit sensitivity check
    to bound one plausible Annex-B normalization variant. See the SMI ranking
    section of `SPECTRAL_SENSITIVITY.md`.
-2. **[DONE 2026-07-07] CC-24 closure.** All four 2016 cameras were closed against
+2. **CC-24 closure.** All four 2016 cameras were closed against
    the classic 24-patch ColorChecker using the Target set 1 `<camera>/Target/*_CC.txt`
    ROI RGB, the original paired-column `CC24Patch_CGATS.txt` SpectraShop export,
    PR-655 HID, and legacy 11-21 SSFs. All four gate-PASS, match 24/24 patches,
@@ -141,3 +138,11 @@ alongside the 2016 cameras is valid; a closure comparison would not be.
 3. **PR-655 vs i1Pro illuminant cross-check** for the closure illuminant.
 4. **SSF day-to-day stability** (optional): rank the same camera across its 11-18..21
    monochromator runs to bound repeatability of the Luther/SMI numbers.
+
+## Implementation and tests
+
+- [`src/spectral_response.cpp`](../../src/spectral_response.cpp)
+- [`src/spectral_closure.cpp`](../../src/spectral_closure.cpp)
+- [`src/spectral_smi.cpp`](../../src/spectral_smi.cpp)
+- [`tests/test_spectral_response.cpp`](../../tests/test_spectral_response.cpp)
+- [Spectral case study](../case-studies/spectral-color-fidelity.md)

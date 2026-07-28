@@ -4,9 +4,12 @@ Date: 2026-07-04
 Dataset: `clrs589_project_camera`
 Command: `camera_iq ccm-fit`
 
+[Portfolio case study](../case-studies/colorchecker-ccm.md) ·
+[publication-safe aggregate CSV](../data/ccm_validation_summary.csv)
+
 ## Scope
 
-This slice renders the configured ColorChecker-SG spectral reflectance reference
+The command renders the configured ColorChecker-SG spectral reflectance reference
 under an explicit illuminant SPD, then fits a first linear 3x3 camera-RGB to XYZ
 color-correction matrix. It is a demonstration of the color pipeline mechanics,
 not an exact per-unit chart characterization.
@@ -71,8 +74,8 @@ Command used:
 ```bash
 ./build/camera_iq ccm-fit clrs589_project_camera \
   --config configs/datasets.local.json \
-  --illuminant-spd "data/private/datasets/clrs589_project_camera/Sphere measurments/fernando_ff2.csv" \
-  --out /tmp/clrs589_ccm_fit_ff2.json
+  --illuminant-spd "<relative/sphere-spd.csv>" \
+  --out out/clrs589_ccm_fit_ff2.json
 ```
 
 Pairing gate:
@@ -117,15 +120,15 @@ FF2 dark-patch diagnostics (`L* < 25`):
 |---:|---|---:|---:|
 | 28 | `A5` | 11.100 | 7.549 |
 
-The three copied sphere SPDs give stable first-slice DeltaE76 results:
+The three measured sphere SPDs give stable DeltaE76 sensitivity results:
 
 | Illuminant file | White Z | Mean DeltaE76 | RMS DeltaE76 | Max DeltaE76 |
 |---|---:|---:|---:|---:|
-| `fernando_ff1.csv` | 84.180 | 7.044 | 9.661 | 39.317 |
-| `fernando_ff2.csv` | 83.504 | 7.028 | 9.643 | 39.312 |
-| `fernando_ff3.csv` | 83.358 | 7.025 | 9.640 | 39.311 |
+| sphere SPD 1 | 84.180 | 7.044 | 9.661 | 39.317 |
+| sphere SPD 2 | 83.504 | 7.028 | 9.643 | 39.312 |
+| sphere SPD 3 | 83.358 | 7.025 | 9.640 | 39.311 |
 
-`fernando_ff1.csv` contains negative spectrometer noise beyond the SG reference
+Sphere SPD 1 contains negative spectrometer noise beyond the SG reference
 axis, around 991 nm. The reader ignores that unused tail and still rejects any
 negative interpolated value on the actual 380-730 nm target axis.
 
@@ -141,8 +144,8 @@ Patch table command:
   --rawdigger-csv Images/CCSG_rawdigger.csv \
   --flat-field-raw "Images/Sphere/Sphere_f8.0_1:1000_DSCF0387.RAF" \
   --wb-from-flat-field \
-  --rgb-csv-out /tmp/clrs589_raw_flat_wb_patches.csv \
-  --out /tmp/clrs589_raw_flat_wb_patches.json
+  --rgb-csv-out out/clrs589_raw_flat_wb_patches.csv \
+  --out out/clrs589_raw_flat_wb_patches.json
 ```
 
 CCM command:
@@ -150,9 +153,9 @@ CCM command:
 ```bash
 ./build/camera_iq ccm-fit clrs589_project_camera \
   --config configs/datasets.local.json \
-  --illuminant-spd "data/private/datasets/clrs589_project_camera/Sphere measurments/fernando_ff2.csv" \
-  --camera-rgb /tmp/clrs589_raw_flat_wb_patches.csv \
-  --out /tmp/clrs589_raw_flat_wb_ccm.json
+  --illuminant-spd "<relative/sphere-spd.csv>" \
+  --camera-rgb out/clrs589_raw_flat_wb_patches.csv \
+  --out out/clrs589_raw_flat_wb_ccm.json
 ```
 
 Pairing gate:
@@ -194,10 +197,10 @@ Opt-in dark-patch exclusion command:
 ```bash
 ./build/camera_iq ccm-fit clrs589_project_camera \
   --config configs/datasets.local.json \
-  --illuminant-spd "data/private/datasets/clrs589_project_camera/Sphere measurments/fernando_ff2.csv" \
-  --camera-rgb /tmp/clrs589_raw_flat_wb_patches.csv \
+  --illuminant-spd "<relative/sphere-spd.csv>" \
+  --camera-rgb out/clrs589_raw_flat_wb_patches.csv \
   --exclude-ref-lightness-below 25 \
-  --out /tmp/clrs589_raw_flat_wb_ccm_exclude_l25.json
+  --out out/clrs589_raw_flat_wb_ccm_exclude_l25.json
 ```
 
 Corrected RAW-patch result with `--exclude-ref-lightness-below 25`:
@@ -217,7 +220,7 @@ chart accuracy.
 
 The near-identical DeltaE under `--wb-from-flat-field` versus no WB is expected
 for a free 3x3 CCM: per-channel white-balance gains are absorbed by the fitted
-matrix. The value of this slice is not the final DeltaE number; it is that the
+matrix. The value of this result is not the final DeltaE number; it is that the
 RAW patch extraction path now has explicit flat-field/WB provenance and can feed
 the same CCM fitter as the historical MATLAB table.
 
@@ -254,7 +257,7 @@ used for this result.
 - Corrected RAW-patch CCM evidence currently covers the f/8 CCSG series only;
   f/9 lacks a usable same-aperture flat in the local dataset cache.
 
-## Next Risks
+## Open engineering questions
 
 1. Replace RawDigger-coordinate dependency with automatic RAW-space chart
    localization.
@@ -262,3 +265,11 @@ used for this result.
    black/flat-field floor before claiming a model-side color improvement.
 3. Add root-polynomial CCM variants only behind held-out/CV evidence that they
    improve rather than overfit the compatible reference.
+
+## Implementation and tests
+
+- [`src/colorimetry.cpp`](../../src/colorimetry.cpp)
+- [`src/cmd_ccm_fit.cpp`](../../src/cmd_ccm_fit.cpp)
+- [`tests/test_colorimetry.cpp`](../../tests/test_colorimetry.cpp)
+- [`tests/test_cmd_ccm_fit.cpp`](../../tests/test_cmd_ccm_fit.cpp)
+- [`tools/generate_portfolio_figures.py`](../../tools/generate_portfolio_figures.py)

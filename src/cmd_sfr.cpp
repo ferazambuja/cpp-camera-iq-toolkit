@@ -589,11 +589,14 @@ int cmd_sfr(int argc, char** argv) {
       }
     }
 
-    if (args.field_map &&
-        args.raw_rel.filename().string() != field_oracle->filename) {
-      std::cerr << "camera_iq sfr: --field-map RAW filename does not match "
-                   "oracle File entry\n";
-      return 1;
+    if (!args.oracle_y_multi_rel.empty()) {
+      const std::string& oracle_filename =
+          args.field_map ? field_oracle->filename : oracle->filename;
+      if (args.raw_rel.filename().string() != oracle_filename) {
+        std::cerr
+            << "camera_iq sfr: RAW filename does not match oracle File entry\n";
+        return 1;
+      }
     }
 
     const auto raw_path = resolve_child(dataset->root, args.raw_rel);

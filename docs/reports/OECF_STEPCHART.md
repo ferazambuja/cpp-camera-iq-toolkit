@@ -88,9 +88,7 @@ Observed envelope:
 | 19 | 0.1 | 0.4 | 0.3 |
 | 20 | 0.0 | 0.4 | 0.4 |
 
-## Not Claimed
-
-This slice does not claim:
+## Interpretation limits
 
 - ISO 14524 OECF conformance.
 - Raw-DN OECF or raw Stepchart zone extraction unless a raw-zone mode
@@ -214,3 +212,13 @@ git diff --check
 The strip-seed failure is intentional and must remain fail-closed; the ring
 seed is the accepted raw-DN path. The test suite tracks the Stepchart hardening,
 raw-zone gate, ring-contract, and ring-implementation commits.
+
+## Implementation and tests
+
+- [`src/imatest_stepchart.cpp`](../../src/imatest_stepchart.cpp)
+- [`src/stepchart_localization.cpp`](../../src/stepchart_localization.cpp)
+- [`src/stepchart_raw.cpp`](../../src/stepchart_raw.cpp)
+- [`src/cmd_oecf_stepchart.cpp`](../../src/cmd_oecf_stepchart.cpp)
+- [`tests/test_imatest_stepchart.cpp`](../../tests/test_imatest_stepchart.cpp)
+- [`tests/test_stepchart_localization.cpp`](../../tests/test_stepchart_localization.cpp)
+- [`tests/test_stepchart_raw.cpp`](../../tests/test_stepchart_raw.cpp)

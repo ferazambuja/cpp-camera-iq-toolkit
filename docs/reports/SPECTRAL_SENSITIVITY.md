@@ -1,15 +1,18 @@
-# Spectral Sensitivity Archive
+# Spectral Sensitivity and Camera Color Fidelity
 
 Date: 2026-07-06
 Tool: `camera_iq manifest` (this repository, v0.1.0)
 Dataset: `spectral_sensitivity_2016_2017`
 
-## Scope
+## Result summary
 
-This starts the camera spectral-sensitivity track as a separate dataset from the
-CLRS-589 ColorChecker-SG track. The report inventories the first scoped Canon
-5D Mark II monochromator subset and records the private inputs used for
-validation. It does not claim a new spectral sensitivity function yet.
+This report documents the completed path from monochromator data to a
+RAW-extracted camera spectral-sensitivity function, same-session physical
+closure, Luther-condition residuals, and an ISO 17321-style SMI approximation.
+
+[Portfolio case study](../case-studies/spectral-color-fidelity.md) ·
+[publication-safe aggregate CSV](../data/spectral_color_fidelity.csv) ·
+[archive role map](SPECTRAL_ARCHIVE_INVENTORY.md)
 
 The source archive was read only. The tracked repository records relative
 dataset labels; private RAW files, workbooks, and generated manifests remain
@@ -26,10 +29,8 @@ subset is:
 | Archive label | `archive:2016_Monochromator/2016_11_21_5D2_Monochromator_OK` |
 | Derived manifest | `out/spectral_sensitivity_5d2_20161121_manifest.json` |
 
-No local RAW cache is required for the current workflow. Earlier validation used
-temporary 57-file local staging; the same 57 files are now read directly from
-the archive-mounted dataset root. This remains intentionally narrower than a
-bulk mirror of the full archive.
+The current workflow reads the required 57 files directly through the
+configured archive root rather than mirroring the full archive.
 
 Derived manifests remain gitignored under `out/`. No RAW, workbook, PDF, or
 generated manifest is intended for commit.
@@ -151,7 +152,7 @@ Legacy reproduction is a fidelity check, not a scientific correctness proof:
 
 Do not promote a conclusion from tier 1 alone.
 
-## Parser / Normalizer Slice
+## Legacy CSV parser and normalizer
 
 The `spectral-response` command adds a spectral-response parser/normalizer
 before RAW extraction:
@@ -182,12 +183,12 @@ positive 48-sample line SPD, the original legacy RGB response, normalization
 `legacy_peak_channel_normalized_green_1_no_rescale`, and
 `validation_tier: "legacy_fidelity_only"`.
 
-## RAW Extraction Slice
+## Toolkit RAW extraction
 
-The second implementation slice adds toolkit-derived RAW extraction over the
-same 48 sweep CR2s plus the matched dark frame. This remains tier-1 fidelity
-evidence only: the comparison target is the legacy `*_mono.csv`, not an
-independent camera spectral-sensitivity oracle.
+Toolkit-derived RAW extraction covers the same 48 sweep CR2s plus the matched
+dark frame. This remains tier-1 fidelity evidence only: the comparison target
+is the legacy `*_mono.csv`, not an independent camera spectral-sensitivity
+oracle.
 
 The command shape is:
 
@@ -253,10 +254,11 @@ This is a strong reimplementation-fidelity result. It is not a proof that the
 legacy curve is scientifically correct.
 
 The command now also emits the toolkit-derived SSF as `Wavelength,R,G,B` CSV via
-`--ssf-csv-out`, so downstream closure and quality slices can consume the C++
-extraction directly instead of the legacy `*_mono.csv`. The legacy CSV stays
-as a tier-1 fidelity comparison target only. This distinction matters because the
-legacy `spectral_v2_1.py` path is method context, not a scientific oracle:
+`--ssf-csv-out`, so the `spectral-closure` and `spectral-quality` commands can
+consume the C++ extraction directly instead of the legacy `*_mono.csv`. The
+legacy CSV stays as a tier-1 fidelity comparison target only. This distinction
+matters because the legacy `spectral_v2_1.py` path is method context, not a
+scientific oracle:
 
 - its dark-frame path is commented out, so the historical TIFF workflow can run
   without dark subtraction;
@@ -274,7 +276,8 @@ live in the top-level `2016_11_21_5D2_Target/` session folder, their per-frame
 patch-extraction sidecars are mirrored under
 `Data_Collected/Canon 5D Mk II/Target/`, and the shared illuminant and chart
 reflectance files sit under `Data_Collected/Light Source/` and
-`Data_Collected/Color Checker/`. No local staged closure cache is required.
+`Data_Collected/Color Checker/`. The analysis reads these inputs through the
+configured dataset root.
 
 | Input | Archive file | Verified role |
 |---|---|---|
@@ -287,7 +290,7 @@ reflectance files sit under `Data_Collected/Light Source/` and
 
 The session `readme.rtf` states that the 5D2 target files were normalized to the
 same naming convention and that the CC/SG patch readings were reordered to match
-RawDigger. This makes the tier-3 physical-closure slice feasible without mixing
+RawDigger. This makes tier-3 physical closure feasible without mixing
 the separate `canon_5d2_repro` / `2016_IS_Reproduction` capture.
 
 The implemented `spectral-closure` command follows these constraints:
@@ -297,7 +300,7 @@ The implemented `spectral-closure` command follows these constraints:
   circumstantial grounds (same session, only measured broadband source in the
   session, standard SSF-plus-known-light design). That the `Target` ColorChecker
   frames were actually shot under that HID lamp is inferred, not documented. The
-  closure slice must verify it via a white-card cross-check before using the
+  closure analysis must verify it via a white-card cross-check before using the
   target patches. Because no measured white-card reflectance is available here,
   this is an illuminant-pairing / chromaticity sanity gate, not the physical
   closure result: the `WhiteCard` frame's dark-subtracted channel ratios should
@@ -464,7 +467,7 @@ not bias it. Result over the current CMF grid, 380-730 nm:
 | 4 | Sony A7SII | legacy `mono.csv` | 0.353 | 0.196 | 0.355 | 0.310 | 0.690 |
 | 5 | Phase One IQ3 100 | legacy `Spectral_Sensitivity_Data.csv` (2017 camSPECS) | 0.358 | 0.304 | 0.377 | 0.348 | 0.652 |
 
-Canon 5D2 has the lowest residual in this slice; the medium-format Phase One
+Canon 5D2 has the lowest residual in this comparison; the medium-format Phase One
 IQ3 100 has the highest. Nikon D810 and Sony A7RII are effectively tied at the
 reported precision, and Sony A7SII sits between that pair and the IQ3. The IQ3
 row is its first 2017 capture run; the second run gives a combined residual of
@@ -493,13 +496,13 @@ records that the four-camera ranking is stable when all four 2016 cameras use
 toolkit-extracted SSFs.
 
 The separate `canon_5d2_repro` / `2016_IS_Reproduction` captures remain real
-archive material, but they are not the closure evidence for this slice because
+archive material, but they are not the closure evidence for this report because
 they are a different session with no paired capture illuminant SPD.
 
-### Camera color-fidelity ranking (`spectral-smi`, perceptual CIE-SMI style)
+### Camera color-fidelity ranking (`spectral-smi`, ISO 17321-style SMI approximation)
 
 The Luther residual above is an unweighted geometric CMF-fit. The `spectral-smi`
-command upgrades this to the ISO 17321 Sensitivity Metamerism Index method:
+command implements an ISO 17321-style Sensitivity Metamerism Index approximation:
 synthesize each camera's linear RGB response to a set of real test colours under
 a reference illuminant, fit the optimal 3x3 RGB->XYZ transform, and score the
 residual **perceptual** CIELAB error as `SMI = 100 - 5.5 * meanDE*ab`. Higher is
@@ -592,7 +595,7 @@ SMI caveats (honest scope):
   the toolkit extraction, the rest legacy; the IQ3 is the 2017 camSPECS SSF. SMI,
   like Luther, is a per-camera SSF property, so this is valid for ranking.
 
-## Per-Camera Coverage and Multi-Camera Closure Plan
+## Per-camera coverage and closure status
 
 The archive is a five-camera set across two sessions. Tier-3 closure needs, per
 camera: an SSF source, a broadband ColorChecker/Target capture, a measured
@@ -614,18 +617,18 @@ four 2016 cameras are archive input-complete and share the single measured HID
 illuminant and the single measured proven-identity SG reflectance. Target set 1
 has now been gate-checked for all four 2016 cameras. The additional
 target sets span 2016-11-21 and 2016-11-22 and must carry their own
-white-card/dark pairing if used later. Copy each additional camera or target
-subset only when its slice runs; do not bulk-copy.
+white-card/dark pairing if used later. Additional camera or target subsets
+remain outside the reported analysis until their session pairing is verified.
 
-## Completed Follow-on Work
+## Implemented extensions
 
-1. **[DONE 2026-07-07]** **Add the Phase One IQ3 to the color-fidelity ranking.**
+1. **Phase One IQ3 color-fidelity ranking.**
    The IQ3 `Spectral_Sensitivity_Data.csv` was already in `Wavelength,Red,Green,
    Blue` form — no conversion needed — so `spectral-quality` runs on it directly
    (the SSF is supplied through the private spectral archive root). Added as
    rank 5 above (combined residual 0.348 run 1 / 0.336 run 2, worst of the five).
    The medium-format back has the highest CMF-fit residual of the set.
-2. **[DONE 2026-07-07]** **Upgrade from the Luther CMF-fit proxy to the CIE
+2. **Upgrade from the Luther CMF-fit proxy to the CIE
    Sensitivity Metamerism Index (SMI) method.** The `spectral-smi` command
    (optimal 3x3 + mean CIELAB error, `SMI = 100 - 5.5*dE`) scores all five cameras
    under CIE D55 over three measured test sets — the ISO-recommended 18 chromatic
@@ -637,15 +640,24 @@ subset only when its slice runs; do not bulk-copy.
    ISO constant) and the exact Annex B optimizer / normalization convention;
    slope does not change the ranking.
 
-## Not Claimed
+## Interpretation limits
 
-- No independently validated camera spectral-sensitivity function is claimed
-  here; the toolkit-derived RAW response is tier-1 legacy-fidelity evidence.
-- No assertion that the legacy `*_mono.csv` is scientifically correct.
-- No public-SSF comparison yet.
-- No claim that these closures are uniqueness proofs or public-SSF validations;
-  they are same-session physical consistency checks under one global exposure
-  scale.
-- No claim that the four-camera closure residuals rank camera color quality.
-  They validate the spectral-response method and session pairing; color-quality
-  ranking requires a separate SSF-vs-CMF spectral-quality metric.
+- The toolkit-derived RAW response is legacy-fidelity evidence rather than an
+  independently validated absolute SSF; the legacy CSV is a comparison source,
+  not a correctness oracle.
+- Closure is a same-session physical consistency check under one global
+  exposure scale, not a uniqueness proof or public-SSF validation.
+- Closure residuals do not rank camera color quality; that question is handled
+  separately by the SSF-vs-CMF metrics.
+
+## Implementation and tests
+
+- [`src/spectral_response.cpp`](../../src/spectral_response.cpp)
+- [`src/spectral_closure.cpp`](../../src/spectral_closure.cpp)
+- [`src/spectral_quality.cpp`](../../src/spectral_quality.cpp)
+- [`src/spectral_smi.cpp`](../../src/spectral_smi.cpp)
+- [`tests/test_spectral_response.cpp`](../../tests/test_spectral_response.cpp)
+- [`tests/test_spectral_closure.cpp`](../../tests/test_spectral_closure.cpp)
+- [`tests/test_spectral_quality.cpp`](../../tests/test_spectral_quality.cpp)
+- [`tests/test_spectral_smi.cpp`](../../tests/test_spectral_smi.cpp)
+- [`tools/generate_portfolio_figures.py`](../../tools/generate_portfolio_figures.py)

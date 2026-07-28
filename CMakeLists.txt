@@ -141,3 +141,16 @@ add_test(NAME check_sample_fixtures
   COMMAND bash ${CMAKE_SOURCE_DIR}/tools/check_sample_fixtures.sh)
 add_test(NAME check_verify_ccsg_vs_xrite_behavior
   COMMAND bash ${CMAKE_SOURCE_DIR}/tools/check_verify_ccsg_vs_xrite_behavior.sh)
+add_test(NAME check_portfolio_docs
+  COMMAND python3 ${CMAKE_SOURCE_DIR}/tools/check_portfolio_docs.py
+          --repo-root ${CMAKE_SOURCE_DIR})
+add_test(NAME check_portfolio_figures
+  COMMAND python3 ${CMAKE_SOURCE_DIR}/tools/generate_portfolio_figures.py
+          --repo-root ${CMAKE_SOURCE_DIR} --check)
+add_test(NAME check_public_paths_behavior
+  COMMAND bash ${CMAKE_SOURCE_DIR}/tools/test_check_public_paths.sh
+          ${CMAKE_SOURCE_DIR}/tools/check_public_paths.sh)
+add_test(NAME test_portfolio_docs
+  COMMAND python3 ${CMAKE_SOURCE_DIR}/tools/test_portfolio_docs.py)
+add_test(NAME test_portfolio_figures
+  COMMAND python3 ${CMAKE_SOURCE_DIR}/tools/test_portfolio_figures.py)

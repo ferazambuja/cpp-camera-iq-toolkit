@@ -50,4 +50,6 @@ configs/datasets.local.json
 .DS_Store
 .vscode/
 .idea/
+__pycache__/
+*.py[cod]
 *.swp

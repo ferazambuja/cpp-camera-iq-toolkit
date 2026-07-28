@@ -7,7 +7,7 @@ are not distributed with this repository.
 
 ## Scope
 
-This slice adds a first sensor-linearity fit over the existing
+The command fits sensor linearity over the existing
 exposure-response chain:
 
 - Reuse exposure-series grouping, post-`unpack()` black subtraction, active-area
@@ -104,11 +104,18 @@ Targeted checks:
 - `camera_iq_tests` verifies that `camera_iq oecf-fit` is routed.
 - The real-data validation output was written under `out/`, not tracked in git.
 
-## Not Claimed
+## Interpretation limits
 
-- No ISO 14524 OECF conformance result.
-- No PTC, temporal noise, read noise, DSNU, PRNU, dark-current, or dynamic-range
-  metric.
-- No automatic chart/patch detection or reflectance pairing.
-- No independent illumination-stability validation.
-- No colorimetric or perceptual image-quality claim.
+- The relative-exposure fit is not ISO 14524 conformance and has no independent
+  illumination-stability validation.
+- It does not provide PTC, temporal/read noise, DSNU/PRNU, dark current, or
+  dynamic range.
+- Chart/reflectance pairing and colorimetric or perceptual quality are separate
+  analyses.
+
+## Implementation and tests
+
+- [`src/oecf_fit.cpp`](../../src/oecf_fit.cpp)
+- [`src/cmd_oecf_fit.cpp`](../../src/cmd_oecf_fit.cpp)
+- [`tests/test_oecf_fit.cpp`](../../tests/test_oecf_fit.cpp)
+- [Exposure-response report](EXPOSURE_RESPONSE.md)

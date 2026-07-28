@@ -10,7 +10,7 @@ points those IDs at private data or an archive mount.
 
 ## Scope
 
-This slice implements RAW unpack plus per-CFA-position statistics over the
+The command implements RAW unpack plus per-CFA-position statistics over the
 visible active Bayer mosaic. It does not implement demosaic, OECF, PTC, noise
 modeling, or color correction yet.
 
@@ -164,15 +164,16 @@ cmake --build build --parallel
 ctest --test-dir build --output-on-failure
 ```
 
-Current repository validation:
-16/16 CTest tests passed, including repository privacy and sample-fixture checks.
+The complete CTest suite covers this command together with repository privacy,
+sample-fixture, documentation, and figure-freshness checks.
 
-## Not Claimed
+## Interpretation limits
 
-- No demosaiced image quality claim.
-- No OECF/PTC/noise-model claim yet.
-- No claim that raw full-frame masked pixels are part of the active image stats.
-- No support yet for X-Trans or other non-2x2 Bayer mosaics.
+- Results are active-area CFA statistics, not demosaiced image quality,
+  OECF/PTC, or a noise model.
+- Full-frame masked pixels are excluded from active-image statistics.
+- Only 2×2 Bayer mosaics are supported; X-Trans and other layouts require a
+  separate sampling model.
 
 ## References
 
@@ -194,3 +195,10 @@ Current repository validation:
 finalize black level or pitch during `unpack()`, such as the Canon CR2
 regression above, its `black_level` can be an open-stage placeholder; use
 `raw-stats` for pixel-correct black subtraction.
+
+## Implementation and tests
+
+- [`src/raw_meta.cpp`](../../src/raw_meta.cpp)
+- [`src/cmd_raw_stats.cpp`](../../src/cmd_raw_stats.cpp)
+- [`tests/test_raw_meta.cpp`](../../tests/test_raw_meta.cpp)
+- [`tests/test_cfa_stats.cpp`](../../tests/test_cfa_stats.cpp)

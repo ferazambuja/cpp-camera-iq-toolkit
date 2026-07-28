@@ -155,7 +155,10 @@ void write_field_y_multi_fixture(const std::filesystem::path& path,
                                  bool duplicate_mtf_n = false,
                                  bool omit_mtf_n_23 = false,
                                  bool malformed_edge_id = false,
-                                 bool overflowing_geometry = false) {
+                                 bool overflowing_geometry = false,
+                                 bool duplicate_edge_id = false,
+                                 bool misplaced_center = false,
+                                 bool bad_corner_topology = false) {
   std::ofstream os(path);
   os << "Imatest,4.5.7, , SFRplus\n";
   os << "File,NIKON D810_50mm_f5.6_.NEF\n";
@@ -163,8 +166,11 @@ void write_field_y_multi_fixture(const std::filesystem::path& path,
   os << "N,Distance %,Direction,X1,Y1,X2,Y2,Width,Height,Region,Edge ID,"
         "X px from ctr,Y px from ctr,CSV summary file\n";
   for (const auto& row : kFieldRows) {
-    const char* edge_id =
-        malformed_edge_id && row.n == 3 ? "not_a_grid_edge" : row.edge_id;
+    const char* edge_id = row.edge_id;
+    if (malformed_edge_id && row.n == 3) edge_id = "not_a_grid_edge";
+    if (duplicate_edge_id && row.n == 23) edge_id = kFieldRows[21].edge_id;
+    if (misplaced_center && row.n == 1) edge_id = "1_0_R";
+    if (bad_corner_topology && row.n == 2) edge_id = "-3_-2_L_C";
     const int x1 = overflowing_geometry && row.n == 3
                        ? std::numeric_limits<int>::max()
                        : row.x1;
@@ -800,6 +806,32 @@ void TESTS() {
     write_field_y_multi_fixture(path, true, false);
     const auto oracle = camera_iq::read_imatest_y_multi_file(path);
     test::check(!oracle, "Imatest all-row parser rejects duplicate MTF row");
+    std::filesystem::remove(path);
+  }
+
+  {
+    const auto path = temp_file("camera_iq_test_y_multi_duplicate_edge.csv");
+    write_field_y_multi_fixture(path, false, false, false, false, true);
+    const auto oracle = camera_iq::read_imatest_y_multi_file(path);
+    test::check(!oracle, "Imatest field parser rejects duplicate edge IDs");
+    std::filesystem::remove(path);
+  }
+
+  {
+    const auto path = temp_file("camera_iq_test_y_multi_misplaced_center.csv");
+    write_field_y_multi_fixture(path, false, false, false, false, false, true);
+    const auto oracle = camera_iq::read_imatest_y_multi_file(path);
+    test::check(!oracle, "Imatest field parser requires N=1 at grid center");
+    std::filesystem::remove(path);
+  }
+
+  {
+    const auto path = temp_file("camera_iq_test_y_multi_bad_corners.csv");
+    write_field_y_multi_fixture(path, false, false, false, false, false, false,
+                                true);
+    const auto oracle = camera_iq::read_imatest_y_multi_file(path);
+    test::check(!oracle,
+                "Imatest field parser requires the four expected corners");
     std::filesystem::remove(path);
   }
 
