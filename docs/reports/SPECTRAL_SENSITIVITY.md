@@ -10,7 +10,7 @@ This report documents the completed path from monochromator data to a
 RAW-extracted camera spectral-sensitivity function, same-session physical
 closure, Luther-condition residuals, and an ISO 17321-style SMI approximation.
 
-[Portfolio case study](../case-studies/spectral-color-fidelity.md) ·
+[Case study](../case-studies/spectral-color-fidelity.md) ·
 [publication-safe aggregate CSV](../data/spectral_color_fidelity.csv) ·
 [archive role map](SPECTRAL_ARCHIVE_INVENTORY.md)
 
@@ -18,7 +18,7 @@ The source archive was read only. The tracked repository records relative
 dataset labels; private RAW files, workbooks, and generated manifests remain
 under ignored paths.
 
-## Archive-Mounted Inputs
+## Input datasets
 
 The spectral-sensitivity dataset is intended to run from the read-only archive
 root configured as `spectral_sensitivity_2016_2017`. The first scoped camera
@@ -268,12 +268,12 @@ scientific oracle:
 - it consumes demosaiced TIFFs, while the toolkit extraction uses CFA-direct
   per-channel means plus saturation and below-dark rollups.
 
-## Tier-3 Feasibility Check
+## Physical closure feasibility
 
-The earlier blocked conclusion was too broad. The `2016_Monochromator` archive
-also contains a same-session Canon 5D2 broadband target set: the RAW frames
-live in the top-level `2016_11_21_5D2_Target/` session folder, their per-frame
-patch-extraction sidecars are mirrored under
+The `2016_Monochromator` archive contains a same-session Canon 5D2 broadband
+target set. The RAW frames live in the top-level
+`2016_11_21_5D2_Target/` session folder, their per-frame patch-extraction
+sidecars are mirrored under
 `Data_Collected/Canon 5D Mk II/Target/`, and the shared illuminant and chart
 reflectance files sit under `Data_Collected/Light Source/` and
 `Data_Collected/Color Checker/`. The analysis reads these inputs through the
@@ -374,9 +374,9 @@ the fitted closure uses the single global `k` above.
 Four-camera Target set 1 fan-out (`--dark-rgb` supplied for every camera, shared
 PR-655 HID illuminant and SG reflectance). This retained closure table is a
 mixed-source baseline: the Canon row uses the toolkit RAW-derived SSF; the other
-three rows still use their legacy `*_mono.csv` SSFs. Regenerate and retain the
-D810, A7RII, and A7SII toolkit-SSF closure artifacts before claiming the closure
-table itself is fully migrated off the legacy curves:
+three rows use their legacy `*_mono.csv` SSFs. Toolkit-SSF closure artifacts
+for D810, A7RII, and A7SII are not retained in this table, so it remains a
+mixed-source comparison:
 
 | Camera | SSF source | Gate-1 max ratio error | Patches | Target saturated / below-dark exclusions | R/G/B relative RMS | Minimum channel correlation |
 |---|---|---:|---:|---:|---:|---:|
@@ -552,7 +552,7 @@ What is robust and what is not:
   neutrals removes the trivially-fit flat patches and leaves only the harder
   chromatic ones. This is expected: the neutrals inflate SMI without testing
   colour fidelity, which is exactly why ISO specifies the 18 chromatic set.
-  CC-18 is the more discriminating and more honest number.
+  CC-18 is the more discriminating metric.
 - **dE2000 is a companion diagnostic, not the SMI ranking metric.** Under dE2000
   A7SII has the lowest CC-18 mean in the D55 run, while SMI is defined on dE*ab
   1976 and keeps Canon clearly ahead. Report both, but do not reinterpret SMI
@@ -576,7 +576,7 @@ The check narrows the residual optimizer caveat from a pure prose warning to a
 measured range: the endpoints (Canon best, IQ3 worst) remain stable, while the
 middle pack can shift by a few tenths of an SMI point.
 
-SMI caveats (honest scope):
+SMI limitations:
 - **Close to ISO, not bit-exact.** The test set now matches the ISO 17321 shape
   (18 chromatic ColorChecker patches) and the primary illuminant now follows the
   ISO DSC/SMI default (D55). The metric uses `SMI = 100 - 5.5*dE*ab` after a 3x3

@@ -2,8 +2,8 @@
 
 [![CI](https://github.com/ferazambuja/cpp-camera-iq-toolkit/actions/workflows/ci.yml/badge.svg)](https://github.com/ferazambuja/cpp-camera-iq-toolkit/actions/workflows/ci.yml)
 
-I built this C++20 toolkit to turn RAW camera captures and measured references
-into inspectable image-quality results. It covers the measurement chain from
+This C++20 toolkit turns RAW camera captures and measured references into
+inspectable image-quality results. It covers the measurement chain from
 LibRaw/CFA handling through color, spectral, tone, noise, and slanted-edge
 sharpness analysis, with structured JSON/CSV outputs and CTest-backed
 validation.
@@ -30,15 +30,14 @@ validation.
 
 ## Featured case studies
 
-| Case study | What to inspect | Headline result |
+| Case study | Methods | Result |
 |---|---|---|
 | [D800/D810 SFR aperture and field analysis](docs/case-studies/sfr-mtf-aperture-field.md) | Slanted-edge algorithm, field behavior, advisory cross-checks, failure transfer | 299 accepted field ROIs; camera-specific trend and field findings |
 | [Spectral sensitivity and color fidelity](docs/case-studies/spectral-color-fidelity.md) | RAW monochromator extraction, physical closure, Luther/SMI comparison | Four-camera closure; stable five-camera endpoint ordering |
 | [ColorChecker extraction and CCM validation](docs/case-studies/colorchecker-ccm.md) | RAW patch extraction, flat field/WB, linear CCM, held-out Delta E | 140-patch pipeline with explicit dark-patch diagnostics |
 
-For a five-minute technical tour, start at the
-[portfolio and report index](docs/README.md). The index also exposes the OECF,
-noise, demosaic, localization, dataset, and provenance studies.
+The [technical documentation index](docs/README.md) connects these case studies
+to the OECF, noise, demosaic, localization, dataset, and provenance reports.
 
 ![Camera IQ toolkit measurement architecture](docs/figures/architecture.svg)
 
@@ -65,7 +64,7 @@ Implemented commands:
 `ccm-fit`, `patches`, `spectral-response`, `spectral-closure`,
 `spectral-quality`, and `spectral-smi`.
 
-## Public reproducibility
+## Reproducibility and data access
 
 The source RAW datasets are intentionally outside Git, but the repository does
 not stop at prose. It includes publication-safe aggregate tables, deterministic
@@ -77,7 +76,7 @@ cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
 cmake --build build --parallel
 ctest --test-dir build --output-on-failure
 
-# Rebuild the portfolio plots from committed aggregate CSVs.
+# Rebuild the figures from committed aggregate CSVs.
 python3 tools/generate_portfolio_figures.py
 python3 tools/generate_portfolio_figures.py --check
 ```
@@ -126,8 +125,8 @@ interpret them.
 
 ## Interpretation boundaries
 
-This is a research and portfolio toolkit, not a certified ISO laboratory suite
-or a production ISP. The reports distinguish sensor-linear measurements from
+This is a research toolkit, not a certified ISO laboratory suite or a
+production ISP. The reports distinguish sensor-linear measurements from
 rendered-luma comparisons, DN-domain diagnostics from electron-calibrated
 quantities, compatible chart references from exact per-unit measurements, and
 advisory reference-tool comparisons from equivalence claims.

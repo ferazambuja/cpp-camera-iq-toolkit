@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Validate the public Markdown graph and portfolio publication invariants."""
+"""Validate the public Markdown graph and documentation language rules."""
 
 from __future__ import annotations
 
@@ -47,6 +47,55 @@ STALE_PATTERNS = {
     "internal exit criterion": re.compile(r"exit criterion", re.IGNORECASE),
     "completed-item ledger": re.compile(r"\[DONE\b", re.IGNORECASE),
     "internal lifecycle phrase": re.compile(r"\bthis slice\b", re.IGNORECASE),
+    "audience-targeting language": re.compile(
+        r"\bhiring[- ]manager\b|\brecruiter\b|"
+        r"\broutes three kinds of readers\b|"
+        r"\bfive-minute technical tour\b",
+        re.IGNORECASE,
+    ),
+    "self-promotional portfolio language": re.compile(
+        r"\bportfolio audit\b|\bportfolio landing page\b|"
+        r"\bportfolio and report index\b|\bportfolio plots\b|"
+        r"\bresearch and portfolio toolkit\b|"
+        r"^## Public evidence model\s*$",
+        re.IGNORECASE | re.MULTILINE,
+    ),
+    "persuasion-oriented summary language": re.compile(
+        r"^## (?:Executive Verdict|Public Summary|Bottom Line)\s*$|"
+        r"\bDefensible summary:",
+        re.IGNORECASE | re.MULTILINE,
+    ),
+    "self-conscious claim language": re.compile(
+        r"\bhonest scope\b|\bhonesty contract\b|\bclaim-scoped\b|"
+        r"\bnot globally data-blocked\b|\bmore honest number\b|"
+        r"^#{1,6} (?:"
+        r"Hazards \(do not trip on these\)|"
+        r"Verified this session(?: \(machine-precision\))?|"
+        r"Available but unused data \(cataloged so it is not [\"“]?ignored[\"”]?\)|"
+        r"Authority rule"
+        r")\s*$|"
+        r"^\*\*Caveat preserved\.\*\*|"
+        r"^\*\*Do not claim\*\*|"
+        r"\bcurrent honest claim\b",
+        re.IGNORECASE | re.MULTILINE,
+    ),
+    "internal prioritization or claim lifecycle": re.compile(
+        r"\brather than unimplemented parser loops\b|"
+        r"\bhighest scientific gap\b|\buseful engineering polish\b|"
+        r"\bless scientifically important\b|"
+        r"\bsmall provenance-strengthening tasks\b|\blower priority\b|"
+        r"\bbefore any analysis claims\b|"
+        r"\bNo [^\n.]{0,80} numbers are claimed\b|"
+        r"\bEvery claim\b|\bNo claim\b|"
+        r"\bpending follow-up checks\b|"
+        r"\bearlier blocked conclusion\b|"
+        r"\bbefore claiming [^\n.]{0,80} fully migrated\b|"
+        r"\bnot yet approved\b|"
+        r"^## Implemented and optional extensions\s*$|"
+        r"\[Finished SFR/MTF report\]|"
+        r"\bFinished D800/D810 center, aperture, and field analysis\b",
+        re.IGNORECASE | re.MULTILINE,
+    ),
 }
 INTERNAL_PATTERNS = {
     "AI-assistance disclosure": re.compile(r"\bAI[- ]assistance\b", re.IGNORECASE),
@@ -94,7 +143,9 @@ def main() -> int:
     ]
     for path in required:
         if not path.is_file():
-            failures.append(f"missing portfolio document: {path.relative_to(repo_root)}")
+            failures.append(
+                f"missing required project document: {path.relative_to(repo_root)}"
+            )
 
     markdown_files = tracked_markdown(repo_root)
     for path in markdown_files:
@@ -131,12 +182,12 @@ def main() -> int:
         failures.append("README is missing the GitHub profile link")
 
     if failures:
-        print("portfolio documentation validation failed:", file=sys.stderr)
+        print("project documentation validation failed:", file=sys.stderr)
         for failure in failures:
             print(f"  {failure}", file=sys.stderr)
         return 1
     print(
-        f"portfolio docs valid: {len(markdown_files)} Markdown files, "
+        f"project docs valid: {len(markdown_files)} Markdown files, "
         f"{len(list((repo_root / 'docs' / 'reports').glob('*.md')))} reports indexed"
     )
     return 0

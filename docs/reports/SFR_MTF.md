@@ -9,7 +9,7 @@ positive center-to-corner margin from f/5.6 through f/11. The same trend did not
 transfer to the D800; that camera/capture set retained a different center curve
 and field maximum.
 
-[Portfolio case study](../case-studies/sfr-mtf-aperture-field.md) ·
+[Case study](../case-studies/sfr-mtf-aperture-field.md) ·
 [publication-safe aggregate CSV](../data/sfr_aperture_summary.csv) ·
 [archive and oracle contract](SFR_MTF_ARCHIVE_INVENTORY.md)
 

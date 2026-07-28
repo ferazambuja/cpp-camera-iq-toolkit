@@ -1,12 +1,12 @@
 # Camera IQ Technical Coverage Map
 
-Portfolio audit: 2026-07-28<br>
-Source basis: the public implementation, tests, reports, aggregate tables, and
+Last reviewed: 2026-07-28<br>
+Evidence basis: the implementation, tests, reports, aggregate tables, and
 archive inventories in this repository.
 
-[Portfolio and report index](../README.md)
+[Documentation index](../README.md)
 
-## Executive Verdict
+## Technical scope
 
 The toolkit implements a broad set of objective still-image IQ analyses
 supported by the available image archives:
@@ -22,13 +22,13 @@ supported by the available image archives:
 - Slanted-edge SFR/MTF, including center ROI and 23-ROI field maps on two Nikon
   archives.
 
-The remaining gaps are mostly outside the current archive evidence rather than
-unimplemented parser loops: electron-calibrated gain/read noise, full well,
-engineering dynamic range, PRNU, exact ISO standard conformance, automatic
-chart localization for every target type, and dedicated vignetting/distortion/
-chromatic-aberration/flare metrics.
+The current archives do not provide the calibration or target captures needed
+for electron-calibrated gain/read noise, full well, engineering dynamic range,
+PRNU, exact ISO standard conformance, or dedicated vignetting, distortion,
+chromatic-aberration, and flare measurements. Automatic chart localization is
+also incomplete for some target types.
 
-## Command Surface
+## Command-line interfaces
 
 Current CLI verbs:
 
@@ -44,9 +44,9 @@ The implementation is accompanied by CTest coverage and repository privacy
 checks; the large RAW data and generated outputs stay in private or ignored
 locations.
 
-## Coverage Matrix
+## Coverage matrix
 
-| IQ dimension | Status | Evidence reports | What is supported | Main boundaries |
+| IQ dimension | Implementation status | Reports | Implemented and validated | Limitations |
 |---|---|---|---|---|
 | RAW file inventory and metadata | Covered | [Fuji manifest](FUJI_XT100_CCSG_MANIFEST.md), [spectral report](SPECTRAL_SENSITIVITY.md) | Dataset scans, filename/EXIF checks, candidate exposure series, private-data labeling. | `manifest` is metadata/open-file oriented; maker black and pitch are authoritative only after unpack where needed. |
 | RAW CFA statistics | Covered | [RAW stats](RAW_STATS.md) | Black-subtracted per-CFA-position stats over full frames or ROIs, cross-maker regression fixtures. | Not a full ISP or rendered-image analysis. |
@@ -70,7 +70,7 @@ locations.
 | Distortion / chromatic aberration / flare | Partial / diagnostic only | [Localization](RAW_CHART_LOCALIZATION.md), [CCM fit](CCM_FIT.md) | Localization residuals and dark-patch flare evidence. | No standalone distortion, lateral CA, flare, or veiling-glare metric. |
 | Texture, autofocus, rolling shutter, HDR/video | Not covered | none | Out of current still-image archive scope. | Would need new target captures or different data. |
 
-## Dataset Coverage
+## Dataset coverage
 
 | Dataset family | Covered outputs |
 |---|---|
@@ -80,49 +80,43 @@ locations.
 | 2016 esensi D810/D800 SFR | Center and field SFR/MTF, aperture trend gates, Imatest `_Y_multi.csv` oracle comparisons. |
 | 2016 D800 OECF Stepchart | Imatest oracle parsing, raw ring-zone extraction, DN-referred per-pixel temporal variance diagnostics. |
 
-## Public Summary
+## Scope and limitations
 
-Defensible summary:
+The toolkit implements a C++ still-camera IQ analysis pipeline over archived
+RAW datasets: RAW/CFA statistics, color chart extraction and CCM/Delta E,
+spectral sensitivity with physical closure and SMI-style ranking, OECF and
+Stepchart analysis, dark-frame noise/DSNU, DN-referred temporal-variance
+diagnostics, and slanted-edge SFR/MTF center/field maps. Large source datasets
+stay outside Git; the repository provides method reports, parser and fixture
+tests, aggregate results, and implementation links. The toolkit is a technical
+implementation and validation project, not a certified ISO laboratory suite.
 
-> This toolkit implements a C++ still-camera IQ analysis pipeline over archived
-> RAW datasets: RAW/CFA statistics, color chart extraction and CCM/Delta E,
-> spectral sensitivity with physical closure and SMI-style ranking, OECF and
-> Stepchart analysis, dark-frame noise/DSNU, DN-referred temporal-variance
-> diagnostics, and slanted-edge SFR/MTF center/field maps. Large private RAW
-> datasets stay out of git; every public result is tied to an evidence report,
-> parser/fixture tests, and explicit non-claim boundaries.
+## Known gaps
 
-Do not compress that into "complete ISO camera certification." The project is a
-technical reimplementation and validation toolkit, not a certified ISO lab
-suite.
+1. **Calibration-backed electron PTC/DR** requires calibrated system gain,
+   electron-referred read noise, full-well evidence, and a defined engineering
+   dynamic-range threshold. The current Stepchart fits remain DN-referred.
+2. **Dedicated shading/vignetting and CA/distortion metrics** require suitable
+   target captures. The existing flat-field and localization paths provide only
+   partial inputs to those measurements.
+3. **Automatic Stepchart and SG localization** is incomplete. The validated
+   workflows use measured ring geometry or supplied chart coordinates.
+4. **Spectral repeatability and instrument comparison** would require a
+   PR-655/i1Pro illuminant comparison and analysis of the repeated
+   monochromator sessions.
+5. **Rendered-luma Imatest parity** is not implemented. Current SFR results use
+   sensor-linear green measurements and treat Imatest values as advisory.
 
-## Known Gaps
+## Current coverage
 
-1. **Calibration-backed electron PTC/DR** — highest scientific gap, but requires
-   calibration evidence beyond the current DN-domain Stepchart fits: electron
-   gain/read noise, full well, and a defensible DR definition.
-2. **Dedicated shading/vignetting and CA/distortion metrics** — feasible only if
-   target captures support them; current code has partial ingredients, not final
-   metrics.
-3. **Automatic Stepchart and SG localization** — useful engineering polish, but
-   less scientifically important than the already-guarded seeded workflows.
-4. **Spectral archive follow-ups** — PR-655 vs i1Pro illuminant cross-check and
-   SSF day-to-day stability are small provenance-strengthening tasks.
-5. **Rendered-luma Imatest parity modes** — lower priority because the current
-   green-linear metrics already state their scope and Imatest absolute parity is
-   advisory.
-
-## Bottom Line
-
-The available archives have been mined for the major objective still-camera IQ
-families they can support. The toolkit is now broad enough to present as a
-camera-IQ toolkit: color/spectral is especially deep, OECF/noise/MTF are
-covered with honest scope boundaries, and the remaining gaps require either
-additional calibration evidence or new target-specific captures rather than just
-more parser work.
+The available archives support the major objective still-camera IQ families
+listed in the matrix. Color and spectral analysis has the deepest coverage;
+OECF, noise, and MTF are implemented within the stated measurement limits.
+The remaining gaps require additional calibration evidence or new
+target-specific captures rather than additional file parsing alone.
 
 ## Implementation and verification
 
 - [`CMakeLists.txt`](../../CMakeLists.txt)
 - [CI workflow](../../.github/workflows/ci.yml)
-- [Complete portfolio/report index](../README.md)
+- [Documentation index](../README.md)

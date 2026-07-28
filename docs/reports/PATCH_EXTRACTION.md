@@ -153,8 +153,9 @@ derived from RawDigger A1/A14/J14/J1 centers, the command writes
 - orientation: direct, pass
 
 This confirms the orientation and mean extraction are close, but the generated
-projective grid is not yet approved as a replacement for RawDigger rectangles.
-See `docs/reports/RAW_CHART_LOCALIZATION.md`. That report now records
+projective grid fails the 5 px center-error gate and is not used as a
+replacement for RawDigger rectangles. See
+`docs/reports/RAW_CHART_LOCALIZATION.md`. That report records
 the serialized per-patch residuals: the four corner patches are pinned near
 zero, while the middle columns bow by about 15 px relative to RawDigger. The
 miss is therefore a systematic geometry/model mismatch, not a coordinate-origin
@@ -253,8 +254,7 @@ cross-aperture approximation, not a measured same-aperture correction.
   caller-supplied chart corners; there is no blind chart detection yet. The
   orientation gate confirms the direct physical sweep beats flip
   controls, but the first RawDigger-oracle run fails the predeclared 5 px
-  center gate, so the corner-seeded path must not replace RawDigger coordinates
-  in evidence reports yet.
+  center gate, so the corner-seeded path is not used in the reported analysis.
 
 ## Open engineering questions
 
@@ -276,4 +276,4 @@ cross-aperture approximation, not a measured same-aperture correction.
 - [`src/chart_localization.cpp`](../../src/chart_localization.cpp)
 - [`tests/test_patches.cpp`](../../tests/test_patches.cpp)
 - [`tests/test_cmd_patches.cpp`](../../tests/test_cmd_patches.cpp)
-- [Portfolio case study](../case-studies/colorchecker-ccm.md)
+- [Case study](../case-studies/colorchecker-ccm.md)

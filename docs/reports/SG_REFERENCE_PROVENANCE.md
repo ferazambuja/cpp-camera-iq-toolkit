@@ -20,12 +20,12 @@ reflectances (380-730 nm @ 10 nm). Its native workbook order is
 extraction order. The local export helper writes `ccsg_2_FIXED_ref.csv`, the stable
 text format consumed by the C++ toolkit.
 
-Honest scope: `ccsg.xlsx` is a compatible/standard full-gamut SG reflectance
-reference. As of 2026-07-05 it is **verified accurate to the X-Rite manufacturer
-nominal at mean ΔE76 1.34** (see "Verification vs X-Rite manufacturer reference"
-below), but that proves manufacturer accuracy, **not** a per-unit measurement of
-the exact physical SG chart used in the CLRS-589 Fuji capture. Do not call it
-exact per-unit chart ground truth unless that identity is proven.
+Reference scope: `ccsg.xlsx` is a compatible, standard full-gamut SG
+reflectance reference. As of 2026-07-05 it is **verified against the X-Rite
+manufacturer nominal at mean ΔE76 1.34** (see "Verification vs X-Rite
+manufacturer reference" below). This establishes manufacturer consistency, not
+a per-unit measurement of the exact physical SG chart used in the CLRS-589 Fuji
+capture.
 
 ## Inventory
 
@@ -47,7 +47,7 @@ Build pipeline confirmed by `Old/load_all.m` + `PRD measurments/create_single_fi
 (per-folder averaging/merge) and `Images/patch_extract.m`
 (`checker2colors(..., [10,14], roisize 70)`).
 
-## Verified this session (machine-precision)
+## Numerical verification
 
 | Claim | Method | Result |
 |---|---|---|
@@ -115,9 +115,10 @@ the column-A neutral border renders L = 96.5 / 8.9 / 50.8 (A1/A2/A3) vs X-Rite
    leans Before but weakly. The physical CLRS-589 chart is one of these editions;
    this comparison cannot split them.
 
-**Caveat preserved.** 1.34 ΔE76 to the manufacturer **nominal** proves our data is
-accurate SG reference data; it does **not** prove it is the exact 2020 physical
-CLRS-589 chart per-unit (lot variation ~1-2 ΔE is plausible). The
+**Limitation.** A 1.34 ΔE76 difference from the manufacturer **nominal**
+establishes the accuracy of the SG reference data; it does **not** establish
+that it is the exact 2020 physical CLRS-589 chart per-unit (lot variation
+around 1-2 ΔE is plausible). The
 `compatible_sg_spectral_not_exact_per_unit` scope stays — but "compatible" now
 means "manufacturer-consistent," not "unverified." This also strengthens the
 dark-patch finding in `CCM_FIT.md`: the reference darks (A2/A5, L≈8) are
@@ -205,11 +206,10 @@ the bounded linear CCM reported in [CCM_FIT.md](CCM_FIT.md).
 - **Neutral spot-check (traceable):** gray-axis ΔE + neutrality against the
   measured ramp — this is the only measured-reference ΔE the dataset supports.
 
-**Do not claim** exact measured-reference ΔE for the physical CLRS-589 chart
-unless chart identity is proven or the chart is remeasured. The current honest
-claim is stronger than before but still bounded: neutral local measurement
-anchor, compatible colored spectral SG reference, and optional manufacturer
-nominal comparison.
+Exact measured-reference ΔE for the physical CLRS-589 chart requires proven
+chart identity or a new measurement of that chart. The current comparison
+supports a neutral local measurement anchor, a compatible colored spectral SG
+reference, and an optional manufacturer-nominal comparison.
 
 ## Implementation and tests
 

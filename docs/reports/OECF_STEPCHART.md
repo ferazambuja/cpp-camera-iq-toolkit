@@ -110,6 +110,12 @@ The command has two explicit raw-zone modes:
 - `--zone-ring` / `--zone-roi-size`: a measured ring layout. On this archive it
   is the accepted raw-DN extraction path.
 
+![Reduced crop of the Stepchart ring-zone layout](../images/oecf-stepchart-zones.jpg)
+
+*Illustrative crop from the source D800 test capture. The accepted raw-DN path
+samples the discrete tonal zones around the measured ring; the reduced image is
+not used for measurement.*
+
 Raw-mosaic analysis of the actual scene (2026-07-09, `NIKON
 D800_i100_s1-40_2.NEF` dumped via `unprocessed_raw` and scanned for uniform
 patches) shows an ISO 14524-style layout: ~300x300 px gray patches arranged

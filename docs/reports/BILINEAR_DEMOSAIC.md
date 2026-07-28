@@ -1,4 +1,4 @@
-# Bilinear Demosaic Evidence Report
+# Bilinear demosaic: method and validation
 
 Date: 2026-07-02
 Tool: `camera_iq demosaic` (this repository, v0.1.0)

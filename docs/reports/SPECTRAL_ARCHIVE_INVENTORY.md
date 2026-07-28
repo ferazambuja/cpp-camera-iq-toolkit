@@ -18,7 +18,8 @@ no absolute mount paths are recorded.
 | `archive:2017_camspec/` | 2017-04-16 Phase One IQ3 camSPECS session (separate rig/timeline) |
 | `out:` | gitignored generated toolkit artifacts under `out/` |
 
-**Authority rule:** `Data_Collected/` is the source of truth. Each camera was
+**Canonical input selection:** `Data_Collected/` is the source of truth. Each
+camera was
 measured on several days (see below); the loose per-day session folders are raw
 inputs. Prefer the curated `Data_Collected/<camera>/Monochromator/` CSV.
 
@@ -83,7 +84,7 @@ The monochromator SSF chosen for every camera matches the expected camera and
 day (11-21). The closure illuminant and SG reflectance are the authoritative
 `Data_Collected` files. No mismatch was found among the checked file roles.
 
-## Hazards (do not trip on these)
+## File-selection hazards
 
 - **Mis-filed A7RII CSV in the A7SII folder.** `Data_Collected/Sony A7SII/
   Monochromator/` contains `2016_11_19_A7RII_mono_II.csv` — a Sony **A7RII** file
@@ -95,7 +96,7 @@ day (11-21). The closure illuminant and SG reflectance are the authoritative
   different measurement method (camSPECS express) than the monochromator sweeps.
   The SSF track uses the **Monochromator** outputs. Do not mix them.
 
-## Available but unused data (cataloged so it is not "ignored")
+## Additional archive data
 
 | Data | Location | Why unused / potential use |
 |---|---|---|
@@ -118,7 +119,7 @@ curation for 2017; the two capture runs (`IQ3_100_1st`, `IQ3_100_2nd`) are both
 archive inputs. Luther/SMI are per-camera SSF properties, so ranking the 2017 IQ3
 alongside the 2016 cameras is valid; a closure comparison would not be.
 
-## Implemented and optional extensions
+## Additional analyses
 
 1. **CC-24 adoption for the ISO-style SMI.** `CC24Patch_CGATS.txt`
    is converted to canonical CSV and `spectral-smi` runs over the 18 chromatic
@@ -135,9 +136,12 @@ alongside the 2016 cameras is valid; a closure comparison would not be.
    PR-655 HID, and legacy 11-21 SSFs. All four gate-PASS, match 24/24 patches,
    exclude 0 saturated / below-dark patches, and hold minimum channel correlation
    >0.997. See the CC-24 closure section of `SPECTRAL_SENSITIVITY.md`.
-3. **PR-655 vs i1Pro illuminant cross-check** for the closure illuminant.
-4. **SSF day-to-day stability** (optional): rank the same camera across its 11-18..21
-   monochromator runs to bound repeatability of the Luther/SMI numbers.
+
+## Possible follow-up measurements
+
+- Compare the PR-655 and i1Pro measurements of the closure illuminant.
+- Quantify day-to-day SSF stability across each camera's 11-18 through 11-21
+  monochromator runs.
 
 ## Implementation and tests
 

@@ -85,7 +85,7 @@ requires RAW-like fixtures under `data/samples/` to be tiny text placeholders.
 They must include an explicit synthetic/not-real marker. Real RAW captures belong in
 `data/private/` or another local dataset root, not in tracked sample folders.
 
-The [portfolio index](README.md) links every report and publication-safe
+The [documentation index](README.md) links every report and publication-safe
 aggregate. The check implementations are
 [`tools/check_public_paths.sh`](../tools/check_public_paths.sh),
 [`tools/check_sample_fixtures.sh`](../tools/check_sample_fixtures.sh), and

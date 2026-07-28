@@ -1,13 +1,13 @@
 # Tool index
 
-## Portfolio and publication checks
+## Documentation and repository-safety checks
 
 - [`generate_portfolio_figures.py`](generate_portfolio_figures.py) regenerates
   the deterministic SVGs from committed aggregate CSVs; `--check` verifies
   freshness.
 - [`check_portfolio_docs.py`](check_portfolio_docs.py) validates the public
-  Markdown link graph, report-index coverage, and stale/internal-language
-  publication markers.
+  Markdown link graph, report-index coverage, and project-centered language
+  rules.
 - [`check_public_paths.sh`](check_public_paths.sh) scans tracked public files
   for machine-specific path leakage.
 - [`check_sample_fixtures.sh`](check_sample_fixtures.sh) keeps committed fixtures

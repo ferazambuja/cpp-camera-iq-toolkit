@@ -117,7 +117,7 @@ Targeted red/green tests were added for:
   temporal floor.
 - Dimension and CFA-phase mismatch rejection before differencing.
 - Dark-current expected-null diagnostic.
-- JSON honesty contract: DN units, single-pair status, and gain/PTC/DR
+- JSON result contract: DN units, single-pair status, and gain/PTC/DR
   non-support flags.
 - Command parsing and routing.
 

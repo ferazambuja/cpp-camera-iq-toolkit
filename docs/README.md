@@ -1,21 +1,15 @@
-# Camera IQ portfolio and report index
+# Camera IQ documentation and case studies
 
-This page routes three kinds of readers through the same evidence:
-
-- **Recruiter — 30 to 60 seconds:** scan the three featured studies and the
-  result summaries below.
-- **Hiring manager — about five minutes:** open a case study, inspect its plot,
-  engineering decision, implementation links, and tests.
-- **Imaging or software engineer:** continue from each case study into the
-  detailed method reports, source, tests, aggregate tables, and dataset notes.
-
-Return to the [portfolio landing page](../README.md).
+This index connects concise case studies to detailed method reports, C++ source,
+tests, aggregate tables, dataset notes, and provenance records. The
+[project overview](../README.md) summarizes the implemented measurement areas
+and principal results.
 
 ## Featured case studies
 
 ### D800/D810 SFR aperture and field analysis
 
-[Open the case study](case-studies/sfr-mtf-aperture-field.md) ·
+[Case study](case-studies/sfr-mtf-aperture-field.md) ·
 [aggregate data](data/sfr_aperture_summary.csv) ·
 [detailed report](reports/SFR_MTF.md) ·
 [implementation](../src/sfr.cpp) ·
@@ -27,7 +21,7 @@ off-axis behavior.
 
 ### Spectral sensitivity and camera color fidelity
 
-[Open the case study](case-studies/spectral-color-fidelity.md) ·
+[Case study](case-studies/spectral-color-fidelity.md) ·
 [aggregate data](data/spectral_color_fidelity.csv) ·
 [detailed report](reports/SPECTRAL_SENSITIVITY.md) ·
 [implementation](../src/spectral_response.cpp) ·
@@ -39,7 +33,7 @@ shown directly beside the result.
 
 ### ColorChecker extraction and CCM validation
 
-[Open the case study](case-studies/colorchecker-ccm.md) ·
+[Case study](case-studies/colorchecker-ccm.md) ·
 [aggregate data](data/ccm_validation_summary.csv) ·
 [CCM report](reports/CCM_FIT.md) ·
 [patch report](reports/PATCH_EXTRACTION.md) ·
@@ -49,7 +43,7 @@ shown directly beside the result.
 The pipeline moves from RAW patch extraction through flat-field/WB handling to
 a linear RGB-to-XYZ fit and deterministic held-out Delta E diagnostics.
 
-## Engineering-judgment highlights
+## Validation decisions
 
 - [RAW chart localization](reports/RAW_CHART_LOCALIZATION.md) correctly remains
   a **FAIL**: high RGB correlation did not override a 16.449 px coordinate
@@ -60,7 +54,7 @@ a linear RGB-to-XYZ fit and deterministic held-out Delta E diagnostics.
 - [Dark-frame noise](reports/DARK_FRAME_NOISE.md) preserves the one rejected
   dark capture and limits the result to the single clean matched pair.
 
-## Complete technical report library
+## Technical reports
 
 ### Camera measurement methods
 
@@ -100,7 +94,7 @@ a linear RGB-to-XYZ fit and deterministic held-out Delta E diagnostics.
 
 | Report | Status and purpose |
 |---|---|
-| [SFR/MTF result](reports/SFR_MTF.md) | Finished D800/D810 center, aperture, and field analysis |
+| [SFR/MTF result](reports/SFR_MTF.md) | D800/D810 center, aperture, and field analysis |
 | [SFR/MTF archive inventory](reports/SFR_MTF_ARCHIVE_INVENTORY.md) | Input/oracle batch selection and field-label traps |
 
 ### Dataset and provenance references
@@ -111,7 +105,7 @@ a linear RGB-to-XYZ fit and deterministic held-out Delta E diagnostics.
 | [Dataset handling](DATASETS.md) | Public/private data boundary and local configuration |
 | [Publication-safe aggregate tables](data/README.md) | Figure inputs and regeneration |
 
-## Public evidence model
+## Reproducibility and data access
 
 Source captures and measured references remain outside Git. Public inspection is
 supported by C++ source, tests, safe aggregate CSVs, deterministic figures, and
@@ -121,3 +115,8 @@ method reports. The aggregate figures can be rebuilt with:
 python3 tools/generate_portfolio_figures.py
 python3 tools/generate_portfolio_figures.py --check
 ```
+
+Selected method pages also include
+[reduced illustrative crops](images/README.md) from the source test captures.
+They are metadata-stripped visual guides, not calibration references or
+analysis inputs.

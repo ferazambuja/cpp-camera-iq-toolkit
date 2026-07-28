@@ -8,9 +8,10 @@ repository; paths below are relative to the dataset root.
 
 ## Scope
 
-This report records one machine-readable dataset manifest before any analysis
-claims. It records what the manifest run verified.
-No color-correction, noise, or image-quality numbers are claimed here.
+This report records the machine-readable dataset manifest and the file,
+metadata, exposure-series, and provenance checks performed by the manifest
+command. It does not calculate color correction, noise, or image-quality
+metrics.
 
 ## Method
 
@@ -98,10 +99,11 @@ purpose — EXIF confirms ISO 200 across the set):
 | Sphere f5.6 / f8 / f9 | 18 / 20 / 13 | 18 / 21 / 13 |
 | Validation_CC f8 | 14 | 14 |
 
-The sphere series are fixed-illumination by construction (integrating sphere),
-so **PTC/OECF feasibility is promising** — pending follow-up checks on framing
-and illumination stability from the pixel data itself. The `Images/PRD` group
-is deliberately *not* a series: 23 frames all at f9, 1/30 s, ISO 200.
+The sphere series vary shutter time under a nominally fixed integrating-sphere
+illumination, so they contain candidate exposure ladders. This manifest does
+not inspect pixel-level framing or illumination stability and therefore does
+not establish PTC/OECF suitability by itself. The `Images/PRD` group is
+deliberately *not* a series: 23 frames all at f9, 1/30 s, ISO 200.
 
 ## PRD relationship
 
@@ -148,13 +150,13 @@ not Reference-B data. Exact scene identity vs the final PRD set is unresolved
 
 ## Reproducibility
 
-Every claim above is regenerable from the raw dataset:
+The manifest results above are regenerable from the raw dataset:
 
 - Manifest (RAW EXIF, CFA, **black level**, CSV shape, exposure series):
   `camera_iq manifest "<Project Camera>" --out out/clrs589_manifest.json`.
   Regenerated after the raw-metadata correction; `black_level` is now **1024**
   for all 480 RAF.
-- MAT/PRD claims (wavelength axis, scene→numbered mapping over **all 45** files,
+- MAT/PRD observations (wavelength axis, scene→numbered mapping over **all 45** files,
   CSV duplicate row, Old/patch reclassification) were verified during the
   dataset-inventory pass and are summarized here without distributing the
   private analysis helper.
@@ -174,18 +176,17 @@ locally. The black-level logic is independently proven in CI by `test_raw_meta`
 
 ## Interpretation limits
 
-- No color accuracy, noise, PTC, or ΔE numbers.
-- No claim that the original project outputs are correct (they remain untrusted
-  priors, comparison-only).
-- No claim that the original 2023 group capture campaign was produced by this
-  repository; this project reprocesses the raw data with new, independently
-  written code.
+- The report contains no color accuracy, noise, PTC, or ΔE calculations.
+- Original project outputs remain comparison-only and are not used as
+  correctness oracles.
+- The 2023 capture campaign predates this repository; the repository
+  reprocesses the archived RAW files.
 
 ## Relationship to implemented analyses
 
 This manifest is the dataset/provenance foundation for the implemented RAW/CFA,
 demosaic, dark calibration/noise, exposure/OECF, ColorChecker extraction, and
-CCM reports. The [portfolio index](../README.md) separates those completed
+CCM reports. The [documentation index](../README.md) separates those completed
 analyses from the remaining calibration gaps: electron gain/read noise, full
 well, engineering dynamic range, exact ISO conformance, and blind chart
 localization.

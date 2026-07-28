@@ -4,19 +4,18 @@ Date: 2026-07-07
 Scope: filename-level inventory and measurement contract for the available
 slanted-edge SFR/MTF archive inputs.
 
-## Verdict
+## Available inputs
 
-Slanted-edge SFR/MTF is **not globally data-blocked**. The CLRS-589 Fujifilm
-X-T100 dataset does not contain a slanted-edge / resolution target, but the
-mounted 2016 esensi archive contains Nikon D800 and D810 SFR captures plus
-Imatest-derived SFR/MTF result CSVs.
+The CLRS-589 Fujifilm X-T100 dataset does not contain a slanted-edge or
+resolution target. The mounted 2016 esensi archive contains Nikon D800 and D810
+SFR captures plus Imatest-derived SFR/MTF result CSVs.
 
 The completed SFR/MTF study uses this 2016 Nikon archive. New capture work is
 needed only for the Fuji X-T100 or for a camera/lens condition not represented
 in the archive.
 
-[Finished SFR/MTF report](SFR_MTF.md) ·
-[portfolio case study](../case-studies/sfr-mtf-aperture-field.md)
+[SFR/MTF report](SFR_MTF.md) ·
+[case study](../case-studies/sfr-mtf-aperture-field.md)
 
 ## Archive Labels
 
@@ -116,8 +115,8 @@ per-file `_Y_multi.csv` table:
    ROI, matching MTF50/MTF50P, R1090, peak MTF, field offsets, and the per-ROI
    CSV-summary filename as a basename.
 2. The command reuses the existing green-linear `sfr` core for every ROI and
-   emits a per-aperture field map. The command remains claim-scoped as
-   green-linear and advisory-vs-Imatest.
+   emits a per-aperture field map. The command reports a green-linear
+   measurement with the Imatest comparison identified as advisory.
 3. The measured physics gates are:
    - all 23 ROIs parse and run for each verified plateau aperture;
    - per-ROI filename/run provenance remains single-batch;
