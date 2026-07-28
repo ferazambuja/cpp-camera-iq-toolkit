@@ -273,13 +273,15 @@ void write_d800_f8_y_multi_fixture(const std::filesystem::path& path) {
   }
 }
 
-void write_center_compatible_y_multi_fixture(const std::filesystem::path& path) {
+void write_center_compatible_y_multi_fixture(const std::filesystem::path& path,
+                                             int center_height = 338) {
   std::ofstream os(path);
   os << "Imatest,4.5.7, , SFRplus\n";
   os << "File,NIKON D810_50mm_f5.6_.NEF\n";
   os << "Run date,10-Dec-2016 13:04:04,,Build 2016-11-22\n\n";
   os << "N,Distance %,Direction,X1,Y1,X2,Y2,Width,Height,Region,Edge ID\n";
-  os << "1,  2.6,AL,3483,2231,3699,2568,217,338,Center,0_0_R\n";
+  os << "1,  2.6,AL,3483,2231,3699,2568,217," << center_height
+     << ",Center,0_0_R\n";
   os << "2, 77.0,AL,463,906,679,1237,217,332,Corner,malformed\n\n";
   os << "N,MTF50 (Cy/Pxl),R1090 (pxl),CA area(pxl),MTF50 (LW/PH),"
         "R1090 (/PH),Peak MTF,MTF50P (Cy/Pxl)\n";
@@ -433,6 +435,14 @@ void TESTS() {
                 "Imatest center adapter ignores malformed non-center rows");
     test::check_near(oracle->center_mtf50_cy_per_px, 0.2400, 1e-12,
                      "Imatest center adapter preserves old center behavior");
+    std::filesystem::remove(path);
+  }
+
+  {
+    const auto path = temp_file("camera_iq_test_y_multi_center_zero_height.csv");
+    write_center_compatible_y_multi_fixture(path, 0);
+    const auto oracle = camera_iq::read_imatest_y_multi(path);
+    test::check(!oracle, "Imatest center adapter rejects zero-height ROI");
     std::filesystem::remove(path);
   }
 

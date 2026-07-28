@@ -53,7 +53,8 @@ std::optional<double> parse_fraction(std::string_view text) {
   char* end = nullptr;
   const std::string copy{text};
   const double value = std::strtod(copy.c_str(), &end);
-  if (end == copy.c_str() || *end != '\0' || value <= 0.0 || value > 1.0) {
+  if (end == copy.c_str() || *end != '\0' || !std::isfinite(value) ||
+      value <= 0.0 || value > 1.0) {
     return std::nullopt;
   }
   return value;
@@ -553,11 +554,6 @@ int cmd_sfr(int argc, char** argv) {
                   << args.oracle_y_multi_rel << "\n";
         return 1;
       }
-      if (args.field_map && field_oracle->rois.size() != 23) {
-        std::cerr << "camera_iq sfr: --field-map expected 23 ROI rows, got "
-                  << field_oracle->rois.size() << "\n";
-        return 1;
-      }
     }
 
     if (args.field_map &&
@@ -616,7 +612,9 @@ int cmd_sfr(int argc, char** argv) {
           full_frame_roi_to_active_area(oracle->center_roi_full_frame,
                                         image->meta);
       if (!active_roi) {
-        std::cerr << "camera_iq sfr: oracle ROI does not overlap active area\n";
+        std::cerr
+            << "camera_iq sfr: oracle ROI cannot produce a CFA-balanced "
+               "active-area ROI\n";
         return 1;
       }
       roi = *active_roi;
