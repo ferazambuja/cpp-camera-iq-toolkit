@@ -525,7 +525,8 @@ SpectralRawExtraction extract_raw_spectral_response(
     throw std::runtime_error(
         "spectral response RAW: raw path count and sweep count mismatch");
   }
-  if (near_saturation_fraction <= 0.0 || near_saturation_fraction > 1.0) {
+  if (!(near_saturation_fraction > 0.0 &&
+        near_saturation_fraction <= 1.0)) {
     throw std::runtime_error(
         "spectral response RAW: near-saturation fraction must be in (0,1]");
   }

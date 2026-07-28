@@ -1,9 +1,11 @@
 #include "camera_iq/sfr.hpp"
 
 #include <algorithm>
+#include <cstdint>
 #include <cmath>
 #include <filesystem>
 #include <fstream>
+#include <iterator>
 #include <limits>
 #include <map>
 #include <numbers>
@@ -60,6 +62,28 @@ SfrResult reject_result(RoiRect roi, std::string reason) {
   return result;
 }
 
+SfrResult reject_result(SfrResult result, std::string reason) {
+  result.accepted = false;
+  result.rejection_reason = std::move(reason);
+  return result;
+}
+
+bool valid_sfr_options(const SfrOptions& options) {
+  return std::isfinite(options.bin_spacing_px) &&
+         options.bin_spacing_px > 0.0 &&
+         std::isfinite(options.min_edge_angle_deg) &&
+         std::isfinite(options.max_edge_angle_deg) &&
+         options.min_edge_angle_deg >= 0.0 &&
+         options.max_edge_angle_deg > options.min_edge_angle_deg &&
+         options.max_edge_angle_deg <= 90.0 &&
+         std::isfinite(options.min_contrast_dn) &&
+         options.min_contrast_dn >= 0.0 &&
+         std::isfinite(options.near_saturation_fraction) &&
+         options.near_saturation_fraction > 0.0 &&
+         options.near_saturation_fraction <= 1.0 &&
+         options.min_roi_dimension_px >= 2 && options.min_line_samples >= 8;
+}
+
 struct LinePoint {
   double scan = 0.0;
   double edge = 0.0;
@@ -67,8 +91,8 @@ struct LinePoint {
 
 std::optional<double> edge_centroid_for_line(
     const std::vector<std::pair<double, double>>& samples,
-    double* line_contrast) {
-  if (samples.size() < 8) return std::nullopt;
+    double* line_contrast, std::size_t min_samples) {
+  if (samples.size() < min_samples) return std::nullopt;
   const std::size_t q = std::max<std::size_t>(2, samples.size() / 4);
   double start = 0.0;
   double end = 0.0;
@@ -116,8 +140,8 @@ std::optional<double> edge_centroid_for_line(
 }
 
 std::optional<std::pair<double, double>> fit_line(
-    const std::vector<LinePoint>& points) {
-  if (points.size() < 8) return std::nullopt;
+    const std::vector<LinePoint>& points, std::size_t min_samples) {
+  if (points.size() < min_samples) return std::nullopt;
   double sx = 0.0;
   double sy = 0.0;
   double sxx = 0.0;
@@ -206,10 +230,17 @@ double adjacent_difference_response(double frequency_cy_per_px,
 
 SfrResult analyze_green_sfr(const RawCfaImage& image, const RoiRect& requested,
                             const SfrOptions& options) {
+  if (!valid_sfr_options(options)) {
+    return reject_result(requested, "invalid_options");
+  }
   if (image.width <= 0 || image.height <= 0 ||
       image.row_stride_pixels < image.width ||
       image.samples.size() < static_cast<std::size_t>(image.row_stride_pixels) *
-                                 static_cast<std::size_t>(image.height)) {
+                                 static_cast<std::size_t>(image.height) ||
+      !std::isfinite(image.meta.white_level) ||
+      !std::all_of(image.meta.black_per_channel.begin(),
+                   image.meta.black_per_channel.end(),
+                   [](double value) { return std::isfinite(value); })) {
     return reject_result(requested, "invalid_raw_image");
   }
   const auto roi = cfa_balanced_roi(requested, image.width, image.height);
@@ -233,6 +264,9 @@ SfrResult analyze_green_sfr(const RawCfaImage& image, const RoiRect& requested,
     for (int x = roi->x; x < roi->x + roi->width; ++x) {
       if (!is_green(image, x, y)) continue;
       const double v = sample_at(image, x, y);
+      if (!std::isfinite(v)) {
+        return reject_result(std::move(result), "invalid_raw_image");
+      }
       mn = std::min(mn, v);
       mx = std::max(mx, v);
       ++result.green_sample_count;
@@ -254,16 +288,16 @@ SfrResult analyze_green_sfr(const RawCfaImage& image, const RoiRect& requested,
     }
   }
   if (result.green_sample_count == 0) {
-    return reject_result(*roi, "no_green_samples");
+    return reject_result(std::move(result), "no_green_samples");
   }
   result.saturated_fraction =
       static_cast<double>(saturated) / static_cast<double>(result.green_sample_count);
   result.contrast_dn = mx - mn;
   if (result.contrast_dn < options.min_contrast_dn) {
-    return reject_result(*roi, "low_contrast");
+    return reject_result(std::move(result), "low_contrast");
   }
   if (result.saturated_fraction > 0.0) {
-    return reject_result(*roi, "roi_saturated");
+    return reject_result(std::move(result), "roi_saturated");
   }
 
   const double dx_mean = dx_n > 0 ? dx_sum / static_cast<double>(dx_n) : 0.0;
@@ -281,7 +315,9 @@ SfrResult analyze_green_sfr(const RawCfaImage& image, const RoiRect& requested,
                                                       sample_at(image, x, y)});
       }
       double line_contrast = 0.0;
-      const auto edge = edge_centroid_for_line(samples, &line_contrast);
+      const auto edge = edge_centroid_for_line(
+          samples, &line_contrast,
+          static_cast<std::size_t>(options.min_line_samples));
       if (edge) {
         line_points.push_back({static_cast<double>(x), *edge});
         line_contrasts.push_back(line_contrast);
@@ -295,22 +331,25 @@ SfrResult analyze_green_sfr(const RawCfaImage& image, const RoiRect& requested,
                                                       sample_at(image, x, y)});
       }
       double line_contrast = 0.0;
-      const auto edge = edge_centroid_for_line(samples, &line_contrast);
+      const auto edge = edge_centroid_for_line(
+          samples, &line_contrast,
+          static_cast<std::size_t>(options.min_line_samples));
       if (edge) {
         line_points.push_back({static_cast<double>(y), *edge});
         line_contrasts.push_back(line_contrast);
       }
     }
   }
-  const auto line = fit_line(line_points);
-  if (!line) return reject_result(*roi, "edge_fit_failed");
+  const auto line = fit_line(
+      line_points, static_cast<std::size_t>(options.min_line_samples));
+  if (!line) return reject_result(std::move(result), "edge_fit_failed");
   const double slope = line->first;
   const double intercept = line->second;
   result.edge_angle_deg = std::atan(slope) * 180.0 / std::numbers::pi;
   const double abs_angle = std::abs(result.edge_angle_deg);
   if (abs_angle < options.min_edge_angle_deg ||
       abs_angle > options.max_edge_angle_deg) {
-    return reject_result(*roi, "edge_angle_out_of_range");
+    return reject_result(std::move(result), "edge_angle_out_of_range");
   }
 
   struct Bin {
@@ -340,12 +379,20 @@ SfrResult analyze_green_sfr(const RawCfaImage& image, const RoiRect& requested,
     }
   }
   if (projected.size() < 32 || !(d_max > d_min)) {
-    return reject_result(*roi, "insufficient_projected_samples");
+    return reject_result(std::move(result), "insufficient_projected_samples");
   }
-  const int first_bin =
-      static_cast<int>(std::floor(d_min / options.bin_spacing_px));
-  const int last_bin =
-      static_cast<int>(std::ceil(d_max / options.bin_spacing_px));
+  const double first_bin_value = std::floor(d_min / options.bin_spacing_px);
+  const double last_bin_value = std::ceil(d_max / options.bin_spacing_px);
+  constexpr double kMaxEsfBins = 8192.0;
+  if (!std::isfinite(first_bin_value) || !std::isfinite(last_bin_value) ||
+      first_bin_value < static_cast<double>(std::numeric_limits<int>::min()) ||
+      last_bin_value > static_cast<double>(std::numeric_limits<int>::max()) ||
+      last_bin_value < first_bin_value ||
+      last_bin_value - first_bin_value + 1.0 > kMaxEsfBins) {
+    return reject_result(std::move(result), "invalid_esf_grid");
+  }
+  const int first_bin = static_cast<int>(first_bin_value);
+  const int last_bin = static_cast<int>(last_bin_value);
   std::vector<Bin> bins(static_cast<std::size_t>(last_bin - first_bin + 1));
   for (const auto& p : projected) {
     const int idx = static_cast<int>(std::floor(p.first / options.bin_spacing_px)) -
@@ -356,17 +403,72 @@ SfrResult analyze_green_sfr(const RawCfaImage& image, const RoiRect& requested,
     }
   }
 
+  const auto first_filled =
+      std::find_if(bins.begin(), bins.end(),
+                   [](const Bin& bin) { return bin.n > 0; });
+  const auto last_filled =
+      std::find_if(bins.rbegin(), bins.rend(),
+                   [](const Bin& bin) { return bin.n > 0; });
+  if (first_filled == bins.end() || last_filled == bins.rend()) {
+    return reject_result(std::move(result), "underfilled_esf");
+  }
+  const std::size_t first_filled_index =
+      static_cast<std::size_t>(std::distance(bins.begin(), first_filled));
+  const std::size_t last_filled_index =
+      bins.size() - 1 -
+      static_cast<std::size_t>(std::distance(bins.rbegin(), last_filled));
+
   std::vector<double> x;
   std::vector<double> esf;
-  x.reserve(bins.size());
-  esf.reserve(bins.size());
-  for (std::size_t i = 0; i < bins.size(); ++i) {
-    if (bins[i].n <= 0) continue;
+  x.reserve(last_filled_index - first_filled_index + 1);
+  esf.reserve(last_filled_index - first_filled_index + 1);
+  for (std::size_t i = first_filled_index; i <= last_filled_index; ++i) {
     x.push_back((static_cast<double>(first_bin) + static_cast<double>(i) + 0.5) *
                 options.bin_spacing_px);
-    esf.push_back(bins[i].sum / static_cast<double>(bins[i].n));
+    esf.push_back(bins[i].n > 0
+                      ? bins[i].sum / static_cast<double>(bins[i].n)
+                      : std::numeric_limits<double>::quiet_NaN());
   }
-  if (esf.size() < 32) return reject_result(*roi, "underfilled_esf");
+  std::size_t missing_bins = 0;
+  std::size_t max_gap = 0;
+  std::size_t current_gap = 0;
+  for (const double value : esf) {
+    if (std::isfinite(value)) {
+      current_gap = 0;
+      continue;
+    }
+    ++missing_bins;
+    ++current_gap;
+    max_gap = std::max(max_gap, current_gap);
+  }
+  // Keep interpolation bounded: a minority of missing fine-grid bins is
+  // recoverable, but long holes or a mostly synthesized ESF are not evidence.
+  constexpr std::size_t kMaxInterpolatedGapBins = 16;
+  constexpr double kMaxInterpolatedFraction = 0.45;
+  if (max_gap > kMaxInterpolatedGapBins ||
+      static_cast<double>(missing_bins) / static_cast<double>(esf.size()) >
+          kMaxInterpolatedFraction) {
+    return reject_result(std::move(result), "underfilled_esf");
+  }
+  for (std::size_t i = 0; i < esf.size();) {
+    if (std::isfinite(esf[i])) {
+      ++i;
+      continue;
+    }
+    const std::size_t gap_begin = i;
+    while (i < esf.size() && !std::isfinite(esf[i])) ++i;
+    const std::size_t gap_end = i;
+    const double left = esf[gap_begin - 1];
+    const double right = esf[gap_end];
+    const double span = static_cast<double>(gap_end - gap_begin + 1);
+    for (std::size_t j = gap_begin; j < gap_end; ++j) {
+      const double t = static_cast<double>(j - gap_begin + 1) / span;
+      esf[j] = left + t * (right - left);
+    }
+  }
+  if (esf.size() < 32) {
+    return reject_result(std::move(result), "underfilled_esf");
+  }
 
   const std::size_t tail = std::max<std::size_t>(4, esf.size() / 10);
   const double start_mean =
@@ -384,7 +486,9 @@ SfrResult analyze_green_sfr(const RawCfaImage& image, const RoiRect& requested,
       std::minmax_element(esf.begin(), esf.end());
   const double esf_min = *esf_min_it;
   const double esf_range = *esf_max_it - esf_min;
-  if (esf_range <= kEps) return reject_result(*roi, "low_contrast");
+  if (esf_range <= kEps) {
+    return reject_result(std::move(result), "low_contrast");
+  }
   for (double& value : esf) value = (value - esf_min) / esf_range;
 
   const double x10 = interpolate_crossing(x, esf, 0.1);
@@ -398,7 +502,6 @@ SfrResult analyze_green_sfr(const RawCfaImage& image, const RoiRect& requested,
   for (std::size_t i = 0; i + 1 < esf.size(); ++i) {
     lsf.push_back(esf[i + 1] - esf[i]);
   }
-  if (lsf.size() < 16) return reject_result(*roi, "underfilled_lsf");
   for (std::size_t i = 0; i < lsf.size(); ++i) {
     const double w =
         0.54 - 0.46 * std::cos(2.0 * std::numbers::pi *
@@ -408,7 +511,7 @@ SfrResult analyze_green_sfr(const RawCfaImage& image, const RoiRect& requested,
   }
   const auto mag = dft_magnitude(lsf);
   if (mag.empty() || mag[0] <= kEps) {
-    return reject_result(*roi, "dc_normalization_zero");
+    return reject_result(std::move(result), "dc_normalization_zero");
   }
 
   result.mtf_frequency_cy_per_px.reserve(mag.size());
@@ -434,7 +537,7 @@ SfrResult analyze_green_sfr(const RawCfaImage& image, const RoiRect& requested,
         find_mtf_crossing(result.mtf_frequency_cy_per_px, mtfp, 0.5);
   }
   if (result.mtf50_cy_per_px <= 0.0) {
-    return reject_result(*roi, "mtf50_not_found");
+    return reject_result(std::move(result), "mtf50_not_found");
   }
 
   result.accepted = true;
@@ -449,9 +552,15 @@ std::optional<ImatestYMultiOracle> read_imatest_y_multi(
   std::string line;
   bool in_roi_table = false;
   bool in_mtf_table = false;
+  bool have_center_roi = false;
+  bool have_center_mtf = false;
   while (std::getline(is, line)) {
     const auto cells = split_csv_line(line);
-    if (cells.empty()) continue;
+    if (cells.empty()) {
+      in_roi_table = false;
+      in_mtf_table = false;
+      continue;
+    }
     if (cells[0] == "File" && cells.size() > 1) {
       oracle.filename = cells[1];
       continue;
@@ -472,27 +581,47 @@ std::optional<ImatestYMultiOracle> read_imatest_y_multi(
       continue;
     }
     if (in_roi_table && cells.size() > 8 && cells[0] == "1") {
+      if (have_center_roi) return std::nullopt;
       const auto x1 = parse_int(cells[3]);
       const auto y1 = parse_int(cells[4]);
+      const auto x2 = parse_int(cells[5]);
+      const auto y2 = parse_int(cells[6]);
       const auto width = parse_int(cells[7]);
       const auto height = parse_int(cells[8]);
-      if (!x1 || !y1 || !width || !height) return std::nullopt;
+      if (!x1 || !y1 || !x2 || !y2 || !width || !height ||
+          *width <= 0 || *height <= 0 ||
+          static_cast<std::int64_t>(*x2) -
+                      static_cast<std::int64_t>(*x1) +
+                  1 !=
+              static_cast<std::int64_t>(*width) ||
+          static_cast<std::int64_t>(*y2) -
+                      static_cast<std::int64_t>(*y1) +
+                  1 !=
+              static_cast<std::int64_t>(*height)) {
+        return std::nullopt;
+      }
       oracle.center_roi_full_frame = RoiRect{*x1, *y1, *width, *height};
+      have_center_roi = true;
       continue;
     }
     if (in_mtf_table && cells.size() > 7 && cells[0] == "1") {
+      if (have_center_mtf) return std::nullopt;
       const auto mtf50 = parse_double(cells[1]);
       const auto mtf50p = parse_double(cells[7]);
       if (!mtf50 || !mtf50p) return std::nullopt;
       oracle.center_mtf50_cy_per_px = *mtf50;
       oracle.center_mtf50p_cy_per_px = *mtf50p;
-      break;
+      have_center_mtf = true;
+      continue;
     }
   }
   if (oracle.filename.empty() || oracle.run_date.empty() ||
+      !have_center_roi ||
+      !have_center_mtf ||
       oracle.center_roi_full_frame.width <= 0 ||
       oracle.center_roi_full_frame.height <= 0 ||
-      oracle.center_mtf50_cy_per_px <= 0.0) {
+      oracle.center_mtf50_cy_per_px <= 0.0 ||
+      oracle.center_mtf50p_cy_per_px <= 0.0) {
     return std::nullopt;
   }
   return oracle;
@@ -555,8 +684,15 @@ std::optional<ImatestYMultiFile> read_imatest_y_multi_file(
       const auto width = parse_int(cells[7]);
       const auto height = parse_int(cells[8]);
       if (!distance || !x1 || !y1 || !x2 || !y2 || !width || !height ||
-          *width <= 0 || *height <= 0 || *x2 - *x1 + 1 != *width ||
-          *y2 - *y1 + 1 != *height) {
+          *width <= 0 || *height <= 0 ||
+          static_cast<std::int64_t>(*x2) -
+                      static_cast<std::int64_t>(*x1) +
+                  1 !=
+              static_cast<std::int64_t>(*width) ||
+          static_cast<std::int64_t>(*y2) -
+                      static_cast<std::int64_t>(*y1) +
+                  1 !=
+              static_cast<std::int64_t>(*height)) {
         return std::nullopt;
       }
       ImatestYMultiRoi roi;
@@ -669,8 +805,17 @@ std::optional<SfrFieldMtfSummary> summarize_imatest_field_mtf(
 
 std::optional<RoiRect> full_frame_roi_to_active_area(const RoiRect& full_frame,
                                                      const RawMeta& meta) {
-  RoiRect active{full_frame.x - meta.left_margin,
-                 full_frame.y - meta.top_margin,
+  const std::int64_t active_x = static_cast<std::int64_t>(full_frame.x) -
+                                static_cast<std::int64_t>(meta.left_margin);
+  const std::int64_t active_y = static_cast<std::int64_t>(full_frame.y) -
+                                static_cast<std::int64_t>(meta.top_margin);
+  if (active_x < std::numeric_limits<int>::min() ||
+      active_x > std::numeric_limits<int>::max() ||
+      active_y < std::numeric_limits<int>::min() ||
+      active_y > std::numeric_limits<int>::max()) {
+    return std::nullopt;
+  }
+  RoiRect active{static_cast<int>(active_x), static_cast<int>(active_y),
                  full_frame.width,
                  full_frame.height};
   return cfa_balanced_roi(active, meta.visible_width, meta.visible_height);

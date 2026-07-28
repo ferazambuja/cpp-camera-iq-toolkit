@@ -5,6 +5,7 @@
 #include <filesystem>
 #include <fstream>
 #include <iomanip>
+#include <limits>
 #include <map>
 #include <sstream>
 #include <stdexcept>
@@ -338,6 +339,17 @@ void TESTS() {
     threw = true;
   }
   check(threw, "raw spectral response: sweep-count mismatch rejected");
+
+  threw = false;
+  try {
+    (void)extract_raw_spectral_response(
+        legacy, synthetic_sweep(dark_residuals), dark, RoiRect{0, 0, 4, 4},
+        std::numeric_limits<double>::quiet_NaN());
+  } catch (const std::runtime_error&) {
+    threw = true;
+  }
+  check(threw,
+        "raw spectral response: non-finite saturation fraction rejected");
 
   threw = false;
   try {

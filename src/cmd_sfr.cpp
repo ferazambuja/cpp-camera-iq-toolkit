@@ -86,11 +86,11 @@ void write_optional_roi(JsonWriter& json, const std::optional<RoiRect>& roi) {
   write_roi(json, *roi);
 }
 
-void write_sfr_json(std::ostream& os, const ResolvedDataset& dataset,
-                    const std::filesystem::path& raw_rel,
-                    const RawMeta& meta,
-                    const SfrResult& result,
-                    const std::optional<ImatestYMultiOracle>& oracle) {
+void write_sfr_json_impl(
+    std::ostream& os, const ResolvedDataset& dataset,
+    const std::filesystem::path& raw_rel, const RawMeta& meta,
+    const SfrResult& result,
+    const std::optional<ImatestYMultiOracle>& oracle) {
   JsonWriter json(os);
   json.begin_object();
   json.key("command");
@@ -164,13 +164,29 @@ void write_sfr_json(std::ostream& os, const ResolvedDataset& dataset,
   json.key("oversample");
   json.value(result.oversample);
   json.key("mtf50_cy_per_px");
-  json.value(result.mtf50_cy_per_px);
+  if (result.accepted) {
+    json.value(result.mtf50_cy_per_px);
+  } else {
+    json.null();
+  }
   json.key("mtf50p_cy_per_px");
-  json.value(result.mtf50p_cy_per_px);
+  if (result.accepted) {
+    json.value(result.mtf50p_cy_per_px);
+  } else {
+    json.null();
+  }
   json.key("mtf_at_nyquist_0_5_cy_per_px");
-  json.value(result.mtf_at_nyquist);
+  if (result.accepted) {
+    json.value(result.mtf_at_nyquist);
+  } else {
+    json.null();
+  }
   json.key("r1090_px");
-  json.value(result.r1090_px);
+  if (result.accepted) {
+    json.value(result.r1090_px);
+  } else {
+    json.null();
+  }
   json.key("advisory_oracle");
   if (!oracle) {
     json.null();
@@ -189,7 +205,11 @@ void write_sfr_json(std::ostream& os, const ResolvedDataset& dataset,
     json.key("center_mtf50p_cy_per_px");
     json.value(oracle->center_mtf50p_cy_per_px);
     json.key("mtf50_delta_cy_per_px");
-    json.value(result.mtf50_cy_per_px - oracle->center_mtf50_cy_per_px);
+    if (result.accepted) {
+      json.value(result.mtf50_cy_per_px - oracle->center_mtf50_cy_per_px);
+    } else {
+      json.null();
+    }
     json.key("absolute_match_is_gate");
     json.value(false);
     json.end_object();
@@ -467,6 +487,14 @@ void write_sfr_field_json(std::ostream& os, const ResolvedDataset& dataset,
 
 }  // namespace
 
+void write_sfr_json(
+    std::ostream& os, const ResolvedDataset& dataset,
+    const std::filesystem::path& raw_rel, const RawMeta& meta,
+    const SfrResult& result,
+    const std::optional<ImatestYMultiOracle>& oracle) {
+  write_sfr_json_impl(os, dataset, raw_rel, meta, result, oracle);
+}
+
 int cmd_sfr(int argc, char** argv) {
   Args args;
   for (int i = 0; i < argc; ++i) {
@@ -504,6 +532,9 @@ int cmd_sfr(int argc, char** argv) {
     } else if (arg == "-h" || arg == "--help") {
       usage();
       return 0;
+    } else if (!arg.empty() && arg.front() == '-') {
+      std::cerr << "camera_iq sfr: unknown option '" << arg << "'\n";
+      return 2;
     } else if (args.root_or_id.empty()) {
       args.root_or_id = arg;
     } else {
@@ -520,12 +551,14 @@ int cmd_sfr(int argc, char** argv) {
     std::cerr << "camera_iq sfr: provide --edge-roi or --oracle-y-multi\n";
     return 2;
   }
-  if (args.field_map && args.oracle_y_multi_rel.empty()) {
-    std::cerr << "camera_iq sfr: --field-map requires --oracle-y-multi\n";
+  if (args.edge_roi && !args.oracle_y_multi_rel.empty()) {
+    std::cerr
+        << "camera_iq sfr: --edge-roi and --oracle-y-multi are mutually "
+           "exclusive\n";
     return 2;
   }
-  if (args.field_map && args.edge_roi) {
-    std::cerr << "camera_iq sfr: --field-map does not accept --edge-roi\n";
+  if (args.field_map && args.oracle_y_multi_rel.empty()) {
+    std::cerr << "camera_iq sfr: --field-map requires --oracle-y-multi\n";
     return 2;
   }
 
@@ -587,7 +620,8 @@ int cmd_sfr(int argc, char** argv) {
               analyze_green_sfr(*image, *point.active_area_roi, options);
         } else {
           point.result.accepted = false;
-          point.result.rejection_reason = "oracle_roi_outside_active_area";
+          point.result.rejection_reason =
+              "oracle_roi_cannot_produce_cfa_balanced_active_area";
         }
         points.push_back(std::move(point));
       }
