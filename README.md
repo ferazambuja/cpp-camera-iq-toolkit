@@ -139,6 +139,6 @@ only where the implementation and available calibration evidence support it.
 ## About
 
 More projects and contact context:
-[Fernando de Azambuja on GitHub](https://github.com/ferazambuja).
+[Imaging Engineering & Color Science profile](https://github.com/ferazambuja).
 
 License: [MIT](LICENSE).
