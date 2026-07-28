@@ -98,6 +98,15 @@ void TESTS() {
             {"--response-csv", response.string(), "--spd-csv", spd.string(),
              "--camera-model", "Canon EOS 5D Mark II", "--dataset-id",
              "spectral_sensitivity_2016_2017", "--archive-subset",
+             "canon_5d2/2016_11_21_5D2_Monochromator_OK",
+             "--near-saturation-fraction", "nan", "--out",
+             (root / "nan_fraction.json").string()}) == 2,
+        "spectral-response command: non-finite saturation fraction rejected");
+
+  check(run_spectral_response(
+            {"--response-csv", response.string(), "--spd-csv", spd.string(),
+             "--camera-model", "Canon EOS 5D Mark II", "--dataset-id",
+             "spectral_sensitivity_2016_2017", "--archive-subset",
              "canon_5d2/2016_11_21_5D2_Monochromator_OK", "--ssf-csv-out",
              (root / "ssf.csv").string(), "--out",
              (root / "noraw.json").string()}) == 2,

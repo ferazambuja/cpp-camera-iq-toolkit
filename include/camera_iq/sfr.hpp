@@ -1,6 +1,7 @@
 #pragma once
 
 #include <filesystem>
+#include <iosfwd>
 #include <optional>
 #include <string>
 #include <vector>
@@ -10,6 +11,8 @@
 
 namespace camera_iq {
 
+struct ResolvedDataset;
+
 struct SfrOptions {
   double bin_spacing_px = 0.25;
   double min_edge_angle_deg = 2.0;
@@ -17,7 +20,9 @@ struct SfrOptions {
   double min_contrast_dn = 20.0;
   double near_saturation_fraction = 0.98;
   int min_roi_dimension_px = 24;
-  int min_line_samples = 16;
+  // Applied both to green samples in each scan line and to the number of
+  // recovered line centroids used for the edge fit.
+  int min_line_samples = 8;
 };
 
 struct SfrResult {
@@ -107,6 +112,14 @@ double adjacent_difference_response(double frequency_cy_per_px,
 
 SfrResult analyze_green_sfr(const RawCfaImage& image, const RoiRect& requested,
                             const SfrOptions& options = {});
+
+// Serializes one center-ROI analysis. Measurement-only metrics are JSON null
+// when the analysis was rejected; measured rejection diagnostics remain.
+void write_sfr_json(
+    std::ostream& os, const ResolvedDataset& dataset,
+    const std::filesystem::path& raw_rel, const RawMeta& meta,
+    const SfrResult& result,
+    const std::optional<ImatestYMultiOracle>& oracle = std::nullopt);
 
 std::optional<ImatestYMultiOracle> read_imatest_y_multi(
     const std::filesystem::path& path);

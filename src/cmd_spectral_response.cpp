@@ -92,8 +92,8 @@ int cmd_spectral_response(int argc, char** argv) {
       char* end = nullptr;
       args.near_saturation_fraction = std::strtod(argv[++i], &end);
       if (end == argv[i] || *end != '\0' ||
-          args.near_saturation_fraction <= 0.0 ||
-          args.near_saturation_fraction > 1.0) {
+          !(args.near_saturation_fraction > 0.0 &&
+            args.near_saturation_fraction <= 1.0)) {
         std::cerr << "camera_iq spectral-response: invalid "
                      "--near-saturation-fraction\n";
         return 2;

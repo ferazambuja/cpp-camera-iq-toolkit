@@ -6,9 +6,11 @@
 #include <fstream>
 #include <limits>
 #include <numbers>
+#include <sstream>
 #include <string>
 #include <vector>
 
+#include "camera_iq/dataset_config.hpp"
 #include "camera_iq/raw_meta.hpp"
 #include "camera_iq/roi.hpp"
 #include "harness.hpp"
@@ -152,7 +154,8 @@ constexpr std::array<FixtureRow, 23> kFieldRows = {{
 void write_field_y_multi_fixture(const std::filesystem::path& path,
                                  bool duplicate_mtf_n = false,
                                  bool omit_mtf_n_23 = false,
-                                 bool malformed_edge_id = false) {
+                                 bool malformed_edge_id = false,
+                                 bool overflowing_geometry = false) {
   std::ofstream os(path);
   os << "Imatest,4.5.7, , SFRplus\n";
   os << "File,NIKON D810_50mm_f5.6_.NEF\n";
@@ -162,12 +165,18 @@ void write_field_y_multi_fixture(const std::filesystem::path& path,
   for (const auto& row : kFieldRows) {
     const char* edge_id =
         malformed_edge_id && row.n == 3 ? "not_a_grid_edge" : row.edge_id;
+    const int x1 = overflowing_geometry && row.n == 3
+                       ? std::numeric_limits<int>::max()
+                       : row.x1;
+    const int x2 = overflowing_geometry && row.n == 3
+                       ? std::numeric_limits<int>::min() + row.width - 2
+                       : row.x1 + row.width - 1;
     const auto csv_summary_file =
         std::filesystem::temp_directory_path() /
         ("NIKON D810_50mm_f5.6__Y" + std::string(row.direction) + " " +
          std::to_string(row.n) + "_MTF.csv");
-    os << row.n << ",  2.6," << row.direction << "," << row.x1 << ","
-       << row.y1 << "," << (row.x1 + row.width - 1) << ","
+    os << row.n << ",  2.6," << row.direction << "," << x1 << ","
+       << row.y1 << "," << x2 << ","
        << (row.y1 + row.height - 1) << "," << row.width << ","
        << row.height << "," << row.region << "," << edge_id << ","
        << (row.x1 - 3580.5) << "," << (row.y1 - 2295.5)
@@ -274,18 +283,29 @@ void write_d800_f8_y_multi_fixture(const std::filesystem::path& path) {
 }
 
 void write_center_compatible_y_multi_fixture(const std::filesystem::path& path,
-                                             int center_height = 338) {
+                                             int center_height = 338,
+                                             int center_x2 = 3699,
+                                             double center_mtf50p = 0.2399,
+                                             bool duplicate_center_roi = false,
+                                             bool duplicate_center_mtf = false) {
   std::ofstream os(path);
   os << "Imatest,4.5.7, , SFRplus\n";
   os << "File,NIKON D810_50mm_f5.6_.NEF\n";
   os << "Run date,10-Dec-2016 13:04:04,,Build 2016-11-22\n\n";
   os << "N,Distance %,Direction,X1,Y1,X2,Y2,Width,Height,Region,Edge ID\n";
-  os << "1,  2.6,AL,3483,2231,3699,2568,217," << center_height
+  os << "1,  2.6,AL,3483,2231," << center_x2 << ",2568,217," << center_height
      << ",Center,0_0_R\n";
+  if (duplicate_center_roi) {
+    os << "1,  2.6,AL,3483,2231,3699,2568,217,338,Center,0_0_R\n";
+  }
   os << "2, 77.0,AL,463,906,679,1237,217,332,Corner,malformed\n\n";
   os << "N,MTF50 (Cy/Pxl),R1090 (pxl),CA area(pxl),MTF50 (LW/PH),"
         "R1090 (/PH),Peak MTF,MTF50P (Cy/Pxl)\n";
-  os << "1, 0.2400, 2.3112, 0.000, 2365.3, 2132.2, 1.0009, 0.2399\n";
+  os << "1, 0.2400, 2.3112, 0.000, 2365.3, 2132.2, 1.0009,"
+     << center_mtf50p << "\n";
+  if (duplicate_center_mtf) {
+    os << "1, 0.2200, 2.5000, 0.000, 2168.0, 2000.0, 1.0000,0.2190\n";
+  }
 }
 
 }  // namespace
@@ -383,6 +403,43 @@ void TESTS() {
     test::check(!result.accepted, "flat ROI rejected");
     test::check(result.rejection_reason == "low_contrast",
                 "flat ROI rejected with low_contrast");
+    test::check(result.green_sample_count > 0,
+                "flat ROI rejection preserves measured sample count");
+    test::check_near(result.contrast_dn, 0.0, 1e-12,
+                     "flat ROI rejection preserves measured contrast");
+  }
+
+  {
+    camera_iq::ResolvedDataset dataset;
+    dataset.id = "fixture";
+    dataset.label = "fixture";
+    dataset.from_config = true;
+    camera_iq::RawMeta meta;
+    camera_iq::SfrResult rejected;
+    rejected.roi = RoiRect{2, 4, 24, 24};
+    rejected.rejection_reason = "low_contrast";
+    camera_iq::ImatestYMultiOracle oracle;
+    oracle.filename = "fixture.NEF";
+    oracle.run_date = "fixture";
+    oracle.center_roi_full_frame = RoiRect{2, 4, 24, 24};
+    oracle.center_mtf50_cy_per_px = 0.2;
+    oracle.center_mtf50p_cy_per_px = 0.19;
+
+    std::ostringstream os;
+    camera_iq::write_sfr_json(os, dataset, "fixture.NEF", meta, rejected,
+                              oracle);
+    const std::string json = os.str();
+    test::check(json.find("\"accepted\":false") != std::string::npos,
+                "rejected center JSON records rejection state");
+    test::check(json.find("\"mtf50_cy_per_px\":null") != std::string::npos &&
+                    json.find("\"mtf50p_cy_per_px\":null") !=
+                        std::string::npos &&
+                    json.find("\"mtf_at_nyquist_0_5_cy_per_px\":null") !=
+                        std::string::npos &&
+                    json.find("\"r1090_px\":null") != std::string::npos &&
+                    json.find("\"mtf50_delta_cy_per_px\":null") !=
+                        std::string::npos,
+                "rejected center JSON emits null measurement metrics");
   }
 
   {
@@ -392,6 +449,144 @@ void TESTS() {
     test::check(!result.accepted, "too-shallow edge rejected");
     test::check(result.rejection_reason == "edge_angle_out_of_range",
                 "too-shallow edge rejection reason pinned");
+    test::check_near(result.edge_angle_deg, 0.4, 0.08,
+                     "angle rejection preserves the measured edge angle");
+  }
+
+  {
+    const auto image = synthetic_green_edge(96, 96, 6.0, 1.0, true);
+    camera_iq::SfrOptions options;
+    options.near_saturation_fraction = 0.2;
+    const auto result = camera_iq::analyze_green_sfr(
+        image, RoiRect{8, 8, 80, 80}, options);
+    test::check(!result.accepted && result.rejection_reason == "roi_saturated",
+                "near-saturated edge is rejected");
+    test::check(result.green_sample_count > 0 &&
+                    result.saturated_fraction > 0.0 &&
+                    result.contrast_dn > 0.0,
+                "saturation rejection preserves measured diagnostics");
+  }
+
+  {
+    const auto image = synthetic_green_edge(160, 144, -6.0, 1.25, true);
+    camera_iq::SfrOptions options;
+    options.near_saturation_fraction =
+        std::numeric_limits<double>::quiet_NaN();
+    auto result = camera_iq::analyze_green_sfr(
+        image, RoiRect{20, 16, 120, 112}, options);
+    test::check(!result.accepted && result.rejection_reason == "invalid_options",
+                "SFR API rejects non-finite saturation option");
+
+    options = {};
+    options.bin_spacing_px = 0.0;
+    result = camera_iq::analyze_green_sfr(
+        flat_image(64, 64), RoiRect{0, 0, 64, 64}, options);
+    test::check(!result.accepted && result.rejection_reason == "invalid_options",
+                "SFR API rejects zero bin spacing before measurement");
+
+    options = {};
+    options.min_edge_angle_deg = 10.0;
+    options.max_edge_angle_deg = 2.0;
+    result = camera_iq::analyze_green_sfr(
+        image, RoiRect{20, 16, 120, 112}, options);
+    test::check(!result.accepted && result.rejection_reason == "invalid_options",
+                "SFR API rejects inverted angle limits");
+
+    options = {};
+    options.min_contrast_dn = std::numeric_limits<double>::infinity();
+    result = camera_iq::analyze_green_sfr(
+        flat_image(64, 64), RoiRect{0, 0, 64, 64}, options);
+    test::check(!result.accepted && result.rejection_reason == "invalid_options",
+                "SFR API rejects non-finite contrast threshold");
+
+    options = {};
+    options.min_roi_dimension_px = 0;
+    result = camera_iq::analyze_green_sfr(
+        image, RoiRect{20, 16, 120, 112}, options);
+    test::check(!result.accepted && result.rejection_reason == "invalid_options",
+                "SFR API rejects non-positive ROI threshold");
+
+    options = {};
+    options.min_line_samples = 1;
+    result = camera_iq::analyze_green_sfr(
+        image, RoiRect{20, 16, 120, 112}, options);
+    test::check(!result.accepted && result.rejection_reason == "invalid_options",
+                "SFR API rejects an unusable line-sample threshold");
+  }
+
+  {
+    auto image = flat_image(64, 64);
+    image.samples[1] = std::numeric_limits<double>::quiet_NaN();
+    const auto result =
+        camera_iq::analyze_green_sfr(image, RoiRect{0, 0, 64, 64});
+    test::check(!result.accepted &&
+                    result.rejection_reason == "invalid_raw_image",
+                "SFR API rejects non-finite RAW samples");
+  }
+
+  {
+    const auto image = synthetic_green_edge(64, 64, 6.0, 1.0, true);
+    const auto result =
+        camera_iq::analyze_green_sfr(image, RoiRect{20, 20, 24, 24});
+    test::check(result.accepted,
+                "default minimum ROI remains usable with CFA green sampling");
+  }
+
+  {
+    const auto image = synthetic_green_edge(160, 144, -6.0, 1.25, true);
+    camera_iq::SfrOptions options;
+    options.min_line_samples = 200;
+    const auto result = camera_iq::analyze_green_sfr(
+        image, RoiRect{20, 16, 120, 112}, options);
+    test::check(!result.accepted &&
+                    result.rejection_reason == "edge_fit_failed",
+                "configured minimum line samples controls centroid eligibility");
+  }
+
+  {
+    const auto image = synthetic_green_edge(128, 128, 6.0, 1.0, true);
+    camera_iq::SfrOptions options;
+    options.min_line_samples = 24;
+    const auto boundary = camera_iq::analyze_green_sfr(
+        image, RoiRect{52, 24, 24, 80}, options);
+    test::check(boundary.accepted,
+                "line-fit boundary accepts 24 recovered centroids");
+    options.min_line_samples = 32;
+    const auto result = camera_iq::analyze_green_sfr(
+        image, RoiRect{52, 24, 24, 80}, options);
+    test::check(!result.accepted &&
+                    result.rejection_reason == "edge_fit_failed",
+                "line-fit threshold rejects too few recovered centroids");
+  }
+
+  {
+    const auto image = synthetic_green_edge(160, 144, -6.0, 1.25, true);
+    const auto baseline = camera_iq::analyze_green_sfr(
+        image, RoiRect{20, 16, 120, 112});
+    camera_iq::SfrOptions fine_options;
+    fine_options.bin_spacing_px = 0.02;
+    const auto fine = camera_iq::analyze_green_sfr(
+        image, RoiRect{20, 16, 120, 112}, fine_options);
+    test::check(baseline.accepted && fine.accepted,
+                "fine ESF grid remains measurable");
+    test::check_near(fine.mtf50_cy_per_px, baseline.mtf50_cy_per_px, 0.02,
+                     "empty fine-grid bins do not compress the ESF axis");
+
+    camera_iq::SfrOptions sparse_options;
+    sparse_options.bin_spacing_px = 0.015;
+    const auto sparse = camera_iq::analyze_green_sfr(
+        image, RoiRect{20, 16, 120, 112}, sparse_options);
+    test::check(!sparse.accepted &&
+                    sparse.rejection_reason == "underfilled_esf",
+                "excessively sparse ESF interpolation is rejected");
+
+    camera_iq::SfrOptions unsafe_grid_options;
+    unsafe_grid_options.bin_spacing_px = 0.01;
+    const auto unsafe_grid = camera_iq::analyze_green_sfr(
+        image, RoiRect{20, 16, 120, 112}, unsafe_grid_options);
+    test::check(!unsafe_grid.accepted &&
+                    unsafe_grid.rejection_reason == "invalid_esf_grid",
+                "oversized derived ESF grid is rejected before allocation");
   }
 
   {
@@ -443,6 +638,42 @@ void TESTS() {
     write_center_compatible_y_multi_fixture(path, 0);
     const auto oracle = camera_iq::read_imatest_y_multi(path);
     test::check(!oracle, "Imatest center adapter rejects zero-height ROI");
+    std::filesystem::remove(path);
+  }
+
+  {
+    const auto path = temp_file("camera_iq_test_y_multi_center_bad_geometry.csv");
+    write_center_compatible_y_multi_fixture(path, 338, 3698);
+    const auto oracle = camera_iq::read_imatest_y_multi(path);
+    test::check(!oracle,
+                "Imatest center adapter rejects inconsistent X2/Width geometry");
+    std::filesystem::remove(path);
+  }
+
+  {
+    const auto path = temp_file("camera_iq_test_y_multi_center_bad_mtf50p.csv");
+    write_center_compatible_y_multi_fixture(path, 338, 3699, 0.0);
+    const auto oracle = camera_iq::read_imatest_y_multi(path);
+    test::check(!oracle,
+                "Imatest center adapter rejects non-positive MTF50P");
+    std::filesystem::remove(path);
+  }
+
+  {
+    const auto path = temp_file("camera_iq_test_y_multi_duplicate_center.csv");
+    write_center_compatible_y_multi_fixture(path, 338, 3699, 0.2399, true);
+    const auto oracle = camera_iq::read_imatest_y_multi(path);
+    test::check(!oracle, "Imatest center adapter rejects duplicate center ROI");
+    std::filesystem::remove(path);
+  }
+
+  {
+    const auto path =
+        temp_file("camera_iq_test_y_multi_duplicate_center_mtf.csv");
+    write_center_compatible_y_multi_fixture(path, 338, 3699, 0.2399, false,
+                                            true);
+    const auto oracle = camera_iq::read_imatest_y_multi(path);
+    test::check(!oracle, "Imatest center adapter rejects duplicate center MTF");
     std::filesystem::remove(path);
   }
 
@@ -544,6 +775,15 @@ void TESTS() {
     write_field_y_multi_fixture(path, false, false, true);
     const auto oracle = camera_iq::read_imatest_y_multi_file(path);
     test::check(!oracle, "Imatest all-row parser rejects malformed edge ID");
+    std::filesystem::remove(path);
+  }
+
+  {
+    const auto path = temp_file("camera_iq_test_y_multi_overflow_geometry.csv");
+    write_field_y_multi_fixture(path, false, false, false, true);
+    const auto oracle = camera_iq::read_imatest_y_multi_file(path);
+    test::check(!oracle,
+                "Imatest field parser rejects overflowing ROI geometry");
     std::filesystem::remove(path);
   }
 

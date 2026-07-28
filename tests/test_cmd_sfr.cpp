@@ -51,4 +51,10 @@ void TESTS() {
   check(run_sfr({"missing_dataset", "--raw", "edge.NEF", "--edge-roi",
                  "10,10,40,40", "--near-saturation-fraction", "nan"}) == 2,
         "sfr command: non-finite saturation fraction rejected");
+  check(run_sfr({"--bogus", "--raw", "edge.NEF", "--edge-roi",
+                 "10,10,40,40"}) == 2,
+        "sfr command: unknown leading option rejected as an argument");
+  check(run_sfr({"missing_dataset", "--raw", "edge.NEF", "--edge-roi",
+                 "10,10,40,40", "--oracle-y-multi", "oracle.csv"}) == 2,
+        "sfr command: explicit and oracle ROI sources are mutually exclusive");
 }
