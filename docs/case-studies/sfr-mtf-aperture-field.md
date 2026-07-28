@@ -1,12 +1,14 @@
 # D800/D810 slanted-edge SFR: aperture and field behavior
 
-> **Hiring-manager summary:** I implemented a green-linear slanted-edge SFR
-> pipeline in C++ and applied it to D800 and D810 50 mm aperture sweeps. All 299
-> field ROIs were accepted. The useful result was not a universal lens rule:
-> the D810 showed a strong f/5.6 peak, while the D800 retained a different
-> aperture trend and off-axis pattern.
+## Overview
 
-[Portfolio index](../README.md) ·
+This study implements a green-linear slanted-edge SFR pipeline in C++ and
+applies it to D800 and D810 50 mm aperture sweeps. All 299 field ROIs were
+accepted. The result is not a universal lens rule: the D810 showed a strong
+f/5.6 peak, while the D800 retained a different aperture trend and off-axis
+pattern.
+
+[Documentation index](../README.md) ·
 [detailed report](../reports/SFR_MTF.md) ·
 [archive/oracle notes](../reports/SFR_MTF_ARCHIVE_INVENTORY.md) ·
 [aggregate CSV](../data/sfr_aperture_summary.csv)
@@ -22,7 +24,13 @@ capture-specific focus. The engineering question was therefore two-part:
 2. Does that trend transfer across camera/capture sets and across the image
    field?
 
-## What I built
+![Reduced crop showing slanted-edge regions distributed across the SFR target](../images/sfr-field-target.jpg)
+
+*Illustrative crop from the source test capture. The implementation measures
+sensor-linear green samples inside selected edge regions; this reduced image is
+not an analysis input.*
+
+## Implementation
 
 The `sfr` command:
 

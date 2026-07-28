@@ -1,13 +1,15 @@
 # ColorChecker extraction and CCM validation
 
-> **Hiring-manager summary:** I implemented a 140-patch RAW ColorChecker-SG
-> workflow with extraction checks, flat-field and white-balance policies,
-> RGB-to-XYZ CCM fitting, CIEDE2000, and deterministic held-out evaluation. The
-> corrected RAW path reached 4.134 mean held-out CIEDE2000 against a compatible
-> spectral reference while keeping dark-patch error and reference provenance
-> visible.
+## Overview
 
-[Portfolio index](../README.md) ·
+This study implements a 140-patch RAW ColorChecker-SG workflow with extraction
+checks, flat-field and white-balance policies, RGB-to-XYZ CCM fitting,
+CIEDE2000, and deterministic held-out evaluation. The corrected RAW path
+reached 4.134 mean held-out CIEDE2000 against a compatible spectral reference
+while retaining dark-patch error and reference provenance in the reported
+results.
+
+[Documentation index](../README.md) ·
 [CCM report](../reports/CCM_FIT.md) ·
 [patch report](../reports/PATCH_EXTRACTION.md) ·
 [reference provenance](../reports/SG_REFERENCE_PROVENANCE.md) ·
@@ -22,7 +24,13 @@ coordinate errors, chart-order mistakes, clipped flat fields, dark-patch flare,
 or reference mismatch. The goal was therefore an inspectable measurement chain,
 not a single optimized Delta E number.
 
-## What I built
+![Reduced crop of the ColorChecker-SG patch grid used for the physical capture](../images/colorchecker-sg-patch-grid.jpg)
+
+*Illustrative crop from the source test capture. The implementation samples
+rectangular regions after RAW unpack, black handling, and bilinear demosaic;
+this reduced image is not a calibration reference.*
+
+## Implementation
 
 - RAW rectangle extraction through the toolkit's LibRaw, black handling, and
   bilinear demosaic.
@@ -41,10 +49,10 @@ Uncorrected patch extraction matched the reference-tool averages with
 correlations above **0.99999998** and direct RMSE of **0.352 / 0.041 / 0.381
 DN** for R/G/B. The direct-vs-flipped orientation controls separated clearly.
 
-The corner-seeded grid was intentionally not promoted: although RGB
+The corner-seeded grid was not used for the reported CCM result: although RGB
 correlations remained above 0.999, generated centers missed the oracle by up to
 16.449 px. RawDigger rectangles therefore remain the coordinate source for the
-flagship CCM result.
+reported CCM result.
 
 ## Results and engineering decision
 

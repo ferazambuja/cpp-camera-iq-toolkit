@@ -1,10 +1,10 @@
-# CCM Fit Evidence Report
+# CCM fitting: method and validation
 
 Date: 2026-07-04
 Dataset: `clrs589_project_camera`
 Command: `camera_iq ccm-fit`
 
-[Portfolio case study](../case-studies/colorchecker-ccm.md) ·
+[Case study](../case-studies/colorchecker-ccm.md) ·
 [publication-safe aggregate CSV](../data/ccm_validation_summary.csv)
 
 ## Scope

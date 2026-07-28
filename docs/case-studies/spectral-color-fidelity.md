@@ -1,12 +1,14 @@
 # Spectral sensitivity and camera color fidelity
 
-> **Hiring-manager summary:** I built the C++ path from monochromator RAW sweeps
-> to camera spectral sensitivity, physical target closure, Luther-condition
-> residuals, and an ISO 17321-style SMI approximation. Four same-session camera
-> datasets closed with minimum channel correlation above 0.992; a five-camera
-> comparison retained both mixed-source provenance and ranking sensitivity.
+## Overview
 
-[Portfolio index](../README.md) ·
+This study implements the C++ path from monochromator RAW sweeps to camera
+spectral sensitivity, physical target closure, Luther-condition residuals, and
+an ISO 17321-style SMI approximation. Four same-session camera datasets closed
+with minimum channel correlation above 0.992; a five-camera comparison retains
+both mixed-source provenance and ranking sensitivity.
+
+[Documentation index](../README.md) ·
 [detailed report](../reports/SPECTRAL_SENSITIVITY.md) ·
 [archive map](../reports/SPECTRAL_ARCHIVE_INVENTORY.md) ·
 [aggregate CSV](../data/spectral_color_fidelity.csv)
@@ -20,7 +22,7 @@ sensitivity and the CIE color-matching functions. A plausible curve is not
 enough: file selection, dark subtraction, wavelength normalization, illuminant
 pairing, chart reflectance, and target-capture closure all have to agree.
 
-## What I built
+## Implementation
 
 - RAW sweep discovery and wavelength/file-sidecar validation.
 - Dark-subtracted per-channel response extraction from monochromator captures.
