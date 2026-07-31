@@ -10,6 +10,8 @@ measurements:
   target.
 - `oecf-stepchart-zones.jpg` — central tonal structures from the ring-layout
   Stepchart capture.
+- `flat-field-sphere.jpg` — full reduced view of the integrating-sphere field
+  used for the CFA response characterization.
 
 The crops are compressed, stripped of capture metadata, and intentionally omit
 the full target artwork and original file identity. They are visual

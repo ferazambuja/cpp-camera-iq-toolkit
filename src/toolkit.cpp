@@ -50,6 +50,9 @@ void print_usage() {
       "              Camera Sensitivity Metamerism Index (ISO 17321 style)\n"
       "  patches\n"
       "              Extract checker ROI RGB means from a RAW capture\n"
+      "  shading\n"
+      "              Relative CFA flat-field response of a uniform-field"
+      " capture\n"
       "\n"
       "Options:\n"
       "  -h, --help       Show this help\n"
@@ -117,6 +120,9 @@ int run(int argc, char** argv) {
   }
   if (arg == "spectral-smi") {
     return cmd_spectral_smi(argc - 2, argv + 2);
+  }
+  if (arg == "shading") {
+    return cmd_shading(argc - 2, argv + 2);
   }
   if (arg == "patches") {
     return cmd_patches(argc - 2, argv + 2);

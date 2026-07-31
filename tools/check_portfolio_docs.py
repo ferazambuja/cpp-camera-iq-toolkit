@@ -105,18 +105,23 @@ INTERNAL_PATTERNS = {
 }
 
 
-def tracked_markdown(repo_root: Path) -> list[Path]:
+def public_markdown(repo_root: Path) -> list[Path]:
     result = subprocess.run(
         ["git", "ls-files", "-z", "*.md"],
         cwd=repo_root,
         check=True,
         capture_output=True,
     )
-    return [
+    paths = {
         repo_root / entry.decode("utf-8")
         for entry in result.stdout.split(b"\0")
         if entry
-    ]
+    }
+    # New public documentation must pass before it is staged; relying only on
+    # git ls-files creates a blind spot exactly when a report is introduced.
+    paths.add(repo_root / "README.md")
+    paths.update((repo_root / "docs").rglob("*.md"))
+    return sorted(paths)
 
 
 def link_target(raw: str) -> str:
@@ -140,6 +145,7 @@ def main() -> int:
         repo_root / "docs" / "case-studies" / "sfr-mtf-aperture-field.md",
         repo_root / "docs" / "case-studies" / "spectral-color-fidelity.md",
         repo_root / "docs" / "case-studies" / "colorchecker-ccm.md",
+        repo_root / "docs" / "case-studies" / "cfa-flat-field-response.md",
     ]
     for path in required:
         if not path.is_file():
@@ -147,7 +153,7 @@ def main() -> int:
                 f"missing required project document: {path.relative_to(repo_root)}"
             )
 
-    markdown_files = tracked_markdown(repo_root)
+    markdown_files = public_markdown(repo_root)
     for path in markdown_files:
         text = path.read_text(encoding="utf-8")
         for match in LINK_RE.finditer(text):

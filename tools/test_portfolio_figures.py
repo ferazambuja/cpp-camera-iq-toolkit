@@ -58,6 +58,14 @@ class PortfolioFigureTests(unittest.TestCase):
         self.assertIn("<svg", FIGURES.generate_sfr(self.data))
         self.assertIn("<svg", FIGURES.generate_spectral(self.data))
         self.assertIn("<svg", FIGURES.generate_ccm(self.data))
+        self.assertIn("<svg", FIGURES.generate_shading(self.data))
+
+    def test_shading_rejects_changed_acceptance_count(self) -> None:
+        path = self.data / "flat_field_summary.csv"
+        text = path.read_text(encoding="utf-8").replace(",true,,", ",false,,", 1)
+        path.write_text(text, encoding="utf-8")
+        with self.assertRaises(ValueError):
+            FIGURES.generate_shading(self.data)
 
     def test_spectral_rejects_non_finite_score(self) -> None:
         path = self.data / "spectral_color_fidelity.csv"

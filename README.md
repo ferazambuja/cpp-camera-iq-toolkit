@@ -27,14 +27,19 @@ validation.
 - **Measurement judgment:** rejected a ColorChecker grid despite correlations
   above 0.999 because its center error reached **16.449 px**, and rejected an
   invalid Stepchart strip model before accepting the measured ring geometry.
+- **CFA flat-field response:** screened **52 sphere captures**, retained three
+  usable f/8 frames, and measured center-normalized green and chromatic fields.
+  A **19.65% quadrant asymmetry** prevents interpreting the intensity map as
+  isolated lens vignetting.
 
 ## Featured case studies
 
 | Case study | Methods | Result |
 |---|---|---|
-| [D800/D810 SFR aperture and field analysis](docs/case-studies/sfr-mtf-aperture-field.md) | Slanted-edge algorithm, field behavior, advisory cross-checks, failure transfer | 299 accepted field ROIs; camera-specific trend and field findings |
+| [D800/D810 + 50 mm f/1.4G SFR aperture and field analysis](docs/case-studies/sfr-mtf-aperture-field.md) | Slanted-edge algorithm, field behavior, advisory cross-checks, failure transfer | 299 accepted field ROIs; capture-system-specific trend and field findings |
 | [Spectral sensitivity and color fidelity](docs/case-studies/spectral-color-fidelity.md) | RAW monochromator extraction, physical closure, Luther/SMI comparison | Four-camera closure; stable five-camera endpoint ordering |
 | [ColorChecker extraction and CCM validation](docs/case-studies/colorchecker-ccm.md) | RAW patch extraction, flat field/WB, linear CCM, held-out Delta E | 140-patch pipeline with explicit dark-patch diagnostics |
+| [CFA flat-field response](docs/case-studies/cfa-flat-field-response.md) | Black-subtracted Bayer grids, center normalization, clipping/pedestal/repeat gates | 3/52 usable sphere frames; intensity asymmetry separated from smaller R/G and B/G variation |
 
 The [technical documentation index](docs/README.md) connects these case studies
 to the OECF, noise, demosaic, localization, dataset, and provenance reports.
@@ -55,6 +60,7 @@ not imply a separate production service or ISP.
 | Spectral | Monochromator RAW extraction, physical closure, Luther-condition residuals, ISO 17321-style SMI approximation |
 | Tone and noise | Exposure grouping, relative OECF, Stepchart oracle/ring extraction, dark temporal noise, DSNU, DN-referred variance |
 | Sharpness | Green-linear slanted-edge SFR, MTF50/MTF50P, aperture sweeps, 23-ROI field maps |
+| Spatial response | Per-CFA flat-field maps, center-normalized R/G and B/G fields, quadrant asymmetry, pedestal and repeat diagnostics |
 | Engineering systems | CLI validation, JSON/CSV reporting, synthetic and negative-path tests, archive-backed checks, privacy-safe dataset IDs |
 
 Implemented commands:
@@ -62,7 +68,7 @@ Implemented commands:
 `manifest`, `raw-stats`, `demosaic`, `dark-calibration`, `noise`, `sfr`,
 `exposure-response`, `oecf-fit`, `oecf-stepchart`, `reference-info`,
 `ccm-fit`, `patches`, `spectral-response`, `spectral-closure`,
-`spectral-quality`, and `spectral-smi`.
+`spectral-quality`, `spectral-smi`, and `shading`.
 
 ## Reproducibility and data access
 

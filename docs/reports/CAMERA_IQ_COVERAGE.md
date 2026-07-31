@@ -1,6 +1,6 @@
 # Camera IQ Technical Coverage Map
 
-Last reviewed: 2026-07-28<br>
+Last reviewed: 2026-07-31<br>
 Evidence basis: the implementation, tests, reports, aggregate tables, and
 archive inventories in this repository.
 
@@ -21,6 +21,8 @@ supported by the available image archives:
   diagnostics.
 - Slanted-edge SFR/MTF, including center ROI and 23-ROI field maps on two Nikon
   archives.
+- Relative CFA flat-field response with central clipping, pedestal,
+  repeatability, chromatic-ratio, and quadrant-asymmetry diagnostics.
 
 The current archives do not provide the calibration or target captures needed
 for electron-calibrated gain/read noise, full well, engineering dynamic range,
@@ -38,7 +40,7 @@ Current CLI verbs:
 | Dark/noise/tone | `dark-calibration`, `noise`, `exposure-response`, `oecf-fit`, `oecf-stepchart` |
 | Color chart workflow | `reference-info`, `patches`, `ccm-fit` |
 | Spectral workflow | `spectral-response`, `spectral-closure`, `spectral-quality`, `spectral-smi` |
-| Sharpness | `sfr` |
+| Sharpness and spatial response | `sfr`, `shading` |
 
 The implementation is accompanied by CTest coverage and repository privacy
 checks; the large RAW data and generated outputs stay in private or ignored
@@ -66,7 +68,7 @@ locations.
 | Dark-frame temporal noise and DSNU | Covered | [Noise](DARK_FRAME_NOISE.md), [dark calibration](DARK_CALIBRATION.md) | Dark-pair temporal noise, moment/robust DSNU, dark-current diagnostic, outlier gating. | DN diagnostics; gain/PTC/DR refused where data does not support them. |
 | SFR / MTF center ROI | Covered | [SFR result](SFR_MTF.md), [archive map](SFR_MTF_ARCHIVE_INVENTORY.md) | Green-linear slanted-edge MTF50P, sinc correction, D810 aperture trend, Imatest advisory comparison. | Not luma/gamma Imatest parity, lp/mm, or rendered Y-channel equivalence. |
 | SFR / MTF field map | Covered | [SFR result](SFR_MTF.md), [archive map](SFR_MTF_ARCHIVE_INVENTORY.md) | 23-ROI field maps for D810 and D800, per-ROI oracle parsing, field/corner gates, D800 negative trend finding. | Still green-linear CFA SFR; no full sagittal/tangential lens model. |
-| Vignetting/shading | Partial | [Patch extraction](PATCH_EXTRACTION.md) | Flat-field correction is used in patch extraction. | No dedicated shading-map or lens-vignetting metric. |
+| CFA flat-field response | Covered as composite characterization; optical attribution remains partial | [Flat-field response](FLAT_FIELD_RESPONSE.md), [patch extraction](PATCH_EXTRACTION.md) | Per-CFA median maps, center-normalized R/G and B/G, center/full-frame clipping gates, matched-dark pedestal verification, repeat deltas, and quadrant asymmetry. | Available captures do not separate source, lens, alignment, mechanical shading, or sensor angular response; not an isolated lens-vignetting metric. |
 | Distortion / chromatic aberration / flare | Partial / diagnostic only | [Localization](RAW_CHART_LOCALIZATION.md), [CCM fit](CCM_FIT.md) | Localization residuals and dark-patch flare evidence. | No standalone distortion, lateral CA, flare, or veiling-glare metric. |
 | Texture, autofocus, rolling shutter, HDR/video | Not covered | none | Out of current still-image archive scope. | Would need new target captures or different data. |
 
@@ -74,7 +76,7 @@ locations.
 
 | Dataset family | Covered outputs |
 |---|---|
-| CLRS-589 Project Camera | Manifest, RAW stats, demosaic, dark calibration, dark-frame noise/DSNU, exposure-response readiness, OECF fit, SG reference handling, patch extraction, CCM fit, raw chart localization diagnostics. |
+| CLRS-589 Project Camera | Manifest, RAW stats, demosaic, dark calibration, dark-frame noise/DSNU, exposure-response readiness, OECF fit, SG reference handling, patch extraction, CCM fit, raw chart localization diagnostics, and relative CFA flat-field response. |
 | 2016 monochromator / ColorChecker target sessions | Canon/Nikon/Sony SSF extraction, physical closure, SMI/Luther ranking, CC-24 and SG-140 target-set evidence. |
 | 2017 camSPECS / Phase One IQ3 | IQ3 SSF and color-fidelity ranking; closure blocked by missing same-session target/reflectance. |
 | 2016 esensi D810/D800 SFR | Center and field SFR/MTF, aperture trend gates, Imatest `_Y_multi.csv` oracle comparisons. |
@@ -96,9 +98,10 @@ implementation and validation project, not a certified ISO laboratory suite.
 1. **Calibration-backed electron PTC/DR** requires calibrated system gain,
    electron-referred read noise, full-well evidence, and a defined engineering
    dynamic-range threshold. The current Stepchart fits remain DN-referred.
-2. **Dedicated shading/vignetting and CA/distortion metrics** require suitable
-   target captures. The existing flat-field and localization paths provide only
-   partial inputs to those measurements.
+2. **Optical vignetting decomposition and CA/distortion metrics** require
+   additional target captures. The implemented CFA flat-field response remains
+   a source–lens–sensor composite because the sphere field, camera rotation, and
+   multi-aperture controls are insufficient for optical attribution.
 3. **Automatic Stepchart and SG localization** is incomplete. The validated
    workflows use measured ring geometry or supplied chart coordinates.
 4. **Spectral repeatability and instrument comparison** would require a
