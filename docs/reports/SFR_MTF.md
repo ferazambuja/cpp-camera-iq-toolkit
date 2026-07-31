@@ -1,4 +1,4 @@
-# D800/D810 slanted-edge SFR and field analysis
+# D800/D810 + 50 mm f/1.4G slanted-edge SFR and field analysis
 
 Evidence runs: 2026-07-08<br>
 Implementation validation refreshed: 2026-07-28
@@ -6,14 +6,44 @@ Implementation validation refreshed: 2026-07-28
 **Result:** the C++ green-linear SFR path accepted all 299 field ROIs in the
 published D800/D810 sweeps. The D810 center response peaked at f/5.6 and showed
 positive center-to-corner margin from f/5.6 through f/11. The same trend did not
-transfer to the D800; that camera/capture set retained a different center curve
-and field maximum.
+transfer to the D800; that capture system retained a different center curve and
+field maximum. Slanted-edge SFR measures lens, aperture, focus and alignment
+state, OLPF, sampling, and processing together, so every value below is a
+capture-system result rather than a camera-body or lens property.
 
 [Case study](../case-studies/sfr-mtf-aperture-field.md) ·
 [publication-safe aggregate CSV](../data/sfr_aperture_summary.csv) ·
 [archive and oracle contract](SFR_MTF_ARCHIVE_INVENTORY.md)
 
 ![D800 and D810 SFR aperture and field summary](../figures/sfr_aperture_field.svg)
+
+## Recorded capture configuration
+
+All 18 sweep files record the same AF-S Nikkor 50mm f/1.4G lens model at 50 mm,
+an approximate 0.84 m focus distance, and ISO 100. The
+[capture-metadata audit](SFR_MTF_ARCHIVE_INVENTORY.md#capture-metadata-audit)
+separates archive observations from manufacturer specifications.
+
+| Property | D810 set | D800 set |
+|---|---|---|
+| Files audited | 9/9 | 9/9 |
+| Lens (EXIF) | AF-S Nikkor 50mm f/1.4G | AF-S Nikkor 50mm f/1.4G |
+| Focal length / approximate focus distance | 50 mm / 0.84 m | 50 mm / 0.84 m |
+| Focus mode | AF-S | Manual |
+| `FocusPosition` raw code | `0x11` in all files | `0x11` in all files |
+| Capture time | 2016-12-09 17:53–17:54 | 2016-12-09 18:44–18:48 |
+| Optical low-pass filter | absent | present |
+| Lens serial | not recorded | not recorded |
+
+The constant `FocusPosition` byte records the same opaque maker-note value; it
+does not prove unchanged focus or focus accuracy. No lens serial is recorded,
+so the archive establishes the same lens model, not the same physical sample.
+Captures about 50 minutes apart make a single copy plausible but unverified.
+
+Nikon specifies the D800 with an enhanced OLPF and the D810 without an OLPF.
+Both are specified at 35.9 x 24.0 mm and 7360 x 4912 pixels, so their nominal
+sampling pitch matches. Cycles/pixel is therefore not confounded by a nominal
+pixel-pitch difference, although the measurement remains capture-system-specific.
 
 ## Measurement model
 
@@ -44,8 +74,9 @@ center is rejected.
 
 Dataset label: `archive:2016_esensi_images/2016_12_09_D810_SFR/`
 
-The advisory rows come from one 10-Dec-2016 per-file batch. The center edge is
-near-vertical in the toolkit convention.
+The advisory rows come from one 10-Dec-2016 per-file batch; that is the Imatest
+run date, not the capture date, which is 09-Dec-2016 for both sweeps. The center
+edge is near-vertical in the toolkit convention.
 
 | Aperture | Accepted | Angle deg | Toolkit MTF50 | Advisory MTF50 | Delta | MTF@Nyq | R1090 px |
 |---|---:|---:|---:|---:|---:|---:|---:|
@@ -109,13 +140,44 @@ Load-bearing findings:
 - **The field maximum moves off center.** The advisory maximum is grid point
   N=12 at f/2.8 through f/11; the toolkit agrees from f/4 through f/11.
 - **Center/corner behavior is not monotonic.** At f/4 and f/5.6 the strongest
-  physical corner exceeds center in both paths.
+  physical corner exceeds center in both paths. At f/4 the toolkit corner is
+  32% above its center. The advisory table for that file labels no ROI
+  `Corner` — its regions are `Center` and `Pt Way` — so the comparable advisory
+  figure is its most-peripheral ROI at 0.1647 against 0.1385 at center, +19%.
+  The mid-aperture maximum is N=12 at 244 px horizontally and 1414 px above
+  center, reading 0.2211 in the advisory path: +60% over center.
+- **The field carries an azimuthal term, shown by radius-matched sites.** An
+  off-axis maximum alone does not exclude radial symmetry: a centered radial
+  response may peak on an annulus. The exclusion comes from ROIs at matched
+  radius, where a radially symmetric response must read the same value whatever
+  its profile.
+
+  | Aperture | Pair | Radii (px) | Radius delta | MTF50 |
+  |---|---|---|---:|---|
+  | f/4 | N=15 vs N=4 | 3019 / 3075 | 1.8% | 0.1691 vs 0.0945 (+79%) |
+  | f/8 | N=15 vs N=4 | 3018 / 3076 | 1.9% | 0.1702 vs 0.1365 (+25%) |
+  | f/4 | N=18 vs N=20 | 2046 / 1963 | 4.1% | 0.1878 vs 0.1055 (+78%) |
+  | f/8 | N=18 vs N=20 | 2046 / 1963 | 4.1% | 0.1889 vs 0.1507 (+25%) |
+
+  Explaining these radially would require losing most of the MTF50 across a
+  1.8% change in radius, which no plausible defocus or aberration profile does.
+  Two independent pairs agree at two apertures. One recorded `FocusPosition`
+  code and near-vertical edge samples cannot say which azimuthal mechanism —
+  target, sensor or focus-plane tilt, decentering, capture alignment, or
+  interactions among them.
 - **Off-axis reference deltas are larger.** Green-linear CFA SFR and
   rendered-luma processing diverge more away from center. The disagreement is
   reported rather than used as evidence of equivalence.
+- **The low D800 center response is not toolkit-only.** Center agreement within
+  ±0.015 cycles/pixel across the toolkit and advisory paths makes a gross
+  toolkit-specific numerical artifact less likely. It does not identify the
+  physical cause because both paths operate on the same captures.
 - D800 center values remain below D810 at matched plateau apertures, but the
   difference cannot be attributed to optical low-pass filtering alone because
-  focus and field state also differ.
+  focus mode, capture/alignment state, and focus accuracy also differ. OLPF
+  design is a plausible body-side contributor, but its magnitude is not isolated
+  here. A common lens model and a plausible single copy do not authorize ranking
+  the lens, body, and setup contributions.
 
 ## Validation
 
@@ -145,6 +207,8 @@ cycles/pixel at four-decimal reporting precision.
 - MTF is reported in cycles/pixel; no lp/mm or LW/PH conversion is claimed.
 - Field maps sample the provided slanted edges. They are not a complete
   sagittal/tangential lens model.
+- This is a system SFR study, not a lens characterization. Lens-sample identity,
+  controlled refocusing, and repeat captures are all absent from the archive.
 
 ## Implementation and tests
 
