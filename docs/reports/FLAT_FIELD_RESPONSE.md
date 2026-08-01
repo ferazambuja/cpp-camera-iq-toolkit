@@ -2,7 +2,7 @@
 
 Dataset: `clrs589_project_camera` Fujifilm X-T100 sphere and dark captures  
 Command: `camera_iq shading`  
-Result type: source–lens–sensor characterization in black-subtracted DN
+Result type: capture-system field characterization in black-subtracted DN
 
 [Case study](../case-studies/cfa-flat-field-response.md) ·
 [response table](../data/flat_field_response.csv) ·
@@ -21,8 +21,8 @@ The CLRS-589 archive yielded three usable f/8 frames from 52 sphere captures.
 The primary green response reached 0.4801 at the lowest bin relative to its
 center, while `C_RG` remained within −2.27 pp and `C_BG` within +4.47 pp of
 unity. Green quadrant asymmetry was 19.65%, well above the 5% project policy.
-The intensity field is consequently reported as a source–lens–sensor composite;
-the capture does not isolate optical vignetting.
+The green-CFA field is consequently reported as a capture-system response; the
+capture does not isolate optical vignetting regardless of the `A` verdict.
 
 ## Reproduction
 
@@ -125,7 +125,7 @@ in JSON even when a frame is rejected.
 | Center signal | median <5% ceiling | center block | reject denominator |
 | Negative residual | >1% | full plane | reject pedestal/black anomaly |
 | Bin coverage | <90% finite samples | each map bin | reject incomplete map |
-| Finiteness | any non-finite input | full plane | reject invalid buffer |
+| Aggregate finiteness | empty/non-finite derived region | gate/center/corners/bins | reject undefined result |
 
 The f/8, 1/500 s capture shows why the central and whole-frame fractions are
 both reported. The worst green plane measured 11.6319% near ceiling in the
@@ -134,7 +134,8 @@ anchor, so the frame is rejected even though a 1% whole-frame test would pass.
 
 ## Archive screening
 
-All 52 sphere files were reprocessed with the same command and thresholds:
+All 52 sphere files were reprocessed with the same serialized effective options
+and the public table records policy ID `shading-v1-grid16x12-default-gates`:
 
 | Aperture | Frames | Accepted | Rejected |
 |---|---:|---:|---:|
@@ -151,7 +152,7 @@ apertures have no usable frame, the archive provides no aperture comparison.
 
 | Map | Minimum | Maximum | Interpretation |
 |---|---:|---:|---|
-| Green relative response | 0.480104 | 1.000534 | combined intensity field |
+| Green relative response | 0.480104 | 1.000534 | green-CFA intensity proxy |
 | `C_RG` | 0.977316 | 0.999956 | red response up to 2.268 pp below normalized green |
 | `C_BG` | 0.999718 | 1.044729 | blue response up to 4.473 pp above normalized green |
 | `C_G1G2` | 0.998943 | 1.002342 | greens agree within 0.234 pp |
@@ -163,23 +164,29 @@ asymmetry statistic is:
 A = (max corner G - min corner G) / mean corner G = 0.196484
 ```
 
-`A` exceeds the 0.05 project policy. This is evidence that a centered,
-radially symmetric explanation is inadequate; it does not identify the source
-of the asymmetry.
+`A` exceeds the declared 0.05 project policy. This diagnoses departure from a
+centered radial scalar model; it neither identifies the source of the asymmetry
+nor decides whether a lens contribution is present.
 
-The policy is not an industry standard, but it is not arbitrary either. The
-repeat pair below measures `A` at 0.196484 and 0.199964, so the statistic
-reproduces to 0.00348 on this rig across two captures. The 0.05 policy sits
-about 14x above that spread — far enough that a tripped policy is not
-reproducibility noise, and close enough to stay meaningful. Two frames bound
-short-term behavior; they do not establish a reproducibility distribution.
+The threshold is a declared project policy, not an industry standard and not a
+value derived from this pair. The two frames measure `A` at 0.196484 and
+0.199964, an observed difference of 0.00348. That supports stability of the
+high-`A` observation for this pair only; it does not establish a null
+distribution, calibrate the 0.05 policy, or estimate repeatability.
 
-## Pedestal and repeat checks
+## Bounded dark-control and capture-pair checks
 
-The matching f/8, 1/1000 s dark was compatible in dimensions and CFA layout,
-matched aperture/shutter/ISO metadata, and had a per-plane median residual of
-`[0, 0, 0, 0]` DN. It passed the declared 1 DN tolerance. The dark verifies the
-pedestal but is not subtracted from or otherwise applied to the sphere samples.
+The f/8, 1/1000 s dark control was compatible in dimensions, CFA layout and
+camera make/model; aperture/shutter/ISO metadata was present and matched. Its
+full-frame per-plane median was `[0, 0, 0, 0]` DN, every sample was finite, and
+the center plus four corner blocks were also checked against the declared 1 DN
+tolerance. This verifies the stated dark-control checks, not all possible
+spatial pedestal structure. The dark is never applied to the sphere samples.
+The JSON records body-serial presence and equality separately: make/model
+compatibility never becomes an implicit claim of physical-body identity, and a
+one-sided or unequal serial blocks the check. LibRaw exposed no body serial for
+these RAFs (`body_serials_present = false`), so physical-body identity remains
+unverified even though the bounded dark-control checks pass.
 
 For the two f/8, 1/1000 s sphere frames, the absolute corner-response
 difference over four corners × four CFA positions measured:
@@ -196,15 +203,17 @@ population estimate or a substitute for a larger repeatability study.
 
 ## JSON and CSV behavior
 
-- JSON records dataset-relative filenames, the signal ceilings, effective
-  geometry, all gate diagnostics, response maps, chromatic completeness,
-  pedestal evidence, asymmetry, and interpretation scope.
+- JSON records schema version and every effective option alongside
+  dataset-relative filenames, signal ceilings, geometry, gate diagnostics,
+  response maps, chromatic completeness, dark-control evidence, asymmetry, and
+  interpretation scope.
 - A rejected frame retains its measured gates and center/corner medians while
   relative and chromatic maps become `null`.
 - Undefined ratio bins become JSON `null`; `chromatic_complete` and
   `missing_chromatic_bin_count` make the condition explicit.
-- CSV uses long-form measurement rows. Comparison mode appends both frames and
-  the maximum/RMS corner deltas.
+- CSV uses RFC 4180-escaped long-form rows and includes effective policy and all
+  dark-control verdicts. Comparison mode appends both frames and measured
+  maximum/RMS corner deltas.
 - Absolute input and dark paths are reduced to publication-safe labels.
 
 ## Validation
@@ -213,19 +222,25 @@ The shading tests cover:
 
 - production ceiling derivation and invalid RAW buffer sizes;
 - CFA-balanced geometry and impossible-region rejection;
-- finite/range validation and grid allocation bounds;
+- finite/range validation, mirrored geometry, gate containment, and grid bounds;
 - central versus full-frame near-ceiling fractions;
-- low signal, negative residuals, incomplete bins, and zero denominators;
+- low signal, negative residuals, independently binding finite coverage, and
+  zero denominators;
 - independent CFA planes, unequal gains, and row/column orientation;
 - exact synthetic `C_RG`/`C_BG`, spatial `C_G1G2`, and missing bins;
 - radial and asymmetric green fields;
-- dark compatibility, metadata matching, residual tolerance, and verification;
+- dark finite coverage, camera/exposure metadata, global and center/corner
+  residual tolerance, and verification;
 - multiplicative repeat invariance and additive-offset detection;
-- JSON/CSV rejection, privacy, pedestal, completeness, and comparison output.
+- JSON/CSV schema/options, escaping, rejection, privacy, dark controls,
+  completeness, and comparison output;
+- output/input alias refusal, dataset-root containment, and exporter joins.
 
-The deterministic figure test also validates the exact 52-row screening table,
-three complete 16 × 12 accepted maps, numeric ranges, acceptance count, and
-repeat-pair record.
+The exporter and deterministic figure tests validate 52 unique inventory
+labels, the 18/21/13 aperture census, the accepted-set join, one exact 16 × 12
+Cartesian bin grid per accepted file, one measured capture-pair record, the
+declared policy ID, numeric display ranges, and acceptance count. They validate
+table structure and joins; the archive rerun remains the measurement source.
 
 ## Limitations and extensions
 

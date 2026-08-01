@@ -114,6 +114,7 @@ void TESTS() {
     opts.grid_rows = 2;
     opts.corner_block_px = 16;
     opts.corner_inset_px = 0;
+    opts.gate_center_frac = 0.5;
     const auto analysis = analyze_shading(image, opts);
 
     check_near(analysis.signal_ceiling[0], 15359.0, 1e-12,
@@ -193,6 +194,7 @@ void TESTS() {
     opts.grid_rows = 2;
     opts.corner_block_px = 16;
     opts.corner_inset_px = 0;
+    opts.gate_center_frac = 0.5;
     opts.near_ceiling_max = std::numeric_limits<double>::quiet_NaN();
     const auto nan = measure_shading_field(mosaic.data(), width, height, width,
                                            opts, kCeiling);
@@ -205,10 +207,44 @@ void TESTS() {
                                             opts, kCeiling);
     check(!huge.valid && !huge.rejection_reason.empty(),
           "options: grid finer than a CFA plane is rejected before allocation");
+
+    opts.grid_cols = 2;
+    opts.asymmetry_policy = 10.01;
+    const auto asymmetry_range = measure_shading_field(
+        mosaic.data(), width, height, width, opts, kCeiling);
+    check(!asymmetry_range.valid,
+          "options: core enforces the same asymmetry-policy range as CLI");
   }
 
-  // Non-finite samples use the same geometric denominator as finite samples in
-  // both near-ceiling fractions. Finiteness remains its own failing gate.
+  // The clipping gate must contain the block it protects. Otherwise clipped
+  // samples in the normalizer can sit outside the gate and bias every ratio.
+  {
+    const int width = 128;
+    const int height = 128;
+    const auto mosaic = make_mosaic(width, height, {500, 500, 500, 500});
+    ShadingOptions opts;
+    opts.grid_cols = 4;
+    opts.grid_rows = 4;
+    opts.corner_block_px = 48;
+    opts.corner_inset_px = 0;
+    opts.gate_center_frac = 0.25;
+    const auto field = measure_shading_field(mosaic.data(), width, height,
+                                             width, opts, kCeiling);
+    check(!field.valid,
+          "geometry: near-ceiling gate cannot be smaller than center block");
+
+    const int odd_width = 129;
+    const auto odd = make_mosaic(odd_width, height, {500, 500, 500, 500});
+    opts.corner_block_px = 32;
+    opts.gate_center_frac = 0.5;
+    const auto odd_field = measure_shading_field(
+        odd.data(), odd_width, height, odd_width, opts, kCeiling);
+    check(!odd_field.valid,
+          "geometry: odd mosaic dimensions cannot claim mirrored corners");
+  }
+
+  // Bounded missing samples are controlled by the coverage policy. Fractions
+  // use their finite population, so a missing sample cannot dilute clipping.
   {
     const int width = 64;
     const int height = 64;
@@ -224,12 +260,12 @@ void TESTS() {
     opts.gate_center_frac = 0.5;
     const auto field = measure_shading_field(mosaic.data(), width, height,
                                              width, opts, kCeiling);
-    check(!field.valid && !field.gates.finite_ok,
-          "non-finite input: finiteness gate rejects");
-    check_near(field.gates.near_ceiling_frac_gate[0], 1.0 / 256.0, 1e-12,
-               "non-finite input: gate fraction keeps geometric denominator");
-    check_near(field.gates.near_ceiling_frac_frame[0], 1.0 / 1024.0, 1e-12,
-               "non-finite input: frame fraction keeps geometric denominator");
+    check(field.valid && field.gates.finite_ok && field.gates.coverage_ok,
+          "non-finite input: bounded missingness passes declared coverage");
+    check_near(field.gates.near_ceiling_frac_gate[0], 1.0 / 255.0, 1e-12,
+               "non-finite input: gate fraction uses finite denominator");
+    check_near(field.gates.near_ceiling_frac_frame[0], 1.0 / 1023.0, 1e-12,
+               "non-finite input: frame fraction uses finite denominator");
   }
 
   // A cropped view may have a row stride larger than its visible width.
@@ -251,6 +287,7 @@ void TESTS() {
     opts.grid_rows = 2;
     opts.corner_block_px = 16;
     opts.corner_inset_px = 0;
+    opts.gate_center_frac = 0.5;
     const auto field = measure_shading_field(mosaic.data(), width, height,
                                              stride, opts, kCeiling);
     check(field.valid, "stride: padded rows are accepted");
@@ -307,6 +344,7 @@ void TESTS() {
     opts.grid_rows = 2;
     opts.corner_block_px = 16;
     opts.corner_inset_px = 0;
+    opts.gate_center_frac = 0.5;
     const auto field = measure_shading_field(mosaic.data(), width, height,
                                              width, opts, kCeiling);
 
@@ -330,6 +368,7 @@ void TESTS() {
     opts.grid_rows = 2;
     opts.corner_block_px = 16;
     opts.corner_inset_px = 0;
+    opts.gate_center_frac = 0.5;
     const auto field = measure_shading_field(mosaic.data(), width, height,
                                              width, opts, kCeiling);
 
@@ -337,26 +376,39 @@ void TESTS() {
     check(!field.gates.negative_ok, "negative residual: gate verdict recorded");
   }
 
-  // Bin coverage is not a restatement of the finiteness gate: it also catches a
-  // grid finer than the plane, where bins have no samples to take a median of.
+  // Bin coverage is independently reachable: the same partially missing bin
+  // passes or fails when only the declared coverage threshold changes.
   {
     const int width = 16;
     const int height = 16;
-    const std::vector<double> mosaic(
-        static_cast<std::size_t>(width) * height, 500.0);
+    auto mosaic = make_mosaic(width, height, {500, 500, 500, 500});
+    for (int y = 0; y < 4; y += 2) {
+      for (int x = 4; x < 8; x += 2) {
+        mosaic[static_cast<std::size_t>(y) * width + x] =
+            std::numeric_limits<double>::quiet_NaN();
+      }
+    }
 
     ShadingOptions opts;
-    opts.grid_cols = 32;
-    opts.grid_rows = 32;
+    opts.grid_cols = 2;
+    opts.grid_rows = 2;
     opts.corner_block_px = 4;
     opts.corner_inset_px = 0;
-    const auto field = measure_shading_field(mosaic.data(), width, height,
-                                             width, opts, kCeiling);
+    opts.gate_center_frac = 0.5;
+    opts.min_bin_coverage = 0.70;
+    const auto allowed = measure_shading_field(mosaic.data(), width, height,
+                                               width, opts, kCeiling);
+    check(allowed.valid && allowed.gates.coverage_ok,
+          "coverage: bounded missingness passes a 70% policy");
 
-    check(!field.valid, "coverage: grid finer than the plane rejects");
-    check(!field.gates.coverage_ok, "coverage: gate verdict recorded");
-    check(field.gates.min_bin_coverage < 0.90,
-          "coverage: worst-bin coverage reported");
+    opts.min_bin_coverage = 0.90;
+    const auto rejected = measure_shading_field(mosaic.data(), width, height,
+                                                width, opts, kCeiling);
+    check(!rejected.valid && rejected.gates.finite_ok &&
+              !rejected.gates.coverage_ok,
+          "coverage: coverage alone changes the verdict at 90%");
+    check_near(rejected.gates.min_bin_coverage, 0.75, 1e-12,
+               "coverage: worst-bin finite fraction is reported");
   }
 
   // A clean frame passes every gate and says so, so an all-rejecting
@@ -372,6 +424,7 @@ void TESTS() {
     opts.grid_rows = 4;
     opts.corner_block_px = 32;
     opts.corner_inset_px = 0;
+    opts.gate_center_frac = 0.5;
     const auto field = measure_shading_field(mosaic.data(), width, height,
                                              width, opts, kCeiling);
 
@@ -463,6 +516,7 @@ void TESTS() {
     opts.grid_rows = 6;
     opts.corner_block_px = 32;
     opts.corner_inset_px = 0;
+    opts.gate_center_frac = 0.5;
     const auto field =
         measure_shading_field(mosaic.data(), width, height, width, opts,
                               kHeadroom);
@@ -533,6 +587,7 @@ void TESTS() {
     opts.grid_rows = kGrid;
     opts.corner_block_px = 32;
     opts.corner_inset_px = 0;
+    opts.gate_center_frac = 0.5;
     const auto field =
         measure_shading_field(mosaic.data(), kMosaic, kMosaic, kMosaic, opts,
                               kHeadroom);
@@ -583,6 +638,7 @@ void TESTS() {
     opts.grid_rows = kGrid;
     opts.corner_block_px = 32;
     opts.corner_inset_px = 0;
+    opts.gate_center_frac = 0.5;
     const auto field = measure_shading_field(mosaic.data(), kMosaic, kMosaic,
                                              kMosaic, opts, kHeadroom);
     const auto chroma = chromatic_response(field, kRGGB, kCdesc);
@@ -614,6 +670,7 @@ void TESTS() {
     opts.grid_rows = kGrid;
     opts.corner_block_px = 32;
     opts.corner_inset_px = 0;
+    opts.gate_center_frac = 0.5;
     const auto field = measure_shading_field(mosaic.data(), kMosaic, kMosaic,
                                              kMosaic, opts, kHeadroom);
     const auto chroma = chromatic_response(field, kRGGB, kCdesc);
@@ -645,18 +702,21 @@ void TESTS() {
           "chromatic: rejected field is refused");
   }
 
-  // All four ordinary Bayer phases are mapped from the file's COLOR()/cdesc
-  // metadata rather than an RGGB constant.
+  // All four ordinary Bayer phases are mapped numerically from COLOR()/cdesc.
+  // Position-specific values make a hard-coded RGGB mapping fail.
   {
     camera_iq::ShadingField field;
     field.valid = true;
     field.grid_cols = 1;
     field.grid_rows = 1;
     field.geometry.valid = true;
-    for (int p = 0; p < 4; ++p) {
-      field.relative[p] = {1.0};
-      for (int q = 0; q < 4; ++q) field.blocks.corner_relative[q][p] = 1.0;
-    }
+    field.relative[0] = {0.8};
+    field.relative[1] = {1.0};
+    field.relative[2] = {1.2};
+    field.relative[3] = {1.4};
+    for (int p = 0; p < 4; ++p)
+      for (int q = 0; q < 4; ++q)
+        field.blocks.corner_relative[q][p] = field.relative[p][0];
     const std::array<std::array<int, 4>, 4> phases = {
         std::array<int, 4>{0, 1, 3, 2},  // RGGB
         std::array<int, 4>{1, 0, 2, 3},  // GRBG
@@ -665,10 +725,27 @@ void TESTS() {
     };
     for (const auto& phase : phases) {
       const auto chroma = chromatic_response(field, phase, kCdesc);
-      check(chroma.valid && chroma.complete && chroma.red_position >= 0 &&
-                chroma.blue_position >= 0 && chroma.green1_position >= 0 &&
-                chroma.green2_position >= 0,
-            "chromatic: ordinary Bayer phase mapped from metadata");
+      int expected_r = -1;
+      int expected_b = -1;
+      std::array<int, 2> expected_g{-1, -1};
+      int green_count = 0;
+      for (int p = 0; p < 4; ++p) {
+        const char letter = kCdesc[static_cast<std::size_t>(phase[p])];
+        if (letter == 'R') expected_r = p;
+        if (letter == 'B') expected_b = p;
+        if (letter == 'G') expected_g[green_count++] = p;
+      }
+      const double expected_green =
+          0.5 * (field.relative[expected_g[0]][0] +
+                 field.relative[expected_g[1]][0]);
+      check(chroma.valid && chroma.complete &&
+                chroma.red_position == expected_r &&
+                chroma.blue_position == expected_b &&
+                chroma.green1_position == expected_g[0] &&
+                chroma.green2_position == expected_g[1],
+            "chromatic: exact Bayer positions come from metadata");
+      check_near(chroma.c_rg[0], field.relative[expected_r][0] / expected_green,
+                 1e-12, "chromatic: phase-specific C_RG uses mapped planes");
     }
   }
 
@@ -680,31 +757,146 @@ void TESTS() {
     primary.samples.assign(16 * 16, 500.0);
     primary.color_at_position = kRGGB;
     primary.cdesc = kCdesc;
+    primary.meta.make = "FUJIFILM";
+    primary.meta.model = "X-T100";
+    primary.meta.body_serial = "TEST-BODY-1";
     primary.meta.aperture = 8.0;
     primary.meta.shutter_s = 0.001;
     primary.meta.iso = 200.0;
     RawCfaImage dark = primary;
     dark.samples.assign(16 * 16, 0.25);
 
+    ShadingOptions pedestal_opts;
+    pedestal_opts.grid_cols = 2;
+    pedestal_opts.grid_rows = 2;
+    pedestal_opts.corner_block_px = 4;
+    pedestal_opts.corner_inset_px = 0;
+    pedestal_opts.gate_center_frac = 0.5;
+
     const auto verified =
-        verify_shading_pedestal(primary, dark, "dark.RAF", 1.0);
+        verify_shading_pedestal(primary, dark, "dark.RAF", 1.0,
+                                pedestal_opts);
     check(verified.measured && verified.compatible &&
-              verified.exposure_metadata_matches && verified.within_tolerance &&
-              verified.verified,
+              verified.make_model_metadata_matches &&
+              verified.body_serials_present && verified.body_serials_match &&
+              verified.body_serials_consistent &&
+              verified.exposure_metadata_present &&
+              verified.exposure_metadata_matches &&
+              verified.full_finite_coverage && verified.spatial_checked &&
+              verified.within_tolerance && verified.verified,
           "pedestal: all evidence gates produce a verified result");
 
     dark.meta.shutter_s = 0.002;
     const auto mismatch =
-        verify_shading_pedestal(primary, dark, "dark.RAF", 1.0);
+        verify_shading_pedestal(primary, dark, "dark.RAF", 1.0,
+                                pedestal_opts);
     check(mismatch.measured && !mismatch.exposure_metadata_matches &&
               !mismatch.verified,
           "pedestal: measured but mismatched dark remains unverified");
+
+    dark = primary;
+    dark.samples.assign(16 * 16,
+                        std::numeric_limits<double>::quiet_NaN());
+    dark.samples[0] = dark.samples[1] = dark.samples[16] = dark.samples[17] = 0.0;
+    const auto sparse = verify_shading_pedestal(
+        primary, dark, "dark.RAF", 1.0, pedestal_opts);
+    check(!sparse.full_finite_coverage && !sparse.verified,
+          "pedestal: one finite sample per plane cannot verify a dark");
+
+    dark = primary;
+    dark.samples.assign(16 * 16, 0.0);
+    for (int y = 0; y < 4; ++y)
+      for (int x = 0; x < 4; ++x)
+        dark.samples[static_cast<std::size_t>(y) * 16 + x] = 3.0;
+    const auto spatial = verify_shading_pedestal(
+        primary, dark, "dark.RAF", 1.0, pedestal_opts);
+    check(spatial.measured && spatial.max_abs_residual_dn == 0.0 &&
+              spatial.max_abs_spatial_residual_dn > 1.0 && !spatial.verified,
+          "pedestal: a local dark offset cannot hide behind a zero median");
+
+    dark = primary;
+    dark.samples.assign(16 * 16, 0.0);
+    dark.meta.make = "OTHER";
+    const auto camera_mismatch = verify_shading_pedestal(
+        primary, dark, "dark.RAF", 1.0, pedestal_opts);
+    check(!camera_mismatch.make_model_metadata_matches &&
+              !camera_mismatch.verified,
+          "pedestal: cross-camera dark cannot verify the pedestal");
+
+    dark = primary;
+    dark.meta.body_serial = "TEST-BODY-2";
+    const auto body_mismatch = verify_shading_pedestal(
+        primary, dark, "dark.RAF", 1.0, pedestal_opts);
+    check(body_mismatch.make_model_metadata_matches &&
+              body_mismatch.body_serials_present &&
+              !body_mismatch.body_serials_match &&
+              !body_mismatch.body_serials_consistent &&
+              !body_mismatch.verified,
+          "pedestal: same-model dark from another serialized body is rejected");
+
+    dark = primary;
+    primary.meta.body_serial.clear();
+    dark.meta.body_serial.clear();
+    dark.samples.assign(16 * 16, 0.0);
+    const auto unknown_body = verify_shading_pedestal(
+        primary, dark, "dark.RAF", 1.0, pedestal_opts);
+    check(!unknown_body.body_serials_present &&
+              !unknown_body.body_serials_match &&
+              unknown_body.body_serials_consistent && unknown_body.verified,
+          "pedestal: absent serials do not fabricate physical body identity");
+
+    dark.meta.body_serial = "ONE-SIDED-SERIAL";
+    const auto one_sided_body = verify_shading_pedestal(
+        primary, dark, "dark.RAF", 1.0, pedestal_opts);
+    check(!one_sided_body.body_serials_present &&
+              !one_sided_body.body_serials_consistent &&
+              !one_sided_body.verified,
+          "pedestal: one-sided body identity is a blocking conflict");
+
+    primary.meta.body_serial = "TEST-BODY-1";
+
+    dark = primary;
+    dark.meta.shutter_s = 0.0;
+    const auto missing_metadata = verify_shading_pedestal(
+        primary, dark, "dark.RAF", 1.0, pedestal_opts);
+    check(!missing_metadata.exposure_metadata_present &&
+              !missing_metadata.verified,
+          "pedestal: default-zero exposure fields are missing, not matching");
+
+    dark = primary;
+    ShadingOptions invalid_opts = pedestal_opts;
+    invalid_opts.gate_center_frac =
+        std::numeric_limits<double>::quiet_NaN();
+    const auto invalid_nan = verify_shading_pedestal(
+        primary, dark, "dark.RAF", 1.0, invalid_opts);
+    check(!invalid_nan.measured && !invalid_nan.verified,
+          "pedestal: direct NaN options are rejected before geometry");
+
+    invalid_opts = pedestal_opts;
+    invalid_opts.near_ceiling_max =
+        std::numeric_limits<double>::infinity();
+    const auto invalid_inf = verify_shading_pedestal(
+        primary, dark, "dark.RAF", 1.0, invalid_opts);
+    check(!invalid_inf.measured && !invalid_inf.verified,
+          "pedestal: direct infinite options are rejected before geometry");
+
+    invalid_opts = pedestal_opts;
+    invalid_opts.grid_cols = 100;
+    const auto invalid_grid = verify_shading_pedestal(
+        primary, dark, "dark.RAF", 1.0, invalid_opts);
+    check(!invalid_grid.measured && !invalid_grid.verified,
+          "pedestal: direct non-fitting grid options are rejected");
+
+    invalid_opts = pedestal_opts;
+    invalid_opts.corner_inset_px = std::numeric_limits<int>::max();
+    const auto invalid_inset = verify_shading_pedestal(
+        primary, dark, "dark.RAF", 1.0, invalid_opts);
+    check(!invalid_inset.measured && !invalid_inset.verified,
+          "pedestal: INT_MAX inset is rejected before even rounding");
   }
 
-  // Quadrant asymmetry is defined so that A = 0 for any centred, radially
-  // symmetric field, by construction. That is the whole point of the statistic:
-  // a lens-only, centred explanation cannot produce a non-zero A, so a non-zero
-  // A is evidence the field is not centred and radially symmetric.
+  // Quadrant asymmetry is a diagnostic against a centred radial scalar model.
+  // It never decides which capture-system component caused the departure.
   {
     const int width = 256;
     const int height = 256;
@@ -742,12 +934,12 @@ void TESTS() {
                                            opts, kHeadroom);
     const auto sym_c = chromatic_response(sym, kRGGB, kCdesc, opts);
     check(sym.valid, "asymmetry: radial field measured");
-    // Analytically A = 0 here. On a discrete CFA the two green positions sample
-    // half a pixel apart, so the floor is ~1.5e-4 — two orders below the 0.05
-    // policy and below the 0.0025 reproducibility measured on the archive
-    // repeat pair. The tolerance records the sampling floor, not slack.
-    check(sym_c.green_asymmetry < 1e-3,
-          "asymmetry: A is zero for a centred radially symmetric field");
+    // Analytically A = 0 here. This sampled quadratic fixture leaves a small
+    // discretization residual that depends on its field, CFA phase, geometry,
+    // and median estimator; it is not a universal floor. The bound records this
+    // fixture's measured residual and remains well below the 0.05 policy.
+    check(sym_c.asymmetry_valid && sym_c.green_asymmetry < 1e-3,
+          "asymmetry: radial fixture stays below its discretization bound");
     check(!sym_c.asymmetry_exceeds_policy,
           "asymmetry: centred field does not trip the policy");
 
@@ -801,6 +993,7 @@ void TESTS() {
     opts.grid_rows = 4;
     opts.corner_block_px = 32;
     opts.corner_inset_px = 16;
+    opts.gate_center_frac = 0.5;
     const auto fa = measure_shading_field(a.data(), width, height, width, opts,
                                           kHeadroom);
     const auto fb = measure_shading_field(b.data(), width, height, width, opts,

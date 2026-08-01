@@ -21,6 +21,13 @@ std::string cfa_pattern_string(std::string_view cdesc,
   return pattern;
 }
 
+std::string body_serial_string(const char* data, std::size_t capacity) {
+  if (data == nullptr) return {};
+  std::size_t length = 0;
+  while (length < capacity && data[length] != '\0') ++length;
+  return std::string(data, length);
+}
+
 std::array<double, 4> effective_black_levels(
     unsigned black, const unsigned* cblack, std::size_t cblack_len,
     const std::array<int, 4>& color_at_position) {
@@ -64,12 +71,10 @@ int effective_raw_stride_pixels(unsigned raw_pitch_bytes, unsigned raw_width) {
   return static_cast<int>(raw_pitch_bytes / sizeof(std::uint16_t));
 }
 
-namespace {
-
 // Fills RawMeta from the processor's current state. Some makers populate black
 // level and raw pitch during unpack(), so callers that need pixel-correct stats
 // must call this after unpack().
-RawMeta meta_from_processor(LibRaw& processor) {
+RawMeta raw_meta_from_processor(LibRaw& processor) {
   const auto& idata = processor.imgdata.idata;
   const auto& other = processor.imgdata.other;
   const auto& sizes = processor.imgdata.sizes;
@@ -78,6 +83,8 @@ RawMeta meta_from_processor(LibRaw& processor) {
   RawMeta meta;
   meta.make = idata.make;
   meta.model = idata.model;
+  const auto& body_serial = processor.imgdata.shootinginfo.BodySerial;
+  meta.body_serial = body_serial_string(body_serial, sizeof(body_serial));
   meta.iso = other.iso_speed;
   meta.shutter_s = other.shutter;
   meta.aperture = other.aperture;
@@ -128,14 +135,12 @@ RawMeta meta_from_processor(LibRaw& processor) {
   return meta;
 }
 
-}  // namespace
-
 std::optional<RawMeta> read_raw_metadata(const std::filesystem::path& raw) {
   LibRaw processor;
   if (processor.open_file(raw.string().c_str()) != LIBRAW_SUCCESS) {
     return std::nullopt;
   }
-  return meta_from_processor(processor);
+  return raw_meta_from_processor(processor);
 }
 
 std::optional<RawCfaReport> read_raw_cfa_stats(
@@ -153,7 +158,7 @@ std::optional<RawCfaReport> read_raw_cfa_stats(
   if (processor.unpack() != LIBRAW_SUCCESS) {
     return std::nullopt;
   }
-  report.meta = meta_from_processor(processor);
+  report.meta = raw_meta_from_processor(processor);
 
   const std::uint16_t* image = processor.imgdata.rawdata.raw_image;
   if (image == nullptr) {
@@ -224,7 +229,7 @@ std::optional<RawCfaImage> read_raw_cfa_image(const std::filesystem::path& raw) 
   }
 
   RawCfaImage out;
-  out.meta = meta_from_processor(processor);
+  out.meta = raw_meta_from_processor(processor);
   out.width = sizes.width;
   out.height = sizes.height;
   out.row_stride_pixels = sizes.width;

@@ -158,3 +158,5 @@ add_test(NAME test_portfolio_docs
   COMMAND python3 ${CMAKE_SOURCE_DIR}/tools/test_portfolio_docs.py)
 add_test(NAME test_portfolio_figures
   COMMAND python3 ${CMAKE_SOURCE_DIR}/tools/test_portfolio_figures.py)
+add_test(NAME test_export_shading_portfolio
+  COMMAND python3 ${CMAKE_SOURCE_DIR}/tools/test_export_shading_portfolio.py)

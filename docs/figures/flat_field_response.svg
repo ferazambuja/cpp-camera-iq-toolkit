@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <svg xmlns="http://www.w3.org/2000/svg" width="1200" height="800" viewBox="0 0 1200 800" role="img" aria-labelledby="title desc">
   <title id="title">CFA flat-field response characterization</title>
-  <desc id="desc">A 16 by 12 center-normalized green response map and chromatic ratio maps for a Fujifilm X-T100 f/8 sphere capture, accompanied by saturation, repeatability, pedestal and asymmetry diagnostics.</desc>
+  <desc id="desc">A 16 by 12 center-normalized green response map and chromatic ratio maps for a Fujifilm X-T100 f/8 sphere capture, accompanied by saturation, pair-difference, dark-control and asymmetry diagnostics.</desc>
   <style>
     text { font-family: Helvetica; fill: #172033; }
     .title { font-size: 25px; font-weight: 700; }
@@ -15,7 +15,7 @@
   </style>
 <rect width="1200" height="800" rx="16" fill="#ffffff"/>
 <text x="42" y="45" class="title">CFA flat-field response · f/8 sphere capture</text>
-<text x="42" y="70" class="subtitle">Source–lens–sensor characterization in black-subtracted DN; 16 × 12 per-CFA medians</text>
+<text x="42" y="70" class="subtitle">Capture-system field response in black-subtracted DN; 16 × 12 per-CFA medians</text>
 <rect x="42" y="91" width="252" height="78" rx="10" fill="#f7f9fc" stroke="#d8dee8"/>
 <text x="56" y="117" class="node-title">1 · RAW mosaic</text>
 <text x="56" y="140" class="node-detail">LibRaw active area</text>
@@ -634,7 +634,7 @@
 <text x="60" y="581" style="font-size:22px;font-weight:700;fill:#172033">3 / 52 accepted</text>
 <text x="60" y="605" class="subtitle">49 rejected by the near-ceiling gate</text>
 <rect x="427" y="526" width="346" height="94" rx="12" fill="#f7f9fc"/>
-<text x="445" y="554" class="panel-title">Repeat capture</text>
+<text x="445" y="554" class="panel-title">Capture pair</text>
 <text x="445" y="581" style="font-size:22px;font-weight:700;fill:#172033">max Δ 0.379 pp</text>
 <text x="445" y="605" class="subtitle">RMS Δ 0.181 pp over corner/plane pairs</text>
 <rect x="812" y="526" width="346" height="94" rx="12" fill="#f7f9fc"/>
@@ -644,7 +644,7 @@
 <rect x="42" y="646" width="1116" height="105" rx="12" fill="#fff7ed" stroke="#fed7aa"/>
 <text x="62" y="678" class="panel-title">Engineering interpretation</text>
 <text x="62" y="704" class="subtitle">Green falls to roughly one-half of its center response at the most affected bins, while R/G and B/G vary by only a few percent.</text>
-<text x="62" y="727" class="subtitle">The strong quadrant asymmetry means the luminance field is reported as a source–lens–sensor composite, not isolated lens vignetting.</text>
-<text x="62" y="750" class="subtitle">A matched dark verifies the black-subtracted pedestal; the repeat frame bounds short-term measurement variation for this capture pair.</text>
+<text x="62" y="727" class="subtitle">The green-CFA map is a capture-system field response; A diagnoses departure from a centred radial scalar model but does not identify its cause.</text>
+<text x="62" y="750" class="subtitle">An exposure-metadata-compatible dark control checks global and center/corner residuals; the repeat frame bounds this pair only.</text>
 <text x="1152" y="780" text-anchor="end" class="axis">Source: docs/data/flat_field_*.csv</text>
 </svg>

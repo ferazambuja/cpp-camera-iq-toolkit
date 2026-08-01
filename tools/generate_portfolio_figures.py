@@ -543,10 +543,11 @@ def generate_shading(data_dir: Path) -> str:
             "max_near_ceiling_frame",
             "green_center_signal",
             "green_asymmetry",
-            "pedestal_verified",
+            "dark_controls_verified",
             "comparison_file",
             "max_corner_delta_pp",
             "rms_corner_delta_pp",
+            "analysis_policy",
         ],
         52,
     )
@@ -573,11 +574,28 @@ def generate_shading(data_dir: Path) -> str:
         raise ValueError("flat_field_summary.csv: expected 3 accepted and 49 rejected")
     if any(row["failed_gates"] != "near_ceiling" for row in rejected):
         raise ValueError("flat_field_summary.csv: rejected-frame gate mix changed")
+    summary_files = [row["file"] for row in summary]
+    if len(set(summary_files)) != 52:
+        raise ValueError("flat_field_summary.csv: file labels must be unique")
+    aperture_census = {
+        aperture: sum(row["aperture"] == aperture for row in summary)
+        for aperture in {row["aperture"] for row in summary}
+    }
+    if aperture_census != {"5.6": 18, "8.0": 21, "9.0": 13}:
+        raise ValueError("flat_field_summary.csv: aperture census changed")
+    if any(
+        row["analysis_policy"] != "shading-v1-grid16x12-default-gates"
+        for row in summary
+    ):
+        raise ValueError("flat_field_summary.csv: mixed analysis policies")
     comparison_rows = [row for row in summary if row["comparison_file"]]
     if len(comparison_rows) != 1:
-        raise ValueError("flat_field_summary.csv: expected one repeatability pair")
+        raise ValueError("flat_field_summary.csv: expected one capture-pair record")
     primary_summary = comparison_rows[0]
     primary_file = primary_summary["file"]
+    accepted_files = {row["file"] for row in accepted}
+    if primary_summary["comparison_file"] not in accepted_files:
+        raise ValueError("flat_field_summary.csv: comparison file is not accepted")
     asymmetry = number(
         primary_summary, "green_asymmetry", minimum=0.0, maximum=1.0
     )
@@ -588,16 +606,22 @@ def generate_shading(data_dir: Path) -> str:
         primary_summary, "rms_corner_delta_pp", minimum=0.0, maximum=10.0
     )
     number(primary_summary, "green_center_signal", minimum=0.0, maximum=1.0)
-    if primary_summary["pedestal_verified"] != "true":
-        raise ValueError("flat_field_summary.csv: primary pedestal is not verified")
+    if any(row["dark_controls_verified"] != "true" for row in accepted):
+        raise ValueError("flat_field_summary.csv: accepted dark controls are not verified")
 
     by_file: dict[str, list[dict[str, str]]] = {}
+    bin_keys: dict[str, set[tuple[int, int]]] = {}
     for row in response:
         by_file.setdefault(row["file"], []).append(row)
         grid_row = int(row["bin_row"])
         grid_col = int(row["bin_col"])
         if not 0 <= grid_row < 12 or not 0 <= grid_col < 16:
             raise ValueError("flat_field_response.csv: bin outside 16x12 grid")
+        key = (grid_row, grid_col)
+        file_keys = bin_keys.setdefault(row["file"], set())
+        if key in file_keys:
+            raise ValueError("flat_field_response.csv: duplicate bin coordinate")
+        file_keys.add(key)
         for field, lo, hi in (
             ("r_relative", 0.0, 1.2),
             ("g1_relative", 0.0, 1.2),
@@ -611,6 +635,11 @@ def generate_shading(data_dir: Path) -> str:
             number(row, field, minimum=lo, maximum=hi)
     if len(by_file) != 3 or any(len(rows) != 192 for rows in by_file.values()):
         raise ValueError("flat_field_response.csv: expected three complete maps")
+    if set(by_file) != accepted_files:
+        raise ValueError("flat_field_response.csv: files do not match accepted summary")
+    expected_bins = {(row, col) for row in range(12) for col in range(16)}
+    if any(keys != expected_bins for keys in bin_keys.values()):
+        raise ValueError("flat_field_response.csv: incomplete bin Cartesian product")
     primary = sorted(
         by_file[primary_file], key=lambda row: (int(row["bin_row"]), int(row["bin_col"]))
     )
@@ -639,13 +668,13 @@ def generate_shading(data_dir: Path) -> str:
         (
             "A 16 by 12 center-normalized green response map and chromatic "
             "ratio maps for a Fujifilm X-T100 f/8 sphere capture, accompanied "
-            "by saturation, repeatability, pedestal and asymmetry diagnostics."
+            "by saturation, pair-difference, dark-control and asymmetry diagnostics."
         ),
     )
     out += [
         '<rect width="1200" height="800" rx="16" fill="#ffffff"/>',
         '<text x="42" y="45" class="title">CFA flat-field response · f/8 sphere capture</text>',
-        '<text x="42" y="70" class="subtitle">Source–lens–sensor characterization in black-subtracted DN; 16 × 12 per-CFA medians</text>',
+        '<text x="42" y="70" class="subtitle">Capture-system field response in black-subtracted DN; 16 × 12 per-CFA medians</text>',
     ]
     steps = [
         ("1 · RAW mosaic", "LibRaw active area", "per-position black removal"),
@@ -694,7 +723,7 @@ def generate_shading(data_dir: Path) -> str:
 
     cards = [
         ("Frame screening", "3 / 52 accepted", "49 rejected by the near-ceiling gate"),
-        ("Repeat capture", f"max Δ {max_delta:.3f} pp", f"RMS Δ {rms_delta:.3f} pp over corner/plane pairs"),
+        ("Capture pair", f"max Δ {max_delta:.3f} pp", f"RMS Δ {rms_delta:.3f} pp over corner/plane pairs"),
         ("Quadrant asymmetry", f"A = {100 * asymmetry:.2f}%", "exceeds the 5% project policy"),
     ]
     for index, (title, value, detail) in enumerate(cards):
@@ -709,8 +738,8 @@ def generate_shading(data_dir: Path) -> str:
         '<rect x="42" y="646" width="1116" height="105" rx="12" fill="#fff7ed" stroke="#fed7aa"/>',
         '<text x="62" y="678" class="panel-title">Engineering interpretation</text>',
         '<text x="62" y="704" class="subtitle">Green falls to roughly one-half of its center response at the most affected bins, while R/G and B/G vary by only a few percent.</text>',
-        '<text x="62" y="727" class="subtitle">The strong quadrant asymmetry means the luminance field is reported as a source–lens–sensor composite, not isolated lens vignetting.</text>',
-        '<text x="62" y="750" class="subtitle">A matched dark verifies the black-subtracted pedestal; the repeat frame bounds short-term measurement variation for this capture pair.</text>',
+        '<text x="62" y="727" class="subtitle">The green-CFA map is a capture-system field response; A diagnoses departure from a centred radial scalar model but does not identify its cause.</text>',
+        '<text x="62" y="750" class="subtitle">An exposure-metadata-compatible dark control checks global and center/corner residuals; the repeat frame bounds this pair only.</text>',
         '<text x="1152" y="780" text-anchor="end" class="axis">Source: docs/data/flat_field_*.csv</text>',
         "</svg>",
     ]

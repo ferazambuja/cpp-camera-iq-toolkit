@@ -16,6 +16,23 @@ NAME_RE = re.compile(
     r"Sphere_f(?P<aperture>[0-9.]+)_(?P<shutter>1:[0-9]+)_DSCF[0-9]+\.RAF$"
 )
 
+SCHEMA_VERSION = 2
+POLICY_ID = "shading-v1-grid16x12-default-gates"
+PEDESTAL_TOLERANCE_DN = 1.0
+EXPECTED_OPTIONS: dict[str, float | int] = {
+    "grid_cols": 16,
+    "grid_rows": 12,
+    "gate_center_frac": 0.20,
+    "corner_block_px": 400,
+    "corner_inset_px": 120,
+    "near_ceiling_level": 0.98,
+    "near_ceiling_max": 0.01,
+    "min_center_signal": 0.05,
+    "max_negative_frac": 0.01,
+    "min_bin_coverage": 0.90,
+    "asymmetry_policy": 0.05,
+}
+
 
 def load(path: Path) -> dict[str, Any]:
     with path.open(encoding="utf-8") as handle:
@@ -40,44 +57,338 @@ def finite(value: Any, label: str) -> float:
     return number
 
 
+def validate_options(item: dict[str, Any], label: str) -> None:
+    if item.get("schema_version") != SCHEMA_VERSION:
+        raise ValueError(f"{label}: unsupported shading schema")
+    options = item.get("analysis_options")
+    if not isinstance(options, dict) or set(options) != set(EXPECTED_OPTIONS):
+        raise ValueError(f"{label}: incomplete or unexpected analysis options")
+    for key, expected in EXPECTED_OPTIONS.items():
+        actual = finite(options[key], f"{label} {key}")
+        if actual != float(expected):
+            raise ValueError(f"{label}: {key}={actual} does not match portfolio policy")
+
+
+def fraction4(value: Any, label: str) -> list[float]:
+    values = four_values(value, label)
+    if any(number < 0.0 or number > 1.0 for number in values):
+        raise ValueError(f"{label}: fractions must lie in [0, 1]")
+    return values
+
+
+def validated_gates(
+    item: dict[str, Any], label: str
+) -> tuple[float, float, list[float], list[str]]:
+    gates = item.get("gates")
+    if not isinstance(gates, dict):
+        raise ValueError(f"{label}: missing gate evidence")
+    gate = fraction4(
+        gates.get("near_ceiling_fraction_gate"), f"{label} near-ceiling gate"
+    )
+    frame = fraction4(
+        gates.get("near_ceiling_fraction_frame"), f"{label} near-ceiling frame"
+    )
+    negative = fraction4(gates.get("negative_fraction"), f"{label} negative")
+    center = fraction4(
+        gates.get("center_signal_fraction"), f"{label} center signal"
+    )
+    coverage = finite(gates.get("min_bin_coverage"), f"{label} bin coverage")
+    if coverage < 0.0 or coverage > 1.0:
+        raise ValueError(f"{label}: bin coverage must lie in [0, 1]")
+    expected = {
+        "near_ceiling_ok": all(
+            value <= float(EXPECTED_OPTIONS["near_ceiling_max"]) for value in gate
+        ),
+        "low_signal_ok": all(
+            value >= float(EXPECTED_OPTIONS["min_center_signal"]) for value in center
+        ),
+        "negative_ok": all(
+            value <= float(EXPECTED_OPTIONS["max_negative_frac"])
+            for value in negative
+        ),
+        "coverage_ok": coverage >= float(EXPECTED_OPTIONS["min_bin_coverage"]),
+    }
+    for key, verdict in expected.items():
+        if gates.get(key) is not verdict:
+            raise ValueError(f"{label}: {key} disagrees with measured fractions")
+    if not isinstance(gates.get("finite_ok"), bool):
+        raise ValueError(f"{label}: finite_ok verdict is not boolean")
+    failed = [
+        name
+        for name, key in (
+            ("near_ceiling", "near_ceiling_ok"),
+            ("low_signal", "low_signal_ok"),
+            ("negative", "negative_ok"),
+            ("coverage", "coverage_ok"),
+            ("finite", "finite_ok"),
+        )
+        if not bool(gates[key])
+    ]
+    return max(gate), max(frame), center, failed
+
+
+def cfa_positions(item: dict[str, Any], label: str) -> dict[str, int]:
+    positions = item.get("cfa_positions")
+    if not isinstance(positions, dict) or set(positions) != {"r", "g1", "g2", "b"}:
+        raise ValueError(f"{label}: missing CFA-position provenance")
+    mapped = {key: int(value) for key, value in positions.items()}
+    if set(mapped.values()) != {0, 1, 2, 3}:
+        raise ValueError(f"{label}: CFA positions are not a four-plane mapping")
+    return mapped
+
+
+def corner_relative(item: dict[str, Any], label: str) -> list[list[float]]:
+    corners = item.get("corner_relative")
+    if not isinstance(corners, list) or len(corners) != 4:
+        raise ValueError(f"{label}: expected four corner-relative rows")
+    validated: list[list[float]] = []
+    for q, row in enumerate(corners):
+        if not isinstance(row, list) or len(row) != 4:
+            raise ValueError(f"{label}: corner {q} is not a four-plane row")
+        validated.append(
+            [finite(value, f"{label} corner {q} plane {p}") for p, value in enumerate(row)]
+        )
+    return validated
+
+
+def four_values(value: Any, label: str) -> list[float]:
+    if not isinstance(value, list) or len(value) != 4:
+        raise ValueError(f"{label}: expected four values")
+    return [finite(item, f"{label} plane {index}") for index, item in enumerate(value)]
+
+
+def validated_green_asymmetry(
+    item: dict[str, Any], label: str, positions: dict[str, int]
+) -> float:
+    corners = corner_relative(item, label)
+    green = [
+        0.5 * (row[positions["g1"]] + row[positions["g2"]]) for row in corners
+    ]
+    mean = sum(green) / 4.0
+    if not math.isfinite(mean) or mean <= 0.0:
+        raise ValueError(f"{label}: green corner mean is not positive and finite")
+    computed = (max(green) - min(green)) / mean
+    serialized = finite(item.get("green_asymmetry"), f"{label} green asymmetry")
+    if not math.isclose(computed, serialized, rel_tol=1e-12, abs_tol=1e-12):
+        raise ValueError(f"{label}: serialized green asymmetry disagrees with corners")
+    verdict = item.get("asymmetry_exceeds_policy")
+    if not isinstance(verdict, bool) or verdict != (
+        computed > float(EXPECTED_OPTIONS["asymmetry_policy"])
+    ):
+        raise ValueError(f"{label}: asymmetry policy verdict disagrees with value")
+    return computed
+
+
+def validated_pedestal(item: dict[str, Any], label: str) -> bool:
+    pedestal = item.get("pedestal")
+    if not isinstance(pedestal, dict):
+        raise ValueError(f"{label}: missing pedestal evidence")
+    verified = pedestal.get("verified")
+    if not isinstance(verified, bool):
+        raise ValueError(f"{label}: pedestal verified verdict is not boolean")
+    if pedestal.get("pedestal_unverified") is not (not verified):
+        raise ValueError(f"{label}: pedestal warning disagrees with verified verdict")
+    if not verified:
+        return False
+    required_true = (
+        "measured",
+        "compatible",
+        "make_model_metadata_matches",
+        "body_serials_consistent",
+        "exposure_metadata_present",
+        "exposure_metadata_matches",
+        "full_finite_coverage",
+        "spatial_checked",
+        "within_tolerance",
+    )
+    missing = [key for key in required_true if pedestal.get(key) is not True]
+    if missing:
+        raise ValueError(f"{label}: verified pedestal lacks {', '.join(missing)}")
+    serials_present = pedestal.get("body_serials_present")
+    serials_match = pedestal.get("body_serials_match")
+    if not isinstance(serials_present, bool) or not isinstance(serials_match, bool):
+        raise ValueError(f"{label}: body-serial evidence is not boolean")
+    if serials_match and not serials_present:
+        raise ValueError(f"{label}: body serials cannot match when not both present")
+    if serials_present and not serials_match:
+        raise ValueError(f"{label}: present body serials conflict")
+
+    residual = four_values(pedestal.get("residual_dn"), f"{label} residual")
+    finite_fraction = four_values(
+        pedestal.get("finite_fraction"), f"{label} finite fraction"
+    )
+    if any(value != 1.0 for value in finite_fraction):
+        raise ValueError(f"{label}: full finite coverage disagrees with fractions")
+    center = four_values(
+        pedestal.get("center_residual_dn"), f"{label} center residual"
+    )
+    corners_value = pedestal.get("corner_residual_dn")
+    if not isinstance(corners_value, list) or len(corners_value) != 4:
+        raise ValueError(f"{label}: expected four corner residual rows")
+    corners = [
+        four_values(row, f"{label} corner {index} residual")
+        for index, row in enumerate(corners_value)
+    ]
+    global_max = max(abs(value) for value in residual)
+    spatial_max = max(
+        [abs(value) for value in center]
+        + [abs(value) for row in corners for value in row]
+    )
+    reported_global = finite(
+        pedestal.get("max_abs_residual_dn"), f"{label} max residual"
+    )
+    reported_spatial = finite(
+        pedestal.get("max_abs_spatial_residual_dn"),
+        f"{label} max spatial residual",
+    )
+    if not math.isclose(global_max, reported_global, rel_tol=1e-12, abs_tol=1e-12):
+        raise ValueError(f"{label}: max residual disagrees with residual array")
+    if not math.isclose(spatial_max, reported_spatial, rel_tol=1e-12, abs_tol=1e-12):
+        raise ValueError(f"{label}: max spatial residual disagrees with regions")
+    within_tolerance = (
+        global_max <= PEDESTAL_TOLERANCE_DN
+        and spatial_max <= PEDESTAL_TOLERANCE_DN
+    )
+    if pedestal.get("within_tolerance") is not within_tolerance:
+        raise ValueError(f"{label}: tolerance verdict disagrees with residuals")
+    return True
+
+
+def recompute_comparison(
+    primary: dict[str, Any], repeat: dict[str, Any]
+) -> tuple[float, float]:
+    a = corner_relative(primary, "comparison primary")
+    b = corner_relative(repeat, "comparison repeat")
+    deltas = [
+        100.0 * abs(a[q][p] - b[q][p]) for q in range(4) for p in range(4)
+    ]
+    return max(deltas), math.sqrt(sum(value * value for value in deltas) / len(deltas))
+
+
+def validated_chromatic_maps(
+    item: dict[str, Any], label: str, positions: dict[str, int]
+) -> None:
+    relative = item.get("relative_response")
+    if not isinstance(relative, list) or len(relative) != 4:
+        raise ValueError(f"{label}: expected four relative-response maps")
+    grid = item.get("grid")
+    if not isinstance(grid, dict):
+        raise ValueError(f"{label}: missing grid")
+    bins = int(grid.get("cols", 0)) * int(grid.get("rows", 0))
+    maps = [
+        [finite(value, f"{label} relative plane {plane}") for value in values]
+        if isinstance(values, list) and len(values) == bins
+        else []
+        for plane, values in enumerate(relative)
+    ]
+    if any(len(values) != bins for values in maps):
+        raise ValueError(f"{label}: relative-response map size disagrees with grid")
+    chroma: dict[str, list[float]] = {}
+    for key in ("c_rg", "c_bg", "c_g1g2"):
+        values = item.get(key)
+        if not isinstance(values, list) or len(values) != bins:
+            raise ValueError(f"{label}: {key} map size disagrees with grid")
+        chroma[key] = [finite(value, f"{label} {key}") for value in values]
+    if item.get("chromatic_complete") is not True or item.get(
+        "missing_chromatic_bin_count"
+    ) != 0:
+        raise ValueError(f"{label}: accepted chromatic maps must be complete")
+    for index in range(bins):
+        red = maps[positions["r"]][index]
+        green1 = maps[positions["g1"]][index]
+        green2 = maps[positions["g2"]][index]
+        blue = maps[positions["b"]][index]
+        green = 0.5 * (green1 + green2)
+        if green <= 0.0 or green2 <= 0.0:
+            raise ValueError(f"{label}: chromatic denominator is not positive")
+        expected = {
+            "c_rg": red / green,
+            "c_bg": blue / green,
+            "c_g1g2": green1 / green2,
+        }
+        for key, value in expected.items():
+            if not math.isclose(
+                chroma[key][index], value, rel_tol=1e-12, abs_tol=1e-12
+            ):
+                raise ValueError(f"{label}: {key} disagrees with relative maps")
+
+
 def write_summary(
     inventory_dir: Path,
     detailed: dict[str, dict[str, Any]],
     comparison: dict[str, Any] | None,
     output: Path,
-) -> None:
+) -> dict[str, dict[str, Any]]:
     rows: list[list[str]] = []
+    seen_files: set[str] = set()
+    accepted_files: set[str] = set()
+    accepted_evidence: dict[str, dict[str, Any]] = {}
+    aperture_census: dict[str, int] = {}
     for path in sorted(inventory_dir.glob("*.json")):
         item = load(path)
         file_label = str(item["file"])
+        if file_label in seen_files:
+            raise ValueError(f"{path}: duplicate inventory file label {file_label}")
+        seen_files.add(file_label)
+        validate_options(item, str(path))
         match = NAME_RE.search(file_label)
         if not match:
             raise ValueError(f"{path}: filename does not encode aperture/shutter")
-        gates = item["gates"]
-        gate = max(finite(v, "near-ceiling gate") for v in gates["near_ceiling_fraction_gate"])
-        frame = max(finite(v, "near-ceiling frame") for v in gates["near_ceiling_fraction_frame"])
-        center = gates["center_signal_fraction"]
+        gate, frame, center, failed = validated_gates(item, str(path))
+        positions = cfa_positions(item, str(path))
         green_center = 0.5 * (
-            finite(center[1], "G1 center signal")
-            + finite(center[2], "G2 center signal")
+            finite(center[positions["g1"]], "G1 center signal")
+            + finite(center[positions["g2"]], "G2 center signal")
         )
-        failed = [
-            name
-            for name, key in (
-                ("near_ceiling", "near_ceiling_ok"),
-                ("low_signal", "low_signal_ok"),
-                ("negative", "negative_ok"),
-                ("coverage", "coverage_ok"),
-                ("finite", "finite_ok"),
-            )
-            if not bool(gates[key])
-        ]
-        accepted = bool(item["accepted"])
+        accepted_value = item.get("accepted")
+        if not isinstance(accepted_value, bool):
+            raise ValueError(f"{path}: accepted verdict is not boolean")
+        accepted = accepted_value
         if accepted == bool(failed):
             raise ValueError(f"{path}: acceptance and gate verdicts disagree")
+        if accepted:
+            accepted_files.add(file_label)
+        if accepted and file_label not in detailed:
+            raise ValueError(f"{file_label}: accepted result lacks detailed evidence")
         detail = detailed.get(file_label, item)
-        asymmetry = detail.get("green_asymmetry")
-        pedestal_verified = bool(detail.get("pedestal", {}).get("verified", False))
+        if detail is not item:
+            validate_options(detail, f"detailed {file_label}")
+            for key in (
+                "accepted",
+                "gates",
+                "grid",
+                "analysis_options",
+                "cfa_positions",
+                "signal_ceiling_dn",
+                "geometry",
+                "center_block_median",
+                "corner_median",
+                "corner_relative",
+                "relative_response",
+                "c_rg",
+                "c_bg",
+                "c_g1g2",
+                "green_asymmetry",
+                "asymmetry_exceeds_policy",
+            ):
+                if detail.get(key) != item.get(key):
+                    raise ValueError(f"{file_label}: detailed and inventory {key} disagree")
+        asymmetry = None
+        dark_controls_verified = False
+        if accepted:
+            detail_positions = cfa_positions(detail, f"detailed {file_label}")
+            asymmetry = validated_green_asymmetry(
+                detail, f"detailed {file_label}", detail_positions
+            )
+            validated_chromatic_maps(
+                detail, f"detailed {file_label}", detail_positions
+            )
+            dark_controls_verified = validated_pedestal(
+                detail, f"detailed {file_label}"
+            )
+            accepted_evidence[file_label] = detail
+        if accepted and not dark_controls_verified:
+            raise ValueError(f"{file_label}: accepted portfolio result lacks verified dark controls")
         comparison_file = ""
         max_delta = ""
         rms_delta = ""
@@ -96,15 +407,37 @@ def write_summary(
                 f"{frame:.8f}",
                 f"{green_center:.8f}",
                 "" if asymmetry is None else f"{finite(asymmetry, 'asymmetry'):.8f}",
-                str(pedestal_verified).lower(),
+                str(dark_controls_verified).lower(),
                 comparison_file,
                 max_delta,
                 rms_delta,
+                POLICY_ID,
             ]
         )
+        aperture = match.group("aperture")
+        aperture_census[aperture] = aperture_census.get(aperture, 0) + 1
 
-    if len(rows) != 52 or sum(row[3] == "true" for row in rows) != 3:
+    if len(rows) != 52 or len(seen_files) != 52 or len(accepted_files) != 3:
         raise ValueError("expected 52 sphere frames with exactly 3 accepted")
+    if aperture_census != {"5.6": 18, "8.0": 21, "9.0": 13}:
+        raise ValueError(f"unexpected aperture census: {aperture_census}")
+    if comparison:
+        if comparison["primary_file"] not in accepted_files or comparison["repeat_file"] not in accepted_files:
+            raise ValueError("comparison files must both be accepted inventory members")
+        if comparison["primary_file"] not in detailed or comparison["repeat_file"] not in detailed:
+            raise ValueError("comparison files must both have detailed evidence")
+        if comparison.get("measured") is not True:
+            raise ValueError("comparison must be measured before publication")
+        expected_max, expected_rms = recompute_comparison(
+            accepted_evidence[comparison["primary_file"]],
+            accepted_evidence[comparison["repeat_file"]],
+        )
+        reported_max = finite(comparison.get("max_corner_delta_pp"), "max delta")
+        reported_rms = finite(comparison.get("rms_corner_delta_pp"), "RMS delta")
+        if not math.isclose(expected_max, reported_max, rel_tol=1e-12, abs_tol=1e-12):
+            raise ValueError("comparison max delta disagrees with corner evidence")
+        if not math.isclose(expected_rms, reported_rms, rel_tol=1e-12, abs_tol=1e-12):
+            raise ValueError("comparison RMS delta disagrees with corner evidence")
     output.parent.mkdir(parents=True, exist_ok=True)
     with output.open("w", newline="", encoding="utf-8") as handle:
         writer = csv.writer(handle, lineterminator="\n")
@@ -119,35 +452,60 @@ def write_summary(
                 "max_near_ceiling_frame",
                 "green_center_signal",
                 "green_asymmetry",
-                "pedestal_verified",
+                "dark_controls_verified",
                 "comparison_file",
                 "max_corner_delta_pp",
                 "rms_corner_delta_pp",
+                "analysis_policy",
             ]
         )
         writer.writerows(rows)
+    return accepted_evidence
 
 
-def write_response(inputs: list[Path], output: Path) -> None:
+def write_response(
+    inputs: list[Path], output: Path, accepted_evidence: dict[str, dict[str, Any]]
+) -> None:
     rows: list[list[str]] = []
-    seen: set[str] = set()
+    accepted_items: dict[str, dict[str, Any]] = {}
     for path in inputs:
         for item in measurements(load(path)):
             if not item.get("accepted"):
                 continue
             file_label = str(item["file"])
-            if file_label in seen:
+            validate_options(item, str(path))
+            positions = cfa_positions(item, str(path))
+            validated_chromatic_maps(item, str(path), positions)
+            canonical = accepted_evidence.get(file_label)
+            if canonical is None:
+                raise ValueError(f"{file_label}: response is not an accepted inventory member")
+            for key in (
+                "analysis_options",
+                "grid",
+                "cfa_positions",
+                "relative_response",
+                "c_rg",
+                "c_bg",
+                "c_g1g2",
+                "corner_relative",
+                "green_asymmetry",
+                "asymmetry_exceeds_policy",
+            ):
+                if item.get(key) != canonical.get(key):
+                    raise ValueError(f"{file_label}: response and detailed {key} disagree")
+            if file_label in accepted_items:
+                prior = accepted_items[file_label]
+                for key in ("relative_response", "c_rg", "c_bg", "c_g1g2", "grid", "cfa_positions"):
+                    if prior.get(key) != item.get(key):
+                        raise ValueError(f"{file_label}: duplicate response evidence disagrees")
                 continue
-            seen.add(file_label)
-            positions = item.get("cfa_positions")
-            if not isinstance(positions, dict):
-                raise ValueError(f"{path}: accepted result lacks CFA positions")
+            accepted_items[file_label] = item
             relative = item["relative_response"]
             grid = item["grid"]
             cols, grid_rows = int(grid["cols"]), int(grid["rows"])
             bins = cols * grid_rows
             maps = {
-                name: relative[int(positions[name])]
+                name: relative[positions[name]]
                 for name in ("r", "g1", "g2", "b")
             }
             chroma = {name: item[name] for name in ("c_rg", "c_bg", "c_g1g2")}
@@ -170,7 +528,9 @@ def write_response(inputs: list[Path], output: Path) -> None:
                         f"{finite(chroma['c_g1g2'][index], 'c_g1g2'):.8f}",
                     ]
                 )
-    if len(seen) != 3 or len(rows) != 3 * 16 * 12:
+    if set(accepted_items) != set(accepted_evidence):
+        raise ValueError("response file set does not match accepted inventory set")
+    if len(rows) != 3 * 16 * 12:
         raise ValueError("expected three accepted 16x12 response maps")
     output.parent.mkdir(parents=True, exist_ok=True)
     with output.open("w", newline="", encoding="utf-8") as handle:
@@ -207,15 +567,22 @@ def main() -> int:
     for path in args.detailed:
         document = load(path)
         for item in measurements(document):
-            detailed[str(item["file"])] = item
+            file_label = str(item["file"])
+            if file_label in detailed:
+                raise ValueError(f"{path}: duplicate detailed file {file_label}")
+            detailed[file_label] = item
         if "comparison" in document:
+            if comparison is not None:
+                raise ValueError("multiple comparison documents are not supported")
             comparison = {
                 **document["comparison"],
                 "primary_file": document["primary"]["file"],
                 "repeat_file": document["repeat"]["file"],
             }
-    write_summary(args.inventory_dir, detailed, comparison, args.summary_out)
-    write_response(args.response, args.response_out)
+    accepted_evidence = write_summary(
+        args.inventory_dir, detailed, comparison, args.summary_out
+    )
+    write_response(args.response, args.response_out, accepted_evidence)
     print(f"wrote {args.summary_out}")
     print(f"wrote {args.response_out}")
     return 0

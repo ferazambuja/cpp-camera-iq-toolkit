@@ -21,8 +21,9 @@ supported by the available image archives:
   diagnostics.
 - Slanted-edge SFR/MTF, including center ROI and 23-ROI field maps on two Nikon
   archives.
-- Relative CFA flat-field response with central clipping, pedestal,
-  repeatability, chromatic-ratio, and quadrant-asymmetry diagnostics.
+- Relative CFA flat-field response with central clipping, bounded dark-control,
+  one capture-pair-difference, chromatic-ratio, and quadrant-asymmetry
+  diagnostics.
 
 The current archives do not provide the calibration or target captures needed
 for electron-calibrated gain/read noise, full well, engineering dynamic range,
@@ -68,7 +69,7 @@ locations.
 | Dark-frame temporal noise and DSNU | Covered | [Noise](DARK_FRAME_NOISE.md), [dark calibration](DARK_CALIBRATION.md) | Dark-pair temporal noise, moment/robust DSNU, dark-current diagnostic, outlier gating. | DN diagnostics; gain/PTC/DR refused where data does not support them. |
 | SFR / MTF center ROI | Covered | [SFR result](SFR_MTF.md), [archive map](SFR_MTF_ARCHIVE_INVENTORY.md) | Green-linear slanted-edge MTF50P, sinc correction, D810 aperture trend, Imatest advisory comparison. | Not luma/gamma Imatest parity, lp/mm, or rendered Y-channel equivalence. |
 | SFR / MTF field map | Covered | [SFR result](SFR_MTF.md), [archive map](SFR_MTF_ARCHIVE_INVENTORY.md) | 23-ROI field maps for D810 and D800, per-ROI oracle parsing, field/corner gates, D800 negative trend finding. | Still green-linear CFA SFR; no full sagittal/tangential lens model. |
-| CFA flat-field response | Covered as composite characterization; optical attribution remains partial | [Flat-field response](FLAT_FIELD_RESPONSE.md), [patch extraction](PATCH_EXTRACTION.md) | Per-CFA median maps, center-normalized R/G and B/G, center/full-frame clipping gates, matched-dark pedestal verification, repeat deltas, and quadrant asymmetry. | Available captures do not separate source, lens, alignment, mechanical shading, or sensor angular response; not an isolated lens-vignetting metric. |
+| CFA flat-field response | Covered as composite characterization; optical attribution remains partial | [Flat-field response](FLAT_FIELD_RESPONSE.md), [patch extraction](PATCH_EXTRACTION.md) | Per-CFA median maps, center-normalized R/G and B/G, center/full-frame clipping gates, bounded dark-control checks, one observed capture-pair delta, and quadrant asymmetry. | Available captures do not separate source, lens, alignment, mechanical shading, or sensor angular response; the single pair is not a repeatability estimate; not an isolated lens-vignetting metric. |
 | Distortion / chromatic aberration / flare | Partial / diagnostic only | [Localization](RAW_CHART_LOCALIZATION.md), [CCM fit](CCM_FIT.md) | Localization residuals and dark-patch flare evidence. | No standalone distortion, lateral CA, flare, or veiling-glare metric. |
 | Texture, autofocus, rolling shutter, HDR/video | Not covered | none | Out of current still-image archive scope. | Would need new target captures or different data. |
 
@@ -99,9 +100,9 @@ implementation and validation project, not a certified ISO laboratory suite.
    electron-referred read noise, full-well evidence, and a defined engineering
    dynamic-range threshold. The current Stepchart fits remain DN-referred.
 2. **Optical vignetting decomposition and CA/distortion metrics** require
-   additional target captures. The implemented CFA flat-field response remains
-   a source–lens–sensor composite because the sphere field, camera rotation, and
-   multi-aperture controls are insufficient for optical attribution.
+   additional target captures. The implemented CFA result remains a
+   capture-system field response because sphere mapping, camera rotation, and
+   multi-aperture controls are insufficient for component attribution.
 3. **Automatic Stepchart and SG localization** is incomplete. The validated
    workflows use measured ring geometry or supplied chart coordinates.
 4. **Spectral repeatability and instrument comparison** would require a

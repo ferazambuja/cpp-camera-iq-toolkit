@@ -112,21 +112,14 @@ Validation combines:
   `Center` and `Pt Way` — so the comparable advisory figure is its
   most-peripheral ROI, +19% over center. The mid-aperture maximum sits at grid
   point N=12, a top-center edge 1414 px above center, and +60% over center in
-  the advisory path. An off-axis maximum on its own proves nothing about
-  symmetry — a centered radial response is free to peak on an annulus rather
-  than at the centre — so the exclusion has to come from **radius-matched**
-  sites instead. Under a centered, radially symmetric response, two ROIs at the
-  same radius must read the same value whatever the radial profile does. At f/4
-  the advisory table puts N=15 at radius 3019 px reading 0.1691 and N=4 at
-  radius 3075 px reading 0.0945: radii within 1.8%, MTF50 differing by 79%. The
-  same pattern holds at f/8 (N=15 0.1702 against N=4 0.1365) and in a second,
-  independent pair at both apertures (N=18 against N=20, radii within 4.1%).
-  Reproducing that radially would require losing most of the MTF50 across a
-  1.8% change in radius, which no plausible defocus or aberration profile does,
-  so the field carries an azimuthal term. Which one — target, sensor or
-  focus-plane tilt, decentering, or capture alignment — this data cannot say:
-  one recorded `FocusPosition` code and near-vertical edge samples do not
-  separate them.
+  the advisory path. These fixed-axis, near-vertical edge samples establish a
+  directional field pattern, but they do **not** prove an asymmetric optical
+  system. At different field azimuths they sample different mixtures of
+  sagittal and tangential response, and the available near-radius pairs are not
+  exact radius matches. Distinguishing a centered optical field from target,
+  sensor or focus-plane tilt, decentering, or capture alignment would require
+  controlled edge orientation relative to the radial direction or a fitted
+  radial-plus-orientation baseline. This archive provides neither.
 - Center agreement stayed within ±0.015 cycles/pixel on D800, while off-axis
   differences were larger—consistent with comparing green-linear CFA SFR to a
   rendered-luma reference path. The center agreement makes a toolkit-only gross

@@ -4,6 +4,7 @@
 #include <cmath>
 #include <cstdlib>
 #include <filesystem>
+#include <iomanip>
 #include <iostream>
 #include <optional>
 #include <sstream>
@@ -79,6 +80,33 @@ void write_plane_array(JsonWriter& w, const std::array<double, 4>& values) {
   w.end_array();
 }
 
+void write_options(JsonWriter& w, const ShadingOptions& opts) {
+  w.begin_object();
+  w.key("grid_cols");
+  w.value(opts.grid_cols);
+  w.key("grid_rows");
+  w.value(opts.grid_rows);
+  w.key("gate_center_frac");
+  w.value(opts.gate_center_frac);
+  w.key("corner_block_px");
+  w.value(opts.corner_block_px);
+  w.key("corner_inset_px");
+  w.value(opts.corner_inset_px);
+  w.key("near_ceiling_level");
+  w.value(opts.near_ceiling_level);
+  w.key("near_ceiling_max");
+  w.value(opts.near_ceiling_max);
+  w.key("min_center_signal");
+  w.value(opts.min_center_signal);
+  w.key("max_negative_frac");
+  w.value(opts.max_negative_frac);
+  w.key("min_bin_coverage");
+  w.value(opts.min_bin_coverage);
+  w.key("asymmetry_policy");
+  w.value(opts.asymmetry_policy);
+  w.end_object();
+}
+
 // Non-finite entries serialize as null: NaN marks a bin where the ratio is
 // undefined, and JSON has no NaN.
 void write_map(JsonWriter& w, const std::vector<double>& values) {
@@ -121,14 +149,57 @@ void write_rect(JsonWriter& w, const RoiRect& rect) {
   w.end_object();
 }
 
+std::string csv_escape(std::string_view value) {
+  const bool quote = value.find_first_of(",\"\r\n") != std::string_view::npos;
+  if (!quote) return std::string(value);
+  std::string out = "\"";
+  for (const char c : value) {
+    if (c == '\"') out += '\"';
+    out += c;
+  }
+  out += '\"';
+  return out;
+}
+
 void csv_row(std::ostream& os, std::string_view file_label,
              std::string_view channel, int cfa_position, std::string_view metric,
              std::string_view bin_row, std::string_view bin_col, double value,
              std::string_view units, bool accepted) {
-  os << publication_label(file_label) << ',' << channel << ',' << cfa_position
-     << ',' << metric
-     << ',' << bin_row << ',' << bin_col << ',' << value << ',' << units << ','
+  os << csv_escape(publication_label(file_label)) << ',' << csv_escape(channel)
+     << ',' << cfa_position << ',' << csv_escape(metric) << ','
+     << csv_escape(bin_row) << ',' << csv_escape(bin_col) << ',' << value << ','
+     << csv_escape(units) << ','
      << (accepted ? "true" : "false") << '\n';
+}
+
+std::filesystem::path comparable_path(const std::filesystem::path& path) {
+  std::error_code ec;
+  const auto canonical = std::filesystem::weakly_canonical(path, ec);
+  if (!ec) return canonical;
+  const auto absolute = std::filesystem::absolute(path, ec);
+  return (ec ? path : absolute).lexically_normal();
+}
+
+bool same_path(const std::filesystem::path& a,
+               const std::filesystem::path& b) {
+  if (a.empty() || b.empty()) return false;
+  std::error_code ec;
+  if (std::filesystem::equivalent(a, b, ec) && !ec) return true;
+  return comparable_path(a) == comparable_path(b);
+}
+
+bool path_within(const std::filesystem::path& root,
+                 const std::filesystem::path& candidate) {
+  const auto normalized_root = comparable_path(root);
+  const auto normalized_candidate = comparable_path(candidate);
+  auto root_it = normalized_root.begin();
+  auto candidate_it = normalized_candidate.begin();
+  for (; root_it != normalized_root.end(); ++root_it, ++candidate_it) {
+    if (candidate_it == normalized_candidate.end() || *root_it != *candidate_it) {
+      return false;
+    }
+  }
+  return true;
 }
 
 }  // namespace
@@ -139,8 +210,12 @@ void write_shading_json(std::ostream& os, std::string_view file_label,
                         const ShadingPedestal& pedestal) {
   JsonWriter w(os);
   w.begin_object();
+  w.key("schema_version");
+  w.value(2);
   w.key("file");
   w.value(publication_label(file_label));
+  w.key("analysis_options");
+  write_options(w, field.options);
   w.key("accepted");
   w.value(field.valid);
   w.key("rejection_reason");
@@ -216,6 +291,8 @@ void write_shading_json(std::ostream& os, std::string_view file_label,
   // explicit so a merely readable dark cannot silently clear the flag.
   w.key("pedestal");
   w.begin_object();
+  w.key("measured");
+  w.value(pedestal.measured);
   w.key("pedestal_unverified");
   w.value(!pedestal.verified);
   if (pedestal.measured) {
@@ -225,11 +302,37 @@ void write_shading_json(std::ostream& os, std::string_view file_label,
     write_plane_array(w, pedestal.residual_dn);
     w.key("max_abs_residual_dn");
     w.value(pedestal.max_abs_residual_dn);
+    w.key("finite_fraction");
+    write_plane_array(w, pedestal.finite_fraction);
+    w.key("center_residual_dn");
+    write_plane_array(w, pedestal.center_residual_dn);
+    w.key("corner_residual_dn");
+    w.begin_array();
+    for (int q = 0; q < 4; ++q) {
+      write_plane_array(w, pedestal.corner_residual_dn[q]);
+    }
+    w.end_array();
+    w.key("max_abs_spatial_residual_dn");
+    w.value(pedestal.max_abs_spatial_residual_dn);
+    w.key("make_model_metadata_matches");
+    w.value(pedestal.make_model_metadata_matches);
+    w.key("body_serials_present");
+    w.value(pedestal.body_serials_present);
+    w.key("body_serials_match");
+    w.value(pedestal.body_serials_match);
+    w.key("body_serials_consistent");
+    w.value(pedestal.body_serials_consistent);
+    w.key("exposure_metadata_present");
+    w.value(pedestal.exposure_metadata_present);
     w.key("exposure_metadata_matches");
     w.value(pedestal.exposure_metadata_matches);
   }
   w.key("compatible");
   w.value(pedestal.compatible);
+  w.key("full_finite_coverage");
+  w.value(pedestal.full_finite_coverage);
+  w.key("spatial_checked");
+  w.value(pedestal.spatial_checked);
   w.key("within_tolerance");
   w.value(pedestal.within_tolerance);
   w.key("verified");
@@ -265,7 +368,7 @@ void write_shading_json(std::ostream& os, std::string_view file_label,
   w.key("missing_chromatic_bin_count");
   w.value(static_cast<long long>(chroma.missing_bin_count));
   w.key("cfa_positions");
-  if (chromatic_available) {
+  if (chroma.layout_valid || chromatic_available) {
     w.begin_object();
     w.key("r");
     w.value(chroma.red_position);
@@ -298,20 +401,22 @@ void write_shading_json(std::ostream& os, std::string_view file_label,
     w.null();
   }
 
-  // A travels with every luminance figure, so it is serialized beside its
+  // A travels with every green-response figure, so it is serialized beside its
   // policy verdict rather than left for a caller to recompute.
   w.key("green_asymmetry");
-  if (chromatic_available) {
+  if (chromatic_available && chroma.asymmetry_valid) {
     w.value(chroma.green_asymmetry);
   } else {
     w.null();
   }
   w.key("asymmetry_exceeds_policy");
-  w.value(chromatic_available && chroma.asymmetry_exceeds_policy);
+  if (chromatic_available && chroma.asymmetry_valid) {
+    w.value(chroma.asymmetry_exceeds_policy);
+  } else {
+    w.null();
+  }
   w.key("attribution");
-  w.value(chromatic_available && chroma.asymmetry_exceeds_policy
-              ? "source-lens-sensor composite; lens-only attribution refused"
-              : "source-lens-sensor composite");
+  w.value("capture-system field response; no isolated component attribution");
 
   w.end_object();
 }
@@ -333,9 +438,19 @@ void write_shading_comparison_json(
   os << "{\"primary\":" << primary.str() << ",\"repeat\":"
      << repeat.str() << ",\"comparison\":{\"measured\":"
      << (comparison.measured ? "true" : "false")
-     << ",\"max_corner_delta_pp\":" << comparison.max_corner_delta_pp
-     << ",\"rms_corner_delta_pp\":" << comparison.rms_corner_delta_pp
-     << "}}";
+     << ",\"max_corner_delta_pp\":";
+  if (comparison.measured) {
+    os << std::setprecision(17) << comparison.max_corner_delta_pp;
+  } else {
+    os << "null";
+  }
+  os << ",\"rms_corner_delta_pp\":";
+  if (comparison.measured) {
+    os << std::setprecision(17) << comparison.rms_corner_delta_pp;
+  } else {
+    os << "null";
+  }
+  os << "}}";
 }
 
 void write_shading_csv(std::ostream& os, std::string_view file_label,
@@ -346,6 +461,32 @@ void write_shading_csv(std::ostream& os, std::string_view file_label,
   os << "file,channel,cfa_position,metric,bin_row,bin_col,value,units,accepted"
      << '\n';
   const bool ok = field.valid;
+
+  csv_row(os, file_label, "", -1, "schema_version", "", "", 2.0,
+          "integer", ok);
+  const ShadingOptions& opts = field.options;
+  csv_row(os, file_label, "", -1, "analysis_option_grid_cols", "", "",
+          opts.grid_cols, "count", ok);
+  csv_row(os, file_label, "", -1, "analysis_option_grid_rows", "", "",
+          opts.grid_rows, "count", ok);
+  csv_row(os, file_label, "", -1, "analysis_option_gate_center_frac", "", "",
+          opts.gate_center_frac, "fraction", ok);
+  csv_row(os, file_label, "", -1, "analysis_option_corner_block_px", "", "",
+          opts.corner_block_px, "mosaic_pixels", ok);
+  csv_row(os, file_label, "", -1, "analysis_option_corner_inset_px", "", "",
+          opts.corner_inset_px, "mosaic_pixels", ok);
+  csv_row(os, file_label, "", -1, "analysis_option_near_ceiling_level", "",
+          "", opts.near_ceiling_level, "fraction", ok);
+  csv_row(os, file_label, "", -1, "analysis_option_near_ceiling_max", "", "",
+          opts.near_ceiling_max, "fraction", ok);
+  csv_row(os, file_label, "", -1, "analysis_option_min_center_signal", "", "",
+          opts.min_center_signal, "fraction", ok);
+  csv_row(os, file_label, "", -1, "analysis_option_max_negative_frac", "", "",
+          opts.max_negative_frac, "fraction", ok);
+  csv_row(os, file_label, "", -1, "analysis_option_min_bin_coverage", "", "",
+          opts.min_bin_coverage, "fraction", ok);
+  csv_row(os, file_label, "", -1, "analysis_option_asymmetry_policy", "", "",
+          opts.asymmetry_policy, "ratio", ok);
 
   // Diagnostics first: they are present whatever the verdict.
   for (int p = 0; p < 4; ++p) {
@@ -366,12 +507,39 @@ void write_shading_csv(std::ostream& os, std::string_view file_label,
   if (pedestal.measured) {
     csv_row(os, file_label, "", -1, "pedestal_max_abs_residual", "", "",
             pedestal.max_abs_residual_dn, "dn", ok);
+    csv_row(os, file_label, "", -1, "pedestal_max_abs_spatial_residual", "",
+            "", pedestal.max_abs_spatial_residual_dn, "dn", ok);
   }
+  csv_row(os, file_label, "", -1, "pedestal_measured", "", "",
+          pedestal.measured ? 1.0 : 0.0, "boolean", ok);
+  csv_row(os, file_label, "", -1, "pedestal_compatible", "", "",
+          pedestal.compatible ? 1.0 : 0.0, "boolean", ok);
+  csv_row(os, file_label, "", -1, "pedestal_make_model_metadata_matches", "",
+          "", pedestal.make_model_metadata_matches ? 1.0 : 0.0, "boolean",
+          ok);
+  csv_row(os, file_label, "", -1, "pedestal_body_serials_present", "", "",
+          pedestal.body_serials_present ? 1.0 : 0.0, "boolean", ok);
+  csv_row(os, file_label, "", -1, "pedestal_body_serials_match", "", "",
+          pedestal.body_serials_match ? 1.0 : 0.0, "boolean", ok);
+  csv_row(os, file_label, "", -1, "pedestal_body_serials_consistent", "", "",
+          pedestal.body_serials_consistent ? 1.0 : 0.0, "boolean", ok);
+  csv_row(os, file_label, "", -1, "pedestal_exposure_metadata_present", "",
+          "", pedestal.exposure_metadata_present ? 1.0 : 0.0, "boolean", ok);
+  csv_row(os, file_label, "", -1, "pedestal_exposure_metadata_matches", "",
+          "", pedestal.exposure_metadata_matches ? 1.0 : 0.0, "boolean", ok);
+  csv_row(os, file_label, "", -1, "pedestal_full_finite_coverage", "", "",
+          pedestal.full_finite_coverage ? 1.0 : 0.0, "boolean", ok);
+  csv_row(os, file_label, "", -1, "pedestal_spatial_checked", "", "",
+          pedestal.spatial_checked ? 1.0 : 0.0, "boolean", ok);
+  csv_row(os, file_label, "", -1, "pedestal_within_tolerance", "", "",
+          pedestal.within_tolerance ? 1.0 : 0.0, "boolean", ok);
+  csv_row(os, file_label, "", -1, "pedestal_verified", "", "",
+          pedestal.verified ? 1.0 : 0.0, "boolean", ok);
 
   if (!ok) return;
 
   // A is a measured value and belongs in the table beside the maps it qualifies.
-  if (chroma.valid) {
+  if (chroma.valid && chroma.asymmetry_valid) {
     csv_row(os, file_label, "", -1, "green_asymmetry", "", "",
             chroma.green_asymmetry, "ratio", ok);
   }
@@ -532,11 +700,12 @@ int cmd_shading(int argc, char** argv) {
     return 2;
   }
   if (!dataset_id.empty() &&
-      ((!dark.empty() && dark.is_absolute()) ||
-       (!compare.empty() && compare.is_absolute()) ||
-       (!compare_dark.empty() && compare_dark.is_absolute()))) {
+      (!is_safe_dataset_subdir(file) ||
+       (!dark.empty() && !is_safe_dataset_subdir(dark)) ||
+       (!compare.empty() && !is_safe_dataset_subdir(compare)) ||
+       (!compare_dark.empty() && !is_safe_dataset_subdir(compare_dark)))) {
     std::cerr << "camera_iq shading: --dataset requires relative primary, dark,"
-                 " and comparison files\n";
+                 " and comparison files without '..' components\n";
     return 2;
   }
 
@@ -550,13 +719,41 @@ int cmd_shading(int argc, char** argv) {
                 << "' not found in " << config << "\n";
       return 1;
     }
-    if (file.is_absolute()) {
-      std::cerr << "camera_iq shading: --dataset requires a relative file\n";
-      return 2;
-    }
     root = resolved->root;
     actual_file = root / file;
     file_label = dataset_file_label(dataset_id, file);
+  }
+
+  const std::filesystem::path actual_dark =
+      dark.empty() ? std::filesystem::path{} : (root.empty() ? dark : root / dark);
+  const std::filesystem::path actual_compare =
+      compare.empty() ? std::filesystem::path{}
+                      : (root.empty() ? compare : root / compare);
+  const std::filesystem::path actual_compare_dark =
+      compare_dark.empty() ? std::filesystem::path{}
+                           : (root.empty() ? compare_dark : root / compare_dark);
+
+  if (!dataset_id.empty() &&
+      (!path_within(root, actual_file) ||
+       (!actual_dark.empty() && !path_within(root, actual_dark)) ||
+       (!actual_compare.empty() && !path_within(root, actual_compare)) ||
+       (!actual_compare_dark.empty() &&
+        !path_within(root, actual_compare_dark)))) {
+    std::cerr << "camera_iq shading: dataset input resolves outside its root\n";
+    return 2;
+  }
+
+  const std::array<std::filesystem::path, 4> inputs = {
+      actual_file, actual_dark, actual_compare, actual_compare_dark};
+  if (same_path(out, csv_out)) {
+    std::cerr << "camera_iq shading: --out and --csv-out must be distinct\n";
+    return 2;
+  }
+  for (const auto& input : inputs) {
+    if (same_path(out, input) || same_path(csv_out, input)) {
+      std::cerr << "camera_iq shading: output path must not alias an input\n";
+      return 2;
+    }
   }
 
   const auto image = read_raw_cfa_image(actual_file);
@@ -574,14 +771,13 @@ int cmd_shading(int argc, char** argv) {
 
   ShadingPedestal pedestal;
   if (!dark.empty()) {
-    const std::filesystem::path actual_dark = root.empty() ? dark : root / dark;
     const auto dark_image = read_raw_cfa_image(actual_dark);
     if (!dark_image) {
       std::cerr << "camera_iq shading: cannot read/unpack dark " << dark << "\n";
       return 1;
     }
     pedestal =
-        verify_shading_pedestal(*image, *dark_image, dark.string(), 1.0);
+        verify_shading_pedestal(*image, *dark_image, dark.string(), 1.0, opts);
   }
 
   std::optional<RawCfaImage> repeat_image;
@@ -590,8 +786,6 @@ int cmd_shading(int argc, char** argv) {
   ShadingComparison comparison;
   std::string repeat_label;
   if (!compare.empty()) {
-    const std::filesystem::path actual_compare =
-        root.empty() ? compare : root / compare;
     repeat_label = dataset_id.empty()
                        ? compare.string()
                        : dataset_file_label(dataset_id, compare);
@@ -603,8 +797,6 @@ int cmd_shading(int argc, char** argv) {
     }
     repeat_analysis = analyze_shading(*repeat_image, opts);
     if (!compare_dark.empty()) {
-      const std::filesystem::path actual_compare_dark =
-          root.empty() ? compare_dark : root / compare_dark;
       const auto dark_image = read_raw_cfa_image(actual_compare_dark);
       if (!dark_image) {
         std::cerr << "camera_iq shading: cannot read/unpack comparison dark "
@@ -612,7 +804,7 @@ int cmd_shading(int argc, char** argv) {
         return 1;
       }
       repeat_pedestal = verify_shading_pedestal(
-          *repeat_image, *dark_image, compare_dark.string(), 1.0);
+          *repeat_image, *dark_image, compare_dark.string(), 1.0, opts);
     }
     if (image->color_at_position == repeat_image->color_at_position &&
         image->cdesc == repeat_image->cdesc) {

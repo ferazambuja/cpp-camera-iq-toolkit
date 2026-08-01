@@ -40,7 +40,8 @@ struct ShadingOptions {
   double min_center_signal = 0.05;
   double max_negative_frac = 0.01;
   double min_bin_coverage = 0.90;
-  // Above this project-policy value, lens-only attribution is refused.
+  // Declared diagnostic threshold for departure from a centred radial scalar
+  // model. It never grants or refuses attribution to any physical component.
   double asymmetry_policy = 0.05;
 };
 
@@ -63,6 +64,8 @@ struct ShadingGates {
   bool low_signal_ok = false;
   bool negative_ok = false;
   bool coverage_ok = false;
+  // True when every reported aggregate is finite. Individual missing samples
+  // are governed independently by `min_bin_coverage`.
   bool finite_ok = false;
 };
 
@@ -96,12 +99,11 @@ struct ShadingGates {
 // over the four corner blocks of the green relative-response map, where G is
 // the mean of the two green planes. The four blocks sit at equal radius, so a
 // centred radially symmetric field drives A to zero analytically — and to
-// within a deterministic sampling floor in practice, because the two green
-// positions sample half a pixel apart. That floor measures ~1.5e-4 on the
-// synthetic radial fixture, two orders below the 0.05 policy. A value well
-// above the floor is therefore evidence the field is not centred and radially
-// symmetric, which is what makes this a confounder diagnostic rather than a
-// lens measurement. Print it beside every luminance figure.
+// within a small discretization residual in a sampled synthetic fixture. That
+// residual depends on the field, CFA sampling, block geometry, and estimator;
+// it is not a universal sampling floor. A value above the policy is a
+// diagnostic departure from this scalar model; it does not identify whether
+// source, lens, sensor, alignment, or another capture term caused it.
 //
 // Equal radius is what licenses the inference. An off-axis maximum alone does
 // not: a centred radial response may peak on an annulus.
@@ -122,6 +124,8 @@ struct ShadingGeometry {
 struct ShadingField {
   bool valid = false;
   std::string rejection_reason;
+  // Complete effective policy used for this result, including rejections.
+  ShadingOptions options;
   std::array<double, 4> signal_ceiling{0, 0, 0, 0};
   int grid_cols = 0;
   int grid_rows = 0;
@@ -152,7 +156,7 @@ ShadingField measure_shading_field(const double* data, int width, int height,
                                    const ShadingOptions& opts,
                                    const std::array<double, 4>& ceiling);
 
-// Center-normalized chromatic field response of the source-lens-sensor system.
+// Center-normalized chromatic response of the measured capture-system field.
 //
 //   C_RG(bin) = [ R(bin) / R_center ] / [ G(bin) / G_center ]
 //   C_BG(bin) = [ B(bin) / B_center ] / [ G(bin) / G_center ]
@@ -167,9 +171,13 @@ ShadingField measure_shading_field(const double* data, int width, int height,
 //
 // A small corner-to-corner spread in these maps does not establish camera-only
 // color shading: a spatially varying source spectrum produces the same
-// signature. Interpretation belongs to the source-lens-sensor system as a whole.
+// signature. Interpretation belongs to the full capture system, including
+// source, optics, sensor/CFA, alignment, and other uncontrolled capture terms.
 struct ShadingChromatic {
-  bool valid = false;  // false when the CFA layout is not a two-green Bayer mask
+  // `layout_valid` retains CFA-position provenance even when the field itself
+  // is rejected and therefore has no chromatic maps.
+  bool layout_valid = false;
+  bool valid = false;  // false when maps cannot be derived
   bool complete = false;  // false when one or more ratio bins are undefined
   std::size_t missing_bin_count = 0;
   int red_position = -1;
@@ -183,6 +191,7 @@ struct ShadingChromatic {
   // blocks. See ShadingBlocks for the definition and what it does and does not
   // license. Lives here rather than on ShadingField because "green" is a CFA
   // fact: greens sit on the anti-diagonal for RGGB but not for GRBG.
+  bool asymmetry_valid = false;
   double green_asymmetry = 0.0;
   bool asymmetry_exceeds_policy = false;
 };
@@ -223,9 +232,25 @@ ShadingAnalysis analyze_shading(const RawCfaImage& image,
 struct ShadingPedestal {
   bool measured = false;
   bool compatible = false;
+  bool make_model_metadata_matches = false;
+  // Physical body identity is proven only when both maker-reported serials are
+  // present and equal. If both serials are absent, `body_serials_consistent`
+  // remains true so the bounded dark-control check can proceed, while
+  // `body_serials_match` stays false and therefore does not fabricate sample
+  // identity. A one-sided or unequal serial is a blocking conflict.
+  bool body_serials_present = false;
+  bool body_serials_match = false;
+  bool body_serials_consistent = false;
   std::string dark_file;
   std::array<double, 4> residual_dn{0, 0, 0, 0};
   double max_abs_residual_dn = 0.0;
+  std::array<double, 4> finite_fraction{0, 0, 0, 0};
+  bool full_finite_coverage = false;
+  bool spatial_checked = false;
+  std::array<double, 4> center_residual_dn{0, 0, 0, 0};
+  std::array<std::array<double, 4>, 4> corner_residual_dn{};
+  double max_abs_spatial_residual_dn = 0.0;
+  bool exposure_metadata_present = false;
   bool exposure_metadata_matches = false;
   bool within_tolerance = false;
   bool verified = false;
@@ -234,11 +259,11 @@ struct ShadingPedestal {
 // Repeatability / exposure-invariance comparison between two measured fields.
 //
 // Defined per corner site and per plane as the absolute difference in relative
-// response, in percentage points; both the maximum and the RMS across the four
-// corner sites are reported, because one frame pair supports a check and not a
-// proof. A purely multiplicative field is exposure-invariant once each frame is
-// normalized by its own center, so a non-zero delta is evidence that the field
-// is not a fixed multiplicative map.
+// response, in percentage points; both the maximum and the RMS across the 16
+// corner-by-CFA measurements are reported, because one frame pair supports a
+// check and not a proof. A purely multiplicative field is exposure-invariant
+// once each frame is normalized by its own center, so a non-zero delta is
+// evidence that the field is not a fixed multiplicative map.
 struct ShadingComparison {
   bool measured = false;
   double max_corner_delta_pp = 0.0;
@@ -255,12 +280,16 @@ ShadingPedestal measure_pedestal(const double* dark, int width, int height,
                                  int row_stride_pixels);
 
 // High-level pairing check used by the CLI. Measurement alone is insufficient:
-// image geometry/CFA, exposure metadata, and the declared residual tolerance
-// must all pass before `verified` becomes true. The dark is never applied.
+// full finite coverage, image geometry/CFA, make/model compatibility, no body
+// serial conflict, positive matching exposure metadata, and full-frame plus
+// center/corner residual tolerance must all pass before `verified` becomes
+// true. `body_serials_match` separately records whether physical camera identity
+// was actually proven. The dark is never applied.
 ShadingPedestal verify_shading_pedestal(const RawCfaImage& primary,
                                         const RawCfaImage& dark,
                                         std::string_view dark_file,
-                                        double max_abs_residual_dn = 1.0);
+                                        double max_abs_residual_dn = 1.0,
+                                        const ShadingOptions& opts = {});
 
 // Serializes one shading measurement. Derived maps are JSON null when the
 // measurement was rejected; measured diagnostics survive rejection, and a

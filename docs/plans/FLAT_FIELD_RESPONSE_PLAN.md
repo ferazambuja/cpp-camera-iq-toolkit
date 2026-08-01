@@ -3,7 +3,7 @@
 ## Measurement objective
 
 `camera_iq shading` characterizes spatial response in a black-subtracted Bayer
-mosaic. It reports a center-normalized source–lens–sensor response; it does not
+mosaic. It reports a center-normalized capture-system response; it does not
 fit a correction surface or isolate optical vignetting from illumination,
 alignment, microlens response, or mechanical shading.
 
@@ -35,8 +35,9 @@ frames were rejected; this archive therefore cannot support an aperture trend.
 The primary and repeat f/8, 1/1000 s frames produced a maximum corner/plane
 difference of 0.378748 percentage points and an RMS difference of 0.181309
 percentage points. The primary green quadrant asymmetry was 0.196484, above the
-0.05 project policy. The luminance field is consequently interpreted as a
-source–lens–sensor composite.
+declared 0.05 project policy. `A` diagnoses departure from a centered radial
+scalar model; missing source/rotation controls require capture-system framing
+regardless of its verdict.
 
 The f/8, 1/500 s discriminator demonstrates why the gate region differs from a
 whole-frame check: the worst green plane was 11.6319% near ceiling inside the
@@ -52,8 +53,10 @@ Three CFA-balanced mosaic regions have separate jobs:
 | Center/corners | 400 px square, 120 px corner inset | normalizer, low-signal check, corner statistics |
 | Grid | 16 × 12 per CFA plane | spatial response maps |
 
-The implementation reports the effective rectangles and rejects geometry that
-cannot fit. It never silently clips a requested block into a different test.
+The implementation reports the effective rectangles, requires an even mosaic,
+requires the gate to contain the normalizer, and rejects overlapping or
+non-fitting blocks. It never silently clips a requested block into a different
+test.
 
 ## Response definitions
 
@@ -78,8 +81,9 @@ Green quadrant asymmetry is computed over the four corner blocks:
 A = (max corner G - min corner G) / mean corner G
 ```
 
-The 0.05 threshold is a project policy, not an industry standard. Values above
-it prevent lens-only interpretation; they do not identify the physical cause.
+The 0.05 threshold is a declared project policy, not an industry standard or a
+value derived from the two-frame pair. It flags departure from a centered radial
+scalar model and never grants or refuses attribution to a physical component.
 
 ## Acceptance and evidence rules
 
@@ -87,12 +91,14 @@ it prevent lens-only interpretation; they do not identify the physical cause.
   the center-gate fraction controls the verdict.
 - Low signal is evaluated at the center block because that block is the
   denominator for every map.
-- Negative residual, finite-sample, and bin-coverage checks remain explicit.
+- Negative residual, aggregate-finiteness, and independently binding finite-bin
+  coverage checks remain explicit.
 - Rejected frames retain diagnostics and omit derived maps.
-- A dark frame is measured but marked verified only when CFA/geometry,
-  aperture/shutter/ISO metadata, and a 1 DN residual tolerance all pass.
-- Dark measurements verify the pedestal; they are never applied to the source
-  samples.
+- A dark control is marked verified only when every sample is finite, dimensions
+  and CFA match, camera make/model and positive aperture/shutter/ISO metadata
+  match, and full-frame plus center/four-corner medians pass a 1 DN tolerance.
+- Dark measurements verify only those declared checks; they are never applied
+  to the source samples.
 - `--compare` writes both measurements and the corner-delta statistics in one
   JSON document and appends both result sets to the CSV.
 

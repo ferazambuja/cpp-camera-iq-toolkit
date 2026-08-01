@@ -55,9 +55,9 @@ a linear RGB-to-XYZ fit and deterministic held-out Delta E diagnostics.
 [tests](../tests/test_shading.cpp)
 
 The analyzer separates four Bayer positions, rejects a clipped normalizing
-center, verifies the pedestal with paired dark metadata, and reports
-source–lens–sensor intensity and chromatic fields with repeatability and
-quadrant-asymmetry diagnostics.
+center, checks global and center/corner dark residuals with compatible capture
+metadata, and reports capture-system green/chromatic fields with pair-difference
+and quadrant-asymmetry diagnostics.
 
 ## Validation decisions
 
@@ -81,7 +81,7 @@ quadrant-asymmetry diagnostics.
 | [Bilinear demosaic](reports/BILINEAR_DEMOSAIC.md) | Transparent sensor-DN baseline with synthetic and LibRaw comparisons |
 | [Dark calibration](reports/DARK_CALIBRATION.md) | Metadata-black reconciliation against 21 dark candidates |
 | [Dark-frame noise](reports/DARK_FRAME_NOISE.md) | Temporal noise, DSNU, and dark-current diagnostics in DN |
-| [Relative CFA flat-field response](reports/FLAT_FIELD_RESPONSE.md) | Per-CFA spatial response, chromatic ratios, clipping, pedestal, repeatability, and asymmetry |
+| [Relative CFA flat-field response](reports/FLAT_FIELD_RESPONSE.md) | Per-CFA spatial response, chromatic ratios, clipping, bounded dark-control checks, one capture-pair delta, and asymmetry |
 
 ### Color and chart analysis
 

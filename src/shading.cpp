@@ -35,16 +35,45 @@ bool finite_closed(double value, double lo, double hi) {
   return std::isfinite(value) && value >= lo && value <= hi;
 }
 
+bool shading_options_valid(const ShadingOptions& opts) {
+  return opts.grid_cols >= 1 && opts.grid_rows >= 1 &&
+         static_cast<long long>(opts.grid_cols) * opts.grid_rows <= 1000000LL &&
+         finite_closed(opts.gate_center_frac, 0.0, 1.0) &&
+         opts.gate_center_frac > 0.0 && opts.corner_block_px >= 2 &&
+         opts.corner_inset_px >= 0 &&
+         opts.corner_inset_px < std::numeric_limits<int>::max() &&
+         finite_closed(opts.near_ceiling_level, 0.0, 1.0) &&
+         opts.near_ceiling_level > 0.0 &&
+         finite_closed(opts.near_ceiling_max, 0.0, 1.0) &&
+         finite_closed(opts.min_center_signal, 0.0, 1.0) &&
+         finite_closed(opts.max_negative_frac, 0.0, 1.0) &&
+         finite_closed(opts.min_bin_coverage, 0.0, 1.0) &&
+         opts.min_bin_coverage > 0.0 &&
+         finite_closed(opts.asymmetry_policy, 0.0, 10.0);
+}
+
 bool same_rect(const RoiRect& a, const RoiRect& b) {
   return a.x == b.x && a.y == b.y && a.width == b.width &&
          a.height == b.height;
 }
 
-ShadingField rejected(std::string reason, int cols = 0, int rows = 0) {
+bool contains_rect(const RoiRect& outer, const RoiRect& inner) {
+  return inner.x >= outer.x && inner.y >= outer.y &&
+         inner.x + inner.width <= outer.x + outer.width &&
+         inner.y + inner.height <= outer.y + outer.height;
+}
+
+bool overlaps(const RoiRect& a, const RoiRect& b) {
+  return a.x < b.x + b.width && b.x < a.x + a.width &&
+         a.y < b.y + b.height && b.y < a.y + a.height;
+}
+
+ShadingField rejected(std::string reason, const ShadingOptions& opts) {
   ShadingField field;
   field.rejection_reason = std::move(reason);
-  field.grid_cols = cols;
-  field.grid_rows = rows;
+  field.options = opts;
+  field.grid_cols = opts.grid_cols;
+  field.grid_rows = opts.grid_rows;
   return field;
 }
 
@@ -53,6 +82,10 @@ std::optional<ShadingGeometry> make_geometry(int width, int height,
   // Use even mosaic dimensions and origins so every region contains the same
   // number of samples from all four CFA positions. Odd requests round inward;
   // the effective rectangles are published with the result.
+  // Mirrored corner geometry is exact only on an even mosaic. Rejecting odd
+  // dimensions is preferable to publishing a false equal-radius claim.
+  if ((width & 1) != 0 || (height & 1) != 0) return std::nullopt;
+
   const int block = opts.corner_block_px & ~1;
   const int inset = (opts.corner_inset_px + 1) & ~1;
   if (block < 2 || inset < 0 ||
@@ -100,6 +133,10 @@ std::optional<ShadingGeometry> make_geometry(int width, int height,
     }
     geometry.corners[q] = *corner;
   }
+  if (!contains_rect(geometry.gate, geometry.center)) return std::nullopt;
+  for (const RoiRect& corner : geometry.corners) {
+    if (overlaps(geometry.center, corner)) return std::nullopt;
+  }
   geometry.valid = true;
   return geometry;
 }
@@ -108,6 +145,28 @@ bool same_exposure_value(double a, double b) {
   if (!std::isfinite(a) || !std::isfinite(b)) return false;
   const double scale = std::max({1.0, std::abs(a), std::abs(b)});
   return std::abs(a - b) <= 1e-9 * scale;
+}
+
+bool present_positive(double value) {
+  return std::isfinite(value) && value > 0.0;
+}
+
+std::vector<double> region_plane_samples(const double* data,
+                                         int row_stride_pixels,
+                                         const RoiRect& roi, int plane) {
+  const int dy = plane / 2;
+  const int dx = plane % 2;
+  std::vector<double> values;
+  values.reserve(static_cast<std::size_t>(roi.width / 2) *
+                 static_cast<std::size_t>(roi.height / 2));
+  for (int y = roi.y + dy; y < roi.y + roi.height; y += 2) {
+    for (int x = roi.x + dx; x < roi.x + roi.width; x += 2) {
+      const double value =
+          data[static_cast<std::size_t>(y) * row_stride_pixels + x];
+      if (std::isfinite(value)) values.push_back(value);
+    }
+  }
+  return values;
 }
 
 bool image_buffer_valid(const RawCfaImage& image) {
@@ -129,48 +188,35 @@ ShadingField measure_shading_field(const double* data, int width, int height,
                                    const ShadingOptions& opts,
                                    const std::array<double, 4>& ceiling) {
   if (data == nullptr || width < 2 || height < 2 || row_stride_pixels < width) {
-    return rejected("invalid mosaic buffer", opts.grid_cols, opts.grid_rows);
+    return rejected("invalid mosaic buffer", opts);
   }
-  if (opts.grid_cols < 1 || opts.grid_rows < 1 ||
-      opts.grid_cols > plane_extent(width, 1) ||
+  if (!shading_options_valid(opts)) {
+    return rejected("invalid shading options", opts);
+  }
+  if (opts.grid_cols > plane_extent(width, 1) ||
       opts.grid_rows > plane_extent(height, 1) ||
       static_cast<long long>(opts.grid_cols) * opts.grid_rows > 1000000LL) {
-    return rejected("grid does not fit the CFA planes", opts.grid_cols,
-                    opts.grid_rows);
-  }
-  if (!finite_closed(opts.gate_center_frac, 0.0, 1.0) ||
-      opts.gate_center_frac == 0.0 || opts.corner_block_px < 2 ||
-      opts.corner_inset_px < 0 ||
-      !finite_closed(opts.near_ceiling_level, 0.0, 1.0) ||
-      opts.near_ceiling_level == 0.0 ||
-      !finite_closed(opts.near_ceiling_max, 0.0, 1.0) ||
-      !finite_closed(opts.min_center_signal, 0.0, 1.0) ||
-      !finite_closed(opts.max_negative_frac, 0.0, 1.0) ||
-      !finite_closed(opts.min_bin_coverage, 0.0, 1.0) ||
-      opts.min_bin_coverage == 0.0 || !std::isfinite(opts.asymmetry_policy) ||
-      opts.asymmetry_policy < 0.0) {
-    return rejected("invalid shading options", opts.grid_cols, opts.grid_rows);
+    return rejected("grid does not fit the CFA planes", opts);
   }
   for (const double value : ceiling) {
     if (!std::isfinite(value) || value <= 0.0) {
-      return rejected("invalid signal-referred ceiling", opts.grid_cols,
-                      opts.grid_rows);
+      return rejected("invalid signal-referred ceiling", opts);
     }
   }
 
   const auto geometry = make_geometry(width, height, opts);
   if (!geometry) {
-    return rejected("requested CFA-balanced blocks do not fit the image",
-                    opts.grid_cols, opts.grid_rows);
+    return rejected("requested CFA-balanced blocks do not fit the image", opts);
   }
 
   ShadingField field;
+  field.options = opts;
   field.grid_cols = opts.grid_cols;
   field.grid_rows = opts.grid_rows;
   field.signal_ceiling = ceiling;
   field.geometry = *geometry;
   field.gates.min_bin_coverage = 1.0;
-  bool all_finite = true;
+  bool aggregates_finite = true;
 
   for (int p = 0; p < 4; ++p) {
     const int dy = p / 2;
@@ -178,8 +224,7 @@ ShadingField measure_shading_field(const double* data, int width, int height,
     const int plane_width = plane_extent(width, dx);
     const int plane_height = plane_extent(height, dy);
     if (plane_width < opts.grid_cols || plane_height < opts.grid_rows) {
-      return rejected("grid does not fit every CFA plane", opts.grid_cols,
-                      opts.grid_rows);
+      return rejected("grid does not fit every CFA plane", opts);
     }
 
     const auto sample = [&](int plane_y, int plane_x) {
@@ -203,20 +248,22 @@ ShadingField measure_shading_field(const double* data, int width, int height,
     };
 
     std::vector<double> center = region_samples(field.geometry.center);
+    if (center.empty()) aggregates_finite = false;
     field.center_block_median[p] = median_of(center);
     field.gates.center_signal_frac[p] =
         field.center_block_median[p] / ceiling[p];
 
     for (int q = 0; q < 4; ++q) {
       std::vector<double> block = region_samples(field.geometry.corners[q]);
+      if (block.empty()) aggregates_finite = false;
       field.blocks.corner_median[q][p] = median_of(block);
     }
 
     const double near_ceiling = opts.near_ceiling_level * ceiling[p];
-    long long frame_total = 0;
+    long long frame_finite = 0;
     long long frame_near = 0;
     long long frame_negative = 0;
-    long long gate_total = 0;
+    long long gate_finite = 0;
     long long gate_near = 0;
     for (int py = 0; py < plane_height; ++py) {
       const int mosaic_y = 2 * py + dy;
@@ -228,13 +275,10 @@ ShadingField measure_shading_field(const double* data, int width, int height,
         const bool in_gate =
             row_in_gate && mosaic_x >= field.geometry.gate.x &&
             mosaic_x < field.geometry.gate.x + field.geometry.gate.width;
-        ++frame_total;
-        if (in_gate) ++gate_total;
         const double value = sample(py, px);
-        if (!std::isfinite(value)) {
-          all_finite = false;
-          continue;
-        }
+        if (!std::isfinite(value)) continue;
+        ++frame_finite;
+        if (in_gate) ++gate_finite;
         if (value >= near_ceiling) {
           ++frame_near;
           if (in_gate) ++gate_near;
@@ -242,13 +286,15 @@ ShadingField measure_shading_field(const double* data, int width, int height,
         if (value < 0.0) ++frame_negative;
       }
     }
+    if (frame_finite == 0 || gate_finite == 0) aggregates_finite = false;
     field.gates.near_ceiling_frac_frame[p] =
-        frame_total > 0 ? static_cast<double>(frame_near) / frame_total : 0.0;
+        frame_finite > 0 ? static_cast<double>(frame_near) / frame_finite
+                         : 0.0;
     field.gates.negative_frac[p] =
-        frame_total > 0 ? static_cast<double>(frame_negative) / frame_total
-                        : 0.0;
+        frame_finite > 0 ? static_cast<double>(frame_negative) / frame_finite
+                         : 0.0;
     field.gates.near_ceiling_frac_gate[p] =
-        gate_total > 0 ? static_cast<double>(gate_near) / gate_total : 0.0;
+        gate_finite > 0 ? static_cast<double>(gate_near) / gate_finite : 0.0;
 
     const std::size_t bin_count =
         static_cast<std::size_t>(opts.grid_cols) * opts.grid_rows;
@@ -278,12 +324,13 @@ ShadingField measure_shading_field(const double* data, int width, int height,
             std::min(field.gates.min_bin_coverage, coverage);
         const std::size_t index =
             static_cast<std::size_t>(row) * opts.grid_cols + col;
+        if (bin.empty()) aggregates_finite = false;
         field.bin_median[p][index] = median_of(bin);
       }
     }
   }
 
-  field.gates.finite_ok = all_finite;
+  field.gates.finite_ok = aggregates_finite;
   field.gates.near_ceiling_ok = true;
   field.gates.low_signal_ok = true;
   field.gates.negative_ok = true;
@@ -332,8 +379,7 @@ ShadingChromatic chromatic_response(const ShadingField& field,
                                     const std::array<int, 4>& colors,
                                     std::string_view cdesc,
                                     const ShadingOptions& opts) {
-  if (!field.valid || field.grid_cols < 1 || field.grid_rows < 1 ||
-      !std::isfinite(opts.asymmetry_policy) || opts.asymmetry_policy < 0.0) {
+  if (!finite_closed(opts.asymmetry_policy, 0.0, 10.0)) {
     return {};
   }
 
@@ -368,22 +414,25 @@ ShadingChromatic chromatic_response(const ShadingField& field,
   }
   if (red < 0 || blue < 0 || green_a < 0 || green_b < 0) return {};
 
+  ShadingChromatic out;
+  out.layout_valid = true;
+  out.red_position = red;
+  out.green1_position = green_a;
+  out.green2_position = green_b;
+  out.blue_position = blue;
+  if (!field.valid || field.grid_cols < 1 || field.grid_rows < 1) return out;
+
   const std::size_t bins =
       static_cast<std::size_t>(field.grid_cols) * field.grid_rows;
   if (field.relative[red].size() != bins ||
       field.relative[blue].size() != bins ||
       field.relative[green_a].size() != bins ||
       field.relative[green_b].size() != bins) {
-    return {};
+    return out;
   }
 
-  ShadingChromatic out;
   out.valid = true;
   out.complete = true;
-  out.red_position = red;
-  out.green1_position = green_a;
-  out.green2_position = green_b;
-  out.blue_position = blue;
   const double undefined = std::numeric_limits<double>::quiet_NaN();
   out.c_rg.resize(bins, undefined);
   out.c_bg.resize(bins, undefined);
@@ -425,8 +474,13 @@ ShadingChromatic chromatic_response(const ShadingField& field,
   }
   if (count == 4 && sum > 0.0) {
     out.green_asymmetry = (hi - lo) / (sum / 4.0);
-    out.asymmetry_exceeds_policy =
-        out.green_asymmetry > opts.asymmetry_policy;
+    if (std::isfinite(out.green_asymmetry)) {
+      out.asymmetry_valid = true;
+      out.asymmetry_exceeds_policy =
+          out.green_asymmetry > opts.asymmetry_policy;
+    } else {
+      out.complete = false;
+    }
   } else {
     out.complete = false;
   }
@@ -437,8 +491,7 @@ ShadingAnalysis analyze_shading(const RawCfaImage& image,
                                 const ShadingOptions& opts) {
   ShadingAnalysis analysis;
   if (!image_buffer_valid(image)) {
-    analysis.field = rejected("invalid RawCfaImage buffer", opts.grid_cols,
-                              opts.grid_rows);
+    analysis.field = rejected("invalid RawCfaImage buffer", opts);
     return analysis;
   }
   for (int p = 0; p < 4; ++p) {
@@ -446,8 +499,8 @@ ShadingAnalysis analyze_shading(const RawCfaImage& image,
         image.meta.white_level - image.meta.black_per_channel[p];
     if (!std::isfinite(analysis.signal_ceiling[p]) ||
         analysis.signal_ceiling[p] <= 0.0) {
-      analysis.field = rejected("invalid RawCfaImage white/black metadata",
-                                opts.grid_cols, opts.grid_rows);
+      analysis.field =
+          rejected("invalid RawCfaImage white/black metadata", opts);
       return analysis;
     }
   }
@@ -470,8 +523,10 @@ ShadingPedestal measure_pedestal(const double* dark, int width, int height,
     const int dx = p % 2;
     const int plane_width = plane_extent(width, dx);
     const int plane_height = plane_extent(height, dy);
+    const std::size_t expected =
+        static_cast<std::size_t>(plane_width) * plane_height;
     std::vector<double> samples;
-    samples.reserve(static_cast<std::size_t>(plane_width) * plane_height);
+    samples.reserve(expected);
     for (int py = 0; py < plane_height; ++py) {
       for (int px = 0; px < plane_width; ++px) {
         const double value =
@@ -481,9 +536,14 @@ ShadingPedestal measure_pedestal(const double* dark, int width, int height,
       }
     }
     if (samples.empty()) return {};
+    out.finite_fraction[p] = static_cast<double>(samples.size()) / expected;
     out.residual_dn[p] = median_of(samples);
     out.max_abs_residual_dn =
         std::max(out.max_abs_residual_dn, std::abs(out.residual_dn[p]));
+  }
+  out.full_finite_coverage = true;
+  for (const double coverage : out.finite_fraction) {
+    out.full_finite_coverage &= coverage == 1.0;
   }
   out.measured = true;
   return out;
@@ -523,30 +583,90 @@ ShadingComparison compare_shading_fields(const ShadingField& a,
 ShadingPedestal verify_shading_pedestal(const RawCfaImage& primary,
                                         const RawCfaImage& dark,
                                         std::string_view dark_file,
-                                        double max_abs_residual_dn) {
+                                        double max_abs_residual_dn,
+                                        const ShadingOptions& opts) {
   ShadingPedestal out;
   out.dark_file = std::string(dark_file);
+  if (!shading_options_valid(opts)) return out;
   out.compatible = image_buffer_valid(primary) && image_buffer_valid(dark) &&
                    primary.width == dark.width &&
                    primary.height == dark.height &&
                    primary.color_at_position == dark.color_at_position &&
                    primary.cdesc == dark.cdesc;
   if (!out.compatible) return out;
+  if (opts.grid_cols > plane_extent(dark.width, 1) ||
+      opts.grid_rows > plane_extent(dark.height, 1)) {
+    return out;
+  }
 
   out = measure_pedestal(dark.samples.data(), dark.width, dark.height,
                          dark.row_stride_pixels);
   out.dark_file = std::string(dark_file);
   out.compatible = true;
+  out.make_model_metadata_matches = !primary.meta.make.empty() &&
+                                    !primary.meta.model.empty() &&
+                                    primary.meta.make == dark.meta.make &&
+                                    primary.meta.model == dark.meta.model;
+  const bool primary_serial_present = !primary.meta.body_serial.empty();
+  const bool dark_serial_present = !dark.meta.body_serial.empty();
+  out.body_serials_present = primary_serial_present && dark_serial_present;
+  out.body_serials_match = out.body_serials_present &&
+                           primary.meta.body_serial == dark.meta.body_serial;
+  out.body_serials_consistent =
+      (!primary_serial_present && !dark_serial_present) ||
+      out.body_serials_match;
+  out.exposure_metadata_present =
+      present_positive(primary.meta.aperture) &&
+      present_positive(primary.meta.shutter_s) &&
+      present_positive(primary.meta.iso) && present_positive(dark.meta.aperture) &&
+      present_positive(dark.meta.shutter_s) && present_positive(dark.meta.iso);
   out.exposure_metadata_matches =
+      out.exposure_metadata_present &&
       same_exposure_value(primary.meta.aperture, dark.meta.aperture) &&
       same_exposure_value(primary.meta.shutter_s, dark.meta.shutter_s) &&
       same_exposure_value(primary.meta.iso, dark.meta.iso);
+
+  const auto geometry = make_geometry(dark.width, dark.height, opts);
+  if (geometry) {
+    out.spatial_checked = true;
+    for (int p = 0; p < 4; ++p) {
+      std::vector<double> center = region_plane_samples(
+          dark.samples.data(), dark.row_stride_pixels, geometry->center, p);
+      if (center.empty()) {
+        out.spatial_checked = false;
+        break;
+      }
+      out.center_residual_dn[p] = median_of(center);
+      out.max_abs_spatial_residual_dn =
+          std::max(out.max_abs_spatial_residual_dn,
+                   std::abs(out.center_residual_dn[p]));
+      for (int q = 0; q < 4; ++q) {
+        std::vector<double> corner = region_plane_samples(
+            dark.samples.data(), dark.row_stride_pixels,
+            geometry->corners[q], p);
+        if (corner.empty()) {
+          out.spatial_checked = false;
+          break;
+        }
+        out.corner_residual_dn[q][p] = median_of(corner);
+        out.max_abs_spatial_residual_dn =
+            std::max(out.max_abs_spatial_residual_dn,
+                     std::abs(out.corner_residual_dn[q][p]));
+      }
+      if (!out.spatial_checked) break;
+    }
+  }
   out.within_tolerance =
       out.measured && std::isfinite(max_abs_residual_dn) &&
       max_abs_residual_dn >= 0.0 &&
-      out.max_abs_residual_dn <= max_abs_residual_dn;
+      out.max_abs_residual_dn <= max_abs_residual_dn && out.spatial_checked &&
+      out.max_abs_spatial_residual_dn <= max_abs_residual_dn;
   out.verified = out.measured && out.compatible &&
-                 out.exposure_metadata_matches && out.within_tolerance;
+                 out.make_model_metadata_matches &&
+                 out.body_serials_consistent &&
+                 out.exposure_metadata_present &&
+                 out.exposure_metadata_matches && out.full_finite_coverage &&
+                 out.spatial_checked && out.within_tolerance;
   return out;
 }
 

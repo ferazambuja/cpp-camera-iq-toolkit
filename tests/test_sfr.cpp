@@ -889,8 +889,9 @@ void TESTS() {
   {
     // D800 center-vs-corner oracle behavior differs from D810: the corner max
     // BEATS center at f/4 and f/5.6 in this capture, so only f/8 and f/11 are
-    // gated; f/4 and f/5.6 are diagnostic. The mechanism is not identified
-    // here — radius-matched ROIs establish an azimuthal term, not which one.
+    // gated; f/4 and f/5.6 are diagnostic. The mechanism is not identified:
+    // fixed-axis edges do not separate field azimuth from sagittal/tangential
+    // response, even at similar radii.
     auto make_file = [](double center, double corner_max) {
       camera_iq::ImatestYMultiFile file;
       file.filename = "fixture.NEF";

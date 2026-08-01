@@ -96,6 +96,19 @@ void TESTS() {
         "shading command: strict zero policy and zero inset are accepted");
   check(run_shading({"a.RAF", "--unknown-option"}) == 2,
         "shading command: unknown option rejected");
+  check(run_shading({"a.RAF", "--out", "a.RAF"}) == 2,
+        "shading command: JSON output cannot alias the primary RAW");
+  check(run_shading({"a.RAF", "--dark", "dark.RAF", "--csv-out",
+                     "dark.RAF"}) == 2,
+        "shading command: CSV output cannot alias a dark input");
+  check(run_shading({"a.RAF", "--out", "result.json", "--csv-out",
+                     "result.json"}) == 2,
+        "shading command: JSON and CSV outputs must be distinct");
+  check(run_shading({"../outside.RAF", "--dataset", "fixture"}) == 2,
+        "shading command: dataset primary cannot traverse above root");
+  check(run_shading({"inside.RAF", "--dark", "Images/../../outside.RAF",
+                     "--dataset", "fixture"}) == 2,
+        "shading command: dataset dark cannot traverse above root");
 
   // A comparison dark with nothing to compare is a user error, not a silently
   // ignored flag: it means the caller believes a comparison is happening.
@@ -115,6 +128,7 @@ void TESTS() {
     chroma.c_bg = {1.0, 1.01, 1.02, 1.03};
     chroma.c_g1g2 = {1.0, 1.0, 1.0,
                      std::numeric_limits<double>::quiet_NaN()};
+    chroma.asymmetry_valid = true;
     chroma.green_asymmetry = 0.200;
     chroma.asymmetry_exceeds_policy = true;
     ShadingPedestal pedestal;  // no --dark supplied
@@ -136,6 +150,27 @@ void TESTS() {
           "shading json: gate-region near-ceiling fraction serialized");
     check(contains(json, "\"near_ceiling_fraction_frame\""),
           "shading json: whole-frame near-ceiling fraction serialized too");
+    check(contains(json, "\"schema_version\":2") &&
+              contains(json, "\"analysis_options\"") &&
+              contains(json, "\"near_ceiling_max\":0.01") &&
+              contains(json, "\"asymmetry_policy\":0.05"),
+          "shading json: effective policy and schema are reproducible");
+    check(contains(json,
+                   "capture-system field response; no isolated component attribution"),
+          "shading json: attribution remains composite regardless of A");
+  }
+
+  // Undefined quadrant asymmetry is not a measured zero or a false pass.
+  {
+    const ShadingField field = accepted_field();
+    ShadingChromatic chroma;
+    chroma.valid = true;
+    chroma.complete = false;
+    chroma.c_rg = chroma.c_bg = chroma.c_g1g2 = {1.0, 1.0, 1.0, 1.0};
+    const std::string json = serialize(field, chroma, {});
+    check(contains(json, "\"green_asymmetry\":null") &&
+              contains(json, "\"asymmetry_exceeds_policy\":null"),
+          "shading json: undefined A serializes as null, not zero/pass");
   }
 
   // Serialization: a rejected measurement keeps every diagnostic and nulls the
@@ -173,13 +208,22 @@ void TESTS() {
     chroma.c_rg = {1.0, 1.0, 1.0, 1.0};
     chroma.c_bg = {1.0, 1.0, 1.0, 1.0};
     chroma.c_g1g2 = {1.0, 1.0, 1.0, 1.0};
+    chroma.asymmetry_valid = true;
     ShadingPedestal pedestal;
     pedestal.measured = true;
     pedestal.dark_file = "Images/Dark Frame/dark.RAF";
     pedestal.residual_dn = {0.2, 0.3, 0.25, 0.28};
     pedestal.max_abs_residual_dn = 0.3;
+    pedestal.max_abs_spatial_residual_dn = 0.4;
     pedestal.compatible = true;
+    pedestal.make_model_metadata_matches = true;
+    pedestal.body_serials_present = true;
+    pedestal.body_serials_match = true;
+    pedestal.body_serials_consistent = true;
+    pedestal.exposure_metadata_present = true;
     pedestal.exposure_metadata_matches = true;
+    pedestal.full_finite_coverage = true;
+    pedestal.spatial_checked = true;
     pedestal.within_tolerance = true;
     pedestal.verified = true;
 
@@ -191,6 +235,13 @@ void TESTS() {
           "shading json: measured pedestal residual serialized");
     check(contains(json, "\"exposure_metadata_matches\":true"),
           "shading json: dark pairing check serialized, not assumed");
+    check(contains(json, "\"body_serials_present\":true") &&
+              contains(json, "\"body_serials_match\":true") &&
+              contains(json, "\"body_serials_consistent\":true"),
+          "shading json: physical body identity evidence stays explicit");
+    check(contains(json, "\"max_abs_spatial_residual_dn\":0.4") &&
+              contains(json, "\"full_finite_coverage\":true"),
+          "shading json: spatial and finite dark evidence is serialized");
   }
 
   // Reading a dark is not enough to call the pedestal verified. A metadata or
@@ -223,6 +274,7 @@ void TESTS() {
     chroma.c_rg = {1.0, 1.0, 1.0, 1.0};
     chroma.c_bg = {1.0, 1.0, 1.0, 1.0};
     chroma.c_g1g2 = {1.0, 1.0, 1.0, 1.0};
+    chroma.asymmetry_valid = true;
     ShadingPedestal pedestal;
     pedestal.measured = true;
     pedestal.dark_file = "/archive-root/private/Dark Frame/dark.RAF";
@@ -264,6 +316,7 @@ void TESTS() {
     chroma.c_rg = {1.0, 0.99, 0.98, 0.97};
     chroma.c_bg = {1.0, 1.01, 1.02, 1.03};
     chroma.c_g1g2 = {1.0, 1.0, 1.0, 1.0};
+    chroma.asymmetry_valid = true;
     chroma.green_asymmetry = 0.2;
     const ShadingPedestal pedestal;
 
@@ -285,6 +338,17 @@ void TESTS() {
           "shading csv: gate diagnostics travel with the measurement");
     check(contains(csv, "green_asymmetry"),
           "shading csv: A is in the table, not only in the JSON");
+    check(contains(csv, "analysis_option_near_ceiling_max") &&
+              contains(csv, "analysis_option_asymmetry_policy") &&
+              contains(csv, "pedestal_verified"),
+          "shading csv: policy and pedestal verdicts are reproducible");
+
+    std::ostringstream escaped;
+    camera_iq::write_shading_csv(escaped, "Images/Sphere/a,\"b\".RAF",
+                                 {"R", "G1", "G2", "B"}, field, chroma,
+                                 pedestal);
+    check(contains(escaped.str(), "\"Images/Sphere/a,\"\"b\"\".RAF\""),
+          "shading csv: labels are RFC 4180 escaped");
   }
 
   // A rejected frame still produces a table, and that table cannot contain
@@ -338,5 +402,14 @@ void TESTS() {
           "shading comparison json: metrics are present");
     check(contains(json, "\"max_corner_delta_pp\":1"),
           "shading comparison json: repeatability delta is serialized");
+
+    std::ostringstream unavailable;
+    write_shading_comparison_json(
+        unavailable, "primary.RAF", primary, chroma, {}, "repeat.RAF",
+        repeat, chroma, {}, {});
+    check(contains(unavailable.str(), "\"measured\":false") &&
+              contains(unavailable.str(), "\"max_corner_delta_pp\":null") &&
+              contains(unavailable.str(), "\"rms_corner_delta_pp\":null"),
+          "shading comparison json: unmeasured deltas cannot look perfect");
   }
 }

@@ -10,6 +10,8 @@
 #include "camera_iq/cfa_stats.hpp"
 #include "camera_iq/roi.hpp"
 
+class LibRaw;
+
 namespace camera_iq {
 
 // Metadata extracted from a RAW file via LibRaw. Exposure fields mirror the
@@ -17,6 +19,10 @@ namespace camera_iq {
 struct RawMeta {
   std::string make;
   std::string model;
+  // Maker-reported body identifier. It may be empty; callers must preserve
+  // that distinction instead of treating make/model equality as proof of the
+  // same physical camera.
+  std::string body_serial;
   double iso = 0;
   double shutter_s = 0;
   double aperture = 0;
@@ -47,6 +53,16 @@ struct RawMeta {
 // Returns empty string if any index is out of range.
 std::string cfa_pattern_string(std::string_view cdesc,
                                const std::array<int, 4>& color_indices);
+
+// Converts a fixed-capacity maker-note serial buffer without reading past its
+// capacity when a producer omits the trailing NUL. Exposed as a small seam so
+// the LibRaw BodySerial bridge is testable without a private RAW fixture.
+std::string body_serial_string(const char* data, std::size_t capacity);
+
+// Testable LibRaw-to-RawMeta mapping seam. Production readers call this after
+// open_file() or unpack(); exposing the mapper lets unit tests discriminate the
+// exact maker-note field transfer without requiring a private RAW fixture.
+RawMeta raw_meta_from_processor(LibRaw& processor);
 
 // Computes the effective black level for the four active-area top-left mosaic
 // positions (0,0)(0,1)(1,0)(1,1) from LibRaw's additive black representation:

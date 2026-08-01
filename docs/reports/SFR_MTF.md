@@ -146,25 +146,17 @@ Load-bearing findings:
   figure is its most-peripheral ROI at 0.1647 against 0.1385 at center, +19%.
   The mid-aperture maximum is N=12 at 244 px horizontally and 1414 px above
   center, reading 0.2211 in the advisory path: +60% over center.
-- **The field carries an azimuthal term, shown by radius-matched sites.** An
-  off-axis maximum alone does not exclude radial symmetry: a centered radial
-  response may peak on an annulus. The exclusion comes from ROIs at matched
-  radius, where a radially symmetric response must read the same value whatever
-  its profile.
-
-  | Aperture | Pair | Radii (px) | Radius delta | MTF50 |
-  |---|---|---|---:|---|
-  | f/4 | N=15 vs N=4 | 3019 / 3075 | 1.8% | 0.1691 vs 0.0945 (+79%) |
-  | f/8 | N=15 vs N=4 | 3018 / 3076 | 1.9% | 0.1702 vs 0.1365 (+25%) |
-  | f/4 | N=18 vs N=20 | 2046 / 1963 | 4.1% | 0.1878 vs 0.1055 (+78%) |
-  | f/8 | N=18 vs N=20 | 2046 / 1963 | 4.1% | 0.1889 vs 0.1507 (+25%) |
-
-  Explaining these radially would require losing most of the MTF50 across a
-  1.8% change in radius, which no plausible defocus or aberration profile does.
-  Two independent pairs agree at two apertures. One recorded `FocusPosition`
-  code and near-vertical edge samples cannot say which azimuthal mechanism —
-  target, sensor or focus-plane tilt, decentering, capture alignment, or
-  interactions among them.
+- **The sampled directional field varies off axis, but the mechanism remains
+  unresolved.** An off-axis maximum does not exclude a centered radial response:
+  it may peak on an annulus. Near-radius pairs do not close the question either.
+  All of these ROIs use fixed-axis, near-vertical edges, so changing field
+  azimuth changes the mixture of sagittal and tangential response even for a
+  centered rotationally symmetric lens; the available radii also differ by
+  1.8–4.1%. The archive therefore supports a directional field observation,
+  not proof of an asymmetric optical system. Separating target, sensor or
+  focus-plane tilt, decentering, alignment, and centered optical astigmatism
+  requires controlled radial/tangential edge orientations or a fitted
+  radial-plus-orientation baseline.
 - **Off-axis reference deltas are larger.** Green-linear CFA SFR and
   rendered-luma processing diverge more away from center. The disagreement is
   reported rather than used as evidence of equivalence.

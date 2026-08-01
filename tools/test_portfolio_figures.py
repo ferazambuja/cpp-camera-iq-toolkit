@@ -67,6 +67,30 @@ class PortfolioFigureTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             FIGURES.generate_shading(self.data)
 
+    def test_shading_rejects_duplicate_bin(self) -> None:
+        path = self.data / "flat_field_response.csv"
+        lines = path.read_text(encoding="utf-8").splitlines()
+        lines[-1] = lines[-2]
+        path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+        with self.assertRaises(ValueError):
+            FIGURES.generate_shading(self.data)
+
+    def test_shading_rejects_mixed_policy(self) -> None:
+        path = self.data / "flat_field_summary.csv"
+        text = path.read_text(encoding="utf-8").replace(
+            "shading-v1-grid16x12-default-gates", "different-policy", 1
+        )
+        path.write_text(text, encoding="utf-8")
+        with self.assertRaises(ValueError):
+            FIGURES.generate_shading(self.data)
+
+    def test_shading_rejects_changed_aperture_census(self) -> None:
+        path = self.data / "flat_field_summary.csv"
+        text = path.read_text(encoding="utf-8").replace(",9.0,", ",8.0,", 1)
+        path.write_text(text, encoding="utf-8")
+        with self.assertRaises(ValueError):
+            FIGURES.generate_shading(self.data)
+
     def test_spectral_rejects_non_finite_score(self) -> None:
         path = self.data / "spectral_color_fidelity.csv"
         text = path.read_text(encoding="utf-8").replace("90.7", "nan", 1)
