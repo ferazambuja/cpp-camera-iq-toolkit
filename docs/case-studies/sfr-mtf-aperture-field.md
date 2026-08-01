@@ -117,20 +117,24 @@ Validation combines:
   near-radius ROIs proves nothing either, because every edge here is fixed-axis
   and near-vertical, so a change in field azimuth changes the sagittal/tangential
   mixture even for a perfectly centered lens.
-- **Mirror partners do settle the symmetry question.** For a vertical edge the
-  sagittal/tangential mixture depends on `|x| / r`, so reflecting a site through
-  the horizontal axis leaves both the radius and the mixture unchanged. Under
-  any centered rotationally symmetric system — astigmatic ones included — the
-  partners must read the same MTF50. Three independent pairs do not: N=18/N=20
-  reads 0.1878 against 0.1055 at f/4, N=2/N=4 reads 0.1647 against 0.0945, and
-  N=14/N=16 reads 0.1403 against 0.1054. All three favor the upper field, at
-  three radii, at two apertures, with at most 4.1% residual radius mismatch. The
-  field is therefore not centered rotationally symmetric. The cause is still
-  open — target, sensor or focus-plane tilt, decentering, and alignment all do
-  this — though the imbalance shrinking to 1.25x at f/8 is what added
-  depth of field does to a tilted focus plane, and not what a fixed geometric
-  aberration does. Ranking them needs controlled edge orientations this archive
-  does not contain.
+- **Near-mirror partners constrain it much harder.** For an exactly vertical
+  edge the sagittal/tangential mixture depends on `|x| / r`, so an exact
+  reflection through the horizontal axis would preserve radius and mixture
+  together, and any centered rotationally symmetric system — astigmatic ones
+  included — would have to return the same MTF50. The grid offers three
+  near-reflections: N=14/N=16 differ by 0.54% in radius and 0.80% in mixture yet
+  read 0.1403 against 0.1054 at f/4; N=2/N=4 differ by 0.76% and read 0.1647
+  against 0.0945; N=18/N=20 differ by 4.06% and read 0.1878 against 0.1055. All
+  three favor the upper field, at three radii and two apertures, and in every
+  pair the upper site sits at the *larger* radius — so a centered profile that
+  falls with radius predicts the opposite ordering. Explaining this with a
+  centered response would need a radial profile rising 33% across a 0.54% step
+  in radius. That is strong evidence against centered rotational symmetry rather
+  than a formal exclusion, which would require controlled radial/tangential edge
+  orientations this archive does not contain. The responsible component stays
+  open: tilt, decentering and alignment all produce an upper/lower imbalance,
+  and the aperture behavior does not separate them, since stopping down reduces
+  several geometric aberrations as well as widening depth-of-field tolerance.
 - Center agreement stayed within ±0.015 cycles/pixel on D800, while off-axis
   differences were larger—consistent with comparing green-linear CFA SFR to a
   rendered-luma reference path. The center agreement makes a toolkit-only gross

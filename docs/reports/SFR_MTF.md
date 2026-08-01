@@ -153,30 +153,38 @@ Load-bearing findings:
   azimuth changes the sagittal/tangential mixture even for a centered
   rotationally symmetric lens.
 
-  Mirror partners remove that confound. For a vertical edge the S/T mixture
-  depends on `|x| / r`, so reflecting a site through the horizontal axis
-  (`y → -y`) leaves both the radius and the mixture unchanged. Under **any**
-  centered rotationally symmetric system, including an astigmatic one, mirror
-  partners must therefore read the same MTF50. Three independent pairs do not:
+  Near-mirror partners constrain it much harder. For an exactly vertical edge
+  the S/T mixture depends on `|x| / r`, so an exact reflection through the
+  horizontal axis (`y → -y`) would preserve both the radius and the mixture,
+  and any centered rotationally symmetric system — astigmatic ones included —
+  would have to return the same MTF50. The available ROI grid offers three
+  near-reflections rather than exact ones:
 
-  | Pair | Position (x, y) px | Radius | f/4 MTF50 | f/8 MTF50 |
-  |---|---|---:|---|---|
-  | N=18 / N=20 | (-1504, -1387) / (-1499, +1266) | 2046 / 1963 | 0.1878 / 0.1055 (1.78x) | 0.1889 / 0.1507 (1.25x) |
-  | N=2 / N=4 | (-2788, -1354) / (-2801, +1270) | 3099 / 3075 | 0.1647 / 0.0945 (1.74x) | 0.1618 / 0.1365 (1.19x) |
-  | N=14 / N=16 | (-2797, -706) / (-2804, +608) | 2885 / 2821 | 0.1403 / 0.1054 (1.33x) | 0.1566 / 0.1399 (1.12x) |
+  | Pair (upper / lower) | Position (x, y) px | Radius px | Radius mismatch | `\|x\|/r` mismatch | f/4 MTF50 | f/8 MTF50 |
+  |---|---|---|---:|---:|---|---|
+  | N=14 / N=16 | (-2797, -706) / (-2804, +608) | 2885 / 2869 | 0.54% | 0.80% | 0.1403 / 0.1054 (1.33x) | 0.1566 / 0.1399 (1.12x) |
+  | N=2 / N=4 | (-2788, -1354) / (-2801, +1270) | 3099 / 3075 | 0.76% | 1.24% | 0.1647 / 0.0945 (1.74x) | 0.1618 / 0.1365 (1.19x) |
+  | N=18 / N=20 | (-1504, -1387) / (-1499, +1266) | 2046 / 1963 | 4.06% | 3.78% | 0.1878 / 0.1055 (1.78x) | 0.1889 / 0.1507 (1.25x) |
 
-  All three favor the upper field, at three different radii, at two apertures.
-  Residual radius mismatch is at most 4.1%, which would have to produce a 33%
-  MTF50 change to explain even the smallest pair. A consistent-sign top/bottom
-  difference of this size is not producible by a centered radial profile.
+  All three favor the upper field, at three radii and two apertures. The
+  tightest pair — 0.54% in radius and 0.80% in mixture — still differs by 33% in
+  MTF50. The residual mismatch also runs *against* the observed sign: in every
+  pair the upper site sits at the larger radius, so a centered profile that
+  falls with radius predicts the opposite ordering.
 
-  What this does not decide is the cause. Target, sensor or focus-plane tilt,
-  decentering, and capture alignment all produce an upper/lower imbalance. The
-  aperture behavior is a hint and not more: the imbalance shrinks from 1.78x to
-  1.25x on stopping down from f/4 to f/8, which is what a depth-of-field
-  increase does to a tilted focus plane, and is not what a fixed geometric
-  aberration does. Separating them needs controlled radial/tangential edge
-  orientations or a fitted radial-plus-orientation baseline.
+  This is strong evidence, not a formal exclusion. Reproducing it with a
+  centered rotationally symmetric response would require a radial profile that
+  rises by 33% across a 0.54% step in radius, plus edges vertical enough for
+  `|x|/r` to describe the mixture — the archive only records them as
+  near-vertical. Both are implausible; neither is ruled out by arithmetic here.
+  A formal exclusion needs controlled radial/tangential edge orientations or a
+  fitted radial-plus-orientation baseline, which this archive does not contain.
+
+  The cause is separately unresolved. Target, sensor or focus-plane tilt,
+  decentering, and capture alignment all produce an upper/lower imbalance, and
+  the imbalance falling from 1.78x to 1.25x between f/4 and f/8 does not
+  separate them: stopping down reduces coma, astigmatism, spherical aberration
+  and decentering signatures as well as widening depth-of-field tolerance.
 - **Off-axis reference deltas are larger.** Green-linear CFA SFR and
   rendered-luma processing diverge more away from center. The disagreement is
   reported rather than used as evidence of equivalence.
