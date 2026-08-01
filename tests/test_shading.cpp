@@ -28,9 +28,12 @@ using Bins = std::array<std::array<double, 4>, 4>;
 
 // Bin-constant field, so every binned median is exact rather than approximate.
 // A 128x128 mosaic gives 64x64 planes; a 4x4 grid gives 16x16 samples per bin.
-// With center_frac 0.25 the centre region spans plane rows/cols 24..39, which
-// is exactly the four central bins — so a matrix carrying 1.0 there normalizes
-// to itself.
+//
+// The normalizer is the centre *block* (`corner_block_px`), not the gate region
+// (`gate_center_frac`) — the gate only decides the near-ceiling verdict. These
+// fixtures size the centre block so it lands inside the four central bins, so a
+// factor matrix carrying 1.0 there normalizes to itself and every expected
+// value is exact rather than tolerance-bounded.
 constexpr int kMosaic = 128;
 constexpr int kGrid = 4;
 

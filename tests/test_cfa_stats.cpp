@@ -133,4 +133,36 @@ void TESTS() {
     check_near(s[3].mean, 40, 1e-9, "stride: B from active origin");
     check(s[0].saturated_fraction == 0, "stride: masked border not saturated");
   }
+
+  // --- near-ceiling: the sensor plateau can sit below the metadata white ---
+  //
+  // The Fuji X-T100 pins at RAW 16381 while white_level reports 16383, so an
+  // exact `raw >= white` test reports zero saturation on a frame that is
+  // completely clipped. near_ceiling_fraction measures the signal-referred
+  // headroom instead: residual >= level * (white - black).
+  {
+    const std::array<double, 4> black = {1024, 1024, 1024, 1024};
+    const double white = 16383;  // signal-referred ceiling 15359, 98% -> 15052
+
+    std::vector<std::uint16_t> pinned = {16381, 16381, 16381, 16381};
+    const auto s = cfa_plane_stats(pinned.data(), 2, 2, kRGGB, kCdesc, black,
+                                   white);
+    check(s[0].saturated_fraction == 0,
+          "near-ceiling: exact saturation test still reports zero");
+    check_near(s[0].near_ceiling_fraction, 1.0, 1e-9,
+               "near-ceiling: a plateau two DN below white is fully flagged");
+
+    // 16075 - 1024 = 15051, one DN under the 98% threshold.
+    std::vector<std::uint16_t> under = {16075, 16075, 16075, 16075};
+    const auto below = cfa_plane_stats(under.data(), 2, 2, kRGGB, kCdesc, black,
+                                       white);
+    check(below[0].near_ceiling_fraction == 0,
+          "near-ceiling: one DN under the threshold is not flagged");
+
+    // The threshold is a caller policy, not a constant baked into the stats.
+    const auto loose = cfa_plane_stats(under.data(), 2, 2, kRGGB, kCdesc, black,
+                                       white, 0.90);
+    check_near(loose[0].near_ceiling_fraction, 1.0, 1e-9,
+               "near-ceiling: level is configurable");
+  }
 }

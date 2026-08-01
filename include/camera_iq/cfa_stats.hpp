@@ -18,6 +18,12 @@ struct ChannelStats {
   double stddev = 0.0;            // population standard deviation of residuals
   double below_black_fraction = 0.0;  // fraction with residual < 0
   double saturated_fraction = 0.0;  // fraction with RAW value >= white
+  // Fraction with residual >= near_ceiling_level * (white - black). Sensors
+  // often plateau below the reported white level — the Fuji X-T100 pins at RAW
+  // 16381 against a white_level of 16383 — so `saturated_fraction` can read
+  // zero on a completely clipped frame. This is the signal-referred headroom
+  // measure that does not depend on hitting `white` exactly.
+  double near_ceiling_fraction = 0.0;
 };
 
 // Builds channel labels for the four top-left mosaic positions from LibRaw's
@@ -37,6 +43,10 @@ std::array<std::string, 4> channel_labels(
 //   cdesc          LibRaw color descriptor, for channel labels
 //   black_at_position  black level subtracted per position
 //   white          saturation threshold; a RAW value >= white counts saturated
+//   near_ceiling_level  fraction of the signal-referred ceiling
+//                  (white - black) at or above which a residual counts as
+//                  near-ceiling. 0.98 matches the flat-field guard in
+//                  cmd_patches.cpp.
 //
 // The CFA position of pixel (r,c) is (r % 2, c % 2), i.e. the phase assumes the
 // mosaic origin aligns with the active-area (0,0) position. Statistics are over
@@ -45,7 +55,8 @@ std::array<std::string, 4> channel_labels(
 std::array<ChannelStats, 4> cfa_plane_stats(
     const std::uint16_t* data, int width, int height,
     const std::array<int, 4>& color_at_position, const std::string& cdesc,
-    const std::array<double, 4>& black_at_position, double white);
+    const std::array<double, 4>& black_at_position, double white,
+    double near_ceiling_level = 0.98);
 
 // Same as cfa_plane_stats(), but each source row advances by row_stride_pixels.
 // `data` points at the active-area origin. This lets LibRaw callers crop masked
@@ -53,6 +64,7 @@ std::array<ChannelStats, 4> cfa_plane_stats(
 std::array<ChannelStats, 4> cfa_plane_stats_strided(
     const std::uint16_t* data, int width, int height, int row_stride_pixels,
     const std::array<int, 4>& color_at_position, const std::string& cdesc,
-    const std::array<double, 4>& black_at_position, double white);
+    const std::array<double, 4>& black_at_position, double white,
+    double near_ceiling_level = 0.98);
 
 }  // namespace camera_iq

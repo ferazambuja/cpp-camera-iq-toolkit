@@ -743,8 +743,11 @@ void TESTS() {
       camera_iq::ImatestYMultiFile file;
       file.filename = "fixture.NEF";
       file.run_date = "fixture";
-      file.rois.push_back(camera_iq::ImatestYMultiRoi{
-          .n = 1, .edge_id = "0_0_R", .imatest_mtf50_cy_per_px = center});
+      camera_iq::ImatestYMultiRoi center_roi;
+      center_roi.n = 1;
+      center_roi.edge_id = "0_0_R";
+      center_roi.imatest_mtf50_cy_per_px = center;
+      file.rois.push_back(center_roi);
       for (int n = 2; n <= 5; ++n) {
         camera_iq::ImatestYMultiRoi roi;
         roi.n = n;
@@ -896,8 +899,11 @@ void TESTS() {
       camera_iq::ImatestYMultiFile file;
       file.filename = "fixture.NEF";
       file.run_date = "fixture";
-      file.rois.push_back(camera_iq::ImatestYMultiRoi{
-          .n = 1, .edge_id = "0_0_R", .imatest_mtf50_cy_per_px = center});
+      camera_iq::ImatestYMultiRoi center_roi;
+      center_roi.n = 1;
+      center_roi.edge_id = "0_0_R";
+      center_roi.imatest_mtf50_cy_per_px = center;
+      file.rois.push_back(center_roi);
       for (int n = 2; n <= 5; ++n) {
         camera_iq::ImatestYMultiRoi roi;
         roi.n = n;

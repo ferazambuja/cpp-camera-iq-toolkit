@@ -79,6 +79,8 @@ void write_report_json(std::ostream& os, const std::string& file,
     w.value(p.below_black_fraction);
     w.key("saturated_fraction");
     w.value(p.saturated_fraction);
+    w.key("near_ceiling_fraction");
+    w.value(p.near_ceiling_fraction);
     w.end_object();
   }
   w.end_array();
