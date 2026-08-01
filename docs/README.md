@@ -7,7 +7,7 @@ and principal results.
 
 ## Featured case studies
 
-### D800/D810 SFR aperture and field analysis
+### D800/D810 + 50 mm f/1.4G SFR aperture and field analysis
 
 [Case study](case-studies/sfr-mtf-aperture-field.md) ·
 [aggregate data](data/sfr_aperture_summary.csv) ·
@@ -16,8 +16,10 @@ and principal results.
 [tests](../tests/test_sfr.cpp)
 
 The toolkit accepted 299 field ROIs across 13 aperture conditions. It captured a
-clear D810 f/5.6 peak while retaining the D800's non-transfer result and
-off-axis behavior.
+clear f/5.6 peak on the D810 capture system while retaining the D800 system's
+non-transfer result and off-axis behavior. Both sweeps record the same 50 mm
+f/1.4G lens model, so the findings describe capture systems, not camera bodies
+alone; physical lens-sample identity remains unverified.
 
 ### Spectral sensitivity and camera color fidelity
 
@@ -43,6 +45,20 @@ shown directly beside the result.
 The pipeline moves from RAW patch extraction through flat-field/WB handling to
 a linear RGB-to-XYZ fit and deterministic held-out Delta E diagnostics.
 
+### CFA flat-field response
+
+[Case study](case-studies/cfa-flat-field-response.md) ·
+[aggregate maps](data/flat_field_response.csv) ·
+[frame screening](data/flat_field_summary.csv) ·
+[detailed report](reports/FLAT_FIELD_RESPONSE.md) ·
+[implementation](../src/shading.cpp) ·
+[tests](../tests/test_shading.cpp)
+
+The analyzer separates four Bayer positions, rejects a clipped normalizing
+center, checks global and center/corner dark residuals with compatible capture
+metadata, and reports capture-system green/chromatic fields with pair-difference
+and quadrant-asymmetry diagnostics.
+
 ## Validation decisions
 
 - [RAW chart localization](reports/RAW_CHART_LOCALIZATION.md) correctly remains
@@ -65,6 +81,7 @@ a linear RGB-to-XYZ fit and deterministic held-out Delta E diagnostics.
 | [Bilinear demosaic](reports/BILINEAR_DEMOSAIC.md) | Transparent sensor-DN baseline with synthetic and LibRaw comparisons |
 | [Dark calibration](reports/DARK_CALIBRATION.md) | Metadata-black reconciliation against 21 dark candidates |
 | [Dark-frame noise](reports/DARK_FRAME_NOISE.md) | Temporal noise, DSNU, and dark-current diagnostics in DN |
+| [Relative CFA flat-field response](reports/FLAT_FIELD_RESPONSE.md) | Per-CFA spatial response, chromatic ratios, clipping, bounded dark-control checks, one capture-pair delta, and asymmetry |
 
 ### Color and chart analysis
 

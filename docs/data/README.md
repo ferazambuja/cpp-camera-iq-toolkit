@@ -9,6 +9,8 @@ exports, or editable copies of private references.
 | [`sfr_aperture_summary.csv`](sfr_aperture_summary.csv) | [SFR/MTF](../reports/SFR_MTF.md) | [aperture and field](../figures/sfr_aperture_field.svg) |
 | [`spectral_color_fidelity.csv`](spectral_color_fidelity.csv) | [spectral sensitivity](../reports/SPECTRAL_SENSITIVITY.md) | [five-camera comparison](../figures/spectral_color_fidelity.svg) |
 | [`ccm_validation_summary.csv`](ccm_validation_summary.csv) | [CCM fit](../reports/CCM_FIT.md) | [CCM validation](../figures/ccm_validation.svg) |
+| [`flat_field_summary.csv`](flat_field_summary.csv) | [flat-field response](../reports/FLAT_FIELD_RESPONSE.md) | [CFA flat-field response](../figures/flat_field_response.svg) |
+| [`flat_field_response.csv`](flat_field_response.csv) | [flat-field response](../reports/FLAT_FIELD_RESPONSE.md) | [CFA flat-field response](../figures/flat_field_response.svg) |
 
 Toolkit SFR values retain eight-decimal measurement precision so derived field
 margins do not depend on rounded operands; narrative tables round them to four

@@ -229,7 +229,9 @@ NoisePairEstimate compute_noise_pair_estimate(
     plane.difference_stddev_dn = diff_stats.stddev;
     plane.temporal_noise_dn = diff_stats.stddev / std::sqrt(2.0);
     plane.pair_mean_spatial_stddev_dn = mean_stats.stddev;
-    plane.pair_mean_mad_stddev_dn = mad_stddev(means[p]);
+    // mad_stddev takes its sample by value and this is the plane's last use, so
+    // move instead of copying a full-frame vector<double> per plane.
+    plane.pair_mean_mad_stddev_dn = mad_stddev(std::move(means[p]));
     plane.dsnu_variance_dn2 =
         mean_stats.stddev * mean_stats.stddev -
         (plane.temporal_noise_dn * plane.temporal_noise_dn) / 2.0;

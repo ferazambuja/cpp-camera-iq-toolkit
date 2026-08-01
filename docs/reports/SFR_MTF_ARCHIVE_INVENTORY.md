@@ -59,6 +59,38 @@ The result CSVs contain Imatest SFR fields including `MTF50`, `MTF50P`,
 readouts. These are comparison/fidelity references for a fresh C++
 implementation, not correctness oracles by themselves.
 
+## Capture Metadata Audit
+
+On 2026-07-31, ExifTool was run across the 18 filename-keyed aperture-sweep
+NEFs used by this report. Body serial numbers were checked for set identity but
+are intentionally omitted from public documentation.
+
+| Field | D810 sweep | D800 sweep | Evidence boundary |
+|---|---|---|---|
+| Files audited | 9/9 | 9/9 | Complete f/1.4 through f/16 sweep |
+| Lens ID | AF-S Nikkor 50mm f/1.4G | same | Same recorded model only |
+| `LensSerialNumber` | absent in all files | absent in all files | Physical sample identity unverified |
+| Focal length | 50 mm | 50 mm | EXIF |
+| `FocusDistance` | 0.84 m in all files | 0.84 m in all files | Approximate maker-note-derived value |
+| Focus mode | AF-S | Manual | EXIF |
+| `FocusPosition` | raw code `0x11` in all files | raw code `0x11` in all files | Opaque 8-bit maker-note value; no physical calibration claimed |
+| ISO | 100 | 100 | EXIF |
+| Capture window | 2016-12-09 17:53:04–17:54:56 | 2016-12-09 18:44:53–18:48:48 | Camera-local timestamps |
+
+The matching focus-position code is retained as a metadata observation only.
+ExifTool documents Nikon `FocusPosition` as an 8-bit field and warns that the
+related `FocusDistance` is approximate and inaccurate for some lenses; neither
+field proves unchanged focus or focus accuracy.
+
+Manufacturer specifications are a separate evidence layer. Nikon describes
+the [D800](https://www.nikonusa.com/press-room/expectations-surpassed-the-36)
+as using an enhanced optical low-pass filter and the
+[D810](https://www.nikonusa.com/press-room/d810-the-power-to-create) as having
+no OLPF. Both specifications list a 35.9 x 24.0 mm sensor and 7360 x 4912
+full-resolution output. Their nominal sampling pitch therefore matches, but
+this does not isolate the OLPF, focus, alignment, lens-sample, or other
+capture-system contributions to the measured SFR.
+
 ## D810 Oracle Contract
 
 The implemented D810 center sweep uses exact filename-keyed NEFs, per-file ROI

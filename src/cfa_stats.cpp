@@ -37,16 +37,28 @@ std::array<std::string, 4> channel_labels(
 std::array<ChannelStats, 4> cfa_plane_stats(
     const std::uint16_t* data, int width, int height,
     const std::array<int, 4>& color_at_position, const std::string& cdesc,
-    const std::array<double, 4>& black_at_position, double white) {
+    const std::array<double, 4>& black_at_position, double white,
+    double near_ceiling_level) {
   return cfa_plane_stats_strided(data, width, height, width, color_at_position,
-                                 cdesc, black_at_position, white);
+                                 cdesc, black_at_position, white,
+                                 near_ceiling_level);
 }
 
 std::array<ChannelStats, 4> cfa_plane_stats_strided(
     const std::uint16_t* data, int width, int height, int row_stride_pixels,
     const std::array<int, 4>& color_at_position, const std::string& cdesc,
-    const std::array<double, 4>& black_at_position, double white) {
+    const std::array<double, 4>& black_at_position, double white,
+    double near_ceiling_level) {
   const auto labels = channel_labels(cdesc, color_at_position);
+
+  // Signal-referred near-ceiling threshold per CFA position. Computed once so
+  // the inner loop stays a comparison against a plain double.
+  std::array<double, 4> near_ceiling_threshold{};
+  for (int p = 0; p < 4; ++p) {
+    near_ceiling_threshold[static_cast<std::size_t>(p)] =
+        near_ceiling_level *
+        (white - black_at_position[static_cast<std::size_t>(p)]);
+  }
 
   // Welford online mean/M2 per CFA position. For <=14-bit raw the sumsq/n -
   // mean^2 form is already exact (sums stay under 2^53), so this is a no-op
@@ -55,7 +67,7 @@ std::array<ChannelStats, 4> cfa_plane_stats_strided(
   // cancellation.
   struct Acc {
     double mean = 0.0, m2 = 0.0, mn = 0.0, mx = 0.0;
-    std::size_t n = 0, below_black = 0, sat = 0;
+    std::size_t n = 0, below_black = 0, sat = 0, near_ceiling = 0;
     bool init = false;
   };
   std::array<Acc, 4> acc;
@@ -86,6 +98,7 @@ std::array<ChannelStats, 4> cfa_plane_stats_strided(
           if (v > a.mx) a.mx = v;
         }
         if (raw >= white) ++a.sat;
+        if (v >= near_ceiling_threshold[pos]) ++a.near_ceiling;
       }
     }
   }
@@ -105,6 +118,7 @@ std::array<ChannelStats, 4> cfa_plane_stats_strided(
       s.max = a.mx;
       s.below_black_fraction = static_cast<double>(a.below_black) / n;
       s.saturated_fraction = static_cast<double>(a.sat) / n;
+      s.near_ceiling_fraction = static_cast<double>(a.near_ceiling) / n;
     }
   }
   return out;

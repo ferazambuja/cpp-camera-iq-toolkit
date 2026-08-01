@@ -44,7 +44,7 @@
   <rect x="400" y="278" width="202" height="92" rx="10" fill="#f0fdfa" stroke="#d8dee8"/>
   <text x="414" y="307" class="node-title">Measurement methods</text>
   <text x="414" y="330" class="node-detail">patches · CCM · spectral</text>
-  <text x="414" y="348" class="node-detail">OECF · noise · SFR</text>
+  <text x="414" y="348" class="node-detail">OECF · noise · SFR · shading</text>
   <line x1="640" y1="232" x2="501" y2="270" stroke="#d8dee8" stroke-width="1.5"/>
   <rect x="638" y="278" width="202" height="92" rx="10" fill="#f5f3ff" stroke="#d8dee8"/>
   <text x="652" y="307" class="node-title">Verification</text>

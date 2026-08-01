@@ -36,6 +36,12 @@ modeling, or color correction yet.
   analysis is not biased upward.
 - Saturation is counted on the raw value before black subtraction:
   `raw >= white_level`.
+- `near_ceiling_fraction` counts residuals at or above 98% of the
+  signal-referred ceiling `white_level - black`. Sensors can plateau below the
+  reported white level — the Fuji X-T100 pins at raw 16381 against a
+  `white_level` of 16383 — so `saturated_fraction` reads zero on frames that are
+  entirely clipped. Use `near_ceiling_fraction` for headroom decisions and
+  `saturated_fraction` only for exact-white accounting.
 
 ## Real-Data Validation Run
 

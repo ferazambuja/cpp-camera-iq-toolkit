@@ -743,8 +743,11 @@ void TESTS() {
       camera_iq::ImatestYMultiFile file;
       file.filename = "fixture.NEF";
       file.run_date = "fixture";
-      file.rois.push_back(camera_iq::ImatestYMultiRoi{
-          .n = 1, .edge_id = "0_0_R", .imatest_mtf50_cy_per_px = center});
+      camera_iq::ImatestYMultiRoi center_roi;
+      center_roi.n = 1;
+      center_roi.edge_id = "0_0_R";
+      center_roi.imatest_mtf50_cy_per_px = center;
+      file.rois.push_back(center_roi);
       for (int n = 2; n <= 5; ++n) {
         camera_iq::ImatestYMultiRoi roi;
         roi.n = n;
@@ -874,7 +877,7 @@ void TESTS() {
     test::check(summary->physical_corner_count == 4,
                 "D800 field summary finds 4 physical corners");
     test::check(summary->field_argmax_n == 12,
-                "D800 field argmax is N=12 (top-center: field tilt)");
+                "D800 field argmax is N=12 (top-center location, cause not claimed)");
     test::check(!summary->center_is_field_max,
                 "D800 center is not the field max at f/8");
     test::check_near(summary->center_mtf50_cy_per_px, 0.1831, 1e-12,
@@ -888,14 +891,19 @@ void TESTS() {
 
   {
     // D800 center-vs-corner oracle behavior differs from D810: the corner max
-    // BEATS center at f/4 and f/5.6 (field tilt + aberrations in this
-    // capture), so only f/8 and f/11 are gated; f/4 and f/5.6 are diagnostic.
+    // BEATS center at f/4 and f/5.6 in this capture, so only f/8 and f/11 are
+    // gated; f/4 and f/5.6 are diagnostic. The mechanism is not identified:
+    // fixed-axis edges do not separate field azimuth from sagittal/tangential
+    // response, even at similar radii.
     auto make_file = [](double center, double corner_max) {
       camera_iq::ImatestYMultiFile file;
       file.filename = "fixture.NEF";
       file.run_date = "fixture";
-      file.rois.push_back(camera_iq::ImatestYMultiRoi{
-          .n = 1, .edge_id = "0_0_R", .imatest_mtf50_cy_per_px = center});
+      camera_iq::ImatestYMultiRoi center_roi;
+      center_roi.n = 1;
+      center_roi.edge_id = "0_0_R";
+      center_roi.imatest_mtf50_cy_per_px = center;
+      file.rois.push_back(center_roi);
       for (int n = 2; n <= 5; ++n) {
         camera_iq::ImatestYMultiRoi roi;
         roi.n = n;

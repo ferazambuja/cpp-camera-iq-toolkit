@@ -4,6 +4,8 @@
 from __future__ import annotations
 
 import importlib.util
+import subprocess
+import tempfile
 import unittest
 from pathlib import Path
 
@@ -23,6 +25,19 @@ def matched(text: str) -> bool:
 
 
 class PublicationLanguageTests(unittest.TestCase):
+    def test_public_markdown_includes_untracked_public_plan(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            repo = Path(temp)
+            subprocess.run(
+                ["git", "init", "--quiet"], cwd=repo, check=True
+            )
+            (repo / "README.md").write_text("# Project\n", encoding="utf-8")
+            plan = repo / "docs" / "plans" / "PLAN.md"
+            plan.parent.mkdir(parents=True)
+            plan.write_text("# Public implementation record\n", encoding="utf-8")
+
+            self.assertIn(plan, DOCS.public_markdown(repo))
+
     def test_rejects_completed_slice_and_staging_language(self) -> None:
         phrases = [
             "The first implementation slice should use the D810 sweep.",

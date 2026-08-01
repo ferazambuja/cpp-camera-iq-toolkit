@@ -1,12 +1,15 @@
-# D800/D810 slanted-edge SFR: aperture and field behavior
+# D800/D810 + 50 mm f/1.4G slanted-edge SFR: aperture and field behavior
 
 ## Overview
 
 This study implements a green-linear slanted-edge SFR pipeline in C++ and
-applies it to D800 and D810 50 mm aperture sweeps. All 299 field ROIs were
-accepted. The result is not a universal lens rule: the D810 showed a strong
-f/5.6 peak, while the D800 retained a different aperture trend and off-axis
-pattern.
+applies it to two archived 50 mm aperture sweeps, one on a D800 body and one on
+a D810 body. Slanted-edge SFR measures a whole capture system — lens, aperture,
+focus and alignment state, OLPF, sensor sampling, and processing path — so every
+result below belongs to a capture system, not to a camera body or a lens alone.
+All 299 field ROIs were accepted. The result is not a universal lens rule: the
+D810 system showed a strong f/5.6 peak, while the D800 system retained a
+different aperture trend and off-axis pattern.
 
 [Documentation index](../README.md) ·
 [detailed report](../reports/SFR_MTF.md) ·
@@ -21,8 +24,7 @@ A center-only MTF value can hide field tilt, decentering, corner behavior, or
 capture-specific focus. The engineering question was therefore two-part:
 
 1. Does the center response follow a physically plausible aperture trend?
-2. Does that trend transfer across camera/capture sets and across the image
-   field?
+2. Does that trend transfer across capture systems and across the image field?
 
 ![Reduced crop showing slanted-edge regions distributed across the SFR target](../images/sfr-field-target.jpg)
 
@@ -55,6 +57,37 @@ per-file result tables. Source captures remain outside Git. Imatest values are
 an advisory fidelity reference because its luma/gamma pipeline differs from the
 toolkit's sensor-linear green path.
 
+### Recorded capture configuration
+
+All 18 aperture-sweep files record the same AF-S Nikkor 50mm f/1.4G lens
+model at 50 mm, an approximate 0.84 m focus distance, and ISO 100. A
+publication-safe metadata audit is recorded in the
+[archive inventory](../reports/SFR_MTF_ARCHIVE_INVENTORY.md#capture-metadata-audit).
+The two sets differ in ways that matter:
+
+| Property | D810 set | D800 set |
+|---|---|---|
+| Files audited | 9/9 | 9/9 |
+| Focus mode | AF-S | Manual |
+| `FocusPosition` raw code | `0x11` in all files | `0x11` in all files |
+| Capture time | 2016-12-09 17:53–17:54 | 2016-12-09 18:44–18:48 |
+| Optical low-pass filter | absent | present |
+
+`FocusPosition` is an opaque maker-note code, and ExifTool identifies the
+related focus distance as approximate. Its constant value documents metadata
+consistency; it does not prove unchanged focus or focus accuracy. The lens
+serial number is absent, so the archive proves the same lens model, not the same
+physical sample. Captures about 50 minutes apart make a single copy plausible
+but unverified.
+
+Nikon specifies the D800 with an enhanced OLPF and the D810 without an OLPF;
+both are specified at 35.9 x 24.0 mm and 7360 x 4912 pixels. Their nominal
+sampling pitch therefore matches, so the cycles/pixel comparison is not
+confounded by a nominal pixel-pitch difference. The matching scale does not
+remove the other capture-system differences.
+
+### Validation
+
 Validation combines:
 
 - synthetic edge, orientation, clipping, ESF-gap, and rejection tests;
@@ -64,27 +97,66 @@ Validation combines:
 
 ## Results and engineering decision
 
-- D810 center MTF50 peaked at **0.2714 cycles/pixel at f/5.6**.
+- The D810 capture system peaked at **0.2714 cycles/pixel at f/5.6** in center
+  MTF50. That location is consistent with the usual balance between residual
+  lens aberrations wide open and diffraction on stopping down, but it is a
+  property of this system and setup, not of the camera or the lens alone.
 - D810 center exceeded the strongest physical corner at f/5.6, f/8, and f/11;
   f/4 was a near tie/slight corner win.
 - D800 did **not** satisfy the D810 aperture-trend gate. Both toolkit and
   advisory results keep f/4 below f/16 at center.
 - The D800 field maximum moved away from center through the mid apertures; the
   toolkit and advisory source agreed on the dominant location at f/4 through
-  f/11.
+  f/11. At f/4 the toolkit's strongest physical corner exceeds its center by
+  32%. The advisory table for that file labels no ROI `Corner` — its regions are
+  `Center` and `Pt Way` — so the comparable advisory figure is its
+  most-peripheral ROI, +19% over center. The mid-aperture maximum sits at grid
+  point N=12, a top-center edge 1414 px above center, and +60% over center in
+  the advisory path. That maximum alone proves nothing about symmetry: a
+  centered radial response may peak on an annulus. Comparing arbitrary
+  near-radius ROIs proves nothing either, because every edge here is fixed-axis
+  and near-vertical, so a change in field azimuth changes the sagittal/tangential
+  mixture even for a perfectly centered lens.
+- **Near-mirror partners constrain it much harder.** For an exactly vertical
+  edge the sagittal/tangential mixture depends on `|x| / r`, so an exact
+  reflection through the horizontal axis would preserve radius and mixture
+  together, and any centered rotationally symmetric system — astigmatic ones
+  included — would have to return the same MTF50. The grid offers three
+  near-reflections: N=14/N=16 differ by 0.54% in radius and 0.80% in mixture yet
+  read 0.1403 against 0.1054 at f/4; N=2/N=4 differ by 0.76% and read 0.1647
+  against 0.0945; N=18/N=20 differ by 4.06% and read 0.1878 against 0.1055. All
+  three favor the upper field, at three radii and two apertures, and in every
+  pair the upper site sits at the *larger* radius — so a centered profile that
+  falls with radius predicts the opposite ordering. Explaining this with a
+  centered response would need a radial profile rising 33% across a 0.54% step
+  in radius. That is strong evidence against centered rotational symmetry rather
+  than a formal exclusion, which would require controlled radial/tangential edge
+  orientations this archive does not contain. The responsible component stays
+  open: tilt, decentering and alignment all produce an upper/lower imbalance,
+  and the aperture behavior does not separate them, since stopping down reduces
+  several geometric aberrations as well as widening depth-of-field tolerance.
 - Center agreement stayed within ±0.015 cycles/pixel on D800, while off-axis
   differences were larger—consistent with comparing green-linear CFA SFR to a
-  rendered-luma reference path.
+  rendered-luma reference path. The center agreement makes a toolkit-only gross
+  numerical artifact less likely, but both paths use the same captures and do
+  not independently identify the physical cause.
 
-The decision was to keep gates camera/capture-specific. The D800 non-transfer
+The decision was to keep gates capture-system-specific. The D800 non-transfer
 result is more informative than redefining a rule until both datasets pass.
 
 ## Interpretation limits
 
-This is sensor-linear green SFR, not rendered-Y equivalence, lp/mm reporting, or
-a full sagittal/tangential lens model. Focus state, optical low-pass filtering,
-and capture differences prevent attributing the D800/D810 gap to one component
-alone.
+This is a system SFR study, not a standalone lens characterization: it lacks
+verified lens-sample identity, controlled refocusing, repeat captures, lp/mm
+normalization, and sagittal/tangential coverage. It is also sensor-linear green
+SFR, not rendered-Y equivalence.
+
+The D800/D810 gap cannot be attributed to one component. Their OLPF designs
+differ, which is a plausible body-side contribution, but this archive does not
+isolate its magnitude. Focus mode, capture/alignment state, and unverified focus
+accuracy also differ. The common lens model and close capture times make a
+single lens copy plausible, not proven, and do not authorize ranking lens,
+body, or setup contributions.
 
 ## Implementation and tests
 

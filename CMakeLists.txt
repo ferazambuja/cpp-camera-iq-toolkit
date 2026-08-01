@@ -9,6 +9,11 @@ set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
+# Emit build/compile_commands.json so clangd resolves include paths the same way
+# the build does. Without it, editor diagnostics are indistinguishable from real
+# compile errors and "that was only editor noise" is an unfalsifiable claim.
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+
 if(NOT CMAKE_BUILD_TYPE)
   set(CMAKE_BUILD_TYPE Release)
 endif()
@@ -75,7 +80,9 @@ add_library(camera_iq_core STATIC
   src/cmd_spectral_closure.cpp
   src/cmd_spectral_quality.cpp
   src/cmd_spectral_smi.cpp
-  src/cmd_patches.cpp)
+  src/cmd_patches.cpp
+  src/shading.cpp
+  src/cmd_shading.cpp)
 target_include_directories(camera_iq_core PUBLIC include)
 target_compile_definitions(camera_iq_core PUBLIC
   CAMERA_IQ_VERSION="${PROJECT_VERSION}")
@@ -134,6 +141,8 @@ camera_iq_add_test(test_cmd_spectral_smi tests/test_cmd_spectral_smi.cpp)
 camera_iq_add_test(test_cmd_spectral_quality tests/test_cmd_spectral_quality.cpp)
 camera_iq_add_test(test_cmd_spectral_closure tests/test_cmd_spectral_closure.cpp)
 camera_iq_add_test(test_cmd_patches tests/test_cmd_patches.cpp)
+camera_iq_add_test(test_shading tests/test_shading.cpp)
+camera_iq_add_test(test_cmd_shading tests/test_cmd_shading.cpp)
 
 add_test(NAME check_public_paths
   COMMAND bash ${CMAKE_SOURCE_DIR}/tools/check_public_paths.sh)
@@ -154,3 +163,5 @@ add_test(NAME test_portfolio_docs
   COMMAND python3 ${CMAKE_SOURCE_DIR}/tools/test_portfolio_docs.py)
 add_test(NAME test_portfolio_figures
   COMMAND python3 ${CMAKE_SOURCE_DIR}/tools/test_portfolio_figures.py)
+add_test(NAME test_export_shading_portfolio
+  COMMAND python3 ${CMAKE_SOURCE_DIR}/tools/test_export_shading_portfolio.py)

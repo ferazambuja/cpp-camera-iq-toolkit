@@ -530,6 +530,222 @@ def generate_ccm(data_dir: Path) -> str:
     return "\n".join(out) + "\n"
 
 
+def generate_shading(data_dir: Path) -> str:
+    summary = read_rows(
+        data_dir / "flat_field_summary.csv",
+        [
+            "file",
+            "aperture",
+            "shutter",
+            "accepted",
+            "failed_gates",
+            "max_near_ceiling_gate",
+            "max_near_ceiling_frame",
+            "green_center_signal",
+            "green_asymmetry",
+            "dark_controls_verified",
+            "comparison_file",
+            "max_corner_delta_pp",
+            "rms_corner_delta_pp",
+            "analysis_policy",
+        ],
+        52,
+    )
+    response = read_rows(
+        data_dir / "flat_field_response.csv",
+        [
+            "file",
+            "bin_row",
+            "bin_col",
+            "r_relative",
+            "g1_relative",
+            "g2_relative",
+            "b_relative",
+            "green_relative",
+            "c_rg",
+            "c_bg",
+            "c_g1g2",
+        ],
+        576,
+    )
+    accepted = [row for row in summary if row["accepted"] == "true"]
+    rejected = [row for row in summary if row["accepted"] == "false"]
+    if len(accepted) != 3 or len(rejected) != 49:
+        raise ValueError("flat_field_summary.csv: expected 3 accepted and 49 rejected")
+    if any(row["failed_gates"] != "near_ceiling" for row in rejected):
+        raise ValueError("flat_field_summary.csv: rejected-frame gate mix changed")
+    summary_files = [row["file"] for row in summary]
+    if len(set(summary_files)) != 52:
+        raise ValueError("flat_field_summary.csv: file labels must be unique")
+    aperture_census = {
+        aperture: sum(row["aperture"] == aperture for row in summary)
+        for aperture in {row["aperture"] for row in summary}
+    }
+    if aperture_census != {"5.6": 18, "8.0": 21, "9.0": 13}:
+        raise ValueError("flat_field_summary.csv: aperture census changed")
+    if any(
+        row["analysis_policy"] != "shading-v1-grid16x12-default-gates"
+        for row in summary
+    ):
+        raise ValueError("flat_field_summary.csv: mixed analysis policies")
+    comparison_rows = [row for row in summary if row["comparison_file"]]
+    if len(comparison_rows) != 1:
+        raise ValueError("flat_field_summary.csv: expected one capture-pair record")
+    primary_summary = comparison_rows[0]
+    primary_file = primary_summary["file"]
+    accepted_files = {row["file"] for row in accepted}
+    if primary_summary["comparison_file"] not in accepted_files:
+        raise ValueError("flat_field_summary.csv: comparison file is not accepted")
+    asymmetry = number(
+        primary_summary, "green_asymmetry", minimum=0.0, maximum=1.0
+    )
+    max_delta = number(
+        primary_summary, "max_corner_delta_pp", minimum=0.0, maximum=10.0
+    )
+    rms_delta = number(
+        primary_summary, "rms_corner_delta_pp", minimum=0.0, maximum=10.0
+    )
+    number(primary_summary, "green_center_signal", minimum=0.0, maximum=1.0)
+    if any(row["dark_controls_verified"] != "true" for row in accepted):
+        raise ValueError("flat_field_summary.csv: accepted dark controls are not verified")
+
+    by_file: dict[str, list[dict[str, str]]] = {}
+    bin_keys: dict[str, set[tuple[int, int]]] = {}
+    for row in response:
+        by_file.setdefault(row["file"], []).append(row)
+        grid_row = int(row["bin_row"])
+        grid_col = int(row["bin_col"])
+        if not 0 <= grid_row < 12 or not 0 <= grid_col < 16:
+            raise ValueError("flat_field_response.csv: bin outside 16x12 grid")
+        key = (grid_row, grid_col)
+        file_keys = bin_keys.setdefault(row["file"], set())
+        if key in file_keys:
+            raise ValueError("flat_field_response.csv: duplicate bin coordinate")
+        file_keys.add(key)
+        for field, lo, hi in (
+            ("r_relative", 0.0, 1.2),
+            ("g1_relative", 0.0, 1.2),
+            ("g2_relative", 0.0, 1.2),
+            ("b_relative", 0.0, 1.2),
+            ("green_relative", 0.0, 1.2),
+            ("c_rg", 0.9, 1.1),
+            ("c_bg", 0.9, 1.1),
+            ("c_g1g2", 0.9, 1.1),
+        ):
+            number(row, field, minimum=lo, maximum=hi)
+    if len(by_file) != 3 or any(len(rows) != 192 for rows in by_file.values()):
+        raise ValueError("flat_field_response.csv: expected three complete maps")
+    if set(by_file) != accepted_files:
+        raise ValueError("flat_field_response.csv: files do not match accepted summary")
+    expected_bins = {(row, col) for row in range(12) for col in range(16)}
+    if any(keys != expected_bins for keys in bin_keys.values()):
+        raise ValueError("flat_field_response.csv: incomplete bin Cartesian product")
+    primary = sorted(
+        by_file[primary_file], key=lambda row: (int(row["bin_row"]), int(row["bin_col"]))
+    )
+
+    def rgb(hex_color: str) -> tuple[int, int, int]:
+        return tuple(int(hex_color[i : i + 2], 16) for i in (1, 3, 5))
+
+    def blend(a: str, b: str, amount: float) -> str:
+        amount = max(0.0, min(1.0, amount))
+        av, bv = rgb(a), rgb(b)
+        values = [round(x + (y - x) * amount) for x, y in zip(av, bv)]
+        return "#" + "".join(f"{value:02x}" for value in values)
+
+    def sequential(value: float, lo: float, hi: float) -> str:
+        return blend("#edf5ff", "#0f4c81", (value - lo) / (hi - lo))
+
+    def diverging(value: float, span: float) -> str:
+        delta = max(-1.0, min(1.0, (value - 1.0) / span))
+        return blend("#f8fafc", "#b91c1c" if delta < 0 else "#1d4ed8", abs(delta))
+
+    width, height = 1200, 800
+    out = svg_start(
+        width,
+        height,
+        "CFA flat-field response characterization",
+        (
+            "A 16 by 12 center-normalized green response map and chromatic "
+            "ratio maps for a Fujifilm X-T100 f/8 sphere capture, accompanied "
+            "by saturation, pair-difference, dark-control and asymmetry diagnostics."
+        ),
+    )
+    out += [
+        '<rect width="1200" height="800" rx="16" fill="#ffffff"/>',
+        '<text x="42" y="45" class="title">CFA flat-field response · f/8 sphere capture</text>',
+        '<text x="42" y="70" class="subtitle">Capture-system field response in black-subtracted DN; 16 × 12 per-CFA medians</text>',
+    ]
+    steps = [
+        ("1 · RAW mosaic", "LibRaw active area", "per-position black removal"),
+        ("2 · Quality gates", "near-ceiling · negative", "signal · coverage"),
+        ("3 · Normalize", "each CFA plane ÷ its", "center-block median"),
+        ("4 · Interpret", "G field · R/G · B/G", "G1/G2 and quadrant A"),
+    ]
+    for index, (title, detail1, detail2) in enumerate(steps):
+        x = 42 + index * 288
+        out += [
+            f'<rect x="{x}" y="91" width="252" height="78" rx="10" fill="#f7f9fc" stroke="#d8dee8"/>',
+            f'<text x="{x + 14}" y="117" class="node-title">{title}</text>',
+            f'<text x="{x + 14}" y="140" class="node-detail">{detail1}</text>',
+            f'<text x="{x + 14}" y="158" class="node-detail">{detail2}</text>',
+        ]
+        if index < 3:
+            out.append(
+                f'<path d="M{x + 258},130 L{x + 278},130" stroke="#5f6b7a" stroke-width="2"/><path d="M{x + 274},125 L{x + 280},130 L{x + 274},135" fill="none" stroke="#5f6b7a" stroke-width="2"/>'
+            )
+
+    panels = [
+        ("A · Green relative response", "green_relative", 0.45, 1.05, False),
+        ("B · C_RG", "c_rg", 0.97, 1.03, True),
+        ("C · C_BG", "c_bg", 0.97, 1.05, True),
+    ]
+    panel_x = [42, 427, 812]
+    cell_w, cell_h = 18, 18
+    for px, (title, key, lo, hi, is_diverging) in zip(panel_x, panels):
+        out.append(f'<rect x="{px}" y="192" width="346" height="310" rx="12" fill="#f7f9fc"/>')
+        out.append(f'<text x="{px + 18}" y="222" class="panel-title">{title}</text>')
+        out.append(f'<text x="{px + 18}" y="244" class="subtitle">dimensionless · center normalized</text>')
+        map_x, map_y = px + 18, 260
+        for row in primary:
+            value = float(row[key])
+            color = diverging(value, max(1.0 - lo, hi - 1.0)) if is_diverging else sequential(value, lo, hi)
+            x = map_x + int(row["bin_col"]) * cell_w
+            y = map_y + int(row["bin_row"]) * cell_h
+            out.append(
+                f'<rect x="{x}" y="{y}" width="{cell_w}" height="{cell_h}" fill="{color}" stroke="#ffffff" stroke-width="0.5"/>'
+            )
+        out += [
+            f'<text x="{map_x}" y="{map_y + 232}" class="axis">{lo:.2f}</text>',
+            f'<text x="{map_x + 144}" y="{map_y + 232}" text-anchor="middle" class="axis">display range</text>',
+            f'<text x="{map_x + 288}" y="{map_y + 232}" text-anchor="end" class="axis">{hi:.2f}</text>',
+        ]
+
+    cards = [
+        ("Frame screening", "3 / 52 accepted", "49 rejected by the near-ceiling gate"),
+        ("Capture pair", f"max Δ {max_delta:.3f} pp", f"RMS Δ {rms_delta:.3f} pp over corner/plane pairs"),
+        ("Quadrant asymmetry", f"A = {100 * asymmetry:.2f}%", "exceeds the 5% project policy"),
+    ]
+    for index, (title, value, detail) in enumerate(cards):
+        x = 42 + index * 385
+        out += [
+            f'<rect x="{x}" y="526" width="346" height="94" rx="12" fill="#f7f9fc"/>',
+            f'<text x="{x + 18}" y="554" class="panel-title">{title}</text>',
+            f'<text x="{x + 18}" y="581" style="font-size:22px;font-weight:700;fill:#172033">{value}</text>',
+            f'<text x="{x + 18}" y="605" class="subtitle">{detail}</text>',
+        ]
+    out += [
+        '<rect x="42" y="646" width="1116" height="105" rx="12" fill="#fff7ed" stroke="#fed7aa"/>',
+        '<text x="62" y="678" class="panel-title">Engineering interpretation</text>',
+        '<text x="62" y="704" class="subtitle">Green falls to roughly one-half of its center response at the most affected bins, while R/G and B/G vary by only a few percent.</text>',
+        '<text x="62" y="727" class="subtitle">The green-CFA map is a capture-system field response; A diagnoses departure from a centred radial scalar model but does not identify its cause.</text>',
+        '<text x="62" y="750" class="subtitle">An exposure-metadata-compatible dark control checks global and center/corner residuals; the repeat frame bounds this pair only.</text>',
+        '<text x="1152" y="780" text-anchor="end" class="axis">Source: docs/data/flat_field_*.csv</text>',
+        "</svg>",
+    ]
+    return "\n".join(out) + "\n"
+
+
 def generate_architecture() -> str:
     width, height = 1000, 470
     out = svg_start(
@@ -578,7 +794,7 @@ def generate_architecture() -> str:
             "#f0fdfa",
             "Measurement methods",
             "patches · CCM · spectral",
-            "OECF · noise · SFR",
+            "OECF · noise · SFR · shading",
         ),
         (
             "#f5f3ff",
@@ -626,6 +842,7 @@ def outputs(repo_root: Path) -> dict[Path, str]:
         figure_dir / "sfr_aperture_field.svg": generate_sfr(data_dir),
         figure_dir / "spectral_color_fidelity.svg": generate_spectral(data_dir),
         figure_dir / "ccm_validation.svg": generate_ccm(data_dir),
+        figure_dir / "flat_field_response.svg": generate_shading(data_dir),
     }
 
 

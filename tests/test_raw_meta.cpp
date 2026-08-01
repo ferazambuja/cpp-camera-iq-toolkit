@@ -1,5 +1,8 @@
 #include "camera_iq/raw_meta.hpp"
 
+#include <libraw/libraw.h>
+
+#include <cstdio>
 #include <filesystem>
 #include <fstream>
 
@@ -7,11 +10,13 @@
 
 namespace fs = std::filesystem;
 using camera_iq::cfa_pattern_string;
+using camera_iq::body_serial_string;
 using camera_iq::effective_black_levels;
 using camera_iq::effective_raw_stride_pixels;
 using camera_iq::is_supported_bayer_filter;
 using camera_iq::read_raw_cfa_image;
 using camera_iq::read_raw_metadata;
+using camera_iq::raw_meta_from_processor;
 using test::check;
 
 void TESTS() {
@@ -24,6 +29,31 @@ void TESTS() {
         "cfa: out-of-range index rejected");
   check(cfa_pattern_string("", {0, 0, 0, 0}).empty(),
         "cfa: empty descriptor rejected");
+
+  const char serial_with_nul[8] = {'X', 'T', '1', '0', '0', '\0', 'x', 'x'};
+  check(body_serial_string(serial_with_nul, sizeof(serial_with_nul)) == "XT100",
+        "body serial: fixed LibRaw buffer stops at NUL");
+  const char serial_without_nul[4] = {'A', 'B', 'C', 'D'};
+  check(body_serial_string(serial_without_nul, sizeof(serial_without_nul)) ==
+            "ABCD",
+        "body serial: fixed LibRaw buffer is capacity bounded");
+  check(body_serial_string(nullptr, 64).empty(),
+        "body serial: null metadata buffer is empty");
+
+  {
+    LibRaw processor;
+    std::snprintf(processor.imgdata.idata.make,
+                  sizeof(processor.imgdata.idata.make), "%s", "TEST MAKE");
+    std::snprintf(processor.imgdata.idata.model,
+                  sizeof(processor.imgdata.idata.model), "%s", "TEST MODEL");
+    std::snprintf(processor.imgdata.shootinginfo.BodySerial,
+                  sizeof(processor.imgdata.shootinginfo.BodySerial), "%s",
+                  "BODY-42");
+    const auto meta = raw_meta_from_processor(processor);
+    check(meta.make == "TEST MAKE" && meta.model == "TEST MODEL" &&
+              meta.body_serial == "BODY-42",
+          "body serial: LibRaw shooting-info field maps into RawMeta");
+  }
 
   // LibRaw uses filters >= 1000 for ordinary Bayer masks. Special values below
   // 1000 include 0 (full color/monochrome), 1 (16x16 Leaf), and 9 (Fuji X-Trans),
