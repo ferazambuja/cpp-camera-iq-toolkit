@@ -123,3 +123,40 @@ would require additional captures such as source rotation, camera rotation,
 multiple unsaturated apertures, and an independently characterized uniform
 source. A correction path would additionally require applying a bounded gain
 map and remeasuring an independent capture.
+
+## Verification record
+
+A test count on its own is not auditable. Every claim below names the commit,
+toolchain, command, and result so it can be re-run or contradicted.
+
+| Item | Value |
+|---|---|
+| Commit under test | see `git rev-parse HEAD` at the time of the run |
+| Branch | `feature/cfa-flat-field-response` |
+| Local toolchain | Apple clang 21.0.0, CMake 4.4.2, macOS arm64 |
+| Configure | `cmake -S . -B build -DCMAKE_BUILD_TYPE=Release` |
+| Build | `cmake --build build --parallel` — no errors, no warnings |
+| Test | `ctest --test-dir build` — `100% tests passed out of 51` |
+| Docs guard | `python3 tools/check_portfolio_docs.py --repo-root .` — 30 Markdown files, 18 reports |
+
+Linux CI on the pushed branch, run `30723351641`:
+
+| Job | Result |
+|---|---|
+| `build-and-test (gcc)` | pass |
+| `build-and-test (clang)` | pass |
+| `undefined-behavior-sanitizer (clang)` | pass |
+
+Known history worth keeping rather than smoothing over:
+
+- An earlier pushed revision failed GCC, Clang and UBSan on the same overload
+  ambiguity: a `long long` cast against `JsonWriter`'s `double`/`int64_t`/`int`
+  overloads, whose resolution differs by platform. Fixed in `f1a353d` by
+  serializing the count as `std::int64_t`.
+- Implementation and tests landed together in `f958df9`, so the repository does
+  not contain independent red/green commits for the first two cycles. The cycles
+  happened, but the commit history is not evidence of them. Later cycles should
+  commit the failing test separately if that evidence is wanted.
+- `build/compile_commands.json` is now generated and symlinked at the repository
+  root. Editor diagnostics that disagree with the build are now falsifiable
+  rather than dismissible.
