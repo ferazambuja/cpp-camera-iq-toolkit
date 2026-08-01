@@ -2,6 +2,7 @@
 
 #include <array>
 #include <cmath>
+#include <cstdint>
 #include <cstdlib>
 #include <filesystem>
 #include <iomanip>
@@ -366,7 +367,7 @@ void write_shading_json(std::ostream& os, std::string_view file_label,
   w.key("chromatic_complete");
   w.value(chromatic_available && chroma.complete);
   w.key("missing_chromatic_bin_count");
-  w.value(static_cast<long long>(chroma.missing_bin_count));
+  w.value(static_cast<std::int64_t>(chroma.missing_bin_count));
   w.key("cfa_positions");
   if (chroma.layout_valid || chromatic_available) {
     w.begin_object();
