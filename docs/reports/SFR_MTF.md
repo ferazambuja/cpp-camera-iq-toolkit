@@ -146,17 +146,37 @@ Load-bearing findings:
   figure is its most-peripheral ROI at 0.1647 against 0.1385 at center, +19%.
   The mid-aperture maximum is N=12 at 244 px horizontally and 1414 px above
   center, reading 0.2211 in the advisory path: +60% over center.
-- **The sampled directional field varies off axis, but the mechanism remains
-  unresolved.** An off-axis maximum does not exclude a centered radial response:
-  it may peak on an annulus. Near-radius pairs do not close the question either.
-  All of these ROIs use fixed-axis, near-vertical edges, so changing field
-  azimuth changes the mixture of sagittal and tangential response even for a
-  centered rotationally symmetric lens; the available radii also differ by
-  1.8–4.1%. The archive therefore supports a directional field observation,
-  not proof of an asymmetric optical system. Separating target, sensor or
-  focus-plane tilt, decentering, alignment, and centered optical astigmatism
-  requires controlled radial/tangential edge orientations or a fitted
-  radial-plus-orientation baseline.
+- **The field is not centered rotationally symmetric; the mechanism is still
+  unresolved.** An off-axis maximum does not exclude a centered radial
+  response — it may peak on an annulus. Arbitrary near-radius pairs do not close
+  it either: every ROI here uses a fixed-axis, near-vertical edge, so changing
+  azimuth changes the sagittal/tangential mixture even for a centered
+  rotationally symmetric lens.
+
+  Mirror partners remove that confound. For a vertical edge the S/T mixture
+  depends on `|x| / r`, so reflecting a site through the horizontal axis
+  (`y → -y`) leaves both the radius and the mixture unchanged. Under **any**
+  centered rotationally symmetric system, including an astigmatic one, mirror
+  partners must therefore read the same MTF50. Three independent pairs do not:
+
+  | Pair | Position (x, y) px | Radius | f/4 MTF50 | f/8 MTF50 |
+  |---|---|---:|---|---|
+  | N=18 / N=20 | (-1504, -1387) / (-1499, +1266) | 2046 / 1963 | 0.1878 / 0.1055 (1.78x) | 0.1889 / 0.1507 (1.25x) |
+  | N=2 / N=4 | (-2788, -1354) / (-2801, +1270) | 3099 / 3075 | 0.1647 / 0.0945 (1.74x) | 0.1618 / 0.1365 (1.19x) |
+  | N=14 / N=16 | (-2797, -706) / (-2804, +608) | 2885 / 2821 | 0.1403 / 0.1054 (1.33x) | 0.1566 / 0.1399 (1.12x) |
+
+  All three favor the upper field, at three different radii, at two apertures.
+  Residual radius mismatch is at most 4.1%, which would have to produce a 33%
+  MTF50 change to explain even the smallest pair. A consistent-sign top/bottom
+  difference of this size is not producible by a centered radial profile.
+
+  What this does not decide is the cause. Target, sensor or focus-plane tilt,
+  decentering, and capture alignment all produce an upper/lower imbalance. The
+  aperture behavior is a hint and not more: the imbalance shrinks from 1.78x to
+  1.25x on stopping down from f/4 to f/8, which is what a depth-of-field
+  increase does to a tilted focus plane, and is not what a fixed geometric
+  aberration does. Separating them needs controlled radial/tangential edge
+  orientations or a fitted radial-plus-orientation baseline.
 - **Off-axis reference deltas are larger.** Green-linear CFA SFR and
   rendered-luma processing diverge more away from center. The disagreement is
   reported rather than used as evidence of equivalence.

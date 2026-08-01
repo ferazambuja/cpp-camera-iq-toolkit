@@ -112,14 +112,25 @@ Validation combines:
   `Center` and `Pt Way` — so the comparable advisory figure is its
   most-peripheral ROI, +19% over center. The mid-aperture maximum sits at grid
   point N=12, a top-center edge 1414 px above center, and +60% over center in
-  the advisory path. These fixed-axis, near-vertical edge samples establish a
-  directional field pattern, but they do **not** prove an asymmetric optical
-  system. At different field azimuths they sample different mixtures of
-  sagittal and tangential response, and the available near-radius pairs are not
-  exact radius matches. Distinguishing a centered optical field from target,
-  sensor or focus-plane tilt, decentering, or capture alignment would require
-  controlled edge orientation relative to the radial direction or a fitted
-  radial-plus-orientation baseline. This archive provides neither.
+  the advisory path. That maximum alone proves nothing about symmetry: a
+  centered radial response may peak on an annulus. Comparing arbitrary
+  near-radius ROIs proves nothing either, because every edge here is fixed-axis
+  and near-vertical, so a change in field azimuth changes the sagittal/tangential
+  mixture even for a perfectly centered lens.
+- **Mirror partners do settle the symmetry question.** For a vertical edge the
+  sagittal/tangential mixture depends on `|x| / r`, so reflecting a site through
+  the horizontal axis leaves both the radius and the mixture unchanged. Under
+  any centered rotationally symmetric system — astigmatic ones included — the
+  partners must read the same MTF50. Three independent pairs do not: N=18/N=20
+  reads 0.1878 against 0.1055 at f/4, N=2/N=4 reads 0.1647 against 0.0945, and
+  N=14/N=16 reads 0.1403 against 0.1054. All three favor the upper field, at
+  three radii, at two apertures, with at most 4.1% residual radius mismatch. The
+  field is therefore not centered rotationally symmetric. The cause is still
+  open — target, sensor or focus-plane tilt, decentering, and alignment all do
+  this — though the imbalance shrinking to 1.25x at f/8 is what added
+  depth of field does to a tilted focus plane, and not what a fixed geometric
+  aberration does. Ranking them needs controlled edge orientations this archive
+  does not contain.
 - Center agreement stayed within ±0.015 cycles/pixel on D800, while off-axis
   differences were larger—consistent with comparing green-linear CFA SFR to a
   rendered-luma reference path. The center agreement makes a toolkit-only gross
