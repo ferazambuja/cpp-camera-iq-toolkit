@@ -113,6 +113,34 @@ void TESTS() {
   }
 
   {
+    RawCfaImage img;
+    img.width = 2;
+    img.height = 2;
+    img.row_stride_pixels = 2;
+    img.color_at_position = {0, 1, 3, 2};
+    img.cdesc = "RGBG";
+    img.meta.white_level = 16383;
+    img.meta.black_per_channel = {1024, 1000, 900, 800};
+    // Each residual is the first integer at or above 98% of that plane's
+    // signal-referred ceiling, while reconstructed RAW remains below white.
+    img.samples = {15052, 15076, 15174, 15272};
+
+    const auto report = raw_cfa_report_for_roi(img, RoiRect{0, 0, 2, 2});
+    check(report.has_value(), "roi near-ceiling: report produced");
+    if (report) {
+      check_near(report->near_ceiling_level,
+                 camera_iq::kRawStatsNearCeilingLevel, 1e-12,
+                 "roi near-ceiling: effective policy is retained in report");
+      for (const auto& plane : report->planes) {
+        check_near(plane.near_ceiling_fraction, 1.0, 1e-12,
+                   "roi near-ceiling: per-plane signal ceiling is applied");
+        check(plane.saturated_fraction == 0,
+              "roi near-ceiling: below-white sample is not exact saturation");
+      }
+    }
+  }
+
+  {
     const auto img = fixture_image();
     const auto report = raw_cfa_report_for_roi(img, RoiRect{1, 1, 5, 3});
     check(report.has_value(), "roi stats: odd request can still produce ROI");

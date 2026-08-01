@@ -32,12 +32,12 @@ raw white level and 1,024 DN effective black level. The command accepted three
 f/8 frames and rejected 49 frames at the near-ceiling gate. All f/5.6 and f/9
 frames were rejected; this archive therefore cannot support an aperture trend.
 
-The primary and repeat f/8, 1/1000 s frames produced a maximum corner/plane
-difference of 0.378748 percentage points and an RMS difference of 0.181309
-percentage points. The primary green quadrant asymmetry was 0.196484, above the
-declared 0.05 project policy. `A` diagnoses departure from a centered radial
-scalar model; missing source/rotation controls require capture-system framing
-regardless of its verdict.
+The primary f/8, 1/1000 s frame (`DSCF0368`) and repeat frame (`DSCF0387`)
+produced a maximum corner/plane difference of 0.378748 percentage points and an
+RMS difference of 0.181309 percentage points. The primary green quadrant
+asymmetry was 0.196484, above the declared 0.05 project policy. `A` diagnoses
+departure from a centered radial scalar model; missing source/rotation controls
+require capture-system framing regardless of its verdict.
 
 The f/8, 1/500 s discriminator demonstrates why the gate region differs from a
 whole-frame check: the worst green plane was 11.6319% near ceiling inside the

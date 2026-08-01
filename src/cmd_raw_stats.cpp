@@ -12,14 +12,15 @@
 #include "camera_iq/raw_meta.hpp"
 
 namespace camera_iq {
-namespace {
 
-void write_report_json(std::ostream& os, const std::string& file,
-                       const RawCfaReport& r) {
+void write_raw_stats_json(std::ostream& os, std::string_view file,
+                          const RawCfaReport& r) {
   JsonWriter w(os);
   w.begin_object();
   w.key("file");
   w.value(file);
+  w.key("near_ceiling_level");
+  w.value(r.near_ceiling_level);
 
   w.key("camera");
   w.begin_object();
@@ -87,8 +88,6 @@ void write_report_json(std::ostream& os, const std::string& file,
   w.end_object();
 }
 
-}  // namespace
-
 int cmd_raw_stats(int argc, char** argv) {
   std::filesystem::path file;
   std::string dataset_id;
@@ -152,12 +151,14 @@ int cmd_raw_stats(int argc, char** argv) {
   }
 
   if (out.empty()) {
-    write_report_json(std::cout, file_label, *report);
+    write_raw_stats_json(std::cout, file_label, *report);
     std::cout << "\n";
   } else {
     if (!write_output_file_checked(
             out, "raw-stats",
-            [&](std::ostream& os) { write_report_json(os, file_label, *report); },
+            [&](std::ostream& os) {
+              write_raw_stats_json(os, file_label, *report);
+            },
             std::cerr)) {
       return 1;
     }

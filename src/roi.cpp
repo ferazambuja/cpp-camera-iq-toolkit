@@ -5,6 +5,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <limits>
 #include <sstream>
 
 namespace camera_iq {
@@ -64,6 +65,7 @@ struct Acc {
   std::size_t n = 0;
   std::size_t below_black = 0;
   std::size_t sat = 0;
+  std::size_t near_ceiling = 0;
   bool init = false;
 };
 
@@ -95,8 +97,22 @@ std::optional<RawCfaReport> raw_cfa_report_for_roi(const RawCfaImage& image,
     return std::nullopt;
   }
 
+  RawCfaReport report;
+  report.meta = image.meta;
+  report.measurement_roi = *roi;
+
   const auto labels = channel_labels(image.cdesc, image.color_at_position);
   std::array<Acc, 4> acc;
+  std::array<double, 4> near_ceiling_threshold{};
+  std::array<bool, 4> near_ceiling_valid{};
+  for (int p = 0; p < 4; ++p) {
+    const double black = image.meta.black_per_channel[static_cast<std::size_t>(p)];
+    near_ceiling_valid[static_cast<std::size_t>(p)] =
+        std::isfinite(image.meta.white_level) && std::isfinite(black) &&
+        image.meta.white_level > black;
+    near_ceiling_threshold[static_cast<std::size_t>(p)] =
+        report.near_ceiling_level * (image.meta.white_level - black);
+  }
 
   for (int r = roi->y; r < roi->y + roi->height; ++r) {
     const std::size_t row = static_cast<std::size_t>(r) *
@@ -106,12 +122,12 @@ std::optional<RawCfaReport> raw_cfa_report_for_roi(const RawCfaImage& image,
       const double residual = image.samples[row + static_cast<std::size_t>(c)];
       const double raw = residual + image.meta.black_per_channel[pos];
       add_sample(acc[pos], residual, raw, image.meta.white_level);
+      if (near_ceiling_valid[pos] && residual >= near_ceiling_threshold[pos]) {
+        ++acc[pos].near_ceiling;
+      }
     }
   }
 
-  RawCfaReport report;
-  report.meta = image.meta;
-  report.measurement_roi = *roi;
   for (int p = 0; p < 4; ++p) {
     const Acc& a = acc[static_cast<std::size_t>(p)];
     ChannelStats& s = report.planes[static_cast<std::size_t>(p)];
@@ -126,6 +142,9 @@ std::optional<RawCfaReport> raw_cfa_report_for_roi(const RawCfaImage& image,
       s.max = a.mx;
       s.below_black_fraction = static_cast<double>(a.below_black) / n;
       s.saturated_fraction = static_cast<double>(a.sat) / n;
+      s.near_ceiling_fraction = near_ceiling_valid[static_cast<std::size_t>(p)]
+                                    ? static_cast<double>(a.near_ceiling) / n
+                                    : std::numeric_limits<double>::quiet_NaN();
     }
   }
   return report;

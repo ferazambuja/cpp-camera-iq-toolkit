@@ -1,6 +1,7 @@
 #include "camera_iq/cfa_stats.hpp"
 
 #include <cmath>
+#include <limits>
 
 namespace camera_iq {
 
@@ -53,11 +54,18 @@ std::array<ChannelStats, 4> cfa_plane_stats_strided(
 
   // Signal-referred near-ceiling threshold per CFA position. Computed once so
   // the inner loop stays a comparison against a plain double.
+  const bool level_valid = std::isfinite(near_ceiling_level) &&
+                           near_ceiling_level > 0.0 &&
+                           near_ceiling_level <= 1.0;
   std::array<double, 4> near_ceiling_threshold{};
+  std::array<bool, 4> near_ceiling_valid{};
   for (int p = 0; p < 4; ++p) {
+    const double black = black_at_position[static_cast<std::size_t>(p)];
+    near_ceiling_valid[static_cast<std::size_t>(p)] =
+        level_valid && std::isfinite(white) && std::isfinite(black) &&
+        white > black;
     near_ceiling_threshold[static_cast<std::size_t>(p)] =
-        near_ceiling_level *
-        (white - black_at_position[static_cast<std::size_t>(p)]);
+        near_ceiling_level * (white - black);
   }
 
   // Welford online mean/M2 per CFA position. For <=14-bit raw the sumsq/n -
@@ -98,7 +106,9 @@ std::array<ChannelStats, 4> cfa_plane_stats_strided(
           if (v > a.mx) a.mx = v;
         }
         if (raw >= white) ++a.sat;
-        if (v >= near_ceiling_threshold[pos]) ++a.near_ceiling;
+        if (near_ceiling_valid[pos] && v >= near_ceiling_threshold[pos]) {
+          ++a.near_ceiling;
+        }
       }
     }
   }
@@ -109,6 +119,10 @@ std::array<ChannelStats, 4> cfa_plane_stats_strided(
     const Acc& a = acc[static_cast<std::size_t>(p)];
     s.label = labels[static_cast<std::size_t>(p)];
     s.count = a.n;
+    const bool threshold_valid =
+        near_ceiling_valid[static_cast<std::size_t>(p)];
+    s.near_ceiling_fraction =
+        threshold_valid ? 0.0 : std::numeric_limits<double>::quiet_NaN();
     if (a.n > 0) {
       const double n = static_cast<double>(a.n);
       s.mean = a.mean;
@@ -118,7 +132,9 @@ std::array<ChannelStats, 4> cfa_plane_stats_strided(
       s.max = a.mx;
       s.below_black_fraction = static_cast<double>(a.below_black) / n;
       s.saturated_fraction = static_cast<double>(a.sat) / n;
-      s.near_ceiling_fraction = static_cast<double>(a.near_ceiling) / n;
+      if (threshold_valid) {
+        s.near_ceiling_fraction = static_cast<double>(a.near_ceiling) / n;
+      }
     }
   }
   return out;
