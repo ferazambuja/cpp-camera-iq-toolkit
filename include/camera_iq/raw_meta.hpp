@@ -3,8 +3,10 @@
 #include <array>
 #include <cstdint>
 #include <filesystem>
+#include <iosfwd>
 #include <optional>
 #include <string>
+#include <string_view>
 #include <vector>
 
 #include "camera_iq/cfa_stats.hpp"
@@ -100,9 +102,16 @@ std::optional<RawMeta> read_raw_metadata(const std::filesystem::path& raw);
 // RAW metadata plus per-CFA-channel statistics over the black-subtracted mosaic.
 struct RawCfaReport {
   RawMeta meta;
+  // Effective raw-stats headroom policy for every plane in this report.
+  double near_ceiling_level = kRawStatsNearCeilingLevel;
   std::optional<RoiRect> measurement_roi;
   std::array<ChannelStats, 4> planes;
 };
+
+// Publication-safe raw-stats JSON serializer. Exposed so the output contract,
+// including the effective near-ceiling policy, has direct regression coverage.
+void write_raw_stats_json(std::ostream& os, std::string_view file_label,
+                          const RawCfaReport& report);
 
 // Active, black-subtracted Bayer mosaic copied out of LibRaw after unpack().
 // `samples` is row-major with `row_stride_pixels == width`; values are signed

@@ -5,6 +5,7 @@
 #include <cstdio>
 #include <filesystem>
 #include <fstream>
+#include <sstream>
 
 #include "harness.hpp"
 
@@ -17,6 +18,7 @@ using camera_iq::is_supported_bayer_filter;
 using camera_iq::read_raw_cfa_image;
 using camera_iq::read_raw_metadata;
 using camera_iq::raw_meta_from_processor;
+using camera_iq::write_raw_stats_json;
 using test::check;
 
 void TESTS() {
@@ -69,6 +71,21 @@ void TESTS() {
         "stride: byte pitch converted to uint16 pixels");
   check(effective_raw_stride_pixels(12033, 6016) == 0,
         "stride: odd byte pitch rejected");
+
+  {
+    camera_iq::RawCfaReport report;
+    report.near_ceiling_level = 0.90;
+    report.planes[0].label = "R";
+    report.planes[0].count = 4;
+    report.planes[0].near_ceiling_fraction = 0.25;
+    std::ostringstream json;
+    write_raw_stats_json(json, "fixture.RAF", report);
+    check(json.str().find("\"near_ceiling_level\":0.9") != std::string::npos,
+          "raw-stats JSON: effective near-ceiling policy is serialized");
+    check(json.str().find("\"near_ceiling_fraction\":0.25") !=
+              std::string::npos,
+          "raw-stats JSON: derived near-ceiling fraction is serialized");
+  }
 
   // Effective black — the Fuji X-T100 case: scalar black and cblack[0..3] are 0,
   // the real ~1024 DN pedestal lives in the 2x2 cblack[6..] tile. Reading the

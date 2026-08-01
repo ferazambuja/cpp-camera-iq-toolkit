@@ -42,6 +42,9 @@ modeling, or color correction yet.
   `white_level` of 16383 — so `saturated_fraction` reads zero on frames that are
   entirely clipped. Use `near_ceiling_fraction` for headroom decisions and
   `saturated_fraction` only for exact-white accounting.
+- JSON records the effective `near_ceiling_level` beside the derived plane
+  fractions. Full-frame and CFA-balanced ROI reports apply the same per-plane
+  `white_level - black[p]` definition.
 
 ## Real-Data Validation Run
 
