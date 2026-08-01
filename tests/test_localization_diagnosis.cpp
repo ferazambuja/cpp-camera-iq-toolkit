@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <cmath>
 #include <string>
+#include <string_view>
 #include <vector>
 
 #include "camera_iq/patches.hpp"
@@ -58,9 +59,15 @@ std::vector<PatchCenterResidual> synthetic_bow_residuals() {
   return out;
 }
 
+// `name`/`split` take string_view, not const std::string&: a call with a string
+// literal would otherwise materialize a temporary std::string, and GCC's
+// -Wdangling-reference then flags every `const auto&` bound to the returned
+// reference. The reference itself is fine — it points into the caller's
+// `comparison`, which outlives it — but the temporary argument is what the
+// heuristic keys on. string_view removes both the temporary and the warning.
 const camera_iq::LocalizationModelReport& find_model(
     const camera_iq::LocalizationModelComparison& comparison,
-    const std::string& name) {
+    std::string_view name) {
   const auto it = std::find_if(
       comparison.models.begin(), comparison.models.end(),
       [&](const auto& model) { return model.name == name; });
@@ -70,7 +77,7 @@ const camera_iq::LocalizationModelReport& find_model(
 
 const camera_iq::LocalizationHoldoutScore& find_split(
     const camera_iq::LocalizationModelReport& model,
-    const std::string& split) {
+    std::string_view split) {
   const auto it = std::find_if(
       model.heldout_scores.begin(), model.heldout_scores.end(),
       [&](const auto& score) { return score.split == split; });

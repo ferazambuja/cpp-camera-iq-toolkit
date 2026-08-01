@@ -121,13 +121,7 @@ def public_markdown(repo_root: Path) -> list[Path]:
     # git ls-files creates a blind spot exactly when a report is introduced.
     paths.add(repo_root / "README.md")
     paths.update((repo_root / "docs").rglob("*.md"))
-    # docs/plans holds internal working records. They are deliberately written in
-    # planning language ("first slice", "deferred", "not claimed") that the
-    # publication guard exists to keep out of reader-facing pages, so applying
-    # the public rules to them would force internal notes to lie about their own
-    # status. Excluded by directory, not by filename, so new plans inherit it.
-    internal = repo_root / "docs" / "plans"
-    return sorted(p for p in paths if internal not in p.parents)
+    return sorted(paths)
 
 
 def link_target(raw: str) -> str:
