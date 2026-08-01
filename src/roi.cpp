@@ -103,15 +103,12 @@ std::optional<RawCfaReport> raw_cfa_report_for_roi(const RawCfaImage& image,
 
   const auto labels = channel_labels(image.cdesc, image.color_at_position);
   std::array<Acc, 4> acc;
-  std::array<double, 4> near_ceiling_threshold{};
-  std::array<bool, 4> near_ceiling_valid{};
+  std::array<std::optional<double>, 4> near_ceiling{};
   for (int p = 0; p < 4; ++p) {
-    const double black = image.meta.black_per_channel[static_cast<std::size_t>(p)];
-    near_ceiling_valid[static_cast<std::size_t>(p)] =
-        std::isfinite(image.meta.white_level) && std::isfinite(black) &&
-        image.meta.white_level > black;
-    near_ceiling_threshold[static_cast<std::size_t>(p)] =
-        report.near_ceiling_level * (image.meta.white_level - black);
+    near_ceiling[static_cast<std::size_t>(p)] = near_ceiling_threshold(
+        image.meta.white_level,
+        image.meta.black_per_channel[static_cast<std::size_t>(p)],
+        report.near_ceiling_level);
   }
 
   for (int r = roi->y; r < roi->y + roi->height; ++r) {
@@ -122,15 +119,20 @@ std::optional<RawCfaReport> raw_cfa_report_for_roi(const RawCfaImage& image,
       const double residual = image.samples[row + static_cast<std::size_t>(c)];
       const double raw = residual + image.meta.black_per_channel[pos];
       add_sample(acc[pos], residual, raw, image.meta.white_level);
-      if (near_ceiling_valid[pos] && residual >= near_ceiling_threshold[pos]) {
-        ++acc[pos].near_ceiling;
-      }
+      const auto& threshold = near_ceiling[pos];
+      if (threshold && residual >= *threshold) ++acc[pos].near_ceiling;
     }
   }
 
   for (int p = 0; p < 4; ++p) {
     const Acc& a = acc[static_cast<std::size_t>(p)];
     ChannelStats& s = report.planes[static_cast<std::size_t>(p)];
+    // Matches cfa_plane_stats_strided(): an undefined threshold reports NaN
+    // whether or not the plane has samples, so the two paths cannot disagree.
+    s.near_ceiling_fraction =
+        near_ceiling[static_cast<std::size_t>(p)]
+            ? 0.0
+            : std::numeric_limits<double>::quiet_NaN();
     s.label = labels[static_cast<std::size_t>(p)];
     s.count = a.n;
     if (a.n > 0) {
@@ -142,9 +144,9 @@ std::optional<RawCfaReport> raw_cfa_report_for_roi(const RawCfaImage& image,
       s.max = a.mx;
       s.below_black_fraction = static_cast<double>(a.below_black) / n;
       s.saturated_fraction = static_cast<double>(a.sat) / n;
-      s.near_ceiling_fraction = near_ceiling_valid[static_cast<std::size_t>(p)]
-                                    ? static_cast<double>(a.near_ceiling) / n
-                                    : std::numeric_limits<double>::quiet_NaN();
+      if (near_ceiling[static_cast<std::size_t>(p)]) {
+        s.near_ceiling_fraction = static_cast<double>(a.near_ceiling) / n;
+      }
     }
   }
   return report;

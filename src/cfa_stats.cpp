@@ -5,6 +5,15 @@
 
 namespace camera_iq {
 
+std::optional<double> near_ceiling_threshold(double white, double black,
+                                             double level) {
+  if (!std::isfinite(level) || level <= 0.0 || level > 1.0) return std::nullopt;
+  if (!std::isfinite(white) || !std::isfinite(black) || white <= black) {
+    return std::nullopt;
+  }
+  return level * (white - black);
+}
+
 std::array<std::string, 4> channel_labels(
     const std::string& cdesc, const std::array<int, 4>& color_at_position) {
   std::array<char, 4> letters{'?', '?', '?', '?'};
@@ -52,20 +61,13 @@ std::array<ChannelStats, 4> cfa_plane_stats_strided(
     double near_ceiling_level) {
   const auto labels = channel_labels(cdesc, color_at_position);
 
-  // Signal-referred near-ceiling threshold per CFA position. Computed once so
+  // Signal-referred near-ceiling threshold per CFA position. Resolved once so
   // the inner loop stays a comparison against a plain double.
-  const bool level_valid = std::isfinite(near_ceiling_level) &&
-                           near_ceiling_level > 0.0 &&
-                           near_ceiling_level <= 1.0;
-  std::array<double, 4> near_ceiling_threshold{};
-  std::array<bool, 4> near_ceiling_valid{};
+  std::array<std::optional<double>, 4> near_ceiling{};
   for (int p = 0; p < 4; ++p) {
-    const double black = black_at_position[static_cast<std::size_t>(p)];
-    near_ceiling_valid[static_cast<std::size_t>(p)] =
-        level_valid && std::isfinite(white) && std::isfinite(black) &&
-        white > black;
-    near_ceiling_threshold[static_cast<std::size_t>(p)] =
-        near_ceiling_level * (white - black);
+    near_ceiling[static_cast<std::size_t>(p)] = near_ceiling_threshold(
+        white, black_at_position[static_cast<std::size_t>(p)],
+        near_ceiling_level);
   }
 
   // Welford online mean/M2 per CFA position. For <=14-bit raw the sumsq/n -
@@ -106,9 +108,8 @@ std::array<ChannelStats, 4> cfa_plane_stats_strided(
           if (v > a.mx) a.mx = v;
         }
         if (raw >= white) ++a.sat;
-        if (near_ceiling_valid[pos] && v >= near_ceiling_threshold[pos]) {
-          ++a.near_ceiling;
-        }
+        const auto& threshold = near_ceiling[pos];
+        if (threshold && v >= *threshold) ++a.near_ceiling;
       }
     }
   }
@@ -120,7 +121,7 @@ std::array<ChannelStats, 4> cfa_plane_stats_strided(
     s.label = labels[static_cast<std::size_t>(p)];
     s.count = a.n;
     const bool threshold_valid =
-        near_ceiling_valid[static_cast<std::size_t>(p)];
+        near_ceiling[static_cast<std::size_t>(p)].has_value();
     s.near_ceiling_fraction =
         threshold_valid ? 0.0 : std::numeric_limits<double>::quiet_NaN();
     if (a.n > 0) {

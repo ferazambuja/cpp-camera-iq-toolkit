@@ -209,4 +209,34 @@ void TESTS() {
             "near-ceiling: invalid policy stays explicit on empty input");
     }
   }
+
+  // --- the threshold rule itself, shared by the full-frame and ROI paths ---
+  //
+  // RAW_STATS.md states both paths apply the same per-plane
+  // `white_level - black[p]` definition. They now call this one function, so
+  // the claim holds by construction instead of by two implementations agreeing
+  // today. These cases pin what that function means.
+  {
+    using camera_iq::near_ceiling_threshold;
+    const auto ok = near_ceiling_threshold(16383, 1024, 0.98);
+    check(ok.has_value(), "threshold: defined for ordinary metadata");
+    if (ok) {
+      check_near(*ok, 0.98 * 15359, 1e-9,
+                 "threshold: level times signal-referred ceiling");
+    }
+    check(!near_ceiling_threshold(1024, 1024, 0.98).has_value(),
+          "threshold: undefined when white equals black");
+    check(!near_ceiling_threshold(1000, 1024, 0.98).has_value(),
+          "threshold: undefined when white is below black");
+    check(!near_ceiling_threshold(16383, 1024, 0.0).has_value(),
+          "threshold: undefined at level zero");
+    check(!near_ceiling_threshold(16383, 1024, 1.5).has_value(),
+          "threshold: undefined above level one");
+    check(!near_ceiling_threshold(std::numeric_limits<double>::quiet_NaN(),
+                                  1024, 0.98)
+               .has_value(),
+          "threshold: undefined for non-finite white");
+    check(near_ceiling_threshold(16383, 1024).has_value(),
+          "threshold: default level is the raw-stats policy");
+  }
 }
