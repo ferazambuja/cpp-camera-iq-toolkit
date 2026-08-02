@@ -3,9 +3,9 @@
 
 The baseline table is only a regression guard if something fails when it drifts.
 These cases pin the drifts that would otherwise pass silently: a table that no
-longer matches the A1 value its own report publishes, a row count that stopped
-being 140, and a header line that would break byte-comparison against
-`--rgb-csv-out`.
+longer matches its published full-file digest, an A1 value that diverges from
+its report, a row count that stopped being 140, and byte-format changes that
+would break comparison against `--rgb-csv-out`.
 """
 
 from __future__ import annotations
@@ -52,7 +52,25 @@ def main() -> int:
     with tempfile.TemporaryDirectory() as raw:
         root = staged(Path(raw))
         path = root / BASELINE
+        report = root / REPORT
         rows = path.read_text().splitlines()
+        report_text = report.read_text()
+
+        # A Git checkout may materialize this text file with CRLF. That
+        # platform-only conversion must not invalidate the canonical LF digest.
+        lf = path.read_bytes().replace(b"\r\n", b"\n")
+        path.write_bytes(lf.replace(b"\n", b"\r\n"))
+        errors = CHECK.check(root)
+        if errors:
+            raise SystemExit(f"CRLF baseline should validate cleanly: {errors}")
+        path.write_text("\n".join(rows) + "\n")
+
+        # A valid non-A1 value moves. Shape and A1 alone cannot pin the other
+        # 417 published channel values; the full-file digest must catch this.
+        moved = list(rows)
+        moved[1] = "1675.1507632526844,1658.6290152841639,1908.2708721847655"
+        path.write_text("\n".join(moved) + "\n")
+        expect_error(root, "SHA-256")
 
         # A1 drifts away from the value the report publishes.
         moved = list(rows)
@@ -69,11 +87,28 @@ def main() -> int:
         path.write_text("r,g,b\n" + "\n".join(rows) + "\n")
         expect_error(root, "header")
 
+        # Blank lines and the final newline are part of the byte baseline even
+        # though numeric parsing alone would discard both differences.
+        path.write_text(rows[0] + "\n\n" + "\n".join(rows[1:]) + "\n")
+        expect_error(root, "SHA-256")
+        path.write_text("\n".join(rows))
+        expect_error(root, "SHA-256")
+
         # A non-finite value survives into the table.
         broken = list(rows)
         broken[5] = "nan,1.0,1.0"
         path.write_text("\n".join(broken) + "\n")
         expect_error(root, "finite")
+
+        # The report is the public digest authority; stale prose must fail too.
+        path.write_text("\n".join(rows) + "\n")
+        report.write_text(
+            report_text.replace(
+                "4b8429cdacbb982d33ef56a76e09cc46d8c7aadde927e805e52bc5feec2c8f92",
+                "0" * 64,
+            )
+        )
+        expect_error(root, "SHA-256")
 
     print("check_patch_baseline negative paths ok")
     return 0

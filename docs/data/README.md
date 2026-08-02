@@ -15,8 +15,9 @@ or editable copies of private references.
 
 The corrected-patch table is the headerless R/G/B output of the documented
 `camera_iq patches --rgb-csv-out` command, in its 140-row extraction order. It
-pins the admitted 1/1000 s flat result without publishing RAW samples or
-RawDigger coordinates.
+pins the published 1/1000 s result as an exact comparison baseline without
+publishing RAW samples or RawDigger coordinates. CI protects this artifact's
+integrity; reproducing implementation output still requires the private RAWs.
 
 Toolkit SFR values retain eight-decimal measurement precision so derived field
 margins do not depend on rounded operands; narrative tables round them to four

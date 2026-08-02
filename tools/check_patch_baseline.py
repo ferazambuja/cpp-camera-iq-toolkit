@@ -3,14 +3,15 @@
 
 `docs/data/ccsg_f8_flat_wb_patches.csv` is the accepted-flat regression table:
 the headerless R/G/B output of the documented `camera_iq patches` run. It is
-committed so that a change to the flat-field gate — or to anything upstream of
-patch means — cannot silently move published color numbers.
+committed so accidental baseline edits cannot silently move published color
+numbers and private-archive reruns have an exact comparator.
 
 A committed table only guards anything if something checks it. Nothing here
 re-runs the command, because the source RAW files are private; what it does
-check is that the table still has the shape the command produces and still
-agrees with the A1 value `PATCH_EXTRACTION.md` publishes in prose. Those two
-drift apart exactly when someone updates one and not the other.
+check is that the complete table still has the SHA-256 the report publishes,
+has the shape the command produces, and agrees with the rounded A1 value the
+report publishes in prose. Code-output drift still requires a private-archive
+rerun against this baseline.
 
 Usage: python3 tools/check_patch_baseline.py [--repo-root PATH]
 """
@@ -18,6 +19,7 @@ Usage: python3 tools/check_patch_baseline.py [--repo-root PATH]
 from __future__ import annotations
 
 import argparse
+import hashlib
 import math
 import re
 import sys
@@ -33,6 +35,7 @@ A1_RE = re.compile(
     r"first patch A1 corrected RGB\s*\|\s*"
     r"([0-9.]+)\s*/\s*([0-9.]+)\s*/\s*([0-9.]+)"
 )
+SHA256_RE = re.compile(r"had SHA-256\s+`([0-9a-fA-F]{64})`")
 
 
 def check(root: Path) -> list[str]:
@@ -41,7 +44,17 @@ def check(root: Path) -> list[str]:
     if not path.is_file():
         return [f"{BASELINE}: missing"]
 
-    lines = [ln for ln in path.read_text().splitlines() if ln.strip()]
+    raw = path.read_bytes()
+    # Git may materialize text with CRLF on some platforms. The published
+    # digest is for the canonical LF form; all other bytes, including blank
+    # lines and the final newline, remain part of the enforced baseline.
+    canonical = raw.replace(b"\r\n", b"\n")
+    digest = hashlib.sha256(canonical).hexdigest()
+    try:
+        text = raw.decode("utf-8")
+    except UnicodeDecodeError as error:
+        return [f"{BASELINE}: not UTF-8 text ({error})"]
+    lines = [ln for ln in text.splitlines() if ln.strip()]
 
     if len(lines) != EXPECTED_ROWS:
         errors.append(
@@ -79,7 +92,20 @@ def check(root: Path) -> list[str]:
         errors.append(f"{REPORT}: missing")
         return errors
 
-    match = A1_RE.search(report.read_text())
+    report_text = report.read_text()
+    digests = SHA256_RE.findall(report_text)
+    if len(digests) != 1:
+        errors.append(
+            f"{REPORT}: expected one published corrected-patch SHA-256, "
+            f"found {len(digests)}"
+        )
+    elif digest != digests[0].lower():
+        errors.append(
+            f"{BASELINE}: SHA-256 is {digest}, but {REPORT} publishes "
+            f"{digests[0].lower()}"
+        )
+
+    match = A1_RE.search(report_text)
     if not match:
         errors.append(f"{REPORT}: no 'first patch A1 corrected RGB' row to check")
     elif values:
@@ -106,7 +132,10 @@ def main() -> int:
         print(error, file=sys.stderr)
     if errors:
         return 1
-    print(f"corrected-patch baseline ok: {EXPECTED_ROWS} rows, A1 matches report")
+    print(
+        f"corrected-patch baseline ok: {EXPECTED_ROWS} rows, "
+        "SHA-256 and A1 match report"
+    )
     return 0
 
 
