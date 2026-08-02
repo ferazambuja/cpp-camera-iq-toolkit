@@ -14,6 +14,7 @@
 #include <vector>
 
 #include "camera_iq/dataset_config.hpp"
+#include "camera_iq/flat_field_gate.hpp"
 #include "camera_iq/json_writer.hpp"
 #include "camera_iq/output_file.hpp"
 #include "camera_iq/raw_meta.hpp"
@@ -22,11 +23,13 @@
 namespace camera_iq {
 namespace {
 
+constexpr int kShadingSchemaVersion = 3;
+
 // Parses a finite double in (lo, hi]. Trailing garbage is an error, so "0.2x"
 // does not silently become 0.2.
-bool parse_fraction(std::string_view text, double lo, double hi, double& out) {
+bool parse_fraction(std::string_view text, double lo, double hi, double &out) {
   const std::string s(text);
-  char* end = nullptr;
+  char *end = nullptr;
   const double v = std::strtod(s.c_str(), &end);
   if (end == s.c_str() || *end != '\0') return false;
   if (!std::isfinite(v) || v <= lo || v > hi) return false;
@@ -81,7 +84,25 @@ void write_plane_array(JsonWriter& w, const std::array<double, 4>& values) {
   w.end_array();
 }
 
-void write_options(JsonWriter& w, const ShadingOptions& opts) {
+void write_plane_array_if_measured(JsonWriter &w, bool measured,
+                                   const std::array<double, 4> &values) {
+  if (measured) {
+    write_plane_array(w, values);
+  } else {
+    w.null();
+  }
+}
+
+template <typename T>
+void write_value_if_measured(JsonWriter &w, bool measured, const T &value) {
+  if (measured) {
+    w.value(value);
+  } else {
+    w.null();
+  }
+}
+
+void write_options(JsonWriter &w, const ShadingOptions &opts) {
   w.begin_object();
   w.key("grid_cols");
   w.value(opts.grid_cols);
@@ -97,6 +118,8 @@ void write_options(JsonWriter& w, const ShadingOptions& opts) {
   w.value(opts.near_ceiling_level);
   w.key("near_ceiling_max");
   w.value(opts.near_ceiling_max);
+  w.key("min_finite_coverage");
+  w.value(kFlatFieldMinFiniteCoverage);
   w.key("min_center_signal");
   w.value(opts.min_center_signal);
   w.key("max_negative_frac");
@@ -165,14 +188,25 @@ void csv_row(std::ostream& os, std::string_view file_label,
   os << csv_escape(publication_label(file_label)) << ',' << csv_escape(channel)
      << ',' << cfa_position << ',' << csv_escape(metric) << ','
      << csv_escape(bin_row) << ',' << csv_escape(bin_col) << ',' << value << ','
-     << csv_escape(units) << ','
-     << (accepted ? "true" : "false") << '\n';
+     << csv_escape(units) << ',' << (accepted ? "true" : "false") << '\n';
 }
 
-std::filesystem::path comparable_path(const std::filesystem::path& path) {
+void csv_null_row(std::ostream &os, std::string_view file_label,
+                  std::string_view channel, int cfa_position,
+                  std::string_view metric, std::string_view bin_row,
+                  std::string_view bin_col, std::string_view units,
+                  bool accepted) {
+  os << csv_escape(publication_label(file_label)) << ',' << csv_escape(channel)
+     << ',' << cfa_position << ',' << csv_escape(metric) << ','
+     << csv_escape(bin_row) << ',' << csv_escape(bin_col) << ",,"
+     << csv_escape(units) << ',' << (accepted ? "true" : "false") << '\n';
+}
+
+std::filesystem::path comparable_path(const std::filesystem::path &path) {
   std::error_code ec;
   const auto canonical = std::filesystem::weakly_canonical(path, ec);
-  if (!ec) return canonical;
+  if (!ec)
+    return canonical;
   const auto absolute = std::filesystem::absolute(path, ec);
   return (ec ? path : absolute).lexically_normal();
 }
@@ -199,16 +233,16 @@ bool path_within(const std::filesystem::path& root,
   return true;
 }
 
-}  // namespace
+} // namespace
 
-void write_shading_json(std::ostream& os, std::string_view file_label,
-                        const ShadingField& field,
-                        const ShadingChromatic& chroma,
-                        const ShadingPedestal& pedestal) {
+void write_shading_json(std::ostream &os, std::string_view file_label,
+                        const ShadingField &field,
+                        const ShadingChromatic &chroma,
+                        const ShadingPedestal &pedestal) {
   JsonWriter w(os);
   w.begin_object();
   w.key("schema_version");
-  w.value(2);
+  w.value(kShadingSchemaVersion);
   w.key("file");
   w.value(publication_label(file_label));
   w.key("analysis_options");
@@ -222,7 +256,8 @@ void write_shading_json(std::ostream& os, std::string_view file_label,
     w.value(field.rejection_reason);
   }
   w.key("signal_ceiling_dn");
-  write_plane_array(w, field.signal_ceiling);
+  write_plane_array_if_measured(w, field.signal_ceiling_measured,
+                                field.signal_ceiling);
 
   w.key("grid");
   w.begin_object();
@@ -248,41 +283,65 @@ void write_shading_json(std::ostream& os, std::string_view file_label,
     w.null();
   }
 
-  // Measured diagnostics. These survive rejection: the numbers that rejected a
-  // frame are what make the rejection reviewable.
+  // Post-measurement diagnostics survive rejection: the numbers that rejected
+  // a frame are what make the rejection reviewable. Earlier failures publish
+  // null rather than promote initializer values to measurements.
   w.key("gates");
   w.begin_object();
+  w.key("measured");
+  w.value(field.gates.measured);
   w.key("near_ceiling_fraction_gate");
-  write_plane_array(w, field.gates.near_ceiling_frac_gate);
+  write_plane_array_if_measured(w, field.gates.measured,
+                                field.gates.near_ceiling_frac_gate);
   w.key("near_ceiling_fraction_frame");
-  write_plane_array(w, field.gates.near_ceiling_frac_frame);
+  write_plane_array_if_measured(w, field.gates.measured,
+                                field.gates.near_ceiling_frac_frame);
+  // Published beside the fractions above: each is a ratio over finite samples,
+  // so the coverage it was taken over is part of the evidence, not a footnote.
+  w.key("finite_fraction_gate");
+  write_plane_array_if_measured(w, field.gates.measured,
+                                field.gates.finite_frac_gate);
+  w.key("finite_fraction_frame");
+  write_plane_array_if_measured(w, field.gates.measured,
+                                field.gates.finite_frac_frame);
   w.key("negative_fraction");
-  write_plane_array(w, field.gates.negative_frac);
+  write_plane_array_if_measured(w, field.gates.measured,
+                                field.gates.negative_frac);
   w.key("center_signal_fraction");
-  write_plane_array(w, field.gates.center_signal_frac);
+  write_plane_array_if_measured(w, field.gates.measured,
+                                field.gates.center_signal_frac);
   w.key("min_bin_coverage");
-  w.value(field.gates.min_bin_coverage);
+  write_value_if_measured(w, field.gates.measured,
+                          field.gates.min_bin_coverage);
   w.key("near_ceiling_ok");
-  w.value(field.gates.near_ceiling_ok);
+  write_value_if_measured(w, field.gates.measured, field.gates.near_ceiling_ok);
+  w.key("screening_coverage_ok");
+  write_value_if_measured(w, field.gates.measured,
+                          field.gates.screening_coverage_ok);
   w.key("low_signal_ok");
-  w.value(field.gates.low_signal_ok);
+  write_value_if_measured(w, field.gates.measured, field.gates.low_signal_ok);
   w.key("negative_ok");
-  w.value(field.gates.negative_ok);
+  write_value_if_measured(w, field.gates.measured, field.gates.negative_ok);
   w.key("coverage_ok");
-  w.value(field.gates.coverage_ok);
+  write_value_if_measured(w, field.gates.measured, field.gates.coverage_ok);
   w.key("finite_ok");
-  w.value(field.gates.finite_ok);
+  write_value_if_measured(w, field.gates.measured, field.gates.finite_ok);
   w.end_object();
 
   w.key("center_block_median");
-  write_plane_array(w, field.center_block_median);
+  write_plane_array_if_measured(w, field.gates.measured,
+                                field.center_block_median);
 
   w.key("corner_median");
-  w.begin_array();
-  for (int q = 0; q < 4; ++q) {
-    write_plane_array(w, field.blocks.corner_median[q]);
+  if (field.gates.measured) {
+    w.begin_array();
+    for (int q = 0; q < 4; ++q) {
+      write_plane_array(w, field.blocks.corner_median[q]);
+    }
+    w.end_array();
+  } else {
+    w.null();
   }
-  w.end_array();
 
   // Measurement is not verification: pairing and tolerance verdicts remain
   // explicit so a merely readable dark cannot silently clear the flag.
@@ -459,9 +518,9 @@ void write_shading_csv(std::ostream& os, std::string_view file_label,
      << '\n';
   const bool ok = field.valid;
 
-  csv_row(os, file_label, "", -1, "schema_version", "", "", 2.0,
-          "integer", ok);
-  const ShadingOptions& opts = field.options;
+  csv_row(os, file_label, "", -1, "schema_version", "", "",
+          kShadingSchemaVersion, "integer", ok);
+  const ShadingOptions &opts = field.options;
   csv_row(os, file_label, "", -1, "analysis_option_grid_cols", "", "",
           opts.grid_cols, "count", ok);
   csv_row(os, file_label, "", -1, "analysis_option_grid_rows", "", "",
@@ -476,6 +535,8 @@ void write_shading_csv(std::ostream& os, std::string_view file_label,
           "", opts.near_ceiling_level, "fraction", ok);
   csv_row(os, file_label, "", -1, "analysis_option_near_ceiling_max", "", "",
           opts.near_ceiling_max, "fraction", ok);
+  csv_row(os, file_label, "", -1, "analysis_option_min_finite_coverage", "", "",
+          kFlatFieldMinFiniteCoverage, "fraction", ok);
   csv_row(os, file_label, "", -1, "analysis_option_min_center_signal", "", "",
           opts.min_center_signal, "fraction", ok);
   csv_row(os, file_label, "", -1, "analysis_option_max_negative_frac", "", "",
@@ -485,22 +546,56 @@ void write_shading_csv(std::ostream& os, std::string_view file_label,
   csv_row(os, file_label, "", -1, "analysis_option_asymmetry_policy", "", "",
           opts.asymmetry_policy, "ratio", ok);
 
-  // Diagnostics first: they are present whatever the verdict.
+  csv_row(os, file_label, "", -1, "gates_measured", "", "",
+          field.gates.measured ? 1.0 : 0.0, "boolean", ok);
+
+  // Diagnostics first. Post-measurement rejection retains their numeric
+  // values; earlier rejection retains the rows but leaves values blank.
   for (int p = 0; p < 4; ++p) {
-    const std::string& ch = channel_labels[p];
-    csv_row(os, file_label, ch, p, "near_ceiling_fraction_gate", "", "",
-            field.gates.near_ceiling_frac_gate[p], "fraction", ok);
-    csv_row(os, file_label, ch, p, "near_ceiling_fraction_frame", "", "",
-            field.gates.near_ceiling_frac_frame[p], "fraction", ok);
-    csv_row(os, file_label, ch, p, "negative_fraction", "", "",
-            field.gates.negative_frac[p], "fraction", ok);
-    csv_row(os, file_label, ch, p, "center_signal_fraction", "", "",
-            field.gates.center_signal_frac[p], "fraction", ok);
-    csv_row(os, file_label, ch, p, "center_block_median", "", "",
-            field.center_block_median[p], "dn", ok);
+    const std::string &ch = channel_labels[p];
+    if (field.gates.measured) {
+      csv_row(os, file_label, ch, p, "near_ceiling_fraction_gate", "", "",
+              field.gates.near_ceiling_frac_gate[p], "fraction", ok);
+      csv_row(os, file_label, ch, p, "near_ceiling_fraction_frame", "", "",
+              field.gates.near_ceiling_frac_frame[p], "fraction", ok);
+      csv_row(os, file_label, ch, p, "finite_fraction_gate", "", "",
+              field.gates.finite_frac_gate[p], "fraction", ok);
+      csv_row(os, file_label, ch, p, "finite_fraction_frame", "", "",
+              field.gates.finite_frac_frame[p], "fraction", ok);
+      csv_row(os, file_label, ch, p, "negative_fraction", "", "",
+              field.gates.negative_frac[p], "fraction", ok);
+      csv_row(os, file_label, ch, p, "center_signal_fraction", "", "",
+              field.gates.center_signal_frac[p], "fraction", ok);
+      csv_row(os, file_label, ch, p, "center_block_median", "", "",
+              field.center_block_median[p], "dn", ok);
+    } else {
+      csv_null_row(os, file_label, ch, p, "near_ceiling_fraction_gate", "", "",
+                   "fraction", ok);
+      csv_null_row(os, file_label, ch, p, "near_ceiling_fraction_frame", "", "",
+                   "fraction", ok);
+      csv_null_row(os, file_label, ch, p, "finite_fraction_gate", "", "",
+                   "fraction", ok);
+      csv_null_row(os, file_label, ch, p, "finite_fraction_frame", "", "",
+                   "fraction", ok);
+      csv_null_row(os, file_label, ch, p, "negative_fraction", "", "",
+                   "fraction", ok);
+      csv_null_row(os, file_label, ch, p, "center_signal_fraction", "", "",
+                   "fraction", ok);
+      csv_null_row(os, file_label, ch, p, "center_block_median", "", "", "dn",
+                   ok);
+    }
   }
-  csv_row(os, file_label, "", -1, "min_bin_coverage", "", "",
-          field.gates.min_bin_coverage, "fraction", ok);
+  if (field.gates.measured) {
+    csv_row(os, file_label, "", -1, "min_bin_coverage", "", "",
+            field.gates.min_bin_coverage, "fraction", ok);
+    csv_row(os, file_label, "", -1, "screening_coverage_ok", "", "",
+            field.gates.screening_coverage_ok ? 1.0 : 0.0, "boolean", ok);
+  } else {
+    csv_null_row(os, file_label, "", -1, "min_bin_coverage", "", "", "fraction",
+                 ok);
+    csv_null_row(os, file_label, "", -1, "screening_coverage_ok", "", "",
+                 "boolean", ok);
+  }
   if (pedestal.measured) {
     csv_row(os, file_label, "", -1, "pedestal_max_abs_residual", "", "",
             pedestal.max_abs_residual_dn, "dn", ok);
@@ -900,4 +995,4 @@ int cmd_shading(int argc, char** argv) {
   return 0;
 }
 
-}  // namespace camera_iq
+} // namespace camera_iq

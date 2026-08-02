@@ -196,16 +196,20 @@ ShadingField measure_shading_field(const double* data, int width, int height,
     }
   }
 
-  const auto geometry = make_geometry(width, height, opts);
-  if (!geometry) {
-    return rejected("requested CFA-balanced blocks do not fit the image", opts);
-  }
-
   ShadingField field;
   field.options = opts;
   field.grid_cols = opts.grid_cols;
   field.grid_rows = opts.grid_rows;
   field.signal_ceiling = ceiling;
+  field.signal_ceiling_measured = true;
+
+  const auto geometry = make_geometry(width, height, opts);
+  if (!geometry) {
+    field.rejection_reason =
+        "requested CFA-balanced blocks do not fit the image";
+    return field;
+  }
+
   field.geometry = *geometry;
   field.gates.min_bin_coverage = 1.0;
   bool aggregates_finite = true;
@@ -214,9 +218,12 @@ ShadingField measure_shading_field(const double* data, int width, int height,
       data, width, height, row_stride_pixels, field.geometry.gate, ceiling,
       opts.near_ceiling_level);
   if (!near_ceiling) {
-    return rejected("near-ceiling measurement is undefined", opts);
+    field.rejection_reason = "near-ceiling measurement is undefined";
+    return field;
   }
   field.gates.near_ceiling_frac_frame = near_ceiling->fraction_frame;
+  field.gates.finite_frac_gate = near_ceiling->finite_fraction_gate;
+  field.gates.finite_frac_frame = near_ceiling->finite_fraction_frame;
   field.gates.near_ceiling_frac_gate = near_ceiling->fraction_gate;
 
   for (int p = 0; p < 4; ++p) {
@@ -225,7 +232,8 @@ ShadingField measure_shading_field(const double* data, int width, int height,
     const int plane_width = plane_extent(width, dx);
     const int plane_height = plane_extent(height, dy);
     if (plane_width < opts.grid_cols || plane_height < opts.grid_rows) {
-      return rejected("grid does not fit every CFA plane", opts);
+      field.rejection_reason = "grid does not fit every CFA plane";
+      return field;
     }
 
     const auto sample = [&](int plane_y, int plane_x) {
@@ -309,15 +317,19 @@ ShadingField measure_shading_field(const double* data, int width, int height,
     }
   }
 
+  field.gates.measured = true;
   field.gates.finite_ok = aggregates_finite;
   field.gates.near_ceiling_ok = true;
+  field.gates.screening_coverage_ok = true;
   field.gates.low_signal_ok = true;
   field.gates.negative_ok = true;
   for (int p = 0; p < 4; ++p) {
-    field.gates.near_ceiling_ok &=
-        flat_field_near_ceiling_passes(
-            field.gates.near_ceiling_frac_frame[p],
-            field.gates.near_ceiling_frac_gate[p], opts.near_ceiling_max);
+    field.gates.near_ceiling_ok &= flat_field_near_ceiling_fractions_pass(
+        field.gates.near_ceiling_frac_frame[p],
+        field.gates.near_ceiling_frac_gate[p], opts.near_ceiling_max);
+    field.gates.screening_coverage_ok &= flat_field_finite_coverage_passes(
+        field.gates.finite_frac_frame[p], field.gates.finite_frac_gate[p],
+        kFlatFieldMinFiniteCoverage);
     field.gates.low_signal_ok &=
         field.gates.center_signal_frac[p] >= opts.min_center_signal;
     field.gates.negative_ok &=
@@ -326,6 +338,10 @@ ShadingField measure_shading_field(const double* data, int width, int height,
   field.gates.coverage_ok =
       field.gates.min_bin_coverage >= opts.min_bin_coverage;
 
+  if (!field.gates.screening_coverage_ok) {
+    field.rejection_reason = "screening finite coverage below policy";
+    return field;
+  }
   if (!field.gates.near_ceiling_ok || !field.gates.low_signal_ok ||
       !field.gates.negative_ok || !field.gates.coverage_ok ||
       !field.gates.finite_ok) {

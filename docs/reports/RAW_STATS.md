@@ -36,11 +36,12 @@ modeling, or color correction yet.
   analysis is not biased upward.
 - Saturation is counted on the raw value before black subtraction:
   `raw >= white_level`.
-- `near_ceiling_fraction` counts residuals at or above 98% of the
-  signal-referred ceiling `white_level - black[p]`. Sensors can plateau below
-  the reported white level, so `saturated_fraction` reads zero on frames that
-  are entirely clipped; the measured Fuji case is in
-  [Clipped-frame contrast](#clipped-frame-contrast). Use
+- `near_ceiling_fraction` counts residuals at or above the shared project
+  default of 98% of the signal-referred ceiling
+  `white_level - black[p]`. A recorded response can plateau below the reported
+  white level, so `saturated_fraction` can remain zero despite no measurable
+  within-frame variation; the measured Fuji case is in
+  [Near-ceiling plateau contrast](#near-ceiling-plateau-contrast). Use
   `near_ceiling_fraction` for headroom decisions and `saturated_fraction` only
   for exact-white accounting.
 - The two statistics are nested rather than independent. The near-ceiling
@@ -102,7 +103,7 @@ This frame has real headroom — the largest residual on any position is 7970 DN
 against a 15,359 DN ceiling — so both headroom statistics read zero and it does
 not exercise the case `near_ceiling_fraction` exists for. The frame below does.
 
-## Clipped-frame contrast
+## Near-ceiling plateau contrast
 
 Command:
 

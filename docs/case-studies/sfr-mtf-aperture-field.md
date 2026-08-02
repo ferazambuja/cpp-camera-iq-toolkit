@@ -113,12 +113,13 @@ Validation combines:
   most-peripheral ROI, +19% over center. The mid-aperture maximum sits at grid
   point N=12, a top-center edge 1414 px above center, and +60% over center in
   the advisory path.
-- **Near-mirrored ROI pairs measure field symmetry directly.** Every edge in this
-  archive is fixed-axis and near-vertical, so for an exactly vertical edge the
-  sagittal/tangential mixture is set by `|x| / r`. A reflection through the
-  horizontal axis preserves radius and mixture together, which means any centered
-  rotationally symmetric system — astigmatic ones included — must return the same
-  MTF50 for both members of the pair. The grid offers three such near-reflections:
+- **Near-mirrored ROI pairs provide strong, not conclusive, symmetry evidence.**
+  Every edge in this archive is fixed-axis and near-vertical, so for an exactly
+  vertical edge the sagittal/tangential mixture is set by `|x| / r`. An exact
+  reflection through the horizontal axis would preserve radius and mixture
+  together, requiring the same MTF50 from any centered rotationally symmetric
+  system — astigmatic ones included. The grid offers three near-reflections, not
+  exact partners:
 
   | Pair | Δ radius | Δ mixture | MTF50 upper | MTF50 lower |
   |---|---:|---:|---:|---:|

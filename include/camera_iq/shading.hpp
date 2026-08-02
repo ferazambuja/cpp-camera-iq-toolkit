@@ -46,15 +46,22 @@ struct ShadingOptions {
   double asymmetry_policy = 0.05;
 };
 
-// Gate diagnostics. Every fraction is reported whether or not its gate trips,
-// so a rejected frame still carries the numbers that explain the rejection.
+// Gate diagnostics. A post-measurement rejection carries the numbers that
+// explain it. An earlier rejection leaves `measured` false so serializers do
+// not turn initializer values into fabricated evidence.
 //
 // The near-ceiling fraction is reported twice on purpose. Both regions are
 // gated per CFA position: the centered form catches a concentrated bright
 // region, while the frame form catches a peripheral or broadly elevated field.
 struct ShadingGates {
+  bool measured = false;
   std::array<double, 4> near_ceiling_frac_gate{0, 0, 0, 0};
   std::array<double, 4> near_ceiling_frac_frame{0, 0, 0, 0};
+  // Coverage the two fractions above were measured over. A near-ceiling
+  // fraction is a ratio over finite samples, so it is only evidence when
+  // enough samples were finite to take it.
+  std::array<double, 4> finite_frac_gate{0, 0, 0, 0};
+  std::array<double, 4> finite_frac_frame{0, 0, 0, 0};
   std::array<double, 4> negative_frac{0, 0, 0, 0};
   // Center-block median as a fraction of that plane's signal-referred ceiling.
   std::array<double, 4> center_signal_frac{0, 0, 0, 0};
@@ -62,6 +69,9 @@ struct ShadingGates {
   double min_bin_coverage = 0.0;
 
   bool near_ceiling_ok = false;
+  // Screening-region finite coverage is distinct from near-ceiling headroom
+  // and from the per-map-bin coverage verdict below.
+  bool screening_coverage_ok = false;
   bool low_signal_ok = false;
   bool negative_ok = false;
   bool coverage_ok = false;
@@ -127,6 +137,7 @@ struct ShadingField {
   std::string rejection_reason;
   // Complete effective policy used for this result, including rejections.
   ShadingOptions options;
+  bool signal_ceiling_measured = false;
   std::array<double, 4> signal_ceiling{0, 0, 0, 0};
   int grid_cols = 0;
   int grid_rows = 0;
@@ -150,12 +161,13 @@ struct ShadingField {
 // `ceiling` is the signal-referred ceiling per CFA position — `white_level -
 // black[p]`, not `white_level`. Samples here are already black-subtracted
 // residuals, so a gate written against the raw white level is dimensionally
-// wrong. Gates are always evaluated; `ShadingField::gates` reports every
-// fraction either way.
-ShadingField measure_shading_field(const double* data, int width, int height,
+// wrong. When gate evaluation is reached, `ShadingField::gates` reports every
+// fraction even if a quality gate rejects. Earlier failures leave
+// `ShadingField::gates.measured` false.
+ShadingField measure_shading_field(const double *data, int width, int height,
                                    int row_stride_pixels,
-                                   const ShadingOptions& opts,
-                                   const std::array<double, 4>& ceiling);
+                                   const ShadingOptions &opts,
+                                   const std::array<double, 4> &ceiling);
 
 // Center-normalized chromatic response of the measured capture-system field.
 //

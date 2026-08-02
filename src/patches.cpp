@@ -8,6 +8,7 @@
 #include <limits>
 #include <map>
 #include <ostream>
+#include <sstream>
 #include <stdexcept>
 #include <string>
 #include <string_view>
@@ -250,6 +251,8 @@ void write_flat_gate(JsonWriter& w,
   w.value(gate.near_ceiling_level);
   w.key("max_allowed_fraction");
   w.value(gate.max_allowed_fraction);
+  w.key("min_finite_coverage");
+  w.value(gate.min_finite_coverage);
   w.key("geometry");
   w.begin_object();
   w.key("frame");
@@ -265,6 +268,10 @@ void write_flat_gate(JsonWriter& w,
   write_fraction_array(w, gate.near_ceiling_fraction_frame);
   w.key("near_ceiling_fraction_gate");
   write_fraction_array(w, gate.near_ceiling_fraction_gate);
+  w.key("finite_fraction_frame");
+  write_fraction_array(w, gate.finite_fraction_frame);
+  w.key("finite_fraction_gate");
+  write_fraction_array(w, gate.finite_fraction_gate);
   w.key("verdict");
   w.begin_object();
   w.key("accepted");
@@ -1107,13 +1114,39 @@ double flat_field_center_gate_fraction() {
   return kFlatFieldGateCenterFraction;
 }
 
-FlatFieldGateVerdict flat_field_near_ceiling_verdict(
-    const std::array<double, 4>& frame_fractions,
-    const std::array<double, 4>& gate_fractions,
-    const std::array<std::string, 4>& labels, double max_allowed) {
-  if (!valid_flat_field_fraction(max_allowed)) {
+FlatFieldGateVerdict
+flat_field_near_ceiling_verdict(const std::array<double, 4> &frame_fractions,
+                                const std::array<double, 4> &gate_fractions,
+                                const std::array<double, 4> &frame_coverage,
+                                const std::array<double, 4> &gate_coverage,
+                                const std::array<std::string, 4> &labels,
+                                double max_allowed, double min_coverage) {
+  if (!valid_flat_field_fraction(max_allowed) ||
+      !valid_flat_field_fraction(min_coverage)) {
     return {false, "invalid_policy", "policy", -1, {}, max_allowed};
   }
+  // Coverage is checked before the conditional near-ceiling fractions. With no
+  // finite samples, the fraction is necessarily undefined; reporting that NaN
+  // first would hide the actionable cause, which is zero coverage.
+  for (int p = 0; p < 4; ++p) {
+    for (const auto &region :
+         {std::pair<std::string_view, double>{"frame", frame_coverage[p]},
+          std::pair<std::string_view, double>{"gate", gate_coverage[p]}}) {
+      if (!valid_flat_field_fraction(region.second)) {
+        return {false, "invalid_coverage", std::string(region.first),
+                p,     labels[p],          region.second};
+      }
+      if (region.second < min_coverage) {
+        return {false,
+                "insufficient_finite_coverage",
+                std::string(region.first),
+                p,
+                labels[p],
+                region.second};
+      }
+    }
+  }
+
   for (int p = 0; p < 4; ++p) {
     for (const auto& measurement :
          {std::pair<std::string_view, double>{"frame", frame_fractions[p]},
@@ -1128,7 +1161,8 @@ FlatFieldGateVerdict flat_field_near_ceiling_verdict(
   bool all_pass = true;
   for (int p = 0; p < 4; ++p) {
     all_pass &= flat_field_near_ceiling_passes(
-        frame_fractions[p], gate_fractions[p], max_allowed);
+        frame_fractions[p], gate_fractions[p], frame_coverage[p],
+        gate_coverage[p], max_allowed, min_coverage);
   }
   if (all_pass) return {true, "within_policy", {}, -1, {}, 0.0};
 
@@ -1152,13 +1186,46 @@ FlatFieldGateVerdict flat_field_near_ceiling_verdict(
   return {false, "invalid_measurement", "policy", -1, {}, 0.0};
 }
 
-std::optional<FlatFieldNearCeilingDiagnostics>
-measure_flat_field_near_ceiling(const RawCfaImage& flat, double center_fraction,
-                                double near_ceiling_level,
-                                double max_allowed_fraction) {
+std::string format_flat_field_gate_rejection(
+    const FlatFieldNearCeilingDiagnostics &diagnostics) {
+  const auto &verdict = diagnostics.verdict;
+  std::ostringstream os;
+  if (verdict.reason == "policy_exceeded") {
+    os << "flat-field RAW is too close to the sensor ceiling for correction ("
+       << verdict.region << ' ' << verdict.label << '[' << verdict.position
+       << "] near-ceiling fraction " << verdict.fraction
+       << " against a policy of " << diagnostics.max_allowed_fraction << ')';
+  } else if (verdict.reason == "insufficient_finite_coverage") {
+    os << "flat-field RAW has insufficient finite coverage (" << verdict.region
+       << ' ' << verdict.label << '[' << verdict.position
+       << "] finite coverage " << verdict.fraction << " against a policy of "
+       << diagnostics.min_finite_coverage << ')';
+  } else if (verdict.reason == "invalid_coverage") {
+    os << "flat-field RAW has invalid finite coverage (" << verdict.region
+       << ' ' << verdict.label << '[' << verdict.position
+       << "] finite coverage " << verdict.fraction
+       << "; expected a finite fraction in [0,1])";
+  } else if (verdict.reason == "invalid_fraction") {
+    os << "flat-field RAW has an invalid near-ceiling measurement ("
+       << verdict.region << ' ' << verdict.label << '[' << verdict.position
+       << "] fraction " << verdict.fraction
+       << "; expected a finite fraction in [0,1])";
+  } else if (verdict.reason == "invalid_policy") {
+    os << "flat-field RAW screening policy is invalid";
+  } else {
+    os << "flat-field RAW failed screening (reason " << verdict.reason << ')';
+  }
+  return os.str();
+}
+
+std::optional<FlatFieldNearCeilingDiagnostics> measure_flat_field_near_ceiling(
+    const RawCfaImage &flat, double center_fraction, double near_ceiling_level,
+    double max_allowed_fraction, double min_finite_coverage) {
   if (!std::isfinite(near_ceiling_level) || near_ceiling_level <= 0.0 ||
       near_ceiling_level > 1.0 || !std::isfinite(max_allowed_fraction) ||
-      max_allowed_fraction < 0.0 || max_allowed_fraction > 1.0) {
+      max_allowed_fraction < 0.0 || max_allowed_fraction > 1.0 ||
+      !std::isfinite(min_finite_coverage) || min_finite_coverage < 0.0 ||
+      min_finite_coverage > 1.0) {
     return std::nullopt;
   }
   const auto frame =
@@ -1197,14 +1264,18 @@ measure_flat_field_near_ceiling(const RawCfaImage& flat, double center_fraction,
   out.gate_center_fraction = center_fraction;
   out.near_ceiling_level = near_ceiling_level;
   out.max_allowed_fraction = max_allowed_fraction;
+  out.min_finite_coverage = min_finite_coverage;
   out.labels = channel_labels(flat.cdesc, flat.color_at_position);
   for (int p = 0; p < 4; ++p) {
     out.near_ceiling_fraction_frame[p] = measurement->fraction_frame[p];
     out.near_ceiling_fraction_gate[p] = measurement->fraction_gate[p];
+    out.finite_fraction_frame[p] = measurement->finite_fraction_frame[p];
+    out.finite_fraction_gate[p] = measurement->finite_fraction_gate[p];
   }
   out.verdict = flat_field_near_ceiling_verdict(
       out.near_ceiling_fraction_frame, out.near_ceiling_fraction_gate,
-      out.labels, max_allowed_fraction);
+      out.finite_fraction_frame, out.finite_fraction_gate, out.labels,
+      max_allowed_fraction, min_finite_coverage);
   return out;
 }
 
