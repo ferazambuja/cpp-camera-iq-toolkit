@@ -50,6 +50,7 @@ add_library(camera_iq_core STATIC
   src/cfa_stats.cpp
   src/mat_file.cpp
   src/spectro_measurement.cpp
+  src/spectro_ledger.cpp
   src/roi.cpp
   src/flat_field_gate.cpp
   src/demosaic.cpp
@@ -118,6 +119,7 @@ camera_iq_add_test(test_manifest_json tests/test_manifest_json.cpp)
 camera_iq_add_test(test_cfa_stats tests/test_cfa_stats.cpp)
 camera_iq_add_test(test_mat_file tests/test_mat_file.cpp)
 camera_iq_add_test(test_spectro_measurement tests/test_spectro_measurement.cpp)
+camera_iq_add_test(test_spectro_ledger tests/test_spectro_ledger.cpp)
 camera_iq_add_test(test_roi tests/test_roi.cpp)
 camera_iq_add_test(test_demosaic tests/test_demosaic.cpp)
 camera_iq_add_test(test_dark_calibration tests/test_dark_calibration.cpp)
