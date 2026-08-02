@@ -4,6 +4,7 @@
 #include <array>
 #include <optional>
 
+#include "camera_iq/cfa_stats.hpp"
 #include "camera_iq/roi.hpp"
 
 namespace camera_iq {
@@ -15,6 +16,16 @@ namespace camera_iq {
 inline constexpr double kFlatFieldGateCenterFraction = 0.20;
 inline constexpr double kFlatFieldNearCeilingLevel = 0.98;
 inline constexpr double kFlatFieldMaxNearCeilingFraction = 0.01;
+
+// `raw-stats` declares the same signal-referred level independently, and the
+// reports present 98% as one cross-command property rather than two that happen
+// to agree. Nothing enforced that agreement, so it could drift silently in
+// either direction. Deliberately diverging the two is allowed — it just has to
+// be a decision: delete this assertion and say so in the reports.
+static_assert(kFlatFieldNearCeilingLevel == kRawStatsNearCeilingLevel,
+              "flat-field and raw-stats near-ceiling levels are published as "
+              "one 98% policy; change both and the reports, or drop this "
+              "assertion deliberately");
 
 inline bool valid_flat_field_fraction(double value) {
   return std::isfinite(value) && value >= 0.0 && value <= 1.0;

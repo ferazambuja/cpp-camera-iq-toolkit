@@ -146,6 +146,7 @@ camera_iq_add_test(test_cmd_spectral_smi tests/test_cmd_spectral_smi.cpp)
 camera_iq_add_test(test_cmd_spectral_quality tests/test_cmd_spectral_quality.cpp)
 camera_iq_add_test(test_cmd_spectral_closure tests/test_cmd_spectral_closure.cpp)
 camera_iq_add_test(test_cmd_patches tests/test_cmd_patches.cpp)
+camera_iq_add_test(test_flat_field_gate tests/test_flat_field_gate.cpp)
 camera_iq_add_test(test_shading tests/test_shading.cpp)
 camera_iq_add_test(test_cmd_shading tests/test_cmd_shading.cpp)
 
