@@ -344,14 +344,19 @@ historical private-run error magnitude.
 
 ## JSON and CSV behavior
 
-- JSON records schema version and every effective option alongside
+- JSON/CSV schema version 3 records the nullable pre-measurement state and every
+  effective option alongside
   dataset-relative filenames, signal ceilings, geometry, gate diagnostics,
   response maps, chromatic completeness, dark-control evidence, asymmetry, and
   interpretation scope. Screening coverage is explicit as
   `min_finite_coverage`, `finite_fraction_frame`,
-  `finite_fraction_gate`, and `screening_coverage_ok`.
-- A rejected frame retains its measured gates and center/corner medians while
-  relative and chromatic maps become `null`.
+  `finite_fraction_gate`, `gates.measured`, and `screening_coverage_ok`.
+- A post-measurement rejection retains its measured gates and center/corner
+  medians while relative and chromatic maps become `null`. A rejection before
+  gate measurement writes `gates.measured = false`, JSON `null`, and blank CSV
+  values for those diagnostics; validated signal ceilings remain available,
+  while a rejection before ceiling validation writes `signal_ceiling_dn` as
+  `null`. Initializer values are never published as measurements.
 - Undefined ratio bins become JSON `null`; `chromatic_complete` and
   `missing_chromatic_bin_count` make the condition explicit.
 - CSV uses RFC 4180-escaped long-form rows and includes the screening-coverage
@@ -377,7 +382,7 @@ The shading tests cover:
   residual tolerance, and verification;
 - multiplicative repeat invariance and additive-offset detection;
 - JSON/CSV schema/options, escaping, rejection, privacy, dark controls,
-  completeness, and comparison output;
+  completeness, pre-measurement null/blank diagnostics, and comparison output;
 - output/input alias refusal, dataset-root containment, and exporter joins.
 
 The exporter and deterministic figure tests validate 52 unique inventory

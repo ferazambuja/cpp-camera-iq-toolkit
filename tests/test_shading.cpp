@@ -334,10 +334,12 @@ void TESTS() {
     const auto odd = make_mosaic(odd_width, height, {500, 500, 500, 500});
     opts.corner_block_px = 32;
     opts.gate_center_frac = 0.5;
-    const auto odd_field = measure_shading_field(
-        odd.data(), odd_width, height, odd_width, opts, kCeiling);
-    check(!odd_field.valid,
-          "geometry: odd mosaic dimensions cannot claim mirrored corners");
+    const auto odd_field = measure_shading_field(odd.data(), odd_width, height,
+                                                 odd_width, opts, kCeiling);
+    check(!odd_field.valid && odd_field.signal_ceiling_measured &&
+              !odd_field.gates.measured,
+          "geometry: odd mosaic rejects after ceiling validation but before "
+          "gate measurement");
   }
 
   // Bounded missing samples are controlled by the coverage policy. Fractions

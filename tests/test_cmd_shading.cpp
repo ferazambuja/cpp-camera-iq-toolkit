@@ -34,6 +34,8 @@ bool contains(const std::string& haystack, const std::string& needle) {
 ShadingField accepted_field() {
   ShadingField f;
   f.valid = true;
+  f.signal_ceiling_measured = true;
+  f.signal_ceiling = {2000.0, 2000.0, 2000.0, 2000.0};
   f.grid_cols = 2;
   f.grid_rows = 2;
   f.geometry.valid = true;
@@ -51,6 +53,7 @@ ShadingField accepted_field() {
     }
   }
   f.gates.near_ceiling_ok = true;
+  f.gates.measured = true;
   f.gates.screening_coverage_ok = true;
   f.gates.low_signal_ok = true;
   f.gates.negative_ok = true;
@@ -159,7 +162,7 @@ void TESTS() {
             contains(json, "\"min_finite_coverage\":0.9") &&
             contains(json, "\"screening_coverage_ok\":true"),
         "shading json: screening coverage evidence and verdict are pinned");
-    check(contains(json, "\"schema_version\":2") &&
+    check(contains(json, "\"schema_version\":3") &&
               contains(json, "\"analysis_options\"") &&
               contains(json, "\"near_ceiling_max\":0.01") &&
               contains(json, "\"asymmetry_policy\":0.05"),
@@ -213,6 +216,64 @@ void TESTS() {
           "shading json: rejected screening coverage evidence survives");
     check(contains(json, "\"center_block_median\""),
           "shading json: measured diagnostics survive rejection");
+  }
+
+  // A rejection before screening is not a measured clean gate. Odd geometry
+  // still preserves the signal ceilings that were validated before geometry,
+  // while every unmeasured diagnostic is explicitly null/blank.
+  {
+    constexpr int width = 7;
+    constexpr int height = 8;
+    const std::vector<double> mosaic(static_cast<std::size_t>(width) * height,
+                                     100.0);
+    camera_iq::ShadingOptions opts;
+    opts.grid_cols = 1;
+    opts.grid_rows = 1;
+    opts.corner_block_px = 2;
+    opts.corner_inset_px = 0;
+    const ShadingField field = camera_iq::measure_shading_field(
+        mosaic.data(), width, height, width, opts,
+        std::array<double, 4>{1000.0, 1000.0, 1000.0, 1000.0});
+    check(!field.valid && field.signal_ceiling_measured &&
+              !field.gates.measured,
+          "shading early rejection: known ceilings and unmeasured gates are "
+          "distinguished");
+
+    const std::string json = serialize(field, {}, {});
+    check(contains(json, "\"signal_ceiling_dn\":[1000,1000,1000,1000]") &&
+              contains(json, "\"gates\":{\"measured\":false") &&
+              contains(json, "\"near_ceiling_fraction_gate\":null") &&
+              contains(json, "\"finite_fraction_frame\":null") &&
+              contains(json, "\"screening_coverage_ok\":null") &&
+              contains(json, "\"center_block_median\":null") &&
+              contains(json, "\"corner_median\":null"),
+          "shading json: early rejection cannot publish default diagnostics "
+          "as measurements");
+
+    std::ostringstream os;
+    camera_iq::write_shading_csv(os, "Images/Sphere/odd.RAF",
+                                 {"R", "G1", "G2", "B"}, field, {}, {});
+    const std::string csv = os.str();
+    check(contains(csv, ",,-1,gates_measured,,,0,boolean,false") &&
+              contains(csv, ",R,0,finite_fraction_gate,,,,fraction,false") &&
+              contains(csv, ",B,3,center_block_median,,,,dn,false") &&
+              contains(csv, ",,-1,screening_coverage_ok,,,,boolean,false"),
+          "shading csv: early rejection marks gate diagnostics unmeasured and "
+          "leaves their values blank");
+  }
+
+  // When rejection precedes even ceiling validation, the signal ceiling is
+  // also unmeasured rather than a numeric array of zeros.
+  {
+    const ShadingField field = camera_iq::measure_shading_field(
+        nullptr, 8, 8, 8, camera_iq::ShadingOptions{},
+        std::array<double, 4>{1000.0, 1000.0, 1000.0, 1000.0});
+    check(!field.signal_ceiling_measured && !field.gates.measured,
+          "shading early rejection: no fabricated ceiling or gate state");
+    const std::string json = serialize(field, {}, {});
+    check(contains(json, "\"signal_ceiling_dn\":null") &&
+              contains(json, "\"gates\":{\"measured\":false"),
+          "shading json: pre-validation rejection keeps measurements null");
   }
 
   // A verified pedestal reports the residual it measured and the pairing check
@@ -346,6 +407,8 @@ void TESTS() {
                     "units,accepted",
                     0) == 0,
           "shading csv: long-form header");
+    check(contains(csv, ",,-1,schema_version,,,3,integer,true"),
+          "shading csv: nullable gate schema change is versioned");
     check(contains(csv, ",G1,1,relative_response,0,1,0.9,ratio,true"),
           "shading csv: a map value carries its channel, bin and units");
     check(contains(csv, ",c_rg,1,1,"),
@@ -380,8 +443,11 @@ void TESTS() {
   {
     ShadingField field = accepted_field();
     field.valid = false;
-    field.gates.near_ceiling_ok = false;
-    for (int p = 0; p < 4; ++p) field.relative[p].clear();
+    field.gates.screening_coverage_ok = false;
+    field.gates.finite_frac_gate = {0.5, 0.6, 0.7, 0.8};
+    field.gates.finite_frac_frame = {0.4, 0.5, 0.6, 0.7};
+    for (int p = 0; p < 4; ++p)
+      field.relative[p].clear();
     const ShadingChromatic chroma;
     const ShadingPedestal pedestal;
 
@@ -391,8 +457,14 @@ void TESTS() {
                                  pedestal);
     const std::string csv = os.str();
 
-    check(contains(csv, "near_ceiling_fraction_gate"),
-          "shading csv: rejected frame keeps its diagnostics");
+    check(
+        contains(csv, ",R,0,finite_fraction_gate,,,0.5,fraction,false") &&
+            contains(csv, ",B,3,finite_fraction_frame,,,0.7,fraction,false") &&
+            contains(csv, ",,-1,analysis_option_min_finite_coverage,,,0.9,"
+                          "fraction,false") &&
+            contains(csv, ",,-1,screening_coverage_ok,,,0,boolean,false"),
+        "shading csv: rejected screening coverage arrays, policy, verdict, "
+        "and acceptance state survive");
     check(!contains(csv, "relative_response"),
           "shading csv: rejected frame emits no response values");
     check(!contains(csv, ",c_rg,"),
