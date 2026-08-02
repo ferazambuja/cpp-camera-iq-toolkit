@@ -184,8 +184,9 @@ The command also emits an `independent_center_check` using a dual-seeded
 color-similarity centroid from the bilinear RAW RGB image as a third source. It
 seeds the detector once from the generated grid and once from the RawDigger
 oracle, then only arbitrates with centres where both seedings agree. This blocks
-the previous generated-grid anchoring asymmetry: a `generated_grid` verdict is
-not trusted unless the RawDigger-seeded detector reaches the same centre.
+an anchoring asymmetry in which the seed determines the verdict: a
+`generated_grid` result is not trusted unless the RawDigger-seeded detector
+reaches the same centre.
 
 On this capture the detector still cannot arbitrate. The two seedings produce
 140 matched attempts but disagree by `20.059 px` RMS, so there are `0` agreed

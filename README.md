@@ -37,14 +37,16 @@ validation.
   samples with the same per-position near-ceiling limits over both the full
   frame and a centered region. The test rejects a 1/500 s frame whose worst CFA
   position is **11.63% near ceiling** in the centered region, while retaining
-  the 1/1000 s correction flat. The correction calculation after admission is
-  unchanged.
-- **Spectroradiometer ingest:** verified **89 distinct MATLAB readings** across
-  40 measurement groups, separated absolute level from normalized spectral
-  shape, and reproduced recorded XYZ with one archive-derived scale. Across the
-  37 groups with multiple readings, level CV is **7.17% median**;
-  normalized-shape and chromaticity diagnostics are reported separately and
-  are nonzero.
+  the 1/1000 s correction flat. Admission does not alter the correction itself:
+  the normalizer remains the full-frame valid-sample mean.
+- **Spectroradiometer ingest:** parsed **89 distinct MATLAB v5 readings** into
+  40 measurement groups, resolved by content hash rather than by filenames that
+  number acquisitions instead of scenes. Separating absolute level from
+  normalized shape located the variation: across the 37 repeated groups the
+  spectral-integral CV reaches **41.65%**, while normalized shape stays within
+  **1.076%** and chromaticity within **0.002852** Δu′v′. The records cannot
+  separate source output, geometry, and acquisition settings, so this is
+  reported as within-group observed variation rather than drift.
 
 ## Featured case studies
 

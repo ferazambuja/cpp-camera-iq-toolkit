@@ -149,8 +149,8 @@ to be the sole mechanism, and not a bad reference.
    label it as compatible/standard until physical chart identity is proven.
 3. **PRD = white/illuminant reference** (candidate white point), not a color
    chart; the `Old/` ramp row 16 is a PRD average, not a 16th patch.
-4. **Patch identity is no longer blocked for `ccsg.xlsx`, but labels must be
-   read carefully.** The neutral ramp is not a 140-patch chart reference (corr
+4. **Patch identity for `ccsg.xlsx` is resolvable, but labels must be read
+   carefully.** The neutral ramp is not a 140-patch chart reference (corr
    −0.07 against the first 16 camera rows). The workbook order aligns with the
    camera extraction order, but RawDigger's grid labels are transposed relative
    to workbook/reference patch IDs. Report `ccm-fit` exclusions as

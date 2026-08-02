@@ -93,8 +93,9 @@ v′ = 9Y / (X + 15Y + 3Z)
 Each group reports the maximum Euclidean separation between reading pairs in
 `u′,v′`. The measured maximum-pair Δu′v′ is **0.000703 median** and **0.002852
 maximum**. Δu′v′ and level CV have different units and are not ranked against
-one another. The nonzero chromaticity values do show that “color does not
-change” is not supported.
+one another. The chromaticity separations are nonzero, so the readings within a
+group are not colorimetrically identical, and treating a group as one repeated
+colour would discard a real difference.
 
 ## Same-record XYZ closure
 
@@ -150,6 +151,27 @@ The command can emit:
   the committed inputs, aggregate, receipt structure, and value domains;
   reproducing archive-only closure values requires the private measurements.
 
+The committed receipt is reproduced by this invocation and no other:
+
+```sh
+camera_iq spectro-ingest clrs589_project_camera \
+  --config configs/datasets.local.json \
+  --ledger data/spectro_identity_ledger.csv \
+  --cmf data/cie1931_2deg_cmf_1nm.csv \
+  --verify-aliases \
+  --out run.json --groups-csv groups.csv --readings-csv readings.csv
+python3 tools/generate_spectro_receipt.py --result run.json \
+  --groups-csv groups.csv --readings-csv readings.csv \
+  --out docs/data/spectro_result_receipt.json
+```
+
+Passing the archive root instead of the dataset ID reads the same files and
+produces the same aggregate, but records `dataset-root:` rather than `dataset:`
+in the run JSON. That is a different byte stream and therefore a different
+`archive_run_result` hash. The measurements are unchanged; only the recorded
+identity of the run differs. A reader who reproduces the receipt the other way
+and finds a hash mismatch has not found stale evidence.
+
 `tools/matlab/export_spectro_crosscheck.m` reads the same 89 ledger rows through
 MATLAB. `tools/compare_spectro_crosscheck.py` compares vector hashes exactly and
 numeric metadata within declared tolerances. This keeps MATLAB as an
@@ -158,13 +180,14 @@ truth.
 
 That comparison has not been run against this archive, and no published number
 here should be read as MATLAB-confirmed. CI cannot run it, because MATLAB is not
-available there. The gated `test_compare_spectro_crosscheck` exercises the
-comparator's own behaviour against constructed inputs, which establishes that
-the comparator would detect a disagreement, not that the two parsers agree.
+available there. The comparator itself is tested against constructed inputs,
+which establishes that it would detect a disagreement, not that the two parsers
+agree.
 
 ## Interpretation limits
 
-- Group membership comes from the archive-derived, CTest-gated ledger.
+- Group membership comes from the identity ledger, which is derived from the
+  archive by content hash rather than asserted by hand.
 - The 37 multi-reading groups permit observed within-group dispersion; they do
   not establish repeatability under a documented fixed procedure.
 - The three singletons carry null spread, CV, shape-residual, and pairwise
