@@ -93,8 +93,9 @@ v′ = 9Y / (X + 15Y + 3Z)
 Each group reports the maximum Euclidean separation between reading pairs in
 `u′,v′`. The measured maximum-pair Δu′v′ is **0.000703 median** and **0.002852
 maximum**. Δu′v′ and level CV have different units and are not ranked against
-one another. The nonzero chromaticity values do show that “color does not
-change” is not supported.
+one another. The chromaticity separations are nonzero, so the readings within a
+group are not colorimetrically identical, and treating a group as one repeated
+colour would discard a real difference.
 
 ## Same-record XYZ closure
 
@@ -179,13 +180,14 @@ truth.
 
 That comparison has not been run against this archive, and no published number
 here should be read as MATLAB-confirmed. CI cannot run it, because MATLAB is not
-available there. The gated `test_compare_spectro_crosscheck` exercises the
-comparator's own behaviour against constructed inputs, which establishes that
-the comparator would detect a disagreement, not that the two parsers agree.
+available there. The comparator itself is tested against constructed inputs,
+which establishes that it would detect a disagreement, not that the two parsers
+agree.
 
 ## Interpretation limits
 
-- Group membership comes from the archive-derived, CTest-gated ledger.
+- Group membership comes from the identity ledger, which is derived from the
+  archive by content hash rather than asserted by hand.
 - The 37 multi-reading groups permit observed within-group dispersion; they do
   not establish repeatability under a documented fixed procedure.
 - The three singletons carry null spread, CV, shape-residual, and pairwise
