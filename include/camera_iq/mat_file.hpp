@@ -3,6 +3,7 @@
 #include <cstddef>
 #include <map>
 #include <string>
+#include <string_view>
 #include <vector>
 
 namespace camera_iq {
@@ -31,6 +32,15 @@ using MatStruct = std::map<std::string, MatArray>;
 // numeric payload that is not a whole number of samples and dimensions that
 // disagree with the value count. A reader that returned an empty struct instead
 // would be indistinguishable from a file that genuinely holds no fields.
-MatStruct read_mat_struct(const std::string& bytes);
+//   variable_name       name of the struct variable to return. Files may hold
+//                       more than one, and taking whichever comes first makes
+//                       the result depend on write order.
+//   max_inflated_bytes  cap on the total inflated size of a compressed element.
+//                       A small file can declare an unbounded expansion, and
+//                       refusing is diagnosable where an out-of-memory abort is
+//                       not. The archive's largest payload is a few kilobytes.
+MatStruct read_mat_struct(const std::string& bytes,
+                          std::string_view variable_name = "measurements",
+                          std::size_t max_inflated_bytes = 64u << 20);
 
 }  // namespace camera_iq

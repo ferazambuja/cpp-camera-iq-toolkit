@@ -34,7 +34,7 @@ constexpr std::uint32_t kMxStruct = 2;
 // Inflates a deflate stream of unknown output size. MAT-files do not record the
 // uncompressed length anywhere, so the buffer grows until zlib reports the end
 // of the stream.
-std::string inflate_stream(std::string_view in) {
+std::string inflate_stream(std::string_view in, std::size_t max_bytes) {
   z_stream zs{};
   if (inflateInit(&zs) != Z_OK) {
     throw std::runtime_error("mat file: could not start zlib inflate");
@@ -54,6 +54,11 @@ std::string inflate_stream(std::string_view in) {
       throw std::runtime_error("mat file: zlib inflate failed");
     }
     out.append(chunk, sizeof(chunk) - zs.avail_out);
+    if (out.size() > max_bytes) {
+      inflateEnd(&zs);
+      throw std::runtime_error(
+          "mat file: compressed element inflates past the declared limit");
+    }
   } while (rc != Z_STREAM_END);
   inflateEnd(&zs);
   return out;
@@ -248,19 +253,25 @@ Matrix parse_matrix(std::string_view body) {
 // Scans a MAT element stream for the first struct variable. A compressed
 // element is inflated and scanned in turn: MATLAB wraps a file's whole payload
 // in one, so the struct is always one level down in practice.
-bool find_struct(std::string_view data, MatStruct& out) {
+bool find_struct(std::string_view data, std::string_view want, MatStruct& out,
+                 std::size_t max_bytes, int depth) {
+  // MATLAB nests one compressed element per file. A deeper chain is either a
+  // format this reader has not been shown or a crafted input.
+  if (depth > 4) {
+    throw std::runtime_error("mat file: compressed elements nested too deeply");
+  }
   std::size_t off = 0;
   while (off < data.size()) {
     const Element e = read_element(data, off);
     off += e.consumed;
     if (e.type == kMiCompressed) {
-      const std::string inflated = inflate_stream(e.payload);
-      if (find_struct(inflated, out)) return true;
+      const std::string inflated = inflate_stream(e.payload, max_bytes);
+      if (find_struct(inflated, want, out, max_bytes, depth + 1)) return true;
       continue;
     }
     if (e.type != kMiMatrix) continue;
     const Matrix m = parse_matrix(e.payload);
-    if (m.klass != kMxStruct) continue;
+    if (m.klass != kMxStruct || m.name != want) continue;
     for (const Matrix& field : m.fields) {
       out.emplace(field.name, MatArray{field.dims, field.values});
     }
@@ -271,7 +282,9 @@ bool find_struct(std::string_view data, MatStruct& out) {
 
 }  // namespace
 
-MatStruct read_mat_struct(const std::string& bytes) {
+MatStruct read_mat_struct(const std::string& bytes,
+                          std::string_view variable_name,
+                          std::size_t max_inflated_bytes) {
   if (bytes.size() < kHeaderBytes) {
     throw std::runtime_error("mat file: shorter than the 128-byte v5 header");
   }
@@ -291,8 +304,12 @@ MatStruct read_mat_struct(const std::string& bytes) {
 
   const std::string_view data(bytes);
   MatStruct out;
-  if (find_struct(data.substr(kHeaderBytes), out)) return out;
-  throw std::runtime_error("mat file: no struct variable found");
+  if (find_struct(data.substr(kHeaderBytes), variable_name, out,
+                  max_inflated_bytes, 0)) {
+    return out;
+  }
+  throw std::runtime_error("mat file: no struct variable named \"" +
+                           std::string(variable_name) + "\"");
 }
 
 }  // namespace camera_iq

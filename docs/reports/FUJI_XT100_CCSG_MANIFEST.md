@@ -134,7 +134,8 @@ What was recovered:
 spectroradiometer readings: patches 1–15 measured in triplicate (duplicate for
 7–9), averaged by `Old/load_all.m` into `Old/SPD_all.csv` (wl header + 15 rows)
 and `Old/XYZ_all.csv` (16 rows; Y ≈ 165–692 cd/m²; the 16th row's provenance is
-unclear — `Old/prd/` now holds a single file although the script expects pairs).
+unclear — `Old/prd/` holds `prd_1.mat` and `prd_2.mat`, and
+`Old/Old code/patch_data.m` averages that pair).
 **PRD-like scene-domain data, not a reference chart.** Primary evidence is
 measured, not inferred from scripts: **all 42** `patch_<N>trail_<M>` trials
 best-match a PRD scene with correlation **≥ 0.97** (weakest 0.9695 @

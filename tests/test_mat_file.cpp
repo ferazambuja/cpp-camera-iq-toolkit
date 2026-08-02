@@ -257,7 +257,7 @@ void TESTS() {
     std::string len_payload;
     put_u32(len_payload, 3);  // "wl" plus its NUL
     const std::string body =
-        array_flags(kMxStruct) + dimensions({1, 1}) + array_name("m") +
+        array_flags(kMxStruct) + dimensions({1, 1}) + array_name("measurements") +
         compact_element(kMiInt32, len_payload) +
         element(kMiInt8, std::string("wl\0", 3)) +
         double_matrix("", {1, 2}, {380, 382});
@@ -269,6 +269,44 @@ void TESTS() {
           "mat: parsing resumes at the right offset after a compact tag");
   }
 
+  // A file may hold several variables. Taking whichever struct comes first
+  // makes the result depend on write order; the caller names what it wants.
+  {
+    const std::string file =
+        mat_header() +
+        struct_matrix("other", {{"wl", double_matrix("", {1, 1}, {1})}}) +
+        struct_matrix("measurements",
+                      {{"wl", double_matrix("", {1, 2}, {380, 382})}});
+    const auto s = camera_iq::read_mat_struct(file, "measurements");
+    check(s.at("wl").values == std::vector<double>{380, 382},
+          "mat: the named struct is selected, not the first one");
+
+    bool threw = false;
+    try {
+      camera_iq::read_mat_struct(file, "absent");
+    } catch (const std::runtime_error&) {
+      threw = true;
+    }
+    check(threw, "mat: a named struct that is not present is an error");
+  }
+
+  {
+    // A small file that inflates without bound is the classic zip bomb. The
+    // archive's largest payload is a few kilobytes, so a cap costs nothing here
+    // and turns an out-of-memory abort into a diagnosable refusal.
+    std::string big(4u << 20, 'A');
+    const std::string file =
+        mat_header() + element(kMiCompressed, zlib_deflate(big));
+    bool threw = false;
+    try {
+      camera_iq::read_mat_struct(file, "measurements",
+                                 /*max_inflated_bytes=*/1024);
+    } catch (const std::runtime_error&) {
+      threw = true;
+    }
+    check(threw, "mat: inflation past the declared limit is refused");
+  }
+
   // Boundaries. This reader accepts an archive-specific subset of MAT v5, so
   // what it will not accept has to be as explicit as what it will.
   {
@@ -276,7 +314,7 @@ void TESTS() {
     bad_version[124] = '\0';
     bad_version[125] = '\2';  // v5 files carry 0x0100
     // A struct that would otherwise parse, so only the version can reject it.
-    bad_version += struct_matrix("m", {{"wl", double_matrix("", {1, 1},
+    bad_version += struct_matrix("measurements", {{"wl", double_matrix("", {1, 1},
                                                             {380})}});
     bool threw = false;
     try {
@@ -292,7 +330,7 @@ void TESTS() {
     // would silently drop a sample and still report a plausible array.
     const std::string ragged =
         mat_header() +
-        struct_matrix("m", {{"wl", int_matrix("", {1, 2}, kMxUint16, kMiUint16,
+        struct_matrix("measurements", {{"wl", int_matrix("", {1, 2}, kMxUint16, kMiUint16,
                                               std::string(5, '\1'))}});
     bool threw = false;
     try {
@@ -309,7 +347,7 @@ void TESTS() {
     // number of values actually present.
     const std::string lying =
         mat_header() +
-        struct_matrix("m", {{"wl", double_matrix("", {1, 5}, {380, 382})}});
+        struct_matrix("measurements", {{"wl", double_matrix("", {1, 5}, {380, 382})}});
     bool threw = false;
     try {
       camera_iq::read_mat_struct(lying);

@@ -68,9 +68,14 @@ struct:
 
 Each of the 134 raw `measurements` files stores its whole payload as a single
 `miCOMPRESSED` element, so reading one requires inflating a zlib stream before
-any MAT element can be parsed. The 16 derived workspace saves under
-`Old/Old code/` hold several elements instead, so the reader scans a stream
-rather than assuming one element per file.
+any MAT element can be parsed.
+
+The 16 workspace saves under `Old/Old code/` are a different shape: incremental
+`P<N>_avg.mat` snapshots holding dozens of variables each (`P1`, `P1_1`,
+`P1_avg`, and so on) and no `measurements` struct. The reader scans a stream
+rather than assuming one element per file, and selects by variable name, so
+these files are refused with a message naming what was sought instead of
+returning whichever struct happened to come first.
 
 ## What reproducing the recorded XYZ does and does not establish
 
@@ -87,11 +92,28 @@ established the relationship: recomputing `683.017 * integral(SPD * CMF_2deg * 2
 reproduced the recorded tristimulus with the scale constant 683.017 at zero
 variance across 16 rows and three channels.
 
-That result is reproduced here across every raw `measurements` struct in the
+That result is reproduced here across every canonical measurement in the
 archive. Integrating on the measurements' own 2 nm axis against the committed
 1 nm observer table (`data/cie1931_2deg_cmf_1nm.csv`) and scaling by
 683.017 lm/W agrees with the recorded tristimulus to a maximum of **0.0000354%**
-across all **134** files, on every channel.
+on every channel.
+
+The count is 89 measurements, not 134. The archive holds 134 raw `measurements`
+structs, but `PRD measurments copy/` is byte-identical to `PRD measurments/`
+under the original scene names: 45 of the 134 are aliases. They are useful for
+confirming the scene mapping and must not be counted as independent evidence or
+averaged as if they were repeats.
+
+The integration rule is part of the result and is serialized with it. The
+agreement above holds for a uniform rectangular sum,
+`683.017 * 2nm * sum(SPD * CMF)`. Substituting a trapezoidal integral over the
+same data raises the residual to 0.0001642%, and — more tellingly — makes it
+vary from measurement to measurement, where the rectangular rule leaves a
+constant 0.0000354% whose median equals its maximum. A constant residual is the
+signature of the same algorithm differing only in rounding; a varying one is the
+signature of a different algorithm. The instrument sums rectangles, so the
+command declares `uniform_rectangle` in its output rather than leaving the rule
+to be inferred.
 
 The observer table is the whole of the difference. The same computation against
 the 10 nm table (`data/cie1931_2deg_cmf.csv`) leaves residuals of -0.136% on X,
@@ -141,8 +163,12 @@ would silently pair `PRD_43` with `PRD_45` across a scene boundary. Reproducing
 - Per group: averaged spectrum, member file names, per-wavelength dispersion.
 - Repeatability: coefficient of variation across each group's members, since the
   repeats are the only uncertainty evidence the archive provides.
-- Closure: computed against recorded `XYZ` and `CCT` per measurement, with the
-  CMF grid and the photometric constant recorded beside the result.
+- Closure: computed against the recorded `XYZ` per measurement, with the
+  observer table, the wavelength step, the integration rule, and the
+  photometric constant recorded beside the result. `CCT` and `Duv` are carried
+  through as recorded metadata: a correlated colour temperature depends on a
+  chromaticity-space and locus convention the files do not state, so a closure
+  figure for it would be testing an assumption rather than the pipeline.
 - Wavelength axes are checked for agreement across every file in a group; a
   disagreement rejects rather than interpolates.
 

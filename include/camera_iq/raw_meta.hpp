@@ -108,7 +108,7 @@ struct RawCfaReport {
   std::array<ChannelStats, 4> planes;
 };
 
-// Publication-safe raw-stats JSON serializer. Exposed so the output contract,
+// raw-stats JSON serializer. Exposed so the output contract,
 // including the effective near-ceiling policy, has direct regression coverage.
 void write_raw_stats_json(std::ostream& os, std::string_view file_label,
                           const RawCfaReport& report);

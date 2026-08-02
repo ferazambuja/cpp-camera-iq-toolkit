@@ -1,4 +1,4 @@
-# Publication-safe aggregate data
+# Aggregate result data
 
 These CSVs contain only result-level measurements already documented in the
 technical reports. They contain no RAW samples, absolute paths, commercial-tool
