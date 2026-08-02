@@ -173,10 +173,10 @@ void TESTS() {
 
   // Both readings pass the finiteness gate, so the summary must not produce a
   // value that does not. The accumulation subtracts one reading from another
-  // in double before any widening, and long double is double on every arm64
-  // target -- including this project's development machine -- so widening
-  // supplies no headroom there. The true spread here, sqrt(2) * 1e308, is
-  // representable; only the intermediate is not.
+  // in double before any widening. C++ does not require long double to add
+  // range, and it does not on Apple arm64, so widening cannot be a correctness
+  // requirement. The true spread here, sqrt(2) * 1e308, is representable; only
+  // the unscaled intermediate is not.
   SpectroMeasurement wide_low = parsed;
   SpectroMeasurement wide_high = parsed;
   wide_low.spectral_radiance[0] = -1.0e308;

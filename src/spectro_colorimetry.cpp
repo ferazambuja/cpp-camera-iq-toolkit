@@ -45,6 +45,25 @@ double number(std::string_view token) {
   }
 }
 
+class CompensatedSum {
+public:
+  void add(double value) {
+    const double next = sum_ + value;
+    if (std::fabs(sum_) >= std::fabs(value)) {
+      correction_ += (sum_ - next) + value;
+    } else {
+      correction_ += (value - next) + sum_;
+    }
+    sum_ = next;
+  }
+
+  double value() const { return sum_ + correction_; }
+
+private:
+  double sum_ = 0.0;
+  double correction_ = 0.0;
+};
+
 std::array<double, 3> integrate_unscaled(const SpectroMeasurement &reading,
                                          const SpectroCmfTable &observer) {
   if (reading.wavelength_nm.size() < 2 ||
@@ -127,27 +146,55 @@ compute_spectro_closure(const std::vector<SpectroMeasurement> &readings,
   }
   std::vector<std::array<double, 3>> unscaled;
   unscaled.reserve(readings.size());
-  double numerator = 0.0;
-  double denominator = 0.0;
+  double max_unscaled = 0.0;
+  double max_recorded = 0.0;
   for (const SpectroMeasurement &reading : readings) {
     const auto xyz = integrate_unscaled(reading, observer);
     unscaled.push_back(xyz);
     for (std::size_t channel = 0; channel < xyz.size(); ++channel) {
-      numerator += reading.recorded_xyz[channel] * xyz[channel];
-      denominator += xyz[channel] * xyz[channel];
+      const double recorded = reading.recorded_xyz[channel];
+      if (!std::isfinite(xyz[channel]) || !std::isfinite(recorded) ||
+          recorded == 0.0) {
+        throw std::runtime_error(
+            "spectro closure: XYZ values must be finite and recorded XYZ "
+            "must be nonzero");
+      }
+      max_unscaled = std::max(max_unscaled, std::fabs(xyz[channel]));
+      max_recorded = std::max(max_recorded, std::fabs(recorded));
     }
   }
-  if (!std::isfinite(numerator) || !std::isfinite(denominator) ||
-      denominator <= 0.0) {
+  if (max_unscaled == 0.0 || max_recorded == 0.0) {
+    throw std::runtime_error("spectro closure: scale fit is not finite");
+  }
+
+  int unscaled_exponent = 0;
+  int recorded_exponent = 0;
+  (void)std::frexp(max_unscaled, &unscaled_exponent);
+  (void)std::frexp(max_recorded, &recorded_exponent);
+  CompensatedSum numerator;
+  CompensatedSum denominator;
+  for (std::size_t index = 0; index < readings.size(); ++index) {
+    for (std::size_t channel = 0; channel < 3; ++channel) {
+      const double scaled_unscaled =
+          std::ldexp(unscaled[index][channel], -unscaled_exponent);
+      const double scaled_recorded = std::ldexp(
+          readings[index].recorded_xyz[channel], -recorded_exponent);
+      numerator.add(scaled_recorded * scaled_unscaled);
+      denominator.add(scaled_unscaled * scaled_unscaled);
+    }
+  }
+  if (!std::isfinite(numerator.value()) ||
+      !std::isfinite(denominator.value()) || denominator.value() <= 0.0) {
     throw std::runtime_error("spectro closure: scale fit is not finite");
   }
 
   SpectroClosureResult result;
-  result.scale_value = numerator / denominator;
+  result.scale_value = std::ldexp(numerator.value() / denominator.value(),
+                                  recorded_exponent - unscaled_exponent);
   if (!std::isfinite(result.scale_value) || result.scale_value <= 0.0) {
     throw std::runtime_error("spectro closure: fitted scale is not positive");
   }
-  double squared_relative_sum = 0.0;
+  double relative_residual_norm = 0.0;
   std::size_t residual_count = 0;
   result.readings.reserve(readings.size());
   for (std::size_t index = 0; index < readings.size(); ++index) {
@@ -155,25 +202,27 @@ compute_spectro_closure(const std::vector<SpectroMeasurement> &readings,
     for (std::size_t channel = 0; channel < closure.computed_xyz.size();
          ++channel) {
       const double recorded = readings[index].recorded_xyz[channel];
-      if (!std::isfinite(recorded) || recorded == 0.0) {
-        throw std::runtime_error(
-            "spectro closure: recorded XYZ must be finite and nonzero");
-      }
       closure.computed_xyz[channel] =
           result.scale_value * unscaled[index][channel];
       const double residual_percent =
-          100.0 * (closure.computed_xyz[channel] - recorded) / recorded;
+          100.0 * (closure.computed_xyz[channel] / recorded - 1.0);
+      if (!std::isfinite(closure.computed_xyz[channel]) ||
+          !std::isfinite(residual_percent)) {
+        throw std::runtime_error(
+            "spectro closure: fitted XYZ or residual is not representable");
+      }
       closure.signed_relative_residual_percent[channel] = residual_percent;
       result.max_absolute_relative_residual_percent =
           std::max(result.max_absolute_relative_residual_percent,
                    std::fabs(residual_percent));
-      squared_relative_sum += residual_percent * residual_percent;
+      relative_residual_norm =
+          std::hypot(relative_residual_norm, residual_percent);
       ++residual_count;
     }
     result.readings.push_back(closure);
   }
   result.rms_relative_residual_percent =
-      std::sqrt(squared_relative_sum / static_cast<double>(residual_count));
+      relative_residual_norm / std::sqrt(static_cast<double>(residual_count));
   return result;
 }
 

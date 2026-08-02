@@ -34,9 +34,12 @@ struct SpectroArchiveIngest {
 // Each file is read once; SHA-256 is verified on that byte buffer before the
 // same buffer is passed to the MAT parser. Canonical paths and, when requested,
 // aliases must resolve to regular non-symlink files below the canonical root.
+// `max_input_bytes` bounds each compressed MAT file before it is retained in
+// memory; the MAT reader separately bounds cumulative inflated payload bytes.
 SpectroArchiveIngest
 ingest_spectro_archive(const std::filesystem::path &archive_root,
                        const std::string &ledger_csv,
-                       bool verify_aliases = false);
+                       bool verify_aliases = false,
+                       std::size_t max_input_bytes = 64u << 20);
 
 } // namespace camera_iq

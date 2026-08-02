@@ -29,16 +29,32 @@ double equal_weight_integral(const SpectroMeasurement &reading,
 }
 
 SpectroChromaticity chromaticity(const std::array<double, 3> &xyz) {
-  const double xyz_sum = xyz[0] + xyz[1] + xyz[2];
-  const double uv_denominator = xyz[0] + 15.0 * xyz[1] + 3.0 * xyz[2];
+  double max_magnitude = 0.0;
+  for (const double value : xyz) {
+    if (!std::isfinite(value)) {
+      throw std::runtime_error(
+          "spectro analysis: recorded XYZ cannot form chromaticity");
+    }
+    max_magnitude = std::max(max_magnitude, std::fabs(value));
+  }
+  int exponent = 0;
+  if (max_magnitude > 0.0)
+    (void)std::frexp(max_magnitude, &exponent);
+  const std::array<double, 3> scaled = {
+      std::ldexp(xyz[0], -exponent), std::ldexp(xyz[1], -exponent),
+      std::ldexp(xyz[2], -exponent)};
+  const double xyz_sum = scaled[0] + scaled[1] + scaled[2];
+  const double uv_denominator =
+      scaled[0] + 15.0 * scaled[1] + 3.0 * scaled[2];
   if (!std::isfinite(xyz_sum) || !std::isfinite(uv_denominator) ||
       xyz_sum <= 0.0 || uv_denominator <= 0.0) {
     throw std::runtime_error(
         "spectro analysis: recorded XYZ cannot form chromaticity");
   }
-  return SpectroChromaticity{xyz[0] / xyz_sum, xyz[1] / xyz_sum,
-                             4.0 * xyz[0] / uv_denominator,
-                             9.0 * xyz[1] / uv_denominator};
+  return SpectroChromaticity{
+      scaled[0] / xyz_sum, scaled[1] / xyz_sum,
+      4.0 * scaled[0] / uv_denominator,
+      9.0 * scaled[1] / uv_denominator};
 }
 
 double sample_stddev(const std::vector<double> &values, double mean) {
@@ -62,6 +78,33 @@ double sample_stddev(const std::vector<double> &values, double mean) {
     throw std::runtime_error(
         "spectro analysis: sample standard deviation is not representable");
   }
+  return result;
+}
+
+double representable_mean(const std::vector<double> &values) {
+  double max_magnitude = 0.0;
+  for (const double value : values)
+    max_magnitude = std::max(max_magnitude, std::fabs(value));
+  int exponent = 0;
+  if (max_magnitude > 0.0)
+    (void)std::frexp(max_magnitude, &exponent);
+
+  double sum = 0.0;
+  double correction = 0.0;
+  const double divisor = static_cast<double>(values.size());
+  for (const double value : values) {
+    const double term = std::ldexp(value, -exponent) / divisor;
+    const double next = sum + term;
+    if (std::fabs(sum) >= std::fabs(term)) {
+      correction += (sum - next) + term;
+    } else {
+      correction += (term - next) + sum;
+    }
+    sum = next;
+  }
+  const double result = std::ldexp(sum + correction, exponent);
+  if (!std::isfinite(result))
+    throw std::runtime_error("spectro analysis: mean is not representable");
   return result;
 }
 
@@ -114,14 +157,19 @@ analyze_spectro_group(const std::vector<SpectroMeasurement> &readings) {
             "spectro analysis: normalized spectrum is not representable");
       }
       analyzed.normalized_spectrum.push_back(normalized);
-      result.mean_normalized_spectrum[index] +=
-          normalized / static_cast<double>(readings.size());
     }
     analyzed.recorded_xyz_chromaticity = chromaticity(reading.recorded_xyz);
     integrals.push_back(analyzed.spectral_integral);
-    result.mean_spectral_integral +=
-        analyzed.spectral_integral / static_cast<double>(readings.size());
     result.readings.push_back(std::move(analyzed));
+  }
+  result.mean_spectral_integral = representable_mean(integrals);
+  for (std::size_t wavelength = 0; wavelength < wavelengths.size();
+       ++wavelength) {
+    std::vector<double> values;
+    values.reserve(readings.size());
+    for (const auto &reading : result.readings)
+      values.push_back(reading.normalized_spectrum[wavelength]);
+    result.mean_normalized_spectrum[wavelength] = representable_mean(values);
   }
 
   if (readings.size() == 1)
@@ -131,6 +179,10 @@ analyze_spectro_group(const std::vector<SpectroMeasurement> &readings) {
       sample_stddev(integrals, result.mean_spectral_integral);
   result.coefficient_of_variation =
       *result.sample_stddev_spectral_integral / result.mean_spectral_integral;
+  if (!std::isfinite(*result.coefficient_of_variation)) {
+    throw std::runtime_error(
+        "spectro analysis: coefficient of variation is not representable");
+  }
 
   std::vector<double> normalized_stddev(wavelengths.size(), 0.0);
   for (std::size_t wavelength = 0; wavelength < wavelengths.size();
@@ -170,17 +222,18 @@ analyze_spectro_group(const std::vector<SpectroMeasurement> &readings) {
   }
   result.max_shape_relative_l2 = max_shape_relative_l2;
 
-  double max_pair_delta_uv = 0.0;
+  double max_pair_delta_u_prime_v_prime = 0.0;
   for (std::size_t a = 0; a < result.readings.size(); ++a) {
     for (std::size_t b = a + 1; b < result.readings.size(); ++b) {
       const auto &ca = result.readings[a].recorded_xyz_chromaticity;
       const auto &cb = result.readings[b].recorded_xyz_chromaticity;
-      max_pair_delta_uv =
-          std::max(max_pair_delta_uv, std::hypot(ca.u_prime - cb.u_prime,
-                                                 ca.v_prime - cb.v_prime));
+      max_pair_delta_u_prime_v_prime = std::max(
+          max_pair_delta_u_prime_v_prime,
+          std::hypot(ca.u_prime - cb.u_prime, ca.v_prime - cb.v_prime));
     }
   }
-  result.max_pair_delta_uv = max_pair_delta_uv;
+  result.max_pair_delta_u_prime_v_prime =
+      max_pair_delta_u_prime_v_prime;
   return result;
 }
 

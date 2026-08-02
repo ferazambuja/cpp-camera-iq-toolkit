@@ -1,0 +1,72 @@
+{
+  "artifacts": {
+    "archive_run_readings": {
+      "sha256": "931ee47e0dc3877c7775ece274f3e49d2b0961f3cc2515d5e4c520a61d97ab41"
+    },
+    "archive_run_result": {
+      "sha256": "e7a99db594496246fd003e7ac63f03c4b07973eec7c16fc0e4b2e132794bf1eb"
+    },
+    "public_group_summary": {
+      "sha256": "8b7ef3754f47fe9644023177f29b6bd67973dfbae02e147f00de4610fca842a7"
+    }
+  },
+  "closure": {
+    "max_absolute_relative_residual_percent": 1.5543122344752192e-13,
+    "rms_relative_residual_percent": 5.004889505182855e-14,
+    "sample_weighting": "uniform_equal_weight",
+    "scale_source": "derived_from_recorded_xyz",
+    "scale_value": 683.0167582353332
+  },
+  "dataset": "clrs589_project_camera",
+  "derivation": {
+    "tool": "tools/generate_spectro_receipt.py",
+    "version": 1
+  },
+  "evidence": {
+    "aliases_verified": true,
+    "canonical_readings": 89,
+    "declared_aliases": 45,
+    "measurement_groups": 40,
+    "repeated_groups": 37,
+    "singleton_groups": 3
+  },
+  "group_metrics": {
+    "normalized_shape_relative_l2_percent": {
+      "maximum": 1.075914397243751,
+      "median": 0.5177845902558952
+    },
+    "recorded_xyz_max_pair_delta_u_prime_v_prime": {
+      "maximum": 0.002851948638865613,
+      "median": 0.0007029769933166811
+    },
+    "spectral_integral_coefficient_of_variation_percent": {
+      "maximum": 41.647103399837285,
+      "median": 7.167679309662159
+    }
+  },
+  "inputs": {
+    "identity_ledger": {
+      "file": "spectro_identity_ledger.csv",
+      "sha256": "cc7f93dd53f45a84e8fc7efa7ba894545e680724bf2cfc50e88efb263d8164ae"
+    },
+    "observer": {
+      "file": "cie1931_2deg_cmf_1nm.csv",
+      "sha256": "8116b60c868fd7844a3a96b9ce2041ce57b3ecc3455a630d11ff054b4ad78c51"
+    }
+  },
+  "receipt_schema_version": 2,
+  "recorded_metadata_checks": {
+    "numbered_prd": {
+      "count": 45,
+      "max_absolute_integral_ratio_error": 4.440892098500626e-16
+    },
+    "other_records": {
+      "count": 44,
+      "total_radiance_to_integral_ratio": {
+        "maximum": 0.0032134655356771654,
+        "minimum": 0.0013456450788703425
+      }
+    }
+  },
+  "result_schema_version": 2
+}

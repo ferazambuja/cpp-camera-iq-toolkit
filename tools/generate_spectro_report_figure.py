@@ -24,7 +24,9 @@ def load_rows(path: pathlib.Path) -> tuple[list[dict[str, str]], int]:
 def render(rows: list[dict[str, str]], singletons: int) -> str:
     width, height = 1200, 650
     cv = [100.0 * float(row["coefficient_of_variation"]) for row in rows]
-    duv = [1000.0 * float(row["max_pair_delta_uv"]) for row in rows]
+    duv = [
+        1000.0 * float(row["max_pair_delta_u_prime_v_prime"]) for row in rows
+    ]
     shape = [100.0 * float(row["max_shape_relative_l2"]) for row in rows]
     left = (70, 110, 650, 430)
     right = (800, 110, 330, 430)
@@ -102,7 +104,7 @@ def main() -> int:
         else:
             target.write_text(expected, encoding="utf-8")
         return 0
-    except (OSError, ValueError) as error:
+    except (KeyError, OSError, ValueError) as error:
         print(f"spectro figure: {error}", file=sys.stderr)
         return 2
 

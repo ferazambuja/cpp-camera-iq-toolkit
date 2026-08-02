@@ -42,9 +42,11 @@ std::string ledger_row(const std::string &digest,
 }
 
 bool ingest_throws(const std::filesystem::path &root, const std::string &ledger,
-                   bool verify_aliases = false) {
+                   bool verify_aliases = false,
+                   std::size_t max_input_bytes = 64u << 20) {
   try {
-    (void)ingest_spectro_archive(root, ledger, verify_aliases);
+    (void)ingest_spectro_archive(root, ledger, verify_aliases,
+                                 max_input_bytes);
     return false;
   } catch (const std::runtime_error &) {
     return true;
@@ -77,6 +79,9 @@ void TESTS() {
   wrong_digest.back() = wrong_digest.back() == '0' ? '1' : '0';
   check(ingest_throws(tree.root, ledger_row(wrong_digest)),
         "spectro ingest: a canonical digest mismatch is refused");
+  check(ingest_throws(tree.root, ledger, false, mat.size() - 1),
+        "spectro ingest: an input larger than the byte limit is refused before "
+        "parsing");
 
   std::filesystem::create_symlink(tree.root / "reading.mat",
                                   tree.root / "linked.mat");

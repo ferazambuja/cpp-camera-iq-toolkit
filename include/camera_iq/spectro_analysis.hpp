@@ -35,7 +35,7 @@ struct SpectroGroupAnalysis {
   std::vector<double> mean_normalized_spectrum;
   std::optional<std::vector<double>> sample_stddev_normalized_spectrum;
   std::optional<double> max_shape_relative_l2;
-  std::optional<double> max_pair_delta_uv;
+  std::optional<double> max_pair_delta_u_prime_v_prime;
 };
 
 // Separates absolute spectral level from normalized spectral shape. The

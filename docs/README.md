@@ -37,6 +37,7 @@ shown directly beside the result.
 
 [Case study](case-studies/spectroradiometer-ingest.md) ·
 [aggregate data](data/spectro_group_summary.csv) ·
+[result receipt](data/spectro_result_receipt.json) ·
 [detailed report](reports/SPECTRORADIOMETER_INGEST.md) ·
 [implementation](../src/spectro_ingest.cpp) ·
 [tests](../tests/test_spectro_ingest.cpp)
