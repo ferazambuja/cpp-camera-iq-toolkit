@@ -187,8 +187,10 @@ void csv_row(std::ostream& os, std::string_view file_label,
              std::string_view units, bool accepted) {
   os << csv_escape(publication_label(file_label)) << ',' << csv_escape(channel)
      << ',' << cfa_position << ',' << csv_escape(metric) << ','
-     << csv_escape(bin_row) << ',' << csv_escape(bin_col) << ',' << value << ','
-     << csv_escape(units) << ',' << (accepted ? "true" : "false") << '\n';
+     << csv_escape(bin_row) << ',' << csv_escape(bin_col) << ',';
+  if (std::isfinite(value)) os << value;
+  os << ',' << csv_escape(units) << ',' << (accepted ? "true" : "false")
+     << '\n';
 }
 
 void csv_null_row(std::ostream &os, std::string_view file_label,

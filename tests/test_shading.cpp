@@ -176,6 +176,63 @@ void TESTS() {
           "coverage: rejection names screening coverage rather than headroom");
   }
 
+  // `gates.measured` means measurement was attempted; it does not make every
+  // downstream aggregate defined. An empty block must stay undefined instead
+  // of being published as a physically meaningful 0 DN median.
+  {
+    const int width = 64;
+    const int height = 64;
+    auto mosaic = make_mosaic(width, height, {500, 500, 500, 500});
+    for (int y = 0; y < 16; ++y) {
+      for (int x = 0; x < 16; ++x) {
+        mosaic[static_cast<std::size_t>(y) * width + x] =
+            std::numeric_limits<double>::quiet_NaN();
+      }
+    }
+    ShadingOptions opts;
+    opts.grid_cols = 2;
+    opts.grid_rows = 2;
+    opts.corner_block_px = 16;
+    opts.corner_inset_px = 0;
+    opts.gate_center_frac = 0.5;
+    const auto field = measure_shading_field(mosaic.data(), width, height,
+                                             width, opts, kCeiling);
+    check(field.gates.measured && !field.gates.finite_ok && !field.valid,
+          "undefined aggregate: attempted measurement rejects on finiteness");
+    for (int p = 0; p < 4; ++p) {
+      check(std::isnan(field.blocks.corner_median[0][p]),
+            "undefined aggregate: empty corner median is NaN, not zero");
+    }
+  }
+
+  // A plane with no finite samples has no negative fraction. Reporting 0/0 as
+  // zero would turn absence of evidence into evidence of no negative values.
+  {
+    const int width = 64;
+    const int height = 64;
+    auto mosaic = make_mosaic(width, height, {500, 500, 500, 500});
+    for (int y = 0; y < height; y += 2) {
+      for (int x = 0; x < width; x += 2) {
+        mosaic[static_cast<std::size_t>(y) * width + x] =
+            std::numeric_limits<double>::quiet_NaN();
+      }
+    }
+    ShadingOptions opts;
+    opts.grid_cols = 2;
+    opts.grid_rows = 2;
+    opts.corner_block_px = 16;
+    opts.corner_inset_px = 0;
+    opts.gate_center_frac = 0.5;
+    const auto field = measure_shading_field(mosaic.data(), width, height,
+                                             width, opts, kCeiling);
+    check(field.gates.measured && !field.valid,
+          "undefined fraction: screening measurement completes and rejects");
+    check(std::isnan(field.gates.negative_frac[0]) &&
+              std::isnan(field.center_block_median[0]) &&
+              std::isnan(field.bin_median[0][0]),
+          "undefined fraction: empty plane aggregates remain undefined");
+  }
+
   // The screening policy is inclusive: exactly 90% finite coverage is enough,
   // while the already-tested checkerboard below policy rejects. The missing
   // 2x2 blocks are distributed evenly so every CFA position, screening region,

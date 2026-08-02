@@ -16,8 +16,8 @@ NAME_RE = re.compile(
     r"Sphere_f(?P<aperture>[0-9.]+)_(?P<shutter>1:[0-9]+)_DSCF[0-9]+\.RAF$"
 )
 
-SCHEMA_VERSION = 2
-POLICY_ID = "shading-v1-grid16x12-default-gates"
+SCHEMA_VERSION = 3
+POLICY_ID = "shading-v2-grid16x12-screening-coverage"
 PEDESTAL_TOLERANCE_DN = 1.0
 EXPECTED_OPTIONS: dict[str, float | int] = {
     "grid_cols": 16,
@@ -27,6 +27,7 @@ EXPECTED_OPTIONS: dict[str, float | int] = {
     "corner_inset_px": 120,
     "near_ceiling_level": 0.98,
     "near_ceiling_max": 0.01,
+    "min_finite_coverage": 0.90,
     "min_center_signal": 0.05,
     "max_negative_frac": 0.01,
     "min_bin_coverage": 0.90,
@@ -51,7 +52,10 @@ def measurements(document: dict[str, Any]) -> Iterable[dict[str, Any]]:
 
 
 def finite(value: Any, label: str) -> float:
-    number = float(value)
+    try:
+        number = float(value)
+    except (TypeError, ValueError) as error:
+        raise ValueError(f"{label}: expected a finite number") from error
     if not math.isfinite(number):
         raise ValueError(f"{label}: expected a finite number")
     return number
@@ -78,15 +82,25 @@ def fraction4(value: Any, label: str) -> list[float]:
 
 def validated_gates(
     item: dict[str, Any], label: str
-) -> tuple[list[float], list[float], list[float], list[str]]:
+) -> tuple[
+    list[float], list[float], list[float], list[float], list[float], list[str]
+]:
     gates = item.get("gates")
     if not isinstance(gates, dict):
         raise ValueError(f"{label}: missing gate evidence")
+    if gates.get("measured") is not True:
+        raise ValueError(f"{label}: gate evidence was not measured")
     gate = fraction4(
         gates.get("near_ceiling_fraction_gate"), f"{label} near-ceiling gate"
     )
     frame = fraction4(
         gates.get("near_ceiling_fraction_frame"), f"{label} near-ceiling frame"
+    )
+    finite_gate = fraction4(
+        gates.get("finite_fraction_gate"), f"{label} finite gate coverage"
+    )
+    finite_frame = fraction4(
+        gates.get("finite_fraction_frame"), f"{label} finite frame coverage"
     )
     negative = fraction4(gates.get("negative_fraction"), f"{label} negative")
     center = fraction4(
@@ -100,6 +114,11 @@ def validated_gates(
             gate_value <= float(EXPECTED_OPTIONS["near_ceiling_max"])
             and frame_value <= float(EXPECTED_OPTIONS["near_ceiling_max"])
             for gate_value, frame_value in zip(gate, frame)
+        ),
+        "screening_coverage_ok": all(
+            gate_value >= float(EXPECTED_OPTIONS["min_finite_coverage"])
+            and frame_value >= float(EXPECTED_OPTIONS["min_finite_coverage"])
+            for gate_value, frame_value in zip(finite_gate, finite_frame)
         ),
         "low_signal_ok": all(
             value >= float(EXPECTED_OPTIONS["min_center_signal"]) for value in center
@@ -119,6 +138,7 @@ def validated_gates(
         name
         for name, key in (
             ("near_ceiling", "near_ceiling_ok"),
+            ("screening_coverage", "screening_coverage_ok"),
             ("low_signal", "low_signal_ok"),
             ("negative", "negative_ok"),
             ("coverage", "coverage_ok"),
@@ -126,7 +146,7 @@ def validated_gates(
         )
         if not bool(gates[key])
     ]
-    return gate, frame, center, failed
+    return gate, frame, finite_gate, finite_frame, center, failed
 
 
 def cfa_positions(item: dict[str, Any], label: str) -> dict[str, int]:
@@ -137,6 +157,55 @@ def cfa_positions(item: dict[str, Any], label: str) -> dict[str, int]:
     if set(mapped.values()) != {0, 1, 2, 3}:
         raise ValueError(f"{label}: CFA positions are not a four-plane mapping")
     return mapped
+
+
+def validated_rect(value: Any, label: str) -> dict[str, int]:
+    keys = {"x", "y", "width", "height"}
+    if not isinstance(value, dict) or set(value) != keys:
+        raise ValueError(f"{label}: expected x/y/width/height geometry")
+    if any(isinstance(value[key], bool) or not isinstance(value[key], int) for key in keys):
+        raise ValueError(f"{label}: geometry values must be integers")
+    rect = {key: int(value[key]) for key in keys}
+    if rect["x"] < 0 or rect["y"] < 0 or rect["width"] <= 0 or rect["height"] <= 0:
+        raise ValueError(f"{label}: geometry must be positive and in bounds")
+    if any(rect[key] % 2 != 0 for key in keys):
+        raise ValueError(f"{label}: geometry is not CFA-balanced")
+    return rect
+
+
+def validated_measurement_evidence(item: dict[str, Any], label: str) -> None:
+    ceiling = four_values(item.get("signal_ceiling_dn"), f"{label} signal ceiling")
+    if any(value <= 0.0 for value in ceiling):
+        raise ValueError(f"{label}: signal ceilings must be positive")
+
+    geometry = item.get("geometry")
+    if not isinstance(geometry, dict) or set(geometry) != {"gate", "center", "corners"}:
+        raise ValueError(f"{label}: missing measured geometry")
+    gate = validated_rect(geometry["gate"], f"{label} gate")
+    center = validated_rect(geometry["center"], f"{label} center")
+    if not (
+        center["x"] >= gate["x"]
+        and center["y"] >= gate["y"]
+        and center["x"] + center["width"] <= gate["x"] + gate["width"]
+        and center["y"] + center["height"] <= gate["y"] + gate["height"]
+    ):
+        raise ValueError(f"{label}: center geometry is outside the screening gate")
+    corners_value = geometry["corners"]
+    if not isinstance(corners_value, list) or len(corners_value) != 4:
+        raise ValueError(f"{label}: expected four corner rectangles")
+    for index, rect in enumerate(corners_value):
+        validated_rect(rect, f"{label} corner {index}")
+
+    center_median = four_values(
+        item.get("center_block_median"), f"{label} center median"
+    )
+    if any(value <= 0.0 for value in center_median):
+        raise ValueError(f"{label}: center medians must be positive")
+    corners = item.get("corner_median")
+    if not isinstance(corners, list) or len(corners) != 4:
+        raise ValueError(f"{label}: expected four corner-median rows")
+    for index, row in enumerate(corners):
+        four_values(row, f"{label} corner {index} median")
 
 
 def corner_relative(item: dict[str, Any], label: str) -> list[list[float]]:
@@ -336,8 +405,12 @@ def write_summary(
         match = NAME_RE.search(file_label)
         if not match:
             raise ValueError(f"{path}: filename does not encode aperture/shutter")
-        gate, frame, center, failed = validated_gates(item, str(path))
+        gate, frame, finite_gate, finite_frame, center, failed = validated_gates(
+            item, str(path)
+        )
         positions = cfa_positions(item, str(path))
+        if item["gates"]["finite_ok"] is True:
+            validated_measurement_evidence(item, str(path))
         green_center = 0.5 * (
             finite(center[positions["g1"]], "G1 center signal")
             + finite(center[positions["g2"]], "G2 center signal")
@@ -409,6 +482,8 @@ def write_summary(
                 f"{max(frame):.8f}",
                 *[f"{gate[positions[name]]:.8f}" for name in ("r", "g1", "g2", "b")],
                 *[f"{frame[positions[name]]:.8f}" for name in ("r", "g1", "g2", "b")],
+                *[f"{finite_gate[positions[name]]:.8f}" for name in ("r", "g1", "g2", "b")],
+                *[f"{finite_frame[positions[name]]:.8f}" for name in ("r", "g1", "g2", "b")],
                 f"{green_center:.8f}",
                 "" if asymmetry is None else f"{finite(asymmetry, 'asymmetry'):.8f}",
                 str(dark_controls_verified).lower(),
@@ -462,6 +537,14 @@ def write_summary(
                 "near_ceiling_frame_g1",
                 "near_ceiling_frame_g2",
                 "near_ceiling_frame_b",
+                "finite_fraction_gate_r",
+                "finite_fraction_gate_g1",
+                "finite_fraction_gate_g2",
+                "finite_fraction_gate_b",
+                "finite_fraction_frame_r",
+                "finite_fraction_frame_g1",
+                "finite_fraction_frame_g2",
+                "finite_fraction_frame_b",
                 "green_center_signal",
                 "green_asymmetry",
                 "dark_controls_verified",
