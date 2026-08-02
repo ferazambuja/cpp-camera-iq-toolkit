@@ -54,6 +54,36 @@ byte-identical. No wrong-camera or wrong-day file is in use.
 | Chart reflectance (SG-140) | `Data_Collected/Color Checker/SGMeasurements_CGATS.txt` (i1Pro, 140 patches, 380-730 nm) | `spectral-closure`, `spectral-smi` | authoritative archive file |
 | Chart reflectance (CC-24) | `Data_Collected/Color Checker/CC24Patch_CGATS.txt` (i1Pro, classic 24-patch) | `spectral-smi` (full 24 + the ISO 18-chromatic subset) | canonical converted CSVs are generated artifacts; neutrals A4/B4/C4/D4/E4/F4 excluded for CC-18 |
 
+### Instrument identity as the files record it
+
+Instrument names above are quoted from file headers, not supplied from outside
+the archive.
+
+Both CGATS.17 reflectance files declare `INSTRUMENTATION i1Pro`, and both were
+created 2016-11-14. `SGMeasurements_CGATS.txt` additionally records
+`MEASUREMENT_GEOMETRY 45:00:00`, `MEASUREMENT_SOURCE A`, and
+`WEIGHTING_FUNCTION` entries for the CIE 1931 2-degree observer and D50.
+
+The two files disagree on one field. `SGMeasurements_CGATS.txt` records
+`MANUFACTURER GretagMacbeth` while `CC24Patch_CGATS.txt` records
+`MANUFACTURER X-Rite`. CGATS.17 does not define whether `MANUFACTURER` names the
+instrument vendor or the measured target's vendor, so both values are reported
+as recorded and neither is resolved into an instrument-brand claim here. Note
+that the separate X-Rite-published nominal SG reference discussed in
+[SG reference provenance](SG_REFERENCE_PROVENANCE.md) was measured on an i1Pro 2
+under M0 — a different instrument and a different measurement, not this file.
+
+`PR655_HID_avg.txt` carries no header at all: it is two columns of wavelength
+and value. The PR-655 spectroradiometer identification therefore rests on the
+filename and project convention, not on metadata inside the file.
+
+No file in this archive identifies the monochromator by make or model. The
+per-session PDFs are normalized-response plots without instrument fields, and
+`Data_Collected/readme.rtf` records only file-naming and patch-order
+corrections. Bandwidth, wavelength accuracy, and stray-light performance are
+consequently uncharacterized here, which is a limit on absolute SSF claims
+rather than on the relative comparisons this report makes.
+
 ## Target capture sessions (closure broadband captures)
 
 Per camera, the top-level 11-21 target session folder holds the broadband RAW

@@ -57,8 +57,8 @@ a linear RGB-to-XYZ fit and deterministic held-out Delta E diagnostics.
 The analyzer separates four Bayer positions, rejects a clipped normalizing
 center, checks global and center/corner dark residuals with compatible capture
 metadata, and reports capture-system green/chromatic fields with pair-difference
-and quadrant-asymmetry diagnostics. The capture system is an X-T100 with a
-Fujinon XF 14 mm f/2.8 R; all 165 RAF files in the archive record that lens and
+and quadrant-asymmetry diagnostics. The capture system is a Fujifilm X-T100
+with a Fujinon XF 14 mm f/2.8 R; all 165 RAF files in the archive record that lens and
 serial. The same centered clipping gate now also guards the flat used by the
 [CCM path](reports/CCM_FIT.md), which uses one of these very frames.
 
