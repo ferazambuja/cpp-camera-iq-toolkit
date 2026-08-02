@@ -9,8 +9,9 @@
 The `shading` command measures spatial response directly in a black-subtracted
 Bayer mosaic. The capture system is a Fujifilm X-T100 with a Fujinon XF 14 mm
 f/2.8 R — an ultra-wide on APS-C, 21 mm equivalent — and every one of the 165
-RAF files in this archive records that same lens, the same serial `56A00213`,
-14.0 mm, and ISO 200. The result is deliberately a capture-system
+RAF files in the audited `Images` tree records that same lens, the same serial
+`56A00213`, 14.0 mm, manual focus, and ISO 200. Aperture varies across the tree,
+and focus distance is not recorded. The result is deliberately a capture-system
 characterization: the available sphere captures do not separate illumination
 nonuniformity from the lens, alignment, mechanical shading, or sensor angular
 response.
@@ -66,23 +67,23 @@ but the pair difference is not a general repeatability figure.
 The f/8, 1/500 s frame is a useful negative case. Its worst green plane was
 11.6319% near ceiling inside the central gate but only 0.4964% near ceiling
 over the whole frame. A whole-frame 1% test would accept it even though the
-normalizing center was already clipping. The command rejects it before any
-relative response map is emitted.
+bright central region was already near ceiling. The command rejects it before
+any relative response map is emitted.
 
-The same criterion governs the ColorChecker path, which corrects its patches
-with one of these sphere frames. It applies the centered gate at the same 0.98
-level and 1% policy, so a flat whose normalizer is clipping cannot be used for
-correction either.
-
-The two commands measure in different domains, and the difference is worth
-stating. `shading` reads the CFA mosaic directly; the ColorChecker path measures
-after bilinear demosaic, which averages clipped samples with unclipped
-neighbors. On the same frame the centered gate reads 2.3769% there against
-11.6319% here — still 2.4× over policy, but roughly 4.9× attenuated. Both
-commands accept the same three frames on this archive, which is a measured
-agreement rather than a property of the two gates. Correcting the capture with
-the clipped 1/500 s flat instead costs up to 0.769% per-channel patch error,
-concentrated in the brightest field corner.
+That gate had to travel. Auditing which frames the toolkit uses as flats
+elsewhere showed that `patches` — the ColorChecker path — guarded its
+flat-field frame on the whole-frame fraction alone, and so accepted this exact
+capture as a correction flat. That aggregation diluted a one-plane defect in
+both color and space. `patches` now measures the source CFA before demosaic with
+the same shared 20% geometry, 98% level, 1% policy, and per-position decision
+rule as `shading`. On the
+`1:500` frame it therefore reports the same four-position values: frame
+`[0, 0.3664%, 0.4964%, 0]` and gate `[0, 8.6908%, 11.6319%, 0]`, rejecting G2.
+Rejected runs retain those arrays, the effective rectangles, and the failing
+position in JSON. The published CCM path still admits its 1/1000 s flat because
+every CFA position measures 0% in both regions. No committed comparison artifact
+quantifies the correction error that the newly rejected 1/500 s flat would
+introduce, so no magnitude is claimed.
 
 ## Physical capture and numerical path
 

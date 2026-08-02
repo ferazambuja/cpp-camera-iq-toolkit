@@ -50,6 +50,7 @@ add_library(camera_iq_core STATIC
   src/cfa_stats.cpp
   src/mat_file.cpp
   src/roi.cpp
+  src/flat_field_gate.cpp
   src/demosaic.cpp
   src/dark_calibration.cpp
   src/noise.cpp
@@ -166,6 +167,11 @@ add_test(NAME check_public_paths_behavior
 add_test(NAME check_cie_cmf_1nm
   COMMAND python3 ${CMAKE_SOURCE_DIR}/tools/check_cie_cmf_1nm.py
           --repo-root ${CMAKE_SOURCE_DIR})
+add_test(NAME check_patch_baseline
+  COMMAND python3 ${CMAKE_SOURCE_DIR}/tools/check_patch_baseline.py
+          --repo-root ${CMAKE_SOURCE_DIR})
+add_test(NAME test_check_patch_baseline
+  COMMAND python3 ${CMAKE_SOURCE_DIR}/tools/test_check_patch_baseline.py)
 add_test(NAME test_portfolio_docs
   COMMAND python3 ${CMAKE_SOURCE_DIR}/tools/test_portfolio_docs.py)
 add_test(NAME test_portfolio_figures

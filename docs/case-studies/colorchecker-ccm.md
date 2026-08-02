@@ -20,7 +20,7 @@ results.
 ## Problem and relevance
 
 A color-correction matrix can look good on its training patches while hiding
-coordinate errors, chart-order mistakes, clipped flat fields, dark-patch flare,
+coordinate errors, chart-order mistakes, near-ceiling flat fields, dark-patch flare,
 or reference mismatch. The goal was therefore an inspectable measurement chain,
 not a single optimized Delta E number.
 
@@ -79,11 +79,12 @@ and a smaller chromatic one across the chart area. What it cannot do is separate
 sphere nonuniformity from camera response, so this path is
 same-aperture-corrected, not shading-calibrated.
 
-The flat is screened for clipping over two regions rather than one. A frame-wide
-fraction alone admits a flat whose normalizing center is already saturated,
-since the center of a vignetted flat is its brightest region; the centered gate
-is the same one the flat-field study uses. The flat behind the results above
-measures 0% near ceiling in both regions.
+Auditing that link also corrected the guard that selects the flat. It measured
+near ceiling over the whole frame only, which admits a flat whose bright
+central gate is already near ceiling — the exact failure the flat-field study
+isolated. It now applies the same CFA-domain per-position gate as `shading`.
+The selected 1/1000 s flat remains accepted, and the correction math after that
+gate is unchanged.
 
 ## Interpretation limits
 

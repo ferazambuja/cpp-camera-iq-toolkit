@@ -24,18 +24,20 @@ unity. Green quadrant asymmetry was 19.65%, well above the 5% project policy.
 
 "Primary" here means the first frame of the documented pair run
 (`Sphere_f8.0_1:1000_DSCF0368.RAF`) and nothing more. The label carries no
-evidential weight: the two 1/1000 s frames are interchangeable, and if anything
+evidential weight: both 1/1000 s frames support the same qualitative result, and
 the repeat carries marginally more signal (green center 0.4942 against 0.4876 of
-ceiling). Both frames' statistics are published, including both `A` values, so
-no reported result depends on which one is called primary.
+ceiling). Both frames' statistics are published, including both `A` values. No
+qualitative conclusion or policy verdict depends on which one is called
+primary, although the reported numeric ranges change slightly.
 The green-CFA field is consequently reported as a capture-system response; the
 capture does not isolate optical vignetting regardless of the `A` verdict.
 
 ## Recorded capture configuration
 
-An ExifTool audit of the CLRS-589 `Images` tree records a single optical
-configuration across all 165 RAF files, including the 52 sphere and 21 dark
-frames this study uses:
+An ExifTool audit of the CLRS-589 `Images` tree records one body/lens-sample,
+focal-length, focus-mode, and ISO identity across all 165 RAF files, including
+the 52 sphere and 21 dark frames this study uses. It does not record one optical
+configuration: aperture varies, and focus distance is absent.
 
 | Property | Recorded value |
 |---|---|
@@ -44,7 +46,8 @@ frames this study uses:
 | Lens serial number | `56A00213` |
 | Focal length | 14.0 mm (21 mm 35 mm-equivalent, 1.5x) |
 | ISO | 200 |
-| Aperture | f/5.6, f/8, f/9 |
+| Focus mode / distance | Manual / not recorded |
+| Aperture census | f/5.6: 18; f/8: 92; f/9: 54; f/10: 1 |
 
 The lens is an ultra-wide on APS-C. That is the context required to read the
 falloff magnitude below, where green response reaches roughly one-half of its
@@ -58,8 +61,9 @@ Naming the lens does not attribute the measured field to it. The
 integrating-sphere field is itself visibly nonuniform, and the archive contains
 no source- or camera-rotation control, so the result remains a capture-system
 characterization however well the optical state is documented. The value of the
-record is the opposite one: it establishes that no optical-configuration change
-can explain differences between frames in this archive, because there are none.
+record is narrower: within a matched-aperture comparison, recorded body, lens
+sample, focal length, focus mode, and ISO do not change. Unrecorded focus
+distance, alignment, illumination, and other capture state remain uncontrolled.
 
 ## Reproduction
 
@@ -84,7 +88,7 @@ The committed aggregate tables are exported from those result files with:
 python3 tools/export_shading_portfolio.py \
   --inventory-dir out/shading/inventory \
   --detailed out/shading/f8_pair.json out/shading/f8_1600.json \
-             out/shading/f8_clipped.json \
+             out/shading/f8_near_ceiling.json \
   --response out/shading/f8_pair.json out/shading/f8_1600.json \
   --summary-out docs/data/flat_field_summary.csv \
   --response-out docs/data/flat_field_response.csv
@@ -158,16 +162,17 @@ in JSON even when a frame is rejected.
 
 | Check | Default | Region | Failure behavior |
 |---|---:|---|---|
-| Near ceiling | >1% of samples at ≥98% ceiling | center gate | reject; omit derived maps |
+| Near ceiling | >1% of samples at ≥98% ceiling | full plane and center gate, per CFA position | reject; omit derived maps |
 | Center signal | median <5% ceiling | center block | reject denominator |
 | Negative residual | >1% | full plane | reject pedestal/black anomaly |
 | Bin coverage | <90% finite samples | each map bin | reject incomplete map |
 | Aggregate finiteness | empty/non-finite derived region | gate/center/corners/bins | reject undefined result |
 
 The f/8, 1/500 s capture shows why the central and whole-frame fractions are
-both reported. The worst green plane measured 11.6319% near ceiling in the
-center gate and 0.4964% across the full frame. The center is the normalization
-anchor, so the frame is rejected even though a 1% whole-frame test would pass.
+both gated and reported. The worst green plane measured 11.6319% near ceiling in the
+center gate and 0.4964% across the full frame. That bright gate surrounds the
+separate 400 x 400 px normalization block, so the frame is rejected even though
+a 1% whole-frame test would pass.
 
 ## Archive screening
 
@@ -288,38 +293,49 @@ That is correct for flattening a chart capture and wrong for any camera-only
 shading claim, which is why the CCM evidence is labeled same-aperture-corrected
 rather than shading-calibrated.
 
-### The center gate applies wherever a flat normalizes
+### The shared gate protects correction inputs
 
-`patches` corrects its ColorChecker patches with one of these sphere frames, so
-the same criterion governs its flat selection. A whole-frame near-ceiling test is
-not sufficient for that job, and the [f/8, 1/500 s frame](#quality-gates) is the
-measured counterexample: 11.6319% near ceiling in the center gate against
-0.4964% frame-wide. A flat-selection rule reading only the frame-wide figure
-admits a flat whose normalizing center is already clipping.
+Auditing that link exposed a defect in `patches`. Its flat-field guard measured
+near ceiling after bilinear demosaic, pooled R/G/B samples into one whole-frame
+fraction, and omitted the central gate. A whole-frame pooled test is exactly
+what the [f/8, 1/500 s frame](#quality-gates) defeats. Its worst CFA position
+measured 11.6319% near ceiling in the gate against 0.4964% frame-wide, while the
+old pooled, post-demosaic whole-frame check accepted it.
 
-Two effects compound in the same direction. The center is the brightest region
-of a vignetted flat, so it is the first region to clip and the last one a
-frame-wide fraction registers. And `patches` measures the flat after bilinear
-demosaic, which averages clipped samples with unclipped neighbors and dilutes
-the signal the test looks for — that frame reports 0.0996% there against a
-0.4964% mosaic-domain worst plane.
+Two aggregations caused the miss. Bilinear demosaic averaged high samples with
+lower neighbors, and pooling three color channels hid that the event was
+confined to the green positions. The center of this field-falloff flat is also
+the brightest region, so a frame-wide denominator was insensitive to the local
+headroom loss. The correction normalizer itself is not this center region:
+`apply_flat_field()` uses the full-frame valid-sample mean of each demosaiced
+channel.
 
-`patches` therefore applies the same centered gate geometry as `shading`
-(`gate_center_frac = 0.20`) and rejects on either fraction. Both fractions are
-published in JSON so a reader can tell which gate a flat passed. The two
-commands accept the same three f/8 frames on this archive — a measured
-agreement, not an equivalence, since `patches` measures after bilinear demosaic
-and reads 2.3769% on the `1:500` center gate against 11.6319% here. See
-[the patch-extraction guard](PATCH_EXTRACTION.md) for both measurements
-side by side.
+`patches` now evaluates the source mosaic before demosaic with the shared
+CFA-balanced ROI helper and the same declared 20% geometry, 98% level, 1%
+policy, and per-position decision rule as `shading`. The `1:500` result is
+therefore identical in both commands:
 
-The correction that was already published does not change. Re-running the
-documented command against `Sphere_f8.0_1:1000_DSCF0387.RAF` reproduces every
-patch to 0 DN, because that frame measures 0% near ceiling in both regions. The
-measured cost of the old guard was bounded separately by correcting the same
-capture with the clipped 1/500 s flat: up to 0.769% per-channel patch error,
-0.189% median, concentrated in the brightest field corner. Small, but systematic
-and in the direction of the clipping.
+| Region | R | G1 | G2 | B | Policy |
+|---|---:|---:|---:|---:|---:|
+| Whole frame | 0% | 0.3664% | 0.4964% | 0% | 1% |
+| Centered gate (`x=2406, y=1606, w=1202, h=802`) | 0% | 8.6908% | 11.6319% | 0% | 1% |
+
+G2 rejects. Accepted and rejected `patches` JSON retain both arrays, the
+effective rectangles, and the per-position verdict, so a non-zero exit no
+longer discards the evidence. The shared helper and policy constants make the
+[52-frame screening table](../data/flat_field_summary.csv), now with all eight
+per-position frame/gate fractions, the shared near-ceiling-gate ledger for both
+consumers rather than two independently implemented tests that happen to agree.
+Its remaining columns and `shading-v1-grid16x12-default-gates` policy ID still
+describe `shading`-specific map, dark-control, and asymmetry analysis.
+
+The selected `Sphere_f8.0_1:1000_DSCF0387.RAF` flat remains accepted because it
+measures 0% near ceiling at every CFA position in both regions. The gate change
+does not alter correction math after admission. The committed corrected-patch
+table pins the admitted 1/1000 s output, but no committed aggregate or current
+admitted execution supports a quantitative correction comparison against the
+newly rejected 1/500 s flat. This report therefore does not republish the
+historical private-run error magnitude.
 
 ## JSON and CSV behavior
 

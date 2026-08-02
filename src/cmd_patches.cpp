@@ -17,6 +17,7 @@
 #include "camera_iq/color_reference.hpp"
 #include "camera_iq/dataset_config.hpp"
 #include "camera_iq/demosaic.hpp"
+#include "camera_iq/flat_field_gate.hpp"
 #include "camera_iq/localization_diagnosis.hpp"
 #include "camera_iq/output_file.hpp"
 #include "camera_iq/patches.hpp"
@@ -24,8 +25,6 @@
 
 namespace camera_iq {
 namespace {
-
-constexpr double kMaxFlatNearCeilingFraction = 0.01;
 
 struct Args {
   std::filesystem::path raw_file;
@@ -102,44 +101,6 @@ WhiteBalanceGains parse_wb_gains(const std::string& text) {
         "white balance gains must be three positive numbers: R,G,B");
   }
   return {values[0], values[1], values[2]};
-}
-
-CameraRgbPatch residual_ceiling_by_rgb_channel(const RawMeta& meta) {
-  CameraRgbPatch sum;
-  CameraRgbPatch count;
-  for (std::size_t i = 0; i < meta.cfa_pattern.size() && i < 4; ++i) {
-    const double ceiling = meta.white_level - meta.black_per_channel[i];
-    if (!std::isfinite(ceiling) || ceiling <= 0) {
-      throw std::runtime_error("flat field: invalid white/black metadata");
-    }
-    const char channel = meta.cfa_pattern[i];
-    if (channel == 'R') {
-      sum.r += ceiling;
-      count.r += 1;
-    } else if (channel == 'G') {
-      sum.g += ceiling;
-      count.g += 1;
-    } else if (channel == 'B') {
-      sum.b += ceiling;
-      count.b += 1;
-    }
-  }
-  if (count.r <= 0 || count.g <= 0 || count.b <= 0) {
-    throw std::runtime_error("flat field: unsupported CFA channel layout");
-  }
-  return {sum.r / count.r, sum.g / count.g, sum.b / count.b};
-}
-
-std::size_t count_flat_samples_near_ceiling(
-    const std::vector<RgbPixel>& flat, const CameraRgbPatch& ceiling,
-    double fraction) {
-  std::size_t count = 0;
-  for (const auto& p : flat) {
-    if (p.r >= ceiling.r * fraction) ++count;
-    if (p.g >= ceiling.g * fraction) ++count;
-    if (p.b >= ceiling.b * fraction) ++count;
-  }
-  return count;
 }
 
 PatchGeometryReport make_patch_geometry_report(
@@ -548,6 +509,37 @@ int cmd_patches(int argc, char** argv) {
                   << "not match the target RAW\n";
         return 1;
       }
+      const auto near_ceiling = measure_flat_field_near_ceiling(
+          *flat_cfa, flat_field_center_gate_fraction(),
+          flat_field_near_ceiling_threshold_fraction(),
+          kFlatFieldMaxNearCeilingFraction);
+      if (!near_ceiling) {
+        std::cerr << "camera_iq patches: cannot measure the flat-field "
+                     "near-ceiling gate\n";
+        return 1;
+      }
+      if (!near_ceiling->verdict.accepted) {
+        const auto write_rejection = [&](std::ostream& os) {
+          write_patch_rejection_json(os, file_label, flat_label,
+                                     flat_cfa->meta, flat_cfa->width,
+                                     flat_cfa->height, *near_ceiling);
+        };
+        if (args.out.empty()) {
+          write_rejection(std::cout);
+          std::cout << "\n";
+        } else if (!write_output_file_checked(args.out, "patches",
+                                               write_rejection, std::cerr)) {
+          return 1;
+        }
+        const auto& verdict = near_ceiling->verdict;
+        std::cerr << "camera_iq patches: flat-field RAW is too close to the "
+                     "sensor ceiling for correction ("
+                  << verdict.region << " " << verdict.label << "["
+                  << verdict.position << "] near-ceiling fraction "
+                  << verdict.fraction << " against a policy of "
+                  << kFlatFieldMaxNearCeilingFraction << ")\n";
+        return 1;
+      }
       const auto flat_rgb =
           demosaic_bilinear(flat_cfa->samples.data(), flat_cfa->width,
                             flat_cfa->height, flat_cfa->row_stride_pixels,
@@ -561,42 +553,7 @@ int cmd_patches(int argc, char** argv) {
       corrected_rgb =
           apply_flat_field(corrected_rgb, flat_rgb, cfa->width, cfa->height,
                            args.flat_field_floor, &summary);
-      const auto ceiling = residual_ceiling_by_rgb_channel(flat_cfa->meta);
-      summary.near_ceiling_sample_count = count_flat_samples_near_ceiling(
-          flat_rgb, ceiling, flat_field_near_ceiling_threshold_fraction());
-      const double total_samples =
-          static_cast<double>(flat_rgb.size()) * 3.0;
-      summary.near_ceiling_fraction =
-          total_samples > 0
-              ? static_cast<double>(summary.near_ceiling_sample_count) /
-                    total_samples
-              : 0.0;
-      summary.center_gate_fraction = flat_field_center_gate_fraction();
-      summary.center_near_ceiling_fraction = flat_center_near_ceiling_fraction(
-          flat_rgb, cfa->width, cfa->height, ceiling,
-          flat_field_near_ceiling_threshold_fraction(),
-          summary.center_gate_fraction);
-      summary.max_allowed_near_ceiling_fraction =
-          kMaxFlatNearCeilingFraction;
-      // The center sets the correction scale and is the brightest region of a
-      // vignetted flat, so it clips before the frame-wide fraction moves. Both
-      // fractions here are measured after bilinear demosaic, which averages
-      // clipped samples with unclipped neighbours, so they read lower than the
-      // CFA-domain fractions `shading` reports on the same frame — see
-      // docs/reports/PATCH_EXTRACTION.md for both measurements of the capture
-      // that separated the two regions.
-      const auto verdict = flat_field_near_ceiling_verdict(
-          summary.near_ceiling_fraction, summary.center_near_ceiling_fraction,
-          kMaxFlatNearCeilingFraction);
-      if (!verdict.accepted) {
-        std::cerr << "camera_iq patches: flat-field RAW "
-                  << (verdict.region == "center" ? "center " : "")
-                  << "is too close to the sensor ceiling for correction ("
-                  << verdict.region << " near-ceiling fraction "
-                  << verdict.fraction << " against a policy of "
-                  << kMaxFlatNearCeilingFraction << ")\n";
-        return 1;
-      }
+      summary.near_ceiling = *near_ceiling;
       flat_summary = summary;
     }
     if (args.wb_from_flat_field) {

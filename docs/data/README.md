@@ -1,16 +1,23 @@
 # Aggregate result data
 
-These CSVs contain only result-level measurements already documented in the
-technical reports. They contain no RAW samples, absolute paths, commercial-tool
-exports, or editable copies of private references.
+These CSVs contain only result-level measurements supporting the technical
+reports. They contain no RAW samples, absolute paths, commercial-tool exports,
+or editable copies of private references.
 
 | Table | Source report | Figure |
 |---|---|---|
 | [`sfr_aperture_summary.csv`](sfr_aperture_summary.csv) | [SFR/MTF](../reports/SFR_MTF.md) | [aperture and field](../figures/sfr_aperture_field.svg) |
 | [`spectral_color_fidelity.csv`](spectral_color_fidelity.csv) | [spectral sensitivity](../reports/SPECTRAL_SENSITIVITY.md) | [five-camera comparison](../figures/spectral_color_fidelity.svg) |
 | [`ccm_validation_summary.csv`](ccm_validation_summary.csv) | [CCM fit](../reports/CCM_FIT.md) | [CCM validation](../figures/ccm_validation.svg) |
+| [`ccsg_f8_flat_wb_patches.csv`](ccsg_f8_flat_wb_patches.csv) | [patch extraction](../reports/PATCH_EXTRACTION.md) | accepted-flat 140-patch RGB regression table, enforced by `check_patch_baseline` |
 | [`flat_field_summary.csv`](flat_field_summary.csv) | [flat-field response](../reports/FLAT_FIELD_RESPONSE.md) | [CFA flat-field response](../figures/flat_field_response.svg) |
 | [`flat_field_response.csv`](flat_field_response.csv) | [flat-field response](../reports/FLAT_FIELD_RESPONSE.md) | [CFA flat-field response](../figures/flat_field_response.svg) |
+
+The corrected-patch table is the headerless R/G/B output of the documented
+`camera_iq patches --rgb-csv-out` command, in its 140-row extraction order. It
+pins the published 1/1000 s result as an exact comparison baseline without
+publishing RAW samples or RawDigger coordinates. CI protects this artifact's
+integrity; reproducing implementation output still requires the private RAWs.
 
 Toolkit SFR values retain eight-decimal measurement precision so derived field
 margins do not depend on rounded operands; narrative tables round them to four

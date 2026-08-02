@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import importlib.util
 import copy
+import csv
 import json
 import tempfile
 from pathlib import Path
@@ -95,6 +96,11 @@ def write_json(path: Path, value: dict) -> None:
 
 
 def main() -> None:
+    peripheral = document("dataset:fixture/peripheral.RAF", False)
+    peripheral["gates"]["near_ceiling_fraction_gate"] = [0.0] * 4
+    peripheral["gates"]["near_ceiling_fraction_frame"] = [0.02, 0.0, 0.0, 0.0]
+    EXPORT.validated_gates(peripheral, "peripheral near-ceiling fixture")
+
     with tempfile.TemporaryDirectory() as temp:
         root = Path(temp)
         inventory = root / "inventory"
@@ -114,6 +120,14 @@ def main() -> None:
                 index += 1
 
         primary, repeat, third = docs[18], docs[19], docs[20]
+        docs[0]["gates"]["near_ceiling_fraction_gate"] = [0.02, 0.03, 0.04, 0.05]
+        docs[0]["gates"]["near_ceiling_fraction_frame"] = [
+            0.001,
+            0.002,
+            0.003,
+            0.004,
+        ]
+        write_json(inventory / "00.json", docs[0])
         comparison = {
             "measured": True,
             "max_corner_delta_pp": 0.0,
@@ -125,6 +139,21 @@ def main() -> None:
         accepted = EXPORT.write_summary(
             inventory, detailed, comparison, root / "summary.csv"
         )
+        with (root / "summary.csv").open(newline="", encoding="utf-8") as handle:
+            summary_rows = list(csv.DictReader(handle))
+        first = summary_rows[0]
+        expected_plane_evidence = {
+            "near_ceiling_gate_r": "0.02000000",
+            "near_ceiling_gate_g1": "0.03000000",
+            "near_ceiling_gate_g2": "0.04000000",
+            "near_ceiling_gate_b": "0.05000000",
+            "near_ceiling_frame_r": "0.00100000",
+            "near_ceiling_frame_g1": "0.00200000",
+            "near_ceiling_frame_g2": "0.00300000",
+            "near_ceiling_frame_b": "0.00400000",
+        }
+        if any(first.get(key) != value for key, value in expected_plane_evidence.items()):
+            raise AssertionError("summary omits or misorders per-CFA gate evidence")
         response_paths: list[Path] = []
         for number, item in enumerate((primary, repeat, third)):
             path = root / f"response-{number}.json"

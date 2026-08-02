@@ -7,6 +7,7 @@
 #include <string_view>
 #include <vector>
 
+#include "camera_iq/flat_field_gate.hpp"
 #include "camera_iq/raw_meta.hpp"
 #include "camera_iq/roi.hpp"
 
@@ -19,15 +20,15 @@ namespace camera_iq {
 //   center block   (corner_block_px)   normalizer and low-signal anchor
 //   bin grid       (grid_cols/rows)    the response maps
 //
-// The gate region is larger than the block it protects: a clipped center biases
-// reported falloff toward less falloff, so the gate has to see more of the
-// frame than the region being normalized by.
+// The gate region is larger than the block it protects: loss of center
+// headroom can bias reported falloff toward less falloff, so the gate has to
+// see more of the frame than the region being normalized by.
 struct ShadingOptions {
   int grid_cols = 16;
   int grid_rows = 12;
   // Linear fraction of each CFA plane, centered. Gates only — never the
   // normalizer.
-  double gate_center_frac = 0.20;
+  double gate_center_frac = kFlatFieldGateCenterFraction;
   // Center/corner block edge in mosaic pixels; each CFA plane sees half of it.
   int corner_block_px = 400;
   // Corner-block inset from the frame edge, in mosaic pixels.
@@ -35,8 +36,8 @@ struct ShadingOptions {
 
   // Declared analysis policies, not camera-industry standards. The report
   // publishes the measured diagnostics beside every pass/fail verdict.
-  double near_ceiling_level = 0.98;
-  double near_ceiling_max = 0.01;
+  double near_ceiling_level = kFlatFieldNearCeilingLevel;
+  double near_ceiling_max = kFlatFieldMaxNearCeilingFraction;
   double min_center_signal = 0.05;
   double max_negative_frac = 0.01;
   double min_bin_coverage = 0.90;
@@ -48,9 +49,9 @@ struct ShadingOptions {
 // Gate diagnostics. Every fraction is reported whether or not its gate trips,
 // so a rejected frame still carries the numbers that explain the rejection.
 //
-// The near-ceiling fraction is reported twice on purpose. The gate-region form
-// is the verdict; the whole-frame form shows how concentrated center clipping
-// can be hidden by the much larger full-frame denominator.
+// The near-ceiling fraction is reported twice on purpose. Both regions are
+// gated per CFA position: the centered form catches a concentrated bright
+// region, while the frame form catches a peripheral or broadly elevated field.
 struct ShadingGates {
   std::array<double, 4> near_ceiling_frac_gate{0, 0, 0, 0};
   std::array<double, 4> near_ceiling_frac_frame{0, 0, 0, 0};

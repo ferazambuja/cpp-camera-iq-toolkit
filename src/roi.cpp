@@ -55,6 +55,34 @@ std::optional<RoiRect> cfa_balanced_roi(const RoiRect& requested,
   return RoiRect{x0, y0, x1 - x0, y1 - y0};
 }
 
+std::optional<RoiRect> centered_cfa_balanced_roi(int image_width,
+                                                 int image_height,
+                                                 double linear_fraction) {
+  if (image_width < 2 || image_height < 2 ||
+      !std::isfinite(linear_fraction) || linear_fraction <= 0.0 ||
+      linear_fraction > 1.0) {
+    return std::nullopt;
+  }
+
+  int width =
+      static_cast<int>(std::floor(image_width * linear_fraction)) & ~1;
+  int height =
+      static_cast<int>(std::floor(image_height * linear_fraction)) & ~1;
+  if (width < 2 || height < 2) return std::nullopt;
+
+  const int x = ((image_width - width) / 2) & ~1;
+  const int y = ((image_height - height) / 2) & ~1;
+  const RoiRect requested{x, y, width, height};
+  const auto balanced =
+      cfa_balanced_roi(requested, image_width, image_height);
+  if (!balanced || balanced->x != requested.x || balanced->y != requested.y ||
+      balanced->width != requested.width ||
+      balanced->height != requested.height) {
+    return std::nullopt;
+  }
+  return balanced;
+}
+
 namespace {
 
 struct Acc {
@@ -117,6 +145,7 @@ std::optional<RawCfaReport> raw_cfa_report_for_roi(const RawCfaImage& image,
     for (int c = roi->x; c < roi->x + roi->width; ++c) {
       const std::size_t pos = static_cast<std::size_t>((r & 1) * 2 + (c & 1));
       const double residual = image.samples[row + static_cast<std::size_t>(c)];
+      if (!std::isfinite(residual)) continue;
       const double raw = residual + image.meta.black_per_channel[pos];
       add_sample(acc[pos], residual, raw, image.meta.white_level);
       const auto& threshold = near_ceiling[pos];
@@ -129,10 +158,7 @@ std::optional<RawCfaReport> raw_cfa_report_for_roi(const RawCfaImage& image,
     ChannelStats& s = report.planes[static_cast<std::size_t>(p)];
     // Matches cfa_plane_stats_strided(): an undefined threshold reports NaN
     // whether or not the plane has samples, so the two paths cannot disagree.
-    s.near_ceiling_fraction =
-        near_ceiling[static_cast<std::size_t>(p)]
-            ? 0.0
-            : std::numeric_limits<double>::quiet_NaN();
+    s.near_ceiling_fraction = std::numeric_limits<double>::quiet_NaN();
     s.label = labels[static_cast<std::size_t>(p)];
     s.count = a.n;
     if (a.n > 0) {

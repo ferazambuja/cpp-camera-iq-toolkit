@@ -54,13 +54,14 @@ a linear RGB-to-XYZ fit and deterministic held-out Delta E diagnostics.
 [implementation](../src/shading.cpp) ·
 [tests](../tests/test_shading.cpp)
 
-The analyzer separates four Bayer positions, rejects a clipped normalizing
-center, checks global and center/corner dark residuals with compatible capture
+The analyzer separates four Bayer positions, rejects a near-ceiling central
+gate, checks global and center/corner dark residuals with compatible capture
 metadata, and reports capture-system green/chromatic fields with pair-difference
 and quadrant-asymmetry diagnostics. The capture system is a Fujifilm X-T100
-with a Fujinon XF 14 mm f/2.8 R; all 165 RAF files in the archive record that lens and
-serial. The same centered clipping gate now also guards the flat used by the
-[CCM path](reports/CCM_FIT.md), which uses one of these very frames.
+with a Fujinon XF 14 mm f/2.8 R; all 165 RAF files in the audited `Images` tree
+record that lens and serial. The same CFA-domain, per-position near-ceiling gate
+now also guards the flat used by the [CCM path](reports/CCM_FIT.md), which uses
+one of these very frames.
 
 ## Validation decisions
 
@@ -84,7 +85,7 @@ serial. The same centered clipping gate now also guards the flat used by the
 | [Bilinear demosaic](reports/BILINEAR_DEMOSAIC.md) | Transparent sensor-DN baseline with synthetic and LibRaw comparisons |
 | [Dark calibration](reports/DARK_CALIBRATION.md) | Metadata-black reconciliation against 21 dark candidates |
 | [Dark-frame noise](reports/DARK_FRAME_NOISE.md) | Temporal noise, DSNU, and dark-current diagnostics in DN |
-| [Relative CFA flat-field response](reports/FLAT_FIELD_RESPONSE.md) | Per-CFA spatial response, chromatic ratios, clipping, bounded dark-control checks, one capture-pair delta, and asymmetry |
+| [Relative CFA flat-field response](reports/FLAT_FIELD_RESPONSE.md) | Per-CFA spatial response, chromatic ratios, near-ceiling screening, bounded dark-control checks, one capture-pair delta, and asymmetry |
 
 ### Color and chart analysis
 

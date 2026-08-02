@@ -72,13 +72,15 @@ The Phase One session lacks a same-session broadband target and chart
 reflectance, so it is valid for an SSF-only comparison but not physical closure.
 
 Instrument identity is bounded by what the archive records. The chart
-reflectance files declare `INSTRUMENTATION i1Pro` in their CGATS.17 headers; the
-illuminant SPD carries no header, so its PR-655 attribution rests on the
-filename; and no file identifies the monochromator by make or model, leaving its
-bandwidth and wavelength accuracy uncharacterized. See the
+reflectance CGATS.17 files declare `INSTRUMENTATION i1Pro`; their paired native
+SpectraShop projects also record `i1Pro` and probable unit identifier `1001351`.
+The text illuminant SPD carries no header, but its paired native project records
+`PR-655`. No file identifies the monochromator by make or model, leaving its
+bandwidth, wavelength accuracy, and stray-light behavior uncharacterized. See the
 [archive map](../reports/SPECTRAL_ARCHIVE_INVENTORY.md#instrument-identity-as-the-files-record-it).
-That limits absolute SSF claims, not the relative ordering reported here, which
-compares curves measured on the same rig.
+The shared 2016 rig improves within-set comparability but does not make relative
+ordering immune to those systematics; the 2017 Phase One IQ3 session is a
+cross-rig comparison.
 
 ## Implementation and tests
 

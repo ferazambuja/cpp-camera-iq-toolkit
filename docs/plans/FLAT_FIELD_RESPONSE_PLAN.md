@@ -27,7 +27,7 @@ signal_ceiling[p] = white_level - black_per_channel[p]
 near_ceiling[p]   = 0.98 * signal_ceiling[p]
 ```
 
-The X-T100 metadata yields a 15,359 DN signal-referred ceiling from a 16,383 DN
+The Fujifilm X-T100 metadata yields a 15,359 DN signal-referred ceiling from a 16,383 DN
 raw white level and 1,024 DN effective black level. The command accepted three
 f/8 frames and rejected 49 frames at the near-ceiling gate. All f/5.6 and f/9
 frames were rejected; this archive therefore cannot support an aperture trend.
@@ -49,7 +49,7 @@ Three CFA-balanced mosaic regions have separate jobs:
 
 | Region | Default | Purpose |
 |---|---:|---|
-| Gate | central 20% by linear dimension | near-ceiling verdict |
+| Gate | full frame plus central 20% by linear dimension | per-position near-ceiling verdict |
 | Center/corners | 400 px square, 120 px corner inset | normalizer, low-signal check, corner statistics |
 | Grid | 16 × 12 per CFA plane | spatial response maps |
 
@@ -88,7 +88,7 @@ scalar model and never grants or refuses attribution to a physical component.
 ## Acceptance and evidence rules
 
 - Near-ceiling fractions are reported for both the center gate and full frame;
-  the center-gate fraction controls the verdict.
+  both the whole-frame and center-gate fractions control the verdict.
 - Low signal is evaluated at the center block because that block is the
   denominator for every map.
 - Negative residual, aggregate-finiteness, and independently binding finite-bin

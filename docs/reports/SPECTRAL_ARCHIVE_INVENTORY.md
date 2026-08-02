@@ -56,34 +56,39 @@ byte-identical. No wrong-camera or wrong-day file is in use.
 
 ### Instrument identity as the files record it
 
-Instrument names above are quoted from file headers, not supplied from outside
-the archive.
+Instrument names above come from the archive's native SpectraShop projects and
+CGATS exports, not from external model-name completion.
 
 Both CGATS.17 reflectance files declare `INSTRUMENTATION i1Pro`, and both were
 created 2016-11-14 (14:29 and 14:53). Both also record
 `MEASUREMENT_GEOMETRY 45:00:00`, `MEASUREMENT_SOURCE A`, and the same two
 `WEIGHTING_FUNCTION` entries, for the CIE 1931 2-degree observer and D50 — the
-conditions are identical across the pair, not specific to either file.
+recorded geometry, source, observer, and weighting fields match across the pair;
+unrecorded conditions are not inferred.
 
-The two files disagree on one field. `SGMeasurements_CGATS.txt` records
-`MANUFACTURER GretagMacbeth` while `CC24Patch_CGATS.txt` records
-`MANUFACTURER X-Rite`. CGATS.17 does not define whether `MANUFACTURER` names the
-instrument vendor or the measured target's vendor, so both values are reported
-as recorded and neither is resolved into an instrument-brand claim here. Note
-that the separate X-Rite-published nominal SG reference discussed in
+The paired native projects add evidence the exports omit. Both
+`SGMeasurements.spectrashop` and `CC24Patch.spectrashop` record `i1Pro` and the
+same probable instrument-unit identifier, `1001351`, while retaining
+`GretagMacbeth` and `X-Rite`, respectively, beside their chart/specimen records.
+That separation makes the CGATS `MANUFACTURER` values unsafe as instrument-vendor
+claims; the report preserves them as recorded target/project metadata. Note that
+the separate X-Rite-published nominal SG reference discussed in
 [SG reference provenance](SG_REFERENCE_PROVENANCE.md) was measured on an i1Pro 2
 under M0 — a different instrument and a different measurement, not this file.
 
 `PR655_HID_avg.txt` carries no header at all: it is two columns of wavelength
-and value. The PR-655 spectroradiometer identification therefore rests on the
-filename and project convention, not on metadata inside the file.
+and value. Its paired native project, `PR655_HID.spectrashop`, records `PR-655`
+internally, so the model attribution is archive-backed even though the text
+export alone cannot establish it.
 
 No file in this archive identifies the monochromator by make or model. The
 per-session PDFs are normalized-response plots without instrument fields, and
 `Data_Collected/readme.rtf` records only file-naming and patch-order
 corrections. Bandwidth, wavelength accuracy, and stray-light performance are
-consequently uncharacterized here, which is a limit on absolute SSF claims
-rather than on the relative comparisons this report makes.
+consequently uncharacterized here. Same-rig comparisons can reduce common-mode
+uncertainty, but unknown wavelength, bandpass, and stray-light behavior can
+still affect relative curves and rankings as well as absolute SSF claims. The
+2017 Phase One IQ3 session is explicitly a different rig and timeline.
 
 ## Target capture sessions (closure broadband captures)
 

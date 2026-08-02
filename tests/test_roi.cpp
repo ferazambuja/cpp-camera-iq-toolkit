@@ -9,6 +9,7 @@
 using camera_iq::RawCfaImage;
 using camera_iq::RoiRect;
 using camera_iq::cfa_balanced_roi;
+using camera_iq::centered_cfa_balanced_roi;
 using camera_iq::parse_roi_spec;
 using camera_iq::raw_cfa_report_for_roi;
 using test::check;
@@ -90,6 +91,21 @@ void TESTS() {
   }
 
   {
+    const auto roi = centered_cfa_balanced_roi(6016, 4014, 0.20);
+    check(roi.has_value(), "centered roi: real archive geometry fits");
+    if (roi) {
+      check(roi->x == 2406 && roi->y == 1606 && roi->width == 1202 &&
+                roi->height == 802,
+            "centered roi: floors and CFA-balances the published 20% gate");
+    }
+    check(!centered_cfa_balanced_roi(8, 8, 0.0),
+          "centered roi: zero fraction rejects");
+    check(!centered_cfa_balanced_roi(8, 8,
+                                     std::numeric_limits<double>::infinity()),
+          "centered roi: non-finite fraction rejects");
+  }
+
+  {
     const auto img = fixture_image();
     const auto report = raw_cfa_report_for_roi(img, RoiRect{2, 0, 4, 4});
     check(report.has_value(), "roi stats: report produced");
@@ -109,6 +125,19 @@ void TESTS() {
                  "roi stats: flat plane stddev");
       check_near(report->planes[3].saturated_fraction, 0.5, 1e-12,
                  "roi stats: saturation from reconstructed raw value");
+    }
+  }
+
+  {
+    auto img = fixture_image();
+    img.samples[2] = std::numeric_limits<double>::quiet_NaN();
+    const auto report = raw_cfa_report_for_roi(img, RoiRect{2, 0, 4, 4});
+    check(report.has_value(), "roi finite coverage: report produced");
+    if (report) {
+      check(report->planes[0].count == 3,
+            "roi finite coverage: missing sample excluded from denominator");
+      check_near(report->planes[0].mean, 30.0, 1e-12,
+                 "roi finite coverage: missing sample excluded from aggregate");
     }
   }
 
