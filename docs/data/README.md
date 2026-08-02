@@ -10,6 +10,7 @@ or editable copies of private references.
 | [`spectral_color_fidelity.csv`](spectral_color_fidelity.csv) | [spectral sensitivity](../reports/SPECTRAL_SENSITIVITY.md) | [five-camera comparison](../figures/spectral_color_fidelity.svg) |
 | [`spectro_group_summary.csv`](spectro_group_summary.csv) | [spectroradiometer ingest](../reports/SPECTRORADIOMETER_INGEST.md) | [measurement-group variation](../figures/spectro_group_variation.svg) |
 | [`spectro_result_receipt.json`](spectro_result_receipt.json) | [spectroradiometer ingest](../reports/SPECTRORADIOMETER_INGEST.md) | Hashes the archive-run result/readings and committed ledger, observer, and aggregate; includes checkable metrics and value domains |
+| [`spectro_matlab_crosscheck_receipt.json`](spectro_matlab_crosscheck_receipt.json) | [spectroradiometer ingest](../reports/SPECTRORADIOMETER_INGEST.md) | Records the independent MATLAB/C++ parser comparison without exposing per-reading measurements or local paths |
 | [`ccm_validation_summary.csv`](ccm_validation_summary.csv) | [CCM fit](../reports/CCM_FIT.md) | [CCM validation](../figures/ccm_validation.svg) |
 | [`ccsg_f8_flat_wb_patches.csv`](ccsg_f8_flat_wb_patches.csv) | [patch extraction](../reports/PATCH_EXTRACTION.md) | accepted-flat 140-patch RGB regression table, enforced by `check_patch_baseline` |
 | [`flat_field_summary.csv`](flat_field_summary.csv) | [flat-field response](../reports/FLAT_FIELD_RESPONSE.md) | [CFA flat-field response](../figures/flat_field_response.svg) |

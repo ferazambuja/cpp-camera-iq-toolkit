@@ -1,0 +1,63 @@
+{
+  "artifact_sha256": {
+    "cpp_readings_csv": "931ee47e0dc3877c7775ece274f3e49d2b0961f3cc2515d5e4c520a61d97ab41",
+    "matlab_readings_csv": "cf6af8a9b74f49adfe2f350198ec234cd3a9d406dbd1d26b2c8587cae0dc6bd0"
+  },
+  "comparison": {
+    "absolute_tolerance": 1e-12,
+    "exact_hash_comparisons": 178,
+    "hash_fields": [
+      "wavelength_binary64_le_sha256",
+      "radiance_binary64_le_sha256"
+    ],
+    "numeric_comparisons": 623,
+    "numeric_fields": {
+      "recorded_cct_k": {
+        "max_absolute_difference": 4.547473508864641e-12,
+        "max_relative_difference": 8.336920409894211e-16,
+        "max_tolerance_ratio": 0.000833692040989421
+      },
+      "recorded_duv": {
+        "max_absolute_difference": 4.7704895589362195e-18,
+        "max_relative_difference": 4.208264615539642e-15,
+        "max_tolerance_ratio": 4.7704895589362195e-06
+      },
+      "recorded_total_radiance": {
+        "max_absolute_difference": 4.440892098500626e-16,
+        "max_relative_difference": 3.3358808873798665e-16,
+        "max_tolerance_ratio": 0.0003335880887379867
+      },
+      "recorded_x": {
+        "max_absolute_difference": 5.115907697472721e-13,
+        "max_relative_difference": 2.7205297890030385e-15,
+        "max_tolerance_ratio": 0.0027205297890030384
+      },
+      "recorded_y": {
+        "max_absolute_difference": 5.115907697472721e-13,
+        "max_relative_difference": 1.843703515614925e-15,
+        "max_tolerance_ratio": 0.001843703515614925
+      },
+      "recorded_z": {
+        "max_absolute_difference": 5.115907697472721e-13,
+        "max_relative_difference": 1.9295644765761604e-15,
+        "max_tolerance_ratio": 0.0019295644765761606
+      },
+      "spectral_integral": {
+        "max_absolute_difference": 2.220446049250313e-16,
+        "max_relative_difference": 1.4899574556654337e-16,
+        "max_tolerance_ratio": 0.00014899574556654336
+      }
+    },
+    "reading_count": 89,
+    "relative_tolerance": 1e-12,
+    "result": "match"
+  },
+  "dataset_id": "clrs589_project_camera",
+  "matlab_release": "R2026a",
+  "schema": "camera_iq.spectro_matlab_crosscheck.v1",
+  "source_sha256": {
+    "comparator": "9ee0241214595656b465b98d57ce1b289035d5086ac99974f30d8c76be8af5c0",
+    "identity_ledger": "cc7f93dd53f45a84e8fc7efa7ba894545e680724bf2cfc50e88efb263d8164ae",
+    "matlab_exporter": "f85e529b40471591617658401fad3c13e5ecaace2f697717641c86f126d276c2"
+  }
+}

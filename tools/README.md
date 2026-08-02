@@ -58,8 +58,29 @@
 - [`matlab/export_spectro_crosscheck.m`](matlab/export_spectro_crosscheck.m)
   reads the same ledger through MATLAB and exports binary64 vector hashes plus
   recorded metadata. [`compare_spectro_crosscheck.py`](compare_spectro_crosscheck.py)
-  compares that artifact with `spectro-ingest --readings-csv`; its mismatch
-  behavior is covered by CTest.
+  compares that artifact with `spectro-ingest --readings-csv`. With MATLAB and
+  the private archive available, retain a privacy-safe receipt with:
+
+  ```bash
+  python3 tools/compare_spectro_crosscheck.py \
+    out/spectro-readings.csv out/spectro-matlab-readings.csv \
+    --receipt out/spectro-matlab-crosscheck-receipt.json \
+    --dataset-id clrs589_project_camera --matlab-release R2026a \
+    --ledger data/spectro_identity_ledger.csv \
+    --matlab-exporter tools/matlab/export_spectro_crosscheck.m
+  python3 tools/check_spectro_matlab_crosscheck_receipt.py \
+    --receipt out/spectro-matlab-crosscheck-receipt.json \
+    --cpp-csv out/spectro-readings.csv \
+    --matlab-csv out/spectro-matlab-readings.csv
+  ```
+
+  The receipt records artifact/source hashes, comparison counts, tolerances,
+  and maximum differences rather than per-reading measurements or local paths.
+  The checker rehashes both supplied CSVs and requires the C++ artifact to match
+  the readings hash in `spectro_result_receipt.json`. Without the optional CSV
+  arguments it checks the retained public receipt and source bindings only.
+  Generation, mismatch behavior, source binding, and privacy checks are covered
+  by CTest.
 - [`gen_cie_d50.py`](gen_cie_d50.py) and
   [`gen_cie_d55.py`](gen_cie_d55.py) regenerate the committed daylight SPDs and
   verify their white points.
