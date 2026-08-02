@@ -6,8 +6,9 @@
   the deterministic SVGs from committed aggregate CSVs; `--check` verifies
   freshness.
 - [`export_shading_portfolio.py`](export_shading_portfolio.py) converts ignored
-  `camera_iq shading` JSON results into the committed 52-frame screening
-  and 16 × 12 response tables.
+  schema-3 `camera_iq shading` JSON results into the committed 52-frame
+  screening and 16 × 12 response tables, validating measured per-position
+  headroom and finite-coverage evidence before publication.
 - [`check_portfolio_docs.py`](check_portfolio_docs.py) validates the public
   Markdown link graph, report-index coverage, and project-centered language
   rules.

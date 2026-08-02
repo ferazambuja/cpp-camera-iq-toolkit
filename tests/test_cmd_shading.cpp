@@ -162,11 +162,18 @@ void TESTS() {
             contains(json, "\"min_finite_coverage\":0.9") &&
             contains(json, "\"screening_coverage_ok\":true"),
         "shading json: screening coverage evidence and verdict are pinned");
-    check(contains(json, "\"schema_version\":3") &&
-              contains(json, "\"analysis_options\"") &&
-              contains(json, "\"near_ceiling_max\":0.01") &&
-              contains(json, "\"asymmetry_policy\":0.05"),
-          "shading json: effective policy and schema are reproducible");
+    check(
+        contains(json, "\"schema_version\":3") &&
+            contains(
+                json,
+                "\"analysis_options\":{"
+                "\"grid_cols\":16,\"grid_rows\":12,\"gate_center_frac\":0.2,"
+                "\"corner_block_px\":400,\"corner_inset_px\":120,"
+                "\"near_ceiling_level\":0.98,\"near_ceiling_max\":0.01,"
+                "\"min_finite_coverage\":0.9,\"min_center_signal\":0.05,"
+                "\"max_negative_frac\":0.01,\"min_bin_coverage\":0.9,"
+                "\"asymmetry_policy\":0.05}"),
+        "shading json: complete effective policy and schema are pinned");
     check(contains(json,
                    "capture-system field response; no isolated component attribution"),
           "shading json: attribution remains composite regardless of A");
@@ -469,6 +476,38 @@ void TESTS() {
           "shading csv: rejected frame emits no response values");
     check(!contains(csv, ",c_rg,"),
           "shading csv: rejected frame emits no chromatic values");
+  }
+
+  // A completed measurement may still contain individually undefined
+  // aggregates. JSON uses null and CSV uses a blank value; neither format may
+  // turn NaN into a numeric zero or the non-JSON token `nan`.
+  {
+    ShadingField field = accepted_field();
+    field.valid = false;
+    field.gates.finite_ok = false;
+    field.gates.negative_frac[0] =
+        std::numeric_limits<double>::quiet_NaN();
+    field.center_block_median[0] =
+        std::numeric_limits<double>::quiet_NaN();
+    field.blocks.corner_median[0][0] =
+        std::numeric_limits<double>::quiet_NaN();
+    for (auto& map : field.relative) map.clear();
+
+    const std::string json = serialize(field, {}, {});
+    check(contains(json, "\"negative_fraction\":[null,0,0,0]") &&
+              contains(json, "\"center_block_median\":[null,1000,1000,1000]") &&
+              contains(json, "\"corner_median\":[[null,700,700,700]") &&
+              !contains(json, ":nan"),
+          "shading json: undefined measured aggregates serialize as null");
+
+    std::ostringstream os;
+    camera_iq::write_shading_csv(os, "Images/Sphere/undefined.RAF",
+                                 {"R", "G1", "G2", "B"}, field, {}, {});
+    const std::string csv = os.str();
+    check(contains(csv, ",R,0,negative_fraction,,,,fraction,false") &&
+              contains(csv, ",R,0,center_block_median,,,,dn,false") &&
+              csv.find("nan") == std::string::npos,
+          "shading csv: undefined measured aggregates serialize as blanks");
   }
 
   // Comparison mode is one JSON document with both measurements and the

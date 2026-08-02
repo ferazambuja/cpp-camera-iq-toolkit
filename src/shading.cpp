@@ -14,7 +14,7 @@ namespace {
 // Upper median. The convention is deterministic and documented in the report;
 // flat-field bins are large enough that the even-count convention is immaterial.
 double median_of(std::vector<double>& values) {
-  if (values.empty()) return 0.0;
+  if (values.empty()) return std::numeric_limits<double>::quiet_NaN();
   const std::size_t mid = values.size() / 2;
   std::nth_element(values.begin(),
                    values.begin() + static_cast<std::ptrdiff_t>(mid),
@@ -281,11 +281,12 @@ ShadingField measure_shading_field(const double* data, int width, int height,
     if (frame_finite == 0) aggregates_finite = false;
     field.gates.negative_frac[p] =
         frame_finite > 0 ? static_cast<double>(frame_negative) / frame_finite
-                         : 0.0;
+                         : std::numeric_limits<double>::quiet_NaN();
 
     const std::size_t bin_count =
         static_cast<std::size_t>(opts.grid_cols) * opts.grid_rows;
-    field.bin_median[p].assign(bin_count, 0.0);
+    field.bin_median[p].assign(
+        bin_count, std::numeric_limits<double>::quiet_NaN());
     std::vector<double> bin;
     for (int row = 0; row < opts.grid_rows; ++row) {
       int y0 = 0;

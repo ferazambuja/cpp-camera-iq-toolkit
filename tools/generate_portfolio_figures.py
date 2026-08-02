@@ -549,6 +549,14 @@ def generate_shading(data_dir: Path) -> str:
             "near_ceiling_frame_g1",
             "near_ceiling_frame_g2",
             "near_ceiling_frame_b",
+            "finite_fraction_gate_r",
+            "finite_fraction_gate_g1",
+            "finite_fraction_gate_g2",
+            "finite_fraction_gate_b",
+            "finite_fraction_frame_r",
+            "finite_fraction_frame_g1",
+            "finite_fraction_frame_g2",
+            "finite_fraction_frame_b",
             "green_center_signal",
             "green_asymmetry",
             "dark_controls_verified",
@@ -592,10 +600,26 @@ def generate_shading(data_dir: Path) -> str:
     if aperture_census != {"5.6": 18, "8.0": 21, "9.0": 13}:
         raise ValueError("flat_field_summary.csv: aperture census changed")
     if any(
-        row["analysis_policy"] != "shading-v1-grid16x12-default-gates"
+        row["analysis_policy"] != "shading-v2-grid16x12-screening-coverage"
         for row in summary
     ):
         raise ValueError("flat_field_summary.csv: mixed analysis policies")
+    coverage_fields = (
+        "finite_fraction_gate_r",
+        "finite_fraction_gate_g1",
+        "finite_fraction_gate_g2",
+        "finite_fraction_gate_b",
+        "finite_fraction_frame_r",
+        "finite_fraction_frame_g1",
+        "finite_fraction_frame_g2",
+        "finite_fraction_frame_b",
+    )
+    if any(
+        number(row, field, minimum=0.0, maximum=1.0) < 0.90
+        for row in summary
+        for field in coverage_fields
+    ):
+        raise ValueError("flat_field_summary.csv: screening coverage below policy")
     comparison_rows = [row for row in summary if row["comparison_file"]]
     if len(comparison_rows) != 1:
         raise ValueError("flat_field_summary.csv: expected one capture-pair record")

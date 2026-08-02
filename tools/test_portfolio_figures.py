@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import importlib.util
+import csv
 import shutil
 import tempfile
 import unittest
@@ -78,9 +79,22 @@ class PortfolioFigureTests(unittest.TestCase):
     def test_shading_rejects_mixed_policy(self) -> None:
         path = self.data / "flat_field_summary.csv"
         text = path.read_text(encoding="utf-8").replace(
-            "shading-v1-grid16x12-default-gates", "different-policy", 1
+            "shading-v2-grid16x12-screening-coverage", "different-policy", 1
         )
         path.write_text(text, encoding="utf-8")
+        with self.assertRaises(ValueError):
+            FIGURES.generate_shading(self.data)
+
+    def test_shading_rejects_screening_coverage_below_policy(self) -> None:
+        path = self.data / "flat_field_summary.csv"
+        with path.open(newline="", encoding="utf-8") as handle:
+            rows = list(csv.DictReader(handle))
+            fieldnames = list(rows[0])
+        rows[0]["finite_fraction_gate_r"] = "0.89999999"
+        with path.open("w", newline="", encoding="utf-8") as handle:
+            writer = csv.DictWriter(handle, fieldnames=fieldnames, lineterminator="\n")
+            writer.writeheader()
+            writer.writerows(rows)
         with self.assertRaises(ValueError):
             FIGURES.generate_shading(self.data)
 

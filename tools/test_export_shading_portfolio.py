@@ -33,12 +33,16 @@ def expect_error(action, needle: str) -> None:
 def document(label: str, accepted: bool) -> dict:
     bins = 16 * 12
     gates = {
+        "measured": True,
         "near_ceiling_fraction_gate": [0.0 if accepted else 0.02] * 4,
         "near_ceiling_fraction_frame": [0.0 if accepted else 0.001] * 4,
+        "finite_fraction_gate": [1.0] * 4,
+        "finite_fraction_frame": [1.0] * 4,
         "negative_fraction": [0.0] * 4,
         "center_signal_fraction": [0.5] * 4,
         "min_bin_coverage": 1.0,
         "near_ceiling_ok": accepted,
+        "screening_coverage_ok": True,
         "low_signal_ok": True,
         "negative_ok": True,
         "coverage_ok": True,
@@ -46,6 +50,7 @@ def document(label: str, accepted: bool) -> dict:
     }
     corner_values = [0.8, 1.0, 0.8, 1.0]
     corner_relative = [[value] * 4 for value in corner_values]
+    corner_median = [[1000.0 * value] * 4 for value in corner_values]
     green_asymmetry = (max(corner_values) - min(corner_values)) / (
         sum(corner_values) / 4.0
     )
@@ -71,11 +76,40 @@ def document(label: str, accepted: bool) -> dict:
         "verified": accepted,
     }
     return {
-        "schema_version": EXPORT.SCHEMA_VERSION,
+        # Producer-shaped literals are deliberately independent of exporter
+        # constants. A stale consumer must fail this fixture instead of making
+        # its own obsolete contract look internally consistent.
+        "schema_version": 3,
         "file": label,
-        "analysis_options": dict(EXPORT.EXPECTED_OPTIONS),
+        "analysis_options": {
+            "grid_cols": 16,
+            "grid_rows": 12,
+            "gate_center_frac": 0.20,
+            "corner_block_px": 400,
+            "corner_inset_px": 120,
+            "near_ceiling_level": 0.98,
+            "near_ceiling_max": 0.01,
+            "min_finite_coverage": 0.90,
+            "min_center_signal": 0.05,
+            "max_negative_frac": 0.01,
+            "min_bin_coverage": 0.90,
+            "asymmetry_policy": 0.05,
+        },
         "accepted": accepted,
         "gates": gates,
+        "signal_ceiling_dn": [2000.0] * 4,
+        "geometry": {
+            "gate": {"x": 0, "y": 0, "width": 800, "height": 800},
+            "center": {"x": 200, "y": 200, "width": 400, "height": 400},
+            "corners": [
+                {"x": 0, "y": 0, "width": 100, "height": 100},
+                {"x": 700, "y": 0, "width": 100, "height": 100},
+                {"x": 0, "y": 700, "width": 100, "height": 100},
+                {"x": 700, "y": 700, "width": 100, "height": 100},
+            ],
+        },
+        "center_block_median": [1000.0] * 4,
+        "corner_median": corner_median,
         "grid": {"cols": 16, "rows": 12},
         "cfa_positions": {"r": 0, "g1": 1, "g2": 2, "b": 3},
         "green_asymmetry": green_asymmetry if accepted else None,
@@ -100,6 +134,32 @@ def main() -> None:
     peripheral["gates"]["near_ceiling_fraction_gate"] = [0.0] * 4
     peripheral["gates"]["near_ceiling_fraction_frame"] = [0.02, 0.0, 0.0, 0.0]
     EXPORT.validated_gates(peripheral, "peripheral near-ceiling fixture")
+
+    sparse = document("dataset:fixture/sparse.RAF", False)
+    sparse["gates"]["near_ceiling_fraction_gate"] = [0.0] * 4
+    sparse["gates"]["near_ceiling_fraction_frame"] = [0.0] * 4
+    sparse["gates"]["near_ceiling_ok"] = True
+    sparse["gates"]["finite_fraction_gate"][2] = 0.5
+    sparse["gates"]["screening_coverage_ok"] = False
+    *_, sparse_failed = EXPORT.validated_gates(sparse, "sparse fixture")
+    if sparse_failed != ["screening_coverage"]:
+        raise AssertionError("screening coverage is not an independent failed gate")
+
+    unmeasured = document("dataset:fixture/unmeasured.RAF", False)
+    unmeasured["gates"]["measured"] = False
+    expect_error(
+        lambda: EXPORT.validated_gates(unmeasured, "unmeasured fixture"),
+        "gate evidence was not measured",
+    )
+
+    undefined_coverage = document("dataset:fixture/undefined.RAF", False)
+    undefined_coverage["gates"]["finite_fraction_gate"][0] = None
+    expect_error(
+        lambda: EXPORT.validated_gates(
+            undefined_coverage, "undefined coverage fixture"
+        ),
+        "expected a finite number",
+    )
 
     with tempfile.TemporaryDirectory() as temp:
         root = Path(temp)
@@ -151,9 +211,19 @@ def main() -> None:
             "near_ceiling_frame_g1": "0.00200000",
             "near_ceiling_frame_g2": "0.00300000",
             "near_ceiling_frame_b": "0.00400000",
+            "finite_fraction_gate_r": "1.00000000",
+            "finite_fraction_gate_g1": "1.00000000",
+            "finite_fraction_gate_g2": "1.00000000",
+            "finite_fraction_gate_b": "1.00000000",
+            "finite_fraction_frame_r": "1.00000000",
+            "finite_fraction_frame_g1": "1.00000000",
+            "finite_fraction_frame_g2": "1.00000000",
+            "finite_fraction_frame_b": "1.00000000",
         }
         if any(first.get(key) != value for key, value in expected_plane_evidence.items()):
             raise AssertionError("summary omits or misorders per-CFA gate evidence")
+        if first.get("analysis_policy") != "shading-v2-grid16x12-screening-coverage":
+            raise AssertionError("summary does not identify the schema-3 screening policy")
         response_paths: list[Path] = []
         for number, item in enumerate((primary, repeat, third)):
             path = root / f"response-{number}.json"
@@ -218,6 +288,39 @@ def main() -> None:
         )
 
         primary_inventory = inventory / "18.json"
+        missing_center = copy.deepcopy(primary)
+        missing_center["center_block_median"] = None
+        write_json(primary_inventory, missing_center)
+        expect_error(
+            lambda: EXPORT.write_summary(
+                inventory, detailed, comparison, root / "missing-center.csv"
+            ),
+            "expected four values",
+        )
+        write_json(primary_inventory, primary)
+
+        undefined_corner = copy.deepcopy(primary)
+        undefined_corner["corner_median"][2][1] = None
+        write_json(primary_inventory, undefined_corner)
+        expect_error(
+            lambda: EXPORT.write_summary(
+                inventory, detailed, comparison, root / "undefined-corner.csv"
+            ),
+            "expected a finite number",
+        )
+        write_json(primary_inventory, primary)
+
+        bad_geometry = copy.deepcopy(primary)
+        bad_geometry["geometry"]["center"]["x"] = 201
+        write_json(primary_inventory, bad_geometry)
+        expect_error(
+            lambda: EXPORT.write_summary(
+                inventory, detailed, comparison, root / "bad-geometry.csv"
+            ),
+            "geometry is not CFA-balanced",
+        )
+        write_json(primary_inventory, primary)
+
         original_gate_fraction = primary["gates"]["near_ceiling_fraction_gate"]
         primary["gates"]["near_ceiling_fraction_gate"] = [0.02] * 4
         write_json(primary_inventory, primary)

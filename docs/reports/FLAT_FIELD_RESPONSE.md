@@ -178,7 +178,9 @@ a 1% whole-frame test would pass.
 ## Archive screening
 
 All 52 sphere files were reprocessed with the same serialized effective options
-and the public table records policy ID `shading-v1-grid16x12-default-gates`:
+and schema-3 diagnostics. The public table records policy ID
+`shading-v2-grid16x12-screening-coverage`; all eight per-position gate/frame
+finite-coverage values are 1.0 in this integer-RAW archive rerun:
 
 | Aperture | Frames | Accepted | Rejected |
 |---|---:|---:|---:|
@@ -331,8 +333,8 @@ the evidence. The shared helper and policy constants make the
 [52-frame screening table](../data/flat_field_summary.csv), with all eight
 per-position frame/gate near-ceiling fractions, the shared gate ledger for both
 consumers rather than two independently implemented tests that happen to agree.
-Its remaining columns and `shading-v1-grid16x12-default-gates` policy ID still
-describe `shading`-specific map, dark-control, and asymmetry analysis.
+Its remaining columns and `shading-v2-grid16x12-screening-coverage` policy ID
+still describe `shading`-specific map, dark-control, and asymmetry analysis.
 
 The selected `Sphere_f8.0_1:1000_DSCF0387.RAF` flat remains accepted because it
 measures 0% near ceiling at every CFA position in both regions. The gate change
@@ -344,11 +346,11 @@ historical private-run error magnitude.
 
 ## JSON and CSV behavior
 
-- JSON/CSV schema version 3 records the nullable pre-measurement state and every
-  effective option alongside
-  dataset-relative filenames, signal ceilings, geometry, gate diagnostics,
-  response maps, chromatic completeness, dark-control evidence, asymmetry, and
-  interpretation scope. Screening coverage is explicit as
+- JSON schema version 3 records the nullable pre-measurement state and every
+  effective option alongside dataset-relative filenames, signal ceilings,
+  geometry, gate diagnostics, response maps, chromatic completeness,
+  dark-control evidence, asymmetry, and interpretation scope. Screening
+  coverage is explicit as
   `min_finite_coverage`, `finite_fraction_frame`,
   `finite_fraction_gate`, `gates.measured`, and `screening_coverage_ok`.
 - A post-measurement rejection retains its measured gates and center/corner
@@ -359,10 +361,13 @@ historical private-run error magnitude.
   `null`. Initializer values are never published as measurements.
 - Undefined ratio bins become JSON `null`; `chromatic_complete` and
   `missing_chromatic_bin_count` make the condition explicit.
-- CSV uses RFC 4180-escaped long-form rows and includes the screening-coverage
-  arrays, `analysis_option_min_finite_coverage`, its verdict, every other
-  effective policy, and all dark-control verdicts. Comparison mode appends both
-  frames and measured maximum/RMS corner deltas.
+- CSV uses RFC 4180-escaped long-form rows and records schema/options,
+  diagnostics, response maps, chromatic rows, and dark-control verdicts. It
+  includes the screening-coverage arrays,
+  `analysis_option_min_finite_coverage`, and its verdict. Comparison mode
+  appends both frames and measured maximum/RMS corner deltas.
+- After measurement begins, an individually undefined aggregate is JSON `null`
+  and a blank CSV value, never a numeric zero or a `nan` token.
 - Absolute input and dark paths are reduced to dataset-relative labels.
 
 ## Validation
@@ -385,7 +390,11 @@ The shading tests cover:
   completeness, pre-measurement null/blank diagnostics, and comparison output;
 - output/input alias refusal, dataset-root containment, and exporter joins.
 
-The exporter and deterministic figure tests validate 52 unique inventory
+The exporter rejects legacy schema-2 or unmeasured gate documents, validates
+schema-3 screening coverage independently of near-ceiling headroom, and
+requires finite signal ceilings, CFA-balanced geometry, positive center
+medians, and finite corner medians whenever `finite_ok` is true. The
+exporter and deterministic figure tests validate 52 unique inventory
 labels, the 18/21/13 aperture census, the accepted-set join, one exact 16 × 12
 Cartesian bin grid per accepted file, one measured capture-pair record, the
 declared policy ID, numeric display ranges, and acceptance count. They validate
