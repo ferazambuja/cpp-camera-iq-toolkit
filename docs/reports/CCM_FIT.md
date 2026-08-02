@@ -258,9 +258,11 @@ The near-ceiling guard that selects this frame was also corrected during that
 audit: it now measures the source CFA with the same centered, per-position gate
 as `shading`. The selected 1/1000 s flat remains accepted, and the correction
 math after admission is unchanged; a flat with a near-ceiling central region
-can no longer be admitted. See
-[patch extraction](PATCH_EXTRACTION.md#corrected-raw-patch-table-validation)
-for the measured case.
+can no longer be admitted. The archive-backed before/after comparison also
+produced byte-identical 140-row corrected RGB tables (0 DN difference across
+all 420 channel values); the accepted feature output is committed with the
+[patch-extraction evidence](PATCH_EXTRACTION.md#corrected-raw-patch-table-validation),
+which also records the rejected measured case.
 
 ## Scientific Boundaries
 

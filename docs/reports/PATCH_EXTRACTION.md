@@ -236,7 +236,7 @@ The guard measures two regions, not one. A whole-frame near-ceiling fraction
 cannot protect a flat whose brightest region is central: the darker surround
 keeps the frame-wide fraction small. `Sphere_f8.0_1:500_DSCF0386.RAF` is the
 measured case —
-[11.6319% of its center gate near ceiling against 0.4964% frame-wide](FLAT_FIELD_RESPONSE.md#the-center-gate-applies-wherever-a-flat-normalizes) —
+[11.6319% of its center gate near ceiling against 0.4964% frame-wide](FLAT_FIELD_RESPONSE.md#the-shared-gate-protects-correction-inputs) —
 and the old pooled post-demosaic whole-frame implementation accepted it.
 
 The command now measures the source mosaic before demosaic. A shared helper and
@@ -255,7 +255,22 @@ runs embed the same block under `corrections.flat_field.near_ceiling_gate`.
 
 The documented command's 1/1000 s flat measures 0% near ceiling in every CFA
 position in both regions and remains accepted. The correction math after that
-gate is unchanged.
+gate is unchanged. An archive-backed before/after run produced byte-identical
+140-row RGB CSVs: all 420 patch-channel values changed by 0 DN and both files
+had SHA-256 `4b8429cdacbb982d33ef56a76e09cc46d8c7aadde927e805e52bc5feec2c8f92`.
+Only the feature-side output is committed as
+[`ccsg_f8_flat_wb_patches.csv`](../data/ccsg_f8_flat_wb_patches.csv);
+equality to the pre-change output remains archive-backed. After rerunning the
+command above, current admitted output is directly checkable against that
+committed feature baseline with:
+
+```bash
+cmp out/clrs589_raw_flat_wb_patches.csv \
+  docs/data/ccsg_f8_flat_wb_patches.csv
+```
+
+This verifies admitted correction output, not a correction result for the
+rejected 1/500 s flat.
 
 Same-aperture flat coverage is not available for the f/9 CCSG series in the
 private dataset. The f/9 sphere folder contains 13 frames (`1:10` through `1:180`);

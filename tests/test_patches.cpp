@@ -705,9 +705,10 @@ void TESTS() {
   }
 
   {
-    // Regression: one CFA position at 2% near ceiling was diluted to 0.5% by
-    // the old four-position denominator and incorrectly accepted. Exercise
-    // every Bayer phase and every failing mosaic position independently.
+    // Regression: a position-specific excess must not be pooled with the other
+    // mosaic positions. The removed production guard pooled post-demosaic RGB,
+    // a different but still lossy aggregation. Exercise every Bayer phase and
+    // every failing mosaic position independently here.
     const std::array<std::array<int, 4>, 4> phases = {
         std::array<int, 4>{0, 1, 3, 2},  // RGGB
         std::array<int, 4>{2, 3, 1, 0},  // BGGR

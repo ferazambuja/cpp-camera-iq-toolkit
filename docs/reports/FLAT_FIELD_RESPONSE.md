@@ -293,7 +293,7 @@ That is correct for flattening a chart capture and wrong for any camera-only
 shading claim, which is why the CCM evidence is labeled same-aperture-corrected
 rather than shading-calibrated.
 
-### The center gate applies wherever a flat normalizes
+### The shared gate protects correction inputs
 
 Auditing that link exposed a defect in `patches`. Its flat-field guard measured
 near ceiling after bilinear demosaic, pooled R/G/B samples into one whole-frame
@@ -331,9 +331,11 @@ describe `shading`-specific map, dark-control, and asymmetry analysis.
 
 The selected `Sphere_f8.0_1:1000_DSCF0387.RAF` flat remains accepted because it
 measures 0% near ceiling at every CFA position in both regions. The gate change
-does not alter correction math after admission. No publication-safe aggregate
-or regression artifact supports a quantitative comparison against the newly
-rejected 1/500 s flat, so this report does not publish an error magnitude for it.
+does not alter correction math after admission. The committed corrected-patch
+table pins the admitted 1/1000 s output, but no committed aggregate or current
+admitted execution supports a quantitative correction comparison against the
+newly rejected 1/500 s flat. This report therefore does not republish the
+historical private-run error magnitude.
 
 ## JSON and CSV behavior
 
