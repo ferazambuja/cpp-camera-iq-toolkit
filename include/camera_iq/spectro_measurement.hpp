@@ -30,7 +30,7 @@ struct SpectroMeasurement {
 // instrument noise near the measurement floor.
 SpectroMeasurement spectro_measurement_from_mat(const MatStruct& fields);
 
-struct SpectroRepeatSummary {
+struct SpectroGroupSummary {
   std::size_t count = 0;
   std::vector<double> wavelength_nm;
   std::vector<double> mean_spectral_radiance;
@@ -42,7 +42,7 @@ struct SpectroRepeatSummary {
 // Summarizes explicitly grouped readings after exact wavelength-axis
 // validation. Sample standard deviations use n-1 and are absent for a singleton;
 // one measurement does not establish repeatability.
-SpectroRepeatSummary summarize_spectro_repeats(
+SpectroGroupSummary summarize_spectro_group(
     const std::vector<SpectroMeasurement>& readings);
 
 }  // namespace camera_iq

@@ -298,18 +298,17 @@ rather than shading-calibrated.
 
 ### The shared gate protects correction inputs
 
-Auditing that link exposed a defect in `patches`. Its flat-field guard measured
-near ceiling after bilinear demosaic, pooled R/G/B samples into one whole-frame
-fraction, and omitted the central gate. A whole-frame pooled test is exactly
-what the [f/8, 1/500 s frame](#quality-gates) defeats. Its worst CFA position
+`patches` applies the same source-CFA, per-position admission test as
+`shading`, including both full-frame and centered-region measurements. The
+[f/8, 1/500 s frame](#quality-gates) shows why each dimension is needed. Its worst CFA position
 measured 11.6319% near ceiling in the gate against 0.4964% frame-wide, while the
-old pooled, post-demosaic whole-frame check accepted it.
+full-frame result alone remains below the 1% limit.
 
-Two aggregations caused the miss. Bilinear demosaic averaged high samples with
-lower neighbors, and pooling three color channels hid that the event was
-confined to the green positions. The center of this field-falloff flat is also
-the brightest region, so a frame-wide denominator was insensitive to the local
-headroom loss. The correction normalizer itself is not this center region:
+Testing before demosaic avoids averaging high samples with lower neighbors,
+and retaining all four CFA positions prevents one green position from being
+hidden by a pooled color fraction. The center of this field-falloff flat is also
+the brightest region, so a frame-wide denominator alone is insensitive to the
+local headroom loss. The correction normalizer itself is not this center region:
 `apply_flat_field()` uses the full-frame valid-sample mean of each demosaiced
 channel.
 

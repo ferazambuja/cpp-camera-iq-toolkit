@@ -359,7 +359,7 @@ def main() -> None:
             lambda: EXPORT.write_summary(
                 inventory, {primary["file"]: primary}, None, root / "mixed.csv"
             ),
-            "does not match portfolio policy",
+            "does not match the published method",
         )
         primary["analysis_options"] = original_options
 

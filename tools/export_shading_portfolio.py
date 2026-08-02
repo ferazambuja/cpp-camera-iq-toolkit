@@ -70,7 +70,7 @@ def validate_options(item: dict[str, Any], label: str) -> None:
     for key, expected in EXPECTED_OPTIONS.items():
         actual = finite(options[key], f"{label} {key}")
         if actual != float(expected):
-            raise ValueError(f"{label}: {key}={actual} does not match portfolio policy")
+            raise ValueError(f"{label}: {key}={actual} does not match the published method")
 
 
 def fraction4(value: Any, label: str) -> list[float]:
@@ -463,7 +463,7 @@ def write_summary(
             )
             accepted_evidence[file_label] = detail
         if accepted and not dark_controls_verified:
-            raise ValueError(f"{file_label}: accepted portfolio result lacks verified dark controls")
+            raise ValueError(f"{file_label}: accepted result lacks verified dark controls")
         comparison_file = ""
         max_delta = ""
         rms_delta = ""

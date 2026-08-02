@@ -5,6 +5,9 @@
 - [`generate_portfolio_figures.py`](generate_portfolio_figures.py) regenerates
   the deterministic SVGs from committed aggregate CSVs; `--check` verifies
   freshness.
+- [`generate_spectro_report_figure.py`](generate_spectro_report_figure.py)
+  regenerates the measurement-group level/chromaticity figure from the
+  committed spectroradiometer aggregate; `--check` verifies freshness.
 - [`export_shading_portfolio.py`](export_shading_portfolio.py) converts ignored
   schema-3 `camera_iq shading` JSON results into the committed 52-frame
   screening and 16 × 12 response tables, validating measured per-position
@@ -24,8 +27,13 @@
   four project tables.
 - [`generate_spectro_identity_ledger.py`](generate_spectro_identity_ledger.py)
   hashes the private CLRS-589 MAT files and derives an explicit, source-relative
-  repeat-group ledger; `--check` validates the committed ledger without claiming
+  measurement-group ledger; `--check` validates the committed ledger without claiming
   to re-read the unavailable source archive.
+- [`matlab/export_spectro_crosscheck.m`](matlab/export_spectro_crosscheck.m)
+  reads the same ledger through MATLAB and exports binary64 vector hashes plus
+  recorded metadata. [`compare_spectro_crosscheck.py`](compare_spectro_crosscheck.py)
+  compares that artifact with `spectro-ingest --readings-csv`; its mismatch
+  behavior is covered by CTest.
 - [`gen_cie_d50.py`](gen_cie_d50.py) and
   [`gen_cie_d55.py`](gen_cie_d55.py) regenerate the committed daylight SPDs and
   verify their white points.

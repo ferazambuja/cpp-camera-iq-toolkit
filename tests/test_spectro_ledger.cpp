@@ -47,7 +47,8 @@ int main() {
         ",PRD measurments copy/PRD2scene1.mat\n"
         "scene_02,1,PRD measurments/PRD_03.mat," + digest('c') + ",\n";
     const auto groups = read_spectro_ledger(csv);
-    check(groups.size() == 2, "ledger: rows collapse into their repeat groups");
+    check(groups.size() == 2,
+          "ledger: rows collapse into their measurement groups");
     // Every assertion below indexes into the parse. Reporting the shape as one
     // failure beats reading them off a vector that is the wrong size.
     if (groups.size() != 2 || groups[0].readings.size() != 2 ||

@@ -92,21 +92,41 @@ struct ShiftedStats {
   double sample_stddev = 0.0;  // zero for a singleton; the caller drops it
 };
 
-// Repeat readings of one sample differ far less than they differ from zero, so
-// every accumulation here runs on the offset from the first reading. That keeps
-// the sums at the scale of the spread rather than of the signal, where a plain
-// sum of squares would lose the low bits of a small variance. Selecting the
-// scalar through a callable keeps one implementation for the radiance bins and
-// the XYZ channels; two copies of this drift apart.
+// Neumaier summation retains a small addend when the running total is much
+// larger. It uses only double operations, so correctness does not depend on
+// whether a platform gives long double additional range or precision.
+class CompensatedSum {
+ public:
+  void add(double value) {
+    const double next = sum_ + value;
+    if (std::fabs(sum_) >= std::fabs(value)) {
+      correction_ += (sum_ - next) + value;
+    } else {
+      correction_ += (value - next) + sum_;
+    }
+    sum_ = next;
+  }
+
+  double value() const { return sum_ + correction_; }
+
+ private:
+  double sum_ = 0.0;
+  double correction_ = 0.0;
+};
+
+// Measurement-group readings often differ far less than they differ from zero.
+// Variance therefore runs on offsets from the first reading, keeping the
+// accumulation at the scale of the spread. The mean is accumulated separately
+// from scaled values so a small, representable residual survives cancellation
+// between large positive and negative readings. Selecting the scalar through a
+// callable keeps one implementation for radiance bins and XYZ channels.
 template <typename Select>
 ShiftedStats shifted_stats(const std::vector<SpectroMeasurement>& readings,
                            Select select) {
-  // Readings that individually pass the finiteness gate can still overflow the
-  // accumulation: the difference of two values near the top of the range is not
-  // representable, and widening does not help, because long double is double on
-  // arm64. Dividing by a power of two first only shifts the exponent, so it
-  // loses nothing, and it brings every value into [-1, 1] where no partial sum
-  // or square can overflow. frexp supplies that exponent.
+  // Power-of-two scaling prevents intermediate overflow without relying on
+  // optional long-double headroom. On Apple arm64, for example, long double has
+  // the same range and precision as double. frexp supplies the exact exponent
+  // shift that places every nonzero value within [-1, 1].
   double max_magnitude = 0.0;
   for (const auto& reading : readings) {
     max_magnitude = std::max(max_magnitude, std::fabs(select(reading)));
@@ -119,30 +139,44 @@ ShiftedStats shifted_stats(const std::vector<SpectroMeasurement>& readings,
     return std::ldexp(select(reading), -exponent);
   };
 
-  const double origin = scaled(readings.front());
-  long double offset_sum = 0.0L;
+  const double divisor = static_cast<double>(readings.size());
+  CompensatedSum mean_sum;
   for (const auto& reading : readings) {
-    offset_sum += static_cast<long double>(scaled(reading) - origin);
+    // Divide each bounded term before summation so even a very large group
+    // cannot overflow a partial sum merely because similarly signed values
+    // appear together.
+    mean_sum.add(scaled(reading) / divisor);
   }
-  const long double mean_offset =
-      offset_sum / static_cast<long double>(readings.size());
 
   ShiftedStats stats;
-  stats.mean = std::ldexp(
-      static_cast<double>(static_cast<long double>(origin) + mean_offset),
-      exponent);
+  stats.mean = std::ldexp(mean_sum.value(), exponent);
+  if (!std::isfinite(stats.mean)) {
+    throw std::runtime_error(
+        "spectro group summary: mean is not representable");
+  }
   if (readings.size() < 2) return stats;
 
-  long double squared_sum = 0.0L;
+  const double origin = scaled(readings.front());
+  CompensatedSum mean_offset_sum;
   for (const auto& reading : readings) {
-    const long double difference =
-        static_cast<long double>(scaled(reading) - origin) - mean_offset;
-    squared_sum += difference * difference;
+    mean_offset_sum.add((scaled(reading) - origin) / divisor);
   }
-  stats.sample_stddev = std::ldexp(
-      std::sqrt(static_cast<double>(
-          squared_sum / static_cast<long double>(readings.size() - 1))),
-      exponent);
+  const double mean_offset = mean_offset_sum.value();
+
+  CompensatedSum variance_sum;
+  const double variance_divisor =
+      static_cast<double>(readings.size() - 1);
+  for (const auto& reading : readings) {
+    const double difference = (scaled(reading) - origin) - mean_offset;
+    variance_sum.add((difference * difference) / variance_divisor);
+  }
+  stats.sample_stddev =
+      std::ldexp(std::sqrt(variance_sum.value()), exponent);
+  if (!std::isfinite(stats.sample_stddev)) {
+    throw std::runtime_error(
+        "spectro group summary: sample standard deviation is not "
+        "representable");
+  }
   return stats;
 }
 
@@ -183,10 +217,10 @@ SpectroMeasurement spectro_measurement_from_mat(const MatStruct& fields) {
   return result;
 }
 
-SpectroRepeatSummary summarize_spectro_repeats(
+SpectroGroupSummary summarize_spectro_group(
     const std::vector<SpectroMeasurement>& readings) {
   if (readings.empty()) {
-    throw std::runtime_error("spectro repeat summary: group is empty");
+    throw std::runtime_error("spectro group summary: group is empty");
   }
 
   const auto& axis = readings.front().wavelength_nm;
@@ -196,7 +230,7 @@ SpectroRepeatSummary summarize_spectro_repeats(
       std::adjacent_find(axis.begin(), axis.end(),
                          std::greater_equal<double>{}) != axis.end()) {
     throw std::runtime_error(
-        "spectro repeat summary: wavelength axis must be finite and strictly "
+        "spectro group summary: wavelength axis must be finite and strictly "
         "increasing");
   }
   for (std::size_t reading_index = 0; reading_index < readings.size();
@@ -204,12 +238,12 @@ SpectroRepeatSummary summarize_spectro_repeats(
     const auto& reading = readings[reading_index];
     if (reading.wavelength_nm != axis) {
       throw std::runtime_error(
-          "spectro repeat summary: wavelength axis mismatch at reading " +
+          "spectro group summary: wavelength axis mismatch at reading " +
           std::to_string(reading_index));
     }
     if (reading.spectral_radiance.size() != axis.size()) {
       throw std::runtime_error(
-          "spectro repeat summary: radiance length mismatch at reading " +
+          "spectro group summary: radiance length mismatch at reading " +
           std::to_string(reading_index));
     }
     if (!std::all_of(reading.spectral_radiance.begin(),
@@ -218,12 +252,12 @@ SpectroRepeatSummary summarize_spectro_repeats(
         !std::all_of(reading.recorded_xyz.begin(), reading.recorded_xyz.end(),
                      [](double value) { return std::isfinite(value); })) {
       throw std::runtime_error(
-          "spectro repeat summary: non-finite sample at reading " +
+          "spectro group summary: non-finite sample at reading " +
           std::to_string(reading_index));
     }
   }
 
-  SpectroRepeatSummary result;
+  SpectroGroupSummary result;
   result.count = readings.size();
   result.wavelength_nm = axis;
   result.mean_spectral_radiance.resize(axis.size());

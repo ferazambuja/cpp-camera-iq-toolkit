@@ -41,7 +41,7 @@ Current CLI verbs:
 | Dataset and RAW front-end | `manifest`, `raw-stats`, `demosaic` |
 | Dark/noise/tone | `dark-calibration`, `noise`, `exposure-response`, `oecf-fit`, `oecf-stepchart` |
 | Color chart workflow | `reference-info`, `patches`, `ccm-fit` |
-| Spectral workflow | `spectral-response`, `spectral-closure`, `spectral-quality`, `spectral-smi` |
+| Spectral workflow | `spectral-response`, `spectral-closure`, `spectral-quality`, `spectral-smi`, `spectro-ingest` |
 | Sharpness and spatial response | `sfr`, `shading` |
 
 The implementation is accompanied by CTest coverage and repository privacy
@@ -62,6 +62,7 @@ locations.
 | Spectral sensitivity extraction | Covered deeply | [Spectral report](SPECTRAL_SENSITIVITY.md), [archive map](SPECTRAL_ARCHIVE_INVENTORY.md) | C++ RAW extraction from monochromator sweeps, legacy-fidelity comparison, five-camera SSF inventory. | Legacy CSVs are fidelity checks, not correctness oracles. |
 | Spectral physical closure | Covered | [Spectral report](SPECTRAL_SENSITIVITY.md), [archive map](SPECTRAL_ARCHIVE_INVENTORY.md) | SG-140 and CC-24 physical closure for Canon/Nikon/Sony 2016 cameras using measured illuminant and reflectance. | Phase One IQ3 has SSF but no same-session broadband closure target. |
 | Spectral color-fidelity ranking | Covered | [Spectral report](SPECTRAL_SENSITIVITY.md) | Luther residuals and ISO-style SMI over SG-140, CC-24, and CC-18; D55 primary; white-preserving sensitivity bound. | Not claimed bit-exact to paywalled ISO Annex B. |
+| Spectroradiometer archive ingest | Covered as record characterization | [Spectroradiometer ingest](SPECTRORADIOMETER_INGEST.md), [SG provenance](SG_REFERENCE_PROVENANCE.md) | Runtime SHA-256 binding, bounded MAT v5 parsing, 40 measurement groups, absolute/normalized spectra, recorded-XYZ chromaticity, and same-record closure. | Source files do not record enough physical controls to assign within-group variation to source, geometry, settings, or instrument repeatability. |
 | Exposure response readiness | Covered | [Exposure response](EXPOSURE_RESPONSE.md) | Exposure-series grouping and black-subtracted CFA response summaries. | Readiness/response summary, not final ISO OECF/PTC. |
 | Relative OECF / linearity | Covered | [OECF fit](OECF_FIT.md) | Relative-exposure linearity over usable OECF points. | Assumes constant illumination; not ISO 14524. |
 | Stepchart OECF oracle | Covered | [OECF Stepchart](OECF_STEPCHART.md) | Imatest Stepchart parser, archive joins, run-window gates, D800 oracle summaries, advisory cross-ISO luma spread. | Rendered-luma oracle path; no chart-density traceability or measured ISO speed. |

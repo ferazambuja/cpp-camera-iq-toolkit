@@ -9,9 +9,8 @@ set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
-# Emit build/compile_commands.json so clangd resolves include paths the same way
-# the build does. Without it, editor diagnostics are indistinguishable from real
-# compile errors and "that was only editor noise" is an unfalsifiable claim.
+# Emit build/compile_commands.json so clangd and the compiler resolve the same
+# project include paths and compile options.
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 if(NOT CMAKE_BUILD_TYPE)
@@ -48,9 +47,13 @@ add_library(camera_iq_core STATIC
   src/manifest.cpp
   src/raw_meta.cpp
   src/cfa_stats.cpp
+  src/sha256.cpp
   src/mat_file.cpp
   src/spectro_measurement.cpp
   src/spectro_ledger.cpp
+  src/spectro_ingest.cpp
+  src/spectro_analysis.cpp
+  src/spectro_colorimetry.cpp
   src/roi.cpp
   src/flat_field_gate.cpp
   src/demosaic.cpp
@@ -88,7 +91,9 @@ add_library(camera_iq_core STATIC
   src/cmd_spectral_smi.cpp
   src/cmd_patches.cpp
   src/shading.cpp
-  src/cmd_shading.cpp)
+  src/cmd_shading.cpp
+  src/cmd_spectro_ingest.cpp)
+
 target_include_directories(camera_iq_core PUBLIC include)
 target_compile_definitions(camera_iq_core PUBLIC
   CAMERA_IQ_VERSION="${PROJECT_VERSION}")
@@ -117,9 +122,14 @@ camera_iq_add_test(test_exposure_series tests/test_exposure_series.cpp)
 camera_iq_add_test(test_raw_meta tests/test_raw_meta.cpp)
 camera_iq_add_test(test_manifest_json tests/test_manifest_json.cpp)
 camera_iq_add_test(test_cfa_stats tests/test_cfa_stats.cpp)
+camera_iq_add_test(test_sha256 tests/test_sha256.cpp)
 camera_iq_add_test(test_mat_file tests/test_mat_file.cpp)
 camera_iq_add_test(test_spectro_measurement tests/test_spectro_measurement.cpp)
 camera_iq_add_test(test_spectro_ledger tests/test_spectro_ledger.cpp)
+camera_iq_add_test(test_spectro_ingest tests/test_spectro_ingest.cpp)
+camera_iq_add_test(test_spectro_analysis tests/test_spectro_analysis.cpp)
+camera_iq_add_test(test_spectro_colorimetry tests/test_spectro_colorimetry.cpp)
+camera_iq_add_test(test_cmd_spectro_ingest tests/test_cmd_spectro_ingest.cpp)
 camera_iq_add_test(test_roi tests/test_roi.cpp)
 camera_iq_add_test(test_demosaic tests/test_demosaic.cpp)
 camera_iq_add_test(test_dark_calibration tests/test_dark_calibration.cpp)
@@ -179,6 +189,11 @@ add_test(NAME check_spectro_identity_ledger
           --check ${CMAKE_SOURCE_DIR}/data/spectro_identity_ledger.csv)
 add_test(NAME test_generate_spectro_identity_ledger
   COMMAND python3 ${CMAKE_SOURCE_DIR}/tools/test_generate_spectro_identity_ledger.py)
+add_test(NAME test_compare_spectro_crosscheck
+  COMMAND python3 ${CMAKE_SOURCE_DIR}/tools/test_compare_spectro_crosscheck.py)
+add_test(NAME check_spectro_report_figure
+  COMMAND python3 ${CMAKE_SOURCE_DIR}/tools/generate_spectro_report_figure.py
+          --repo-root ${CMAKE_SOURCE_DIR} --check)
 add_test(NAME check_patch_baseline
   COMMAND python3 ${CMAKE_SOURCE_DIR}/tools/check_patch_baseline.py
           --repo-root ${CMAKE_SOURCE_DIR})
