@@ -55,6 +55,11 @@ struct ShadingOptions {
 struct ShadingGates {
   std::array<double, 4> near_ceiling_frac_gate{0, 0, 0, 0};
   std::array<double, 4> near_ceiling_frac_frame{0, 0, 0, 0};
+  // Coverage the two fractions above were measured over. A near-ceiling
+  // fraction is a ratio over finite samples, so it is only evidence when
+  // enough samples were finite to take it.
+  std::array<double, 4> finite_frac_gate{1, 1, 1, 1};
+  std::array<double, 4> finite_frac_frame{1, 1, 1, 1};
   std::array<double, 4> negative_frac{0, 0, 0, 0};
   // Center-block median as a fraction of that plane's signal-referred ceiling.
   std::array<double, 4> center_signal_frac{0, 0, 0, 0};

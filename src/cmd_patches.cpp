@@ -512,7 +512,7 @@ int cmd_patches(int argc, char** argv) {
       const auto near_ceiling = measure_flat_field_near_ceiling(
           *flat_cfa, flat_field_center_gate_fraction(),
           flat_field_near_ceiling_threshold_fraction(),
-          kFlatFieldMaxNearCeilingFraction);
+          kFlatFieldMaxNearCeilingFraction, kFlatFieldMinFiniteCoverage);
       if (!near_ceiling) {
         std::cerr << "camera_iq patches: cannot measure the flat-field "
                      "near-ceiling gate\n";

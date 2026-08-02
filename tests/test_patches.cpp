@@ -85,7 +85,8 @@ void TESTS() {
         std::numeric_limits<double>::quiet_NaN();
 
     const auto patch_gate =
-        measure_flat_field_near_ceiling(flat, 0.20, 0.98, 0.01);
+        measure_flat_field_near_ceiling(flat, 0.20, 0.98, 0.01,
+                                        camera_iq::kFlatFieldMinFiniteCoverage);
     camera_iq::ShadingOptions opts;
     opts.grid_cols = 2;
     opts.grid_rows = 2;
@@ -654,31 +655,37 @@ void TESTS() {
     const double nan = std::numeric_limits<double>::quiet_NaN();
     const std::array<std::string, 4> labels{"R", "G1", "G2", "B"};
     const std::array<double, 4> zero{0.0, 0.0, 0.0, 0.0};
+    const std::array<double, 4> kFullCoverage{1.0, 1.0, 1.0, 1.0};
 
-    const auto pass = flat_field_near_ceiling_verdict(
-        {0.004, 0.0, 0.0, 0.0}, {0.009, 0.0, 0.0, 0.0}, labels, 0.01);
+    const auto pass = flat_field_near_ceiling_verdict({0.004, 0.0, 0.0, 0.0}, {0.009, 0.0, 0.0, 0.0}, kFullCoverage, kFullCoverage,
+                                     labels, 0.01,
+                                     camera_iq::kFlatFieldMinFiniteCoverage);
     check(pass.accepted, "flat gate verdict: both fractions under policy pass");
 
-    const auto at_policy = flat_field_near_ceiling_verdict(
-        {0.01, 0.0, 0.0, 0.0}, {0.01, 0.0, 0.0, 0.0}, labels, 0.01);
+    const auto at_policy = flat_field_near_ceiling_verdict({0.01, 0.0, 0.0, 0.0}, {0.01, 0.0, 0.0, 0.0}, kFullCoverage, kFullCoverage,
+                                     labels, 0.01,
+                                     camera_iq::kFlatFieldMinFiniteCoverage);
     check(at_policy.accepted,
           "flat gate verdict: exactly at policy is not a rejection");
 
-    const auto frame_over = flat_field_near_ceiling_verdict(
-        {0.0, 0.02, 0.0, 0.0}, zero, labels, 0.01);
+    const auto frame_over = flat_field_near_ceiling_verdict({0.0, 0.02, 0.0, 0.0}, zero, kFullCoverage, kFullCoverage,
+                                     labels, 0.01,
+                                     camera_iq::kFlatFieldMinFiniteCoverage);
     check(!frame_over.accepted && frame_over.region == "frame" &&
               frame_over.position == 1 && frame_over.label == "G1" &&
               frame_over.fraction == 0.02,
           "flat gate verdict: whole-frame excess rejects and reports itself");
 
-    const auto gate_over = flat_field_near_ceiling_verdict(
-        {0.0, 0.000996, 0.0, 0.0}, {0.0, 0.0238, 0.0, 0.0}, labels, 0.01);
+    const auto gate_over = flat_field_near_ceiling_verdict({0.0, 0.000996, 0.0, 0.0}, {0.0, 0.0238, 0.0, 0.0}, kFullCoverage, kFullCoverage,
+                                     labels, 0.01,
+                                     camera_iq::kFlatFieldMinFiniteCoverage);
     check(!gate_over.accepted && gate_over.region == "gate" &&
               gate_over.position == 1 && gate_over.fraction == 0.0238,
           "flat gate verdict: center-gate excess rejects when frame passes");
 
-    const auto both = flat_field_near_ceiling_verdict(
-        {0.5, 0.0, 0.0, 0.0}, {0.9, 0.0, 0.0, 0.0}, labels, 0.01);
+    const auto both = flat_field_near_ceiling_verdict({0.5, 0.0, 0.0, 0.0}, {0.9, 0.0, 0.0, 0.0}, kFullCoverage, kFullCoverage,
+                                     labels, 0.01,
+                                     camera_iq::kFlatFieldMinFiniteCoverage);
     check(!both.accepted && both.region == "frame",
           "flat gate verdict: frame is reported first when both fail");
 
@@ -686,19 +693,25 @@ void TESTS() {
                            std::numeric_limits<double>::infinity(), 1.1}) {
       auto invalid_frame = zero;
       invalid_frame[2] = invalid;
-      check(!flat_field_near_ceiling_verdict(invalid_frame, zero, labels, 0.01)
+      check(!flat_field_near_ceiling_verdict(invalid_frame, zero, kFullCoverage, kFullCoverage,
+                                     labels, 0.01,
+                                     camera_iq::kFlatFieldMinFiniteCoverage)
                  .accepted,
             "flat gate verdict: invalid frame fraction rejects");
       auto invalid_gate = zero;
       invalid_gate[3] = invalid;
-      check(!flat_field_near_ceiling_verdict(zero, invalid_gate, labels, 0.01)
+      check(!flat_field_near_ceiling_verdict(zero, invalid_gate, kFullCoverage, kFullCoverage,
+                                     labels, 0.01,
+                                     camera_iq::kFlatFieldMinFiniteCoverage)
                  .accepted,
             "flat gate verdict: invalid gate fraction rejects");
     }
     for (double invalid_policy : {nan, -0.1,
                                   std::numeric_limits<double>::infinity(),
                                   1.1}) {
-      check(!flat_field_near_ceiling_verdict(zero, zero, labels, invalid_policy)
+      check(!flat_field_near_ceiling_verdict(zero, zero, kFullCoverage, kFullCoverage,
+                                     labels, invalid_policy,
+                                     camera_iq::kFlatFieldMinFiniteCoverage)
                  .accepted,
             "flat gate verdict: invalid policy rejects");
     }
@@ -742,7 +755,7 @@ void TESTS() {
         }
 
         const auto diagnostics = measure_flat_field_near_ceiling(
-            flat, 0.20, 0.98, 0.01);
+            flat, 0.20, 0.98, 0.01, camera_iq::kFlatFieldMinFiniteCoverage);
         check(diagnostics.has_value(),
               "flat CFA gate: valid diagnostics for every Bayer phase");
         if (!diagnostics) continue;

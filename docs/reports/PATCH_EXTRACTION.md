@@ -58,6 +58,20 @@ convention:
   four-position arrays, the effective rectangles, and the failing position.
   The correction normalizer remains the full-frame valid-sample mean of each
   demosaiced channel; the center gate protects local headroom, not its scale.
+  An odd active mosaic is rejected rather than trimmed to an even screening
+  frame: `apply_flat_field()` corrects every pixel, so a trimmed frame would
+  leave the last row or column corrected but never screened. `shading` already
+  rejected odd mosaics, so this is the two commands agreeing rather than a new
+  restriction.
+  Each position also reports the fraction of its samples that were finite, over
+  both regions, and a position below 90% coverage rejects. A near-ceiling
+  fraction is a ratio over finite samples only, so a plane reduced to one finite
+  low sample reads 0/1 = 0 and would otherwise look pristine while
+  `apply_flat_field()` substitutes the floor for every non-finite denominator.
+  The 90% figure is the coverage number `shading` already declares for map bins,
+  applied here to the screening regions; that is a new application of an
+  existing declared value, not a pre-existing rule. JSON records both coverage
+  arrays and the policy beside the near-ceiling fractions.
 - Optional white-balance policy: explicit `--wb-gains R,G,B`, or
   `--wb-from-flat-field`, which anchors the flat/sphere green normalizer and
   scales red/blue to match it.

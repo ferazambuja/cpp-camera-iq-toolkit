@@ -10,6 +10,7 @@
 using camera_iq::RoiRect;
 using camera_iq::flat_field_near_ceiling_passes;
 using camera_iq::kFlatFieldMaxNearCeilingFraction;
+using camera_iq::kFlatFieldMinFiniteCoverage;
 using camera_iq::kFlatFieldNearCeilingLevel;
 using camera_iq::measure_cfa_near_ceiling;
 using test::check;
@@ -50,37 +51,34 @@ void TESTS() {
       check_near(measurement->fraction_gate[p], 0.0, 1e-12,
                  "gate: centered region well below the level reads zero");
     }
-    check(flat_field_near_ceiling_passes(measurement->fraction_frame[0],
-                                         measurement->fraction_gate[0],
-                                         kFlatFieldMaxNearCeilingFraction),
+    check(flat_field_near_ceiling_passes(
+              measurement->fraction_frame[0], measurement->fraction_gate[0],
+              measurement->finite_fraction_frame[0],
+              measurement->finite_fraction_gate[0],
+              kFlatFieldMaxNearCeilingFraction, kFlatFieldMinFiniteCoverage),
           "gate: a clean plane passes the shared predicate");
   }
 
   {
-    // An odd active dimension cannot be split into balanced 2x2 positions, so
-    // the measurement trims to an even rectangle rather than letting one
-    // position's denominator run a row or column longer than the others. The
-    // trim is not silent: the effective frame is returned and serialized, the
-    // same way `shading` publishes its own geometry.
+    // An odd active dimension cannot be split into balanced 2x2 positions.
+    // `shading` rejects such a mosaic outright rather than publish a trimmed
+    // frame, and `patches` must agree: it corrects every pixel in the image,
+    // so a frame trimmed for screening would leave the last row or column
+    // corrected but never screened.
     const std::vector<double> odd_w(static_cast<std::size_t>(7) * kHeight, 50.0);
-    const auto trimmed_w =
-        measure_cfa_near_ceiling(odd_w.data(), 7, kHeight, 7, gate, kCeilings,
-                                 kFlatFieldNearCeilingLevel);
-    check(trimmed_w.has_value(), "gate: odd active width stays measurable");
-    check(trimmed_w->frame.width == 6 && trimmed_w->frame.height == kHeight,
-          "gate: odd active width trims to an even effective frame");
+    check(!measure_cfa_near_ceiling(odd_w.data(), 7, kHeight, 7, gate, kCeilings,
+                                    kFlatFieldNearCeilingLevel)
+               .has_value(),
+          "gate: odd active width is rejected, not trimmed out of screening");
 
     const std::vector<double> odd_h(static_cast<std::size_t>(kWidth) * 5, 50.0);
-    const auto trimmed_h = measure_cfa_near_ceiling(
-        odd_h.data(), kWidth, 5, kWidth, gate, kCeilings,
-        kFlatFieldNearCeilingLevel);
-    check(trimmed_h.has_value(), "gate: odd active height stays measurable");
-    check(trimmed_h->frame.width == kWidth && trimmed_h->frame.height == 4,
-          "gate: odd active height trims to an even effective frame");
+    check(!measure_cfa_near_ceiling(odd_h.data(), kWidth, 5, kWidth, gate,
+                                    kCeilings, kFlatFieldNearCeilingLevel)
+               .has_value(),
+          "gate: odd active height is rejected, not trimmed out of screening");
 
-    // The caller's declared gate is a different matter. An unbalanced or
-    // out-of-frame gate is rejected rather than quietly re-aligned, so a caller
-    // is never handed measurements for geometry it did not ask for.
+    // The caller's declared gate is a separate matter: an unbalanced or
+    // out-of-frame gate is rejected rather than quietly re-aligned.
     const auto frame = flat_frame(50.0);
     check(!measure_cfa_near_ceiling(frame.data(), kWidth, kHeight, kWidth,
                                     RoiRect{1, 2, 4, 2}, kCeilings,
@@ -121,13 +119,18 @@ void TESTS() {
       check_near(measurement->fraction_gate[p], expected, 1e-12,
                  "gate: gate fraction isolates the saturated position");
     }
-    check(!flat_field_near_ceiling_passes(measurement->fraction_frame[target],
-                                          measurement->fraction_gate[target],
-                                          kFlatFieldMaxNearCeilingFraction),
+    check(!flat_field_near_ceiling_passes(
+              measurement->fraction_frame[target],
+              measurement->fraction_gate[target],
+              measurement->finite_fraction_frame[target],
+              measurement->finite_fraction_gate[target],
+              kFlatFieldMaxNearCeilingFraction, kFlatFieldMinFiniteCoverage),
           "gate: the saturated position alone fails the predicate");
-    check(flat_field_near_ceiling_passes(measurement->fraction_frame[0],
-                                         measurement->fraction_gate[0],
-                                         kFlatFieldMaxNearCeilingFraction),
+    check(flat_field_near_ceiling_passes(
+              measurement->fraction_frame[0], measurement->fraction_gate[0],
+              measurement->finite_fraction_frame[0],
+              measurement->finite_fraction_gate[0],
+              kFlatFieldMaxNearCeilingFraction, kFlatFieldMinFiniteCoverage),
           "gate: an unaffected position still passes on its own");
   }
 
@@ -152,9 +155,12 @@ void TESTS() {
           "gate: an all-missing plane still returns the other three");
     check(std::isnan(measurement->fraction_frame[target]),
           "gate: a plane with no finite samples reports NaN, not zero");
-    check(!flat_field_near_ceiling_passes(measurement->fraction_frame[target],
-                                          measurement->fraction_gate[target],
-                                          kFlatFieldMaxNearCeilingFraction),
+    check(!flat_field_near_ceiling_passes(
+              measurement->fraction_frame[target],
+              measurement->fraction_gate[target],
+              measurement->finite_fraction_frame[target],
+              measurement->finite_fraction_gate[target],
+              kFlatFieldMaxNearCeilingFraction, kFlatFieldMinFiniteCoverage),
           "gate: an unmeasurable plane cannot masquerade as a clean flat");
     for (std::size_t p = 0; p < 4; ++p) {
       if (p == target) continue;
@@ -164,16 +170,54 @@ void TESTS() {
   }
 
   {
+    // A near-ceiling fraction is a ratio over finite samples only, so a plane
+    // reduced to a single finite low sample reads 0/1 = 0 and looks pristine.
+    // The other samples are not skipped downstream: apply_flat_field() replaces
+    // a non-finite denominator with the floor, producing an enormous correction
+    // gain. Coverage must therefore gate acceptance alongside the fraction.
+    auto frame = flat_frame(std::numeric_limits<double>::quiet_NaN());
+    for (int y = 0; y < 2; ++y) {
+      for (int x = 0; x < 2; ++x) {
+        frame[static_cast<std::size_t>(y) * kWidth + x] = 1.0;
+      }
+    }
+    // Keep the gate itself fully finite so only whole-frame coverage is thin.
+    for (int y = gate.y; y < gate.y + gate.height; ++y) {
+      for (int x = gate.x; x < gate.x + gate.width; ++x) {
+        frame[static_cast<std::size_t>(y) * kWidth + x] = 1.0;
+      }
+    }
+    const auto measurement = measure_cfa_near_ceiling(
+        frame.data(), kWidth, kHeight, kWidth, gate, kCeilings,
+        kFlatFieldNearCeilingLevel);
+    check(measurement.has_value(), "gate: a sparse frame is still measurable");
+    for (std::size_t p = 0; p < 4; ++p) {
+      check_near(measurement->fraction_frame[p], 0.0, 1e-12,
+                 "gate: a sparse plane's near-ceiling fraction reads zero");
+      check(measurement->finite_fraction_frame[p] < kFlatFieldMinFiniteCoverage,
+            "gate: sparse whole-frame coverage is reported and below policy");
+      check_near(measurement->finite_fraction_gate[p], 1.0, 1e-12,
+                 "gate: the fully finite gate reports complete coverage");
+      check(!flat_field_near_ceiling_passes(
+                measurement->fraction_frame[p], measurement->fraction_gate[p],
+                measurement->finite_fraction_frame[p],
+                measurement->finite_fraction_gate[p],
+                kFlatFieldMaxNearCeilingFraction, kFlatFieldMinFiniteCoverage),
+            "gate: a zero fraction over too few samples is not a clean flat");
+    }
+  }
+
+  {
     // An invalid policy is not a licence to accept. Every argument runs through
     // the same finite/range validation as the measured fractions.
     const double nan = std::numeric_limits<double>::quiet_NaN();
-    check(!flat_field_near_ceiling_passes(0.0, 0.0, nan),
+    check(!flat_field_near_ceiling_passes(0.0, 0.0, 1.0, 1.0, nan, 0.9),
           "gate: a non-finite policy rejects");
-    check(!flat_field_near_ceiling_passes(0.0, 0.0, 1.5),
+    check(!flat_field_near_ceiling_passes(0.0, 0.0, 1.0, 1.0, 1.5, 0.9),
           "gate: an out-of-range policy rejects");
-    check(!flat_field_near_ceiling_passes(-0.1, 0.0, 0.01),
+    check(!flat_field_near_ceiling_passes(-0.1, 0.0, 1.0, 1.0, 0.01, 0.9),
           "gate: a negative fraction rejects");
-    check(flat_field_near_ceiling_passes(0.01, 0.01, 0.01),
+    check(flat_field_near_ceiling_passes(0.01, 0.01, 1.0, 1.0, 0.01, 0.9),
           "gate: exactly at policy is not a rejection");
   }
 }

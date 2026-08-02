@@ -199,9 +199,14 @@ struct FlatFieldNearCeilingDiagnostics {
   double gate_center_fraction = 0.0;
   double near_ceiling_level = 0.0;
   double max_allowed_fraction = 0.0;
+  double min_finite_coverage = 0.0;
   std::array<std::string, 4> labels;
   std::array<double, 4> near_ceiling_fraction_frame{};
   std::array<double, 4> near_ceiling_fraction_gate{};
+  // Published beside the fractions: a near-ceiling fraction is a ratio over
+  // finite samples, so it means nothing without the coverage it was taken over.
+  std::array<double, 4> finite_fraction_frame{};
+  std::array<double, 4> finite_fraction_gate{};
   FlatFieldGateVerdict verdict;
 };
 
@@ -274,14 +279,18 @@ double flat_field_center_gate_fraction();
 std::optional<FlatFieldNearCeilingDiagnostics>
 measure_flat_field_near_ceiling(const RawCfaImage& flat, double center_fraction,
                                 double near_ceiling_level,
-                                double max_allowed_fraction);
+                                double max_allowed_fraction,
+                                double min_finite_coverage);
 
 // Applies one policy independently to every CFA position in both regions.
 // Invalid fractions and policies reject rather than masquerading as passes.
 FlatFieldGateVerdict flat_field_near_ceiling_verdict(
     const std::array<double, 4>& frame_fractions,
     const std::array<double, 4>& gate_fractions,
-    const std::array<std::string, 4>& labels, double max_allowed);
+    const std::array<double, 4>& frame_coverage,
+    const std::array<double, 4>& gate_coverage,
+    const std::array<std::string, 4>& labels, double max_allowed,
+    double min_coverage);
 
 // Minimal structured result emitted even when a flat is rejected before patch
 // extraction. It preserves the evidence that caused the non-zero exit status.

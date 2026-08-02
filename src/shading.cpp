@@ -217,6 +217,8 @@ ShadingField measure_shading_field(const double* data, int width, int height,
     return rejected("near-ceiling measurement is undefined", opts);
   }
   field.gates.near_ceiling_frac_frame = near_ceiling->fraction_frame;
+  field.gates.finite_frac_gate = near_ceiling->finite_fraction_gate;
+  field.gates.finite_frac_frame = near_ceiling->finite_fraction_frame;
   field.gates.near_ceiling_frac_gate = near_ceiling->fraction_gate;
 
   for (int p = 0; p < 4; ++p) {
@@ -317,7 +319,9 @@ ShadingField measure_shading_field(const double* data, int width, int height,
     field.gates.near_ceiling_ok &=
         flat_field_near_ceiling_passes(
             field.gates.near_ceiling_frac_frame[p],
-            field.gates.near_ceiling_frac_gate[p], opts.near_ceiling_max);
+            field.gates.near_ceiling_frac_gate[p],
+            field.gates.finite_frac_frame[p], field.gates.finite_frac_gate[p],
+            opts.near_ceiling_max, kFlatFieldMinFiniteCoverage);
     field.gates.low_signal_ok &=
         field.gates.center_signal_frac[p] >= opts.min_center_signal;
     field.gates.negative_ok &=
