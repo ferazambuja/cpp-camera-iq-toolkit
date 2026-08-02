@@ -151,38 +151,23 @@ The command can emit:
   the committed inputs, aggregate, receipt structure, and value domains;
   reproducing archive-only closure values requires the private measurements.
 
-The committed receipt is reproduced by this invocation and no other:
-
-```sh
-camera_iq spectro-ingest clrs589_project_camera \
-  --config configs/datasets.local.json \
-  --ledger data/spectro_identity_ledger.csv \
-  --cmf data/cie1931_2deg_cmf_1nm.csv \
-  --verify-aliases \
-  --out run.json --groups-csv groups.csv --readings-csv readings.csv
-python3 tools/generate_spectro_receipt.py --result run.json \
-  --groups-csv groups.csv --readings-csv readings.csv \
-  --out docs/data/spectro_result_receipt.json
-```
-
-Passing the archive root instead of the dataset ID reads the same files and
-produces the same aggregate, but records `dataset-root:` rather than `dataset:`
-in the run JSON. That is a different byte stream and therefore a different
-`archive_run_result` hash. The measurements are unchanged; only the recorded
-identity of the run differs. A reader who reproduces the receipt the other way
-and finds a hash mismatch has not found stale evidence.
-
 `tools/matlab/export_spectro_crosscheck.m` reads the same 89 ledger rows through
 MATLAB. `tools/compare_spectro_crosscheck.py` compares vector hashes exactly and
 numeric metadata within declared tolerances. This keeps MATLAB as an
 independent parser check rather than an ingest dependency or second source of
 truth.
 
-That comparison has not been run against this archive, and no published number
-here should be read as MATLAB-confirmed. CI cannot run it, because MATLAB is not
-available there. The comparator itself is tested against constructed inputs,
-which establishes that it would detect a disagreement, not that the two parsers
-agree.
+The archive comparison with MATLAB R2026a matched all 89 readings. The two
+parsers produced identical SHA-256 hashes for both numeric vectors in every
+reading (178 exact comparisons), and all 623 numeric-field comparisons met
+the declared `1e-12` absolute-or-relative tolerance. The largest absolute
+difference was `4.55e-12` for CCT; the largest relative difference across the
+seven numeric fields was `4.21e-15`. A compact
+[cross-check receipt](../data/spectro_matlab_crosscheck_receipt.json) binds the
+two private comparison artifacts and the public ledger/exporter/comparator by
+hash without publishing per-reading values or local paths. This establishes
+agreement between two parser implementations on this archive; it does not
+provide an independent reference for instrument accuracy.
 
 ## Interpretation limits
 
@@ -210,3 +195,4 @@ agree.
 - [`tests/test_spectro_colorimetry.cpp`](../../tests/test_spectro_colorimetry.cpp)
 - [`docs/data/spectro_group_summary.csv`](../data/spectro_group_summary.csv)
 - [`docs/data/spectro_result_receipt.json`](../data/spectro_result_receipt.json)
+- [`docs/data/spectro_matlab_crosscheck_receipt.json`](../data/spectro_matlab_crosscheck_receipt.json)

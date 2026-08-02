@@ -204,6 +204,10 @@ add_test(NAME test_generate_spectro_identity_ledger
   COMMAND python3 ${CMAKE_SOURCE_DIR}/tools/test_generate_spectro_identity_ledger.py)
 add_test(NAME test_compare_spectro_crosscheck
   COMMAND python3 ${CMAKE_SOURCE_DIR}/tools/test_compare_spectro_crosscheck.py)
+add_test(NAME check_spectro_matlab_crosscheck_receipt
+  COMMAND python3 ${CMAKE_SOURCE_DIR}/tools/check_spectro_matlab_crosscheck_receipt.py)
+add_test(NAME test_check_spectro_matlab_crosscheck_receipt
+  COMMAND python3 ${CMAKE_SOURCE_DIR}/tools/test_check_spectro_matlab_crosscheck_receipt.py)
 add_test(NAME check_spectro_receipt
   COMMAND python3 ${CMAKE_SOURCE_DIR}/tools/check_spectro_receipt.py
           --repo-root ${CMAKE_SOURCE_DIR})
