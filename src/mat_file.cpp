@@ -147,8 +147,11 @@ Element read_element(std::string_view s, std::size_t off) {
   const std::size_t available = s.size() - off - 8;
   // The Level-5 format aligns uncompressed data fields to 64-bit boundaries.
   // miCOMPRESSED is the explicit exception: its zlib stream is followed
-  // immediately by the next tag or end of file. All 134 measurement files in
-  // the inspected archive exercise that exception at the top level.
+  // immediately by the next tag or end of file. The archive's 134 measurement
+  // files do not establish this -- each holds one top-level element, so the
+  // walk ends at the buffer under either rule. Its 16 legacy workspace saves
+  // do: they chain 35 to 45 compressed elements, and only the unpadded rule
+  // reaches a clean end with readable variable names.
   const std::size_t padding =
       e.type == kMiCompressed ? 0 : (8 - n % 8) % 8;
   if (n > available || padding > available - n) {

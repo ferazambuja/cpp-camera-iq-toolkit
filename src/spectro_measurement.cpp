@@ -87,28 +87,42 @@ std::size_t count_scalar(const MatStruct& fields, std::string_view name) {
   return static_cast<std::size_t>(value);
 }
 
-long double mean_at(const std::vector<SpectroMeasurement>& readings,
-                    std::size_t index) {
-  const double origin = readings.front().spectral_radiance[index];
-  long double offset_sum = 0.0L;
-  for (const auto& reading : readings) {
-    offset_sum +=
-        static_cast<long double>(reading.spectral_radiance[index] - origin);
-  }
-  return static_cast<long double>(origin) +
-         offset_sum / static_cast<long double>(readings.size());
-}
+struct ShiftedStats {
+  double mean = 0.0;
+  double sample_stddev = 0.0;  // zero for a singleton; the caller drops it
+};
 
-long double xyz_mean_at(const std::vector<SpectroMeasurement>& readings,
-                        std::size_t channel) {
-  const double origin = readings.front().recorded_xyz[channel];
+// Repeat readings of one sample differ far less than they differ from zero, so
+// every accumulation here runs on the offset from the first reading. That keeps
+// the sums at the scale of the spread rather than of the signal, where a plain
+// sum of squares would lose the low bits of a small variance. Selecting the
+// scalar through a callable keeps one implementation for the radiance bins and
+// the XYZ channels; two copies of this drift apart.
+template <typename Select>
+ShiftedStats shifted_stats(const std::vector<SpectroMeasurement>& readings,
+                           Select select) {
+  const double origin = select(readings.front());
   long double offset_sum = 0.0L;
   for (const auto& reading : readings) {
-    offset_sum +=
-        static_cast<long double>(reading.recorded_xyz[channel] - origin);
+    offset_sum += static_cast<long double>(select(reading) - origin);
   }
-  return static_cast<long double>(origin) +
-         offset_sum / static_cast<long double>(readings.size());
+  const long double mean_offset =
+      offset_sum / static_cast<long double>(readings.size());
+
+  ShiftedStats stats;
+  stats.mean =
+      static_cast<double>(static_cast<long double>(origin) + mean_offset);
+  if (readings.size() < 2) return stats;
+
+  long double squared_sum = 0.0L;
+  for (const auto& reading : readings) {
+    const long double difference =
+        static_cast<long double>(select(reading) - origin) - mean_offset;
+    squared_sum += difference * difference;
+  }
+  stats.sample_stddev = std::sqrt(static_cast<double>(
+      squared_sum / static_cast<long double>(readings.size() - 1)));
+  return stats;
 }
 
 }  // namespace
@@ -125,11 +139,13 @@ SpectroMeasurement spectro_measurement_from_mat(const MatStruct& fields) {
         "spectro measurement: wavelength and radiance vectors must have "
         "the same non-trivial length");
   }
-  if (!std::is_sorted(result.wavelength_nm.begin(), result.wavelength_nm.end(),
-                      std::less<double>{}) ||
-      std::adjacent_find(result.wavelength_nm.begin(), result.wavelength_nm.end(),
+  // adjacent_find with greater_equal returns end only when every neighbouring
+  // pair satisfies a < b, which is strict increase on its own; a preceding
+  // is_sorted check cannot reject anything this does not.
+  if (std::adjacent_find(result.wavelength_nm.begin(),
+                         result.wavelength_nm.end(),
                          std::greater_equal<double>{}) !=
-          result.wavelength_nm.end()) {
+      result.wavelength_nm.end()) {
     throw std::runtime_error(
         "spectro measurement: wavelength axis must be strictly increasing");
   }
@@ -190,65 +206,33 @@ SpectroRepeatSummary summarize_spectro_repeats(
   result.count = readings.size();
   result.wavelength_nm = axis;
   result.mean_spectral_radiance.resize(axis.size());
-  std::vector<long double> precise_radiance_means(axis.size());
+  std::vector<double> radiance_stddev(axis.size(), 0.0);
   for (std::size_t i = 0; i < axis.size(); ++i) {
-    precise_radiance_means[i] = mean_at(readings, i);
-    result.mean_spectral_radiance[i] =
-        static_cast<double>(precise_radiance_means[i]);
+    const ShiftedStats stats = shifted_stats(
+        readings,
+        [i](const SpectroMeasurement& r) { return r.spectral_radiance[i]; });
+    result.mean_spectral_radiance[i] = stats.mean;
+    radiance_stddev[i] = stats.sample_stddev;
   }
-  std::array<long double, 3> precise_xyz_means{};
+
+  std::array<double, 3> xyz_stddev{};
   for (std::size_t channel = 0; channel < result.mean_recorded_xyz.size();
        ++channel) {
-    precise_xyz_means[channel] = xyz_mean_at(readings, channel);
-    result.mean_recorded_xyz[channel] =
-        static_cast<double>(precise_xyz_means[channel]);
+    const ShiftedStats stats = shifted_stats(
+        readings,
+        [channel](const SpectroMeasurement& r) {
+          return r.recorded_xyz[channel];
+        });
+    result.mean_recorded_xyz[channel] = stats.mean;
+    xyz_stddev[channel] = stats.sample_stddev;
   }
 
-  if (readings.size() == 1) return result;
-
-  result.sample_stddev_spectral_radiance.emplace(axis.size(), 0.0);
-  std::array<double, 3> xyz_stddev{};
-  const long double denominator =
-      static_cast<long double>(readings.size() - 1);
-  for (std::size_t i = 0; i < axis.size(); ++i) {
-    long double squared_sum = 0.0L;
-    const double origin = readings.front().spectral_radiance[i];
-    long double offset_sum = 0.0L;
-    for (const auto& reading : readings) {
-      offset_sum +=
-          static_cast<long double>(reading.spectral_radiance[i] - origin);
-    }
-    const long double mean_offset =
-        offset_sum / static_cast<long double>(readings.size());
-    for (const auto& reading : readings) {
-      const long double difference =
-          static_cast<long double>(reading.spectral_radiance[i] - origin) -
-          mean_offset;
-      squared_sum += difference * difference;
-    }
-    result.sample_stddev_spectral_radiance->at(i) =
-        std::sqrt(static_cast<double>(squared_sum / denominator));
+  // A singleton group has a mean but no spread. Reporting zero would read as
+  // perfect repeatability rather than as an absent measurement.
+  if (readings.size() > 1) {
+    result.sample_stddev_spectral_radiance = std::move(radiance_stddev);
+    result.sample_stddev_recorded_xyz = xyz_stddev;
   }
-  for (std::size_t channel = 0; channel < xyz_stddev.size(); ++channel) {
-    long double squared_sum = 0.0L;
-    const double origin = readings.front().recorded_xyz[channel];
-    long double offset_sum = 0.0L;
-    for (const auto& reading : readings) {
-      offset_sum +=
-          static_cast<long double>(reading.recorded_xyz[channel] - origin);
-    }
-    const long double mean_offset =
-        offset_sum / static_cast<long double>(readings.size());
-    for (const auto& reading : readings) {
-      const long double difference =
-          static_cast<long double>(reading.recorded_xyz[channel] - origin) -
-          mean_offset;
-      squared_sum += difference * difference;
-    }
-    xyz_stddev[channel] =
-        std::sqrt(static_cast<double>(squared_sum / denominator));
-  }
-  result.sample_stddev_recorded_xyz = xyz_stddev;
   return result;
 }
 

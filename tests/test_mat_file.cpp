@@ -293,6 +293,27 @@ void TESTS() {
           "mat: values survive the inflate path");
   }
 
+  // miCOMPRESSED is the one element the Level-5 format does not pad to an
+  // 8-byte boundary. A single compressed element cannot show that: the walk
+  // ends at the buffer either way. It is visible only when a sibling follows a
+  // deflate stream whose length is not already a multiple of eight -- the shape
+  // of the archive's legacy workspace saves, which chain 35 to 45 of them.
+  {
+    const std::string leading = zlib_deflate(
+        struct_matrix("other", {{"wl", double_matrix("", {1, 1}, {1})}}));
+    check(leading.size() % 8 != 0,
+          "mat: the leading deflate stream must be unaligned for this to test "
+          "anything");
+    const std::string wanted = zlib_deflate(struct_matrix(
+        "measurements", {{"wl", double_matrix("", {1, 2}, {380, 382})}}));
+    const std::string file = mat_header() +
+                             unpadded_element(kMiCompressed, leading) +
+                             unpadded_element(kMiCompressed, wanted);
+    const auto s = camera_iq::read_mat_struct(file);
+    check(s.at("wl").values == std::vector<double>{380, 382},
+          "mat: a sibling after an unaligned compressed element is found");
+  }
+
   // Mixed storage widths in one struct, as the archive stores them: radiance
   // as double, wavelength as uint16, and counters as uint8. The PR-655 files
   // label `wl` and one counter mxDOUBLE in their array flags while carrying
