@@ -157,4 +157,5 @@ only where the implementation and available calibration evidence support it.
 More projects and contact context:
 [Imaging Engineering & Color Science profile](https://github.com/ferazambuja).
 
-License: [MIT](LICENSE).
+Project code and original documentation: [MIT](LICENSE). Named standard datasets
+retain the terms recorded in [Third-party data notices](THIRD_PARTY_NOTICES.md).

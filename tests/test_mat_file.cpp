@@ -24,6 +24,12 @@ void put_u32(std::string& out, std::uint32_t v) {
   out.append(b, 4);
 }
 
+void put_u64(std::string& out, std::uint64_t value) {
+  for (int byte = 0; byte < 8; ++byte) {
+    out.push_back(static_cast<char>((value >> (8 * byte)) & 0xFFu));
+  }
+}
+
 void pad_to_8(std::string& out) {
   while (out.size() % 8 != 0) out.push_back('\0');
 }
@@ -38,11 +44,21 @@ std::string element(std::uint32_t type, const std::string& payload) {
   return out;
 }
 
+std::string unpadded_element(std::uint32_t type, const std::string& payload) {
+  std::string out;
+  put_u32(out, type);
+  put_u32(out, static_cast<std::uint32_t>(payload.size()));
+  out += payload;
+  return out;
+}
+
 // MAT array class codes used here.
 constexpr std::uint32_t kMxStruct = 2;
 constexpr std::uint32_t kMxDouble = 6;
 constexpr std::uint32_t kMxUint8 = 9;
 constexpr std::uint32_t kMxUint16 = 11;
+constexpr std::uint32_t kMxInt64 = 14;
+constexpr std::uint32_t kMxUint64 = 15;
 
 // MAT data type codes used here.
 constexpr std::uint32_t kMiInt8 = 1;
@@ -51,6 +67,8 @@ constexpr std::uint32_t kMiUint16 = 4;
 constexpr std::uint32_t kMiInt32 = 5;
 constexpr std::uint32_t kMiUint32 = 6;
 constexpr std::uint32_t kMiDouble = 9;
+constexpr std::uint32_t kMiInt64 = 12;
+constexpr std::uint32_t kMiUint64 = 13;
 constexpr std::uint32_t kMiMatrix = 14;
 constexpr std::uint32_t kMiCompressed = 15;
 
@@ -65,9 +83,9 @@ std::string zlib_deflate(const std::string& in) {
   return out;
 }
 
-std::string array_flags(std::uint32_t klass) {
+std::string array_flags(std::uint32_t klass, std::uint32_t flags = 0) {
   std::string payload;
-  put_u32(payload, klass);  // class in the low byte, no flags set
+  put_u32(payload, klass | flags);
   put_u32(payload, 0);
   return element(kMiUint32, payload);
 }
@@ -78,6 +96,16 @@ std::string dimensions(const std::vector<std::int32_t>& dims) {
     put_u32(payload, static_cast<std::uint32_t>(d));
   }
   return element(kMiInt32, payload);
+}
+
+std::string double_dimensions(const std::vector<double>& dims) {
+  std::string payload;
+  for (const double d : dims) {
+    char b[8];
+    std::memcpy(b, &d, 8);
+    payload.append(b, 8);
+  }
+  return element(kMiDouble, payload);
 }
 
 std::string array_name(const std::string& name) {
@@ -121,6 +149,39 @@ std::string double_matrix(const std::string& name,
   return element(kMiMatrix, body);
 }
 
+std::string double_payload(const std::vector<double>& values) {
+  std::string payload;
+  for (const double v : values) {
+    char b[8];
+    std::memcpy(b, &v, 8);
+    payload.append(b, 8);
+  }
+  return payload;
+}
+
+std::string matrix_with_payload(const std::string& name,
+                                const std::vector<std::int32_t>& dims,
+                                std::uint32_t klass, std::uint32_t flags,
+                                std::uint32_t mi_type,
+                                const std::string& payload) {
+  const std::string body = array_flags(klass, flags) + dimensions(dims) +
+                           array_name(name) + element(mi_type, payload);
+  return element(kMiMatrix, body);
+}
+
+std::string struct_matrix(
+    const std::string& name,
+    const std::vector<std::pair<std::string, std::string>>& fields);
+
+std::string nested_struct_matrix(const std::string& name, int depth) {
+  if (depth == 0) {
+    return struct_matrix(name,
+                         {{"wl", double_matrix("", {1, 1}, {380.0})}});
+  }
+  return struct_matrix(name,
+                       {{"child", nested_struct_matrix("", depth - 1)}});
+}
+
 // `fields` are (name, already-encoded miMATRIX element) pairs.
 std::string struct_matrix(
     const std::string& name,
@@ -152,6 +213,16 @@ std::string mat_header() {
   out.push_back('I');                   // endian indicator, "IM" = little
   out.push_back('M');
   return out;
+}
+
+bool read_throws(const std::string& file,
+                 std::string_view variable_name = "measurements") {
+  try {
+    (void)camera_iq::read_mat_struct(file, variable_name);
+    return false;
+  } catch (const std::runtime_error&) {
+    return true;
+  }
 }
 
 }  // namespace
@@ -214,16 +285,18 @@ void TESTS() {
     const std::string inner =
         struct_matrix("measurements",
                       {{"wl", double_matrix("", {1, 2}, {380, 382})}});
-    const std::string file = mat_header() + element(kMiCompressed,
-                                                    zlib_deflate(inner));
+    const std::string file =
+        mat_header() + unpadded_element(kMiCompressed, zlib_deflate(inner));
     const auto s = camera_iq::read_mat_struct(file);
     check(s.count("wl") == 1, "mat: a compressed payload is inflated");
     check(s.at("wl").values == std::vector<double>{380, 382},
           "mat: values survive the inflate path");
   }
 
-  // Mixed widths in one struct, as the archive stores them: radiance as double,
-  // the wavelength axis as uint16, the repeat counters as uint8.
+  // Mixed storage widths in one struct, as the archive stores them: radiance
+  // as double, wavelength as uint16, and counters as uint8. The PR-655 files
+  // label `wl` and one counter mxDOUBLE in their array flags while carrying
+  // compact integer real elements, so the real-element tag controls decoding.
   {
     std::string u16;
     for (const std::uint16_t v : {std::uint16_t{380}, std::uint16_t{382}}) {
@@ -232,7 +305,7 @@ void TESTS() {
       u16.append(b, 2);
     }
     const std::string wl_matrix =
-        int_matrix("", {1, 2}, kMxUint16, kMiUint16, u16);
+        int_matrix("", {1, 2}, kMxDouble, kMiUint16, u16);
     const std::string counter =
         int_matrix("", {1, 1}, kMxUint8, kMiUint8, std::string(1, '\1'));
     const std::string file =
@@ -291,6 +364,32 @@ void TESTS() {
   }
 
   {
+    // A workspace can contain unsupported arrays before the requested struct.
+    // Selection must inspect the common matrix header and skip that payload;
+    // decoding every unrelated variable makes result depend on write order.
+    const std::string unrelated = matrix_with_payload(
+        "workspace_only", {1, 1}, kMxDouble, 0, 99, "x");
+    const std::string file =
+        mat_header() + unrelated +
+        struct_matrix("measurements",
+                      {{"wl", double_matrix("", {1, 2}, {380, 382})}});
+    const auto s = camera_iq::read_mat_struct(file);
+    check(s.at("wl").values == std::vector<double>{380, 382},
+          "mat: unsupported unrelated variables are skipped by name");
+  }
+
+  {
+    const std::string file =
+        mat_header() +
+        struct_matrix("measurements",
+                      {{"wl", double_matrix("", {1, 1}, {380})}}) +
+        struct_matrix("measurements",
+                      {{"wl", double_matrix("", {1, 1}, {382})}});
+    check(read_throws(file),
+          "mat: duplicate requested top-level variables are rejected");
+  }
+
+  {
     // A small file that inflates without bound is the classic zip bomb. The
     // archive's largest payload is a few kilobytes, so a cap costs nothing here
     // and turns an out-of-memory abort into a diagnosable refusal.
@@ -305,6 +404,25 @@ void TESTS() {
       threw = true;
     }
     check(threw, "mat: inflation past the declared limit is refused");
+  }
+
+  {
+    const std::string unrelated =
+        struct_matrix("other", {{"wl", double_matrix("", {1, 1}, {1})}});
+    const std::string wanted = struct_matrix(
+        "measurements", {{"wl", double_matrix("", {1, 1}, {380})}});
+    const std::size_t one_stream_limit = std::max(unrelated.size(), wanted.size());
+    const std::string file =
+        mat_header() + unpadded_element(kMiCompressed, zlib_deflate(unrelated)) +
+        unpadded_element(kMiCompressed, zlib_deflate(wanted));
+    bool threw = false;
+    try {
+      camera_iq::read_mat_struct(file, "measurements", one_stream_limit);
+    } catch (const std::runtime_error&) {
+      threw = true;
+    }
+    check(threw,
+          "mat: inflate limit is shared across sibling compressed elements");
   }
 
   // Boundaries. This reader accepts an archive-specific subset of MAT v5, so
@@ -343,6 +461,21 @@ void TESTS() {
   }
 
   {
+    // Long-form elements are padded to an 8-byte boundary. The payload itself
+    // fits here, but its seven required padding bytes are absent.
+    std::string short_real;
+    put_u32(short_real, kMiUint8);
+    put_u32(short_real, 1);
+    short_real.push_back('\1');
+    const std::string body = array_flags(kMxUint8) + dimensions({1, 1}) +
+                             array_name("") + short_real;
+    const std::string file =
+        mat_header() +
+        struct_matrix("measurements", {{"repeatOnError", element(kMiMatrix, body)}});
+    check(read_throws(file), "mat: missing long-form element padding is rejected");
+  }
+
+  {
     // Dimensions are what a caller indexes with, so they have to agree with the
     // number of values actually present.
     const std::string lying =
@@ -356,6 +489,134 @@ void TESTS() {
     }
     check(threw, "mat: dimensions that disagree with the value count are "
                  "rejected");
+  }
+
+  {
+    // Two negative dimensions wrap to a product of one when blindly cast to
+    // size_t, allowing a malformed one-value array to look self-consistent.
+    const std::string file =
+        mat_header() +
+        struct_matrix("measurements",
+                      {{"wl", double_matrix("", {-1, -1}, {380})}});
+    check(read_throws(file), "mat: negative dimensions are rejected");
+  }
+
+  {
+    const std::string body =
+        array_flags(kMxDouble) + double_dimensions({1.5, 1.0}) +
+        array_name("") + element(kMiDouble, double_payload({380.0}));
+    const std::string file =
+        mat_header() +
+        struct_matrix("measurements", {{"wl", element(kMiMatrix, body)}});
+    check(read_throws(file),
+          "mat: non-integer dimension element types are rejected");
+  }
+
+  {
+    constexpr std::uint32_t kMxChar = 4;
+    const std::string mismatched = matrix_with_payload(
+        "", {1, 1}, kMxChar, 0, kMiDouble, double_payload({380.0}));
+    const std::string file =
+        mat_header() + struct_matrix("measurements", {{"wl", mismatched}});
+    check(read_throws(file),
+          "mat: non-numeric array classes are rejected");
+  }
+
+  {
+    std::string exact_payload;
+    put_u64(exact_payload, (std::uint64_t{1} << 53));
+    const std::string exact = matrix_with_payload(
+        "", {1, 1}, kMxUint64, 0, kMiUint64, exact_payload);
+    const auto parsed = camera_iq::read_mat_struct(
+        mat_header() + struct_matrix("measurements", {{"count", exact}}));
+    check(parsed.at("count").values[0] == 9007199254740992.0,
+          "mat: exactly representable uint64 values may widen to double");
+
+    std::string inexact_payload;
+    put_u64(inexact_payload, (std::uint64_t{1} << 53) + 1);
+    const std::string inexact = matrix_with_payload(
+        "", {1, 1}, kMxUint64, 0, kMiUint64, inexact_payload);
+    check(read_throws(mat_header() +
+                      struct_matrix("measurements", {{"count", inexact}})),
+          "mat: uint64 values that lose identity in double are rejected");
+
+    const std::int64_t negative_value =
+        -static_cast<std::int64_t>((std::uint64_t{1} << 53) + 1);
+    std::string negative_payload;
+    put_u64(negative_payload, static_cast<std::uint64_t>(negative_value));
+    const std::string negative = matrix_with_payload(
+        "", {1, 1}, kMxInt64, 0, kMiInt64, negative_payload);
+    check(read_throws(mat_header() +
+                      struct_matrix("measurements", {{"count", negative}})),
+          "mat: int64 values that lose identity in double are rejected");
+  }
+
+  {
+    const std::string logical = matrix_with_payload(
+        "", {1, 1}, kMxUint8, 0x0200u, kMiUint8, std::string(1, '\1'));
+    const std::string file =
+        mat_header() +
+        struct_matrix("measurements", {{"repeatOnError", logical}});
+    const auto parsed = camera_iq::read_mat_struct(file);
+    check(parsed.at("repeatOnError").logical,
+          "mat: logical array identity is preserved");
+    check(parsed.at("repeatOnError").values == std::vector<double>{1.0},
+          "mat: binary logical payload widens to double");
+  }
+
+  {
+    const std::string invalid_logical = matrix_with_payload(
+        "", {1, 1}, kMxUint8, 0x0200u, kMiUint8, std::string(1, '\2'));
+    const std::string file = mat_header() + struct_matrix(
+        "measurements", {{"repeatOnError", invalid_logical}});
+    check(read_throws(file), "mat: logical payloads must be binary");
+  }
+
+  {
+    const std::string complex = matrix_with_payload(
+        "", {1, 1}, kMxDouble, 0x0800u, kMiDouble, double_payload({380.0}));
+    const std::string file =
+        mat_header() + struct_matrix("measurements", {{"wl", complex}});
+    check(read_throws(file), "mat: complex numeric arrays are rejected");
+  }
+
+  {
+    const std::string file =
+        mat_header() +
+        struct_matrix("measurements",
+                      {{"wl", double_matrix("", {1, 1}, {380})},
+                       {"wl", double_matrix("", {1, 1}, {382})}});
+    check(read_throws(file), "mat: duplicate struct fields are rejected");
+  }
+
+  {
+    std::string len_payload;
+    put_u32(len_payload, 3);
+    const std::string body =
+        array_flags(kMxStruct) + dimensions({1, 1}) +
+        array_name("measurements") + element(kMiInt32, len_payload) +
+        element(kMiInt8, std::string("wl\0x", 4)) +
+        double_matrix("", {1, 1}, {380});
+    check(read_throws(mat_header() + element(kMiMatrix, body)),
+          "mat: struct field-name tables require exact fixed-width records");
+  }
+
+  {
+    std::string len_payload;
+    put_u32(len_payload, 3);
+    const std::string body =
+        array_flags(kMxStruct) + dimensions({1, 2}) +
+        array_name("measurements") + element(kMiInt32, len_payload) +
+        element(kMiInt8, std::string("wl\0", 3)) +
+        double_matrix("", {1, 1}, {380});
+    check(read_throws(mat_header() + element(kMiMatrix, body)),
+          "mat: non-scalar structs are outside the archive reader contract");
+  }
+
+  {
+    const std::string file =
+        mat_header() + nested_struct_matrix("measurements", 20);
+    check(read_throws(file), "mat: nested matrices have a bounded depth");
   }
 
   {

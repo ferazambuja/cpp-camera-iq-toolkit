@@ -24,7 +24,7 @@ add_compile_options(-Wall -Wextra -Wpedantic)
 # both ship a pkg-config file.
 find_package(PkgConfig REQUIRED)
 pkg_check_modules(LIBRAW REQUIRED IMPORTED_TARGET libraw)
-# zlib â MATLAB v5 MAT-files store their payload as a deflate stream.
+# zlib — MATLAB v5 MAT-files store their payload as a deflate stream.
 find_package(ZLIB REQUIRED)
 if(APPLE)
   # Homebrew's libraw.pc currently advertises -lstdc++; AppleClang already links
@@ -49,6 +49,7 @@ add_library(camera_iq_core STATIC
   src/raw_meta.cpp
   src/cfa_stats.cpp
   src/mat_file.cpp
+  src/spectro_measurement.cpp
   src/roi.cpp
   src/flat_field_gate.cpp
   src/demosaic.cpp
@@ -116,6 +117,7 @@ camera_iq_add_test(test_raw_meta tests/test_raw_meta.cpp)
 camera_iq_add_test(test_manifest_json tests/test_manifest_json.cpp)
 camera_iq_add_test(test_cfa_stats tests/test_cfa_stats.cpp)
 camera_iq_add_test(test_mat_file tests/test_mat_file.cpp)
+camera_iq_add_test(test_spectro_measurement tests/test_spectro_measurement.cpp)
 camera_iq_add_test(test_roi tests/test_roi.cpp)
 camera_iq_add_test(test_demosaic tests/test_demosaic.cpp)
 camera_iq_add_test(test_dark_calibration tests/test_dark_calibration.cpp)
@@ -167,6 +169,13 @@ add_test(NAME check_public_paths_behavior
 add_test(NAME check_cie_cmf_1nm
   COMMAND python3 ${CMAKE_SOURCE_DIR}/tools/check_cie_cmf_1nm.py
           --repo-root ${CMAKE_SOURCE_DIR})
+add_test(NAME test_check_cie_cmf_1nm
+  COMMAND python3 ${CMAKE_SOURCE_DIR}/tools/test_check_cie_cmf_1nm.py)
+add_test(NAME check_spectro_identity_ledger
+  COMMAND python3 ${CMAKE_SOURCE_DIR}/tools/generate_spectro_identity_ledger.py
+          --check ${CMAKE_SOURCE_DIR}/data/spectro_identity_ledger.csv)
+add_test(NAME test_generate_spectro_identity_ledger
+  COMMAND python3 ${CMAKE_SOURCE_DIR}/tools/test_generate_spectro_identity_ledger.py)
 add_test(NAME check_patch_baseline
   COMMAND python3 ${CMAKE_SOURCE_DIR}/tools/check_patch_baseline.py
           --repo-root ${CMAKE_SOURCE_DIR})

@@ -18,6 +18,13 @@
 
 ## Reference preparation and verification
 
+- [`check_cie_cmf_1nm.py`](check_cie_cmf_1nm.py) verifies the official CIE
+  source-copy hashes and the declared selection/rounding transformations in all
+  four project tables.
+- [`generate_spectro_identity_ledger.py`](generate_spectro_identity_ledger.py)
+  hashes the private CLRS-589 MAT files and derives an explicit, source-relative
+  repeat-group ledger; `--check` validates the committed ledger without claiming
+  to re-read the unavailable source archive.
 - [`gen_cie_d50.py`](gen_cie_d50.py) and
   [`gen_cie_d55.py`](gen_cie_d55.py) regenerate the committed daylight SPDs and
   verify their white points.
