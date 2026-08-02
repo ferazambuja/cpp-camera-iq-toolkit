@@ -7,7 +7,7 @@ and principal results.
 
 ## Featured case studies
 
-### D800/D810 + 50 mm f/1.4G SFR aperture and field analysis
+### Nikon D800/D810 + 50 mm f/1.4G SFR aperture and field analysis
 
 [Case study](case-studies/sfr-mtf-aperture-field.md) ·
 [aggregate data](data/sfr_aperture_summary.csv) ·

@@ -1,4 +1,4 @@
-# D800/D810 + 50 mm f/1.4G slanted-edge SFR: aperture and field behavior
+# Nikon D800/D810 + 50 mm f/1.4G slanted-edge SFR: aperture and field behavior
 
 ## Overview
 
@@ -16,7 +16,7 @@ different aperture trend and off-axis pattern.
 [archive/oracle notes](../reports/SFR_MTF_ARCHIVE_INVENTORY.md) ·
 [aggregate CSV](../data/sfr_aperture_summary.csv)
 
-![D800 and D810 SFR aperture and field summary](../figures/sfr_aperture_field.svg)
+![Nikon D800 and D810 SFR aperture and field summary](../figures/sfr_aperture_field.svg)
 
 ## Problem and relevance
 

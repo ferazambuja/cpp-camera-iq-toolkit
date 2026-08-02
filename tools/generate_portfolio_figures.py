@@ -171,7 +171,7 @@ def generate_sfr(data_dir: Path) -> str:
     out = svg_start(
         width,
         height,
-        "D800 and D810 slanted-edge SFR summary",
+        "Nikon D800 and D810 slanted-edge SFR summary",
         (
             "Panel A compares toolkit green-linear center MTF50 with advisory "
             "Imatest values across aperture. Panel B shows toolkit center minus "
@@ -180,7 +180,7 @@ def generate_sfr(data_dir: Path) -> str:
     )
     out += [
         '  <rect width="1000" height="650" rx="16" fill="#ffffff"/>',
-        '  <text x="44" y="46" class="title">D800 / D810 slanted-edge SFR</text>',
+        '  <text x="44" y="46" class="title">Nikon D800 / D810 slanted-edge SFR</text>',
         (
             '  <text x="44" y="72" class="subtitle">Solid: toolkit green-linear '
             'MTF50 · dashed: advisory Imatest center values</text>'

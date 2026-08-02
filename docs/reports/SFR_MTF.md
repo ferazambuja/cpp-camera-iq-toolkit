@@ -1,4 +1,4 @@
-# D800/D810 + 50 mm f/1.4G slanted-edge SFR and field analysis
+# Nikon D800/D810 + 50 mm f/1.4G slanted-edge SFR and field analysis
 
 Evidence runs: 2026-07-08<br>
 Implementation validation refreshed: 2026-07-28

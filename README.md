@@ -12,7 +12,7 @@ validation.
 
 ## Engineering results at a glance
 
-- **SFR/MTF:** processed **299 field ROIs** across D800 and D810 aperture
+- **SFR/MTF:** processed **299 field ROIs** across Nikon D800 and D810 aperture
   sweeps. The D810 peak occurred at f/5.6; the D810 trend did not transfer to
   the D800, where field asymmetry and capture-specific behavior were retained as
   findings rather than forced into a passing rule.
@@ -44,7 +44,7 @@ validation.
 
 | Case study | Methods | Result |
 |---|---|---|
-| [D800/D810 + 50 mm f/1.4G SFR aperture and field analysis](docs/case-studies/sfr-mtf-aperture-field.md) | Slanted-edge algorithm, field behavior, advisory cross-checks, failure transfer | 299 accepted field ROIs; capture-system-specific trend and field findings |
+| [Nikon D800/D810 + 50 mm f/1.4G SFR aperture and field analysis](docs/case-studies/sfr-mtf-aperture-field.md) | Slanted-edge algorithm, field behavior, advisory cross-checks, failure transfer | 299 accepted field ROIs; capture-system-specific trend and field findings |
 | [Spectral sensitivity and color fidelity](docs/case-studies/spectral-color-fidelity.md) | RAW monochromator extraction, physical closure, Luther/SMI comparison | Four-camera closure; stable five-camera endpoint ordering |
 | [ColorChecker extraction and CCM validation](docs/case-studies/colorchecker-ccm.md) | RAW patch extraction, flat field/WB, linear CCM, held-out Delta E | 140-patch pipeline with explicit dark-patch diagnostics |
 | [CFA flat-field response](docs/case-studies/cfa-flat-field-response.md) | Black-subtracted Bayer grids, center normalization, clipping/dark/pair checks | 3/52 usable sphere frames; green-field asymmetry separated from smaller R/G and B/G variation |
