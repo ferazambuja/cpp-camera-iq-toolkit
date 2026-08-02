@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Export publication-safe shading aggregates from camera_iq JSON outputs."""
+"""Export shading aggregate tables from camera_iq JSON outputs."""
 
 from __future__ import annotations
 

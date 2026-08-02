@@ -161,9 +161,12 @@ struct Matrix {
   std::string name;
   std::vector<std::size_t> dims;
   std::vector<double> values;  // numeric arrays
-  // std::vector<T> as a member of T is the one incomplete-type container the
-  // standard permits. Holding std::pair<std::string, Matrix> instead compiles
-  // on libc++ but is ill-formed, and libstdc++ rejects it.
+  // vector, list and forward_list may be instantiated on an incomplete type
+  // when used as a member of that type; other class templates may not. Holding
+  // std::pair<std::string, Matrix> here instantiates pair on an incomplete
+  // Matrix, which is ill-formed with no diagnostic required -- so a compiler
+  // that accepts it is not wrong, and one that rejects it is not either. Both
+  // Linux CI jobs use libstdc++: GCC compiled it and Clang did not.
   std::vector<Matrix> fields;  // struct arrays
 };
 

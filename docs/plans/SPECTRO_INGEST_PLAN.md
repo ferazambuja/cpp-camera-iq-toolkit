@@ -59,7 +59,7 @@ struct:
 |---|---|---|
 | `radiance` | 1 x 201 | 380-780 nm at 2 nm |
 | `wl` | 1 x 201 | wavelength axis |
-| `XYZ` | 1 x 3 | instrument-reported tristimulus |
+| `XYZ` | 1 x 3 | instrument-reported tristimulus; `PRD_01` records 291.736027 / 297.603271 / 290.922327 |
 | `totalRadiance` | 1 x 1 | |
 | `CCT` | 1 x 1 | instrument-reported correlated color temperature |
 | `Duv` | 1 x 1 | |
@@ -156,16 +156,10 @@ would silently pair `PRD_43` with `PRD_45` across a scene boundary. Reproducing
 - Instrument-reported values are recorded as measured and never overwritten by
   computed ones.
 
-## Implementation cycles
+## Scope
 
-1. MATLAB v5 element reader: inflate, parse elements, read a struct of numeric
-   arrays. Hermetic tests build their own MAT bytes.
-2. Repeat-group averaging with wavelength-axis and count validation.
-3. Colorimetry closure against the recorded `XYZ` and `CCT`.
-4. Command, JSON and CSV output, report, and archive validation run.
-
-## Out of scope
-
-Absolute radiometric calibration, instrument traceability, and any comparison
-against the separate 2016 monochromator archive's `PR655_HID_avg.txt`, which is
-a different session with a different instrument record.
+This command reads primary spectroradiometer files, averages declared repeat
+groups, and reports the closure above. It does not calibrate the instrument,
+assign an absolute radiometric scale, establish traceability, or compare against
+the separate 2016 monochromator archive's `PR655_HID_avg.txt`, which is a
+different session with a different instrument record.

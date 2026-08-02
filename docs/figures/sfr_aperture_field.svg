@@ -108,5 +108,5 @@
   <text x="806" y="557" class="legend">D800</text>
   <text x="672" y="580" class="subtitle">Positive means the center exceeds</text>
   <text x="672" y="598" class="subtitle">the strongest physical corner.</text>
-  <text x="44" y="626" class="subtitle">Aggregate measurements from the publication-safe table in docs/data/sfr_aperture_summary.csv.</text>
+  <text x="44" y="626" class="subtitle">Aggregate measurements from the aggregate table in docs/data/sfr_aperture_summary.csv.</text>
 </svg>

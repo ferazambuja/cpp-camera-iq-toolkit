@@ -123,8 +123,8 @@ Validation combines:
   | Pair | Δ radius | Δ mixture | MTF50 upper | MTF50 lower |
   |---|---:|---:|---:|---:|
   | N=14 / N=16 (f/4) | 0.54% | 0.80% | 0.1403 | 0.1054 |
-  | N=2 / N=4 | 0.76% | — | 0.1647 | 0.0945 |
-  | N=18 / N=20 | 4.06% | — | 0.1878 | 0.1055 |
+  | N=2 / N=4 | 0.76% | 1.24% | 0.1647 | 0.0945 |
+  | N=18 / N=20 | 4.06% | 3.78% | 0.1878 | 0.1055 |
 
   All three favor the upper field, across three radii and two apertures, and in
   every pair the upper site sits at the *larger* radius — the opposite ordering
