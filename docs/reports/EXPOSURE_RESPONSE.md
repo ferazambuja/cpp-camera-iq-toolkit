@@ -186,15 +186,10 @@ cmake --build build --parallel
 ctest --test-dir build --output-on-failure
 ```
 
-Targeted local checks during implementation:
-
-- `test_filename_meta`, `test_exposure_series`, `test_roi`,
-  `test_exposure_response`
-  passed after red/green tests for NEF parsing, RAW-extension series discovery,
-  CFA-balanced ROI handling, odd-origin CFA phase preservation, ROI uniformity
-  gating, JSON serialization, missing-frame handling, and near-white plateau
-  rejection.
-- Real-data validation outputs were written under `out/`, not tracked in git.
+Verification covers NEF parsing, RAW-extension series discovery, CFA-balanced
+ROI handling, odd-origin CFA phase preservation, ROI uniformity checks, JSON
+serialization, missing-frame handling, and near-white plateau rejection.
+Archive-backed outputs remain outside the public repository.
 
 ## Interpretation limits
 

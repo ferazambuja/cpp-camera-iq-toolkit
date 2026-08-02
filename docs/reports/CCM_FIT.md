@@ -9,10 +9,15 @@ Command: `camera_iq ccm-fit`
 
 ## Scope
 
-The command renders the configured ColorChecker-SG spectral reflectance reference
-under an explicit illuminant SPD, then fits a first linear 3x3 camera-RGB to XYZ
-color-correction matrix. It is a demonstration of the color pipeline mechanics,
-not an exact per-unit chart characterization.
+The principal result follows a corrected 140-patch RAW ColorChecker-SG capture
+through flat-field screening, white-balance handling, spectral-reference
+rendering, and a linear 3x3 camera-RGB-to-XYZ fit. The corrected path reached
+**4.134 mean held-out CIEDE2000** against a compatible spectral reference while
+retaining dark-patch and reference-provenance diagnostics. It is not an exact
+per-unit chart characterization.
+
+The command renders the configured ColorChecker-SG spectral reflectance under
+an explicit illuminant SPD, then fits the color-correction matrix.
 
 The reference is the local 2019 compatible SG workbook export:
 
@@ -20,14 +25,15 @@ The reference is the local 2019 compatible SG workbook export:
 data/private/references/ccsg_2019_workbook/ccsg_2_FIXED_ref.csv
 ```
 
-The camera RGB input is the existing 140-row MATLAB patch table:
+The historical baseline uses the existing 140-row MATLAB patch table:
 
 ```text
 data/private/datasets/clrs589_project_camera/Images/ccsg_matlab.csv
 ```
 
-`camera_iq patches` can now emit a corrected RAW-derived 140-row RGB table via
-`--rgb-csv-out`; the MATLAB table remains the historical baseline input.
+`camera_iq patches --rgb-csv-out` supplies the corrected RAW-derived 140-row RGB
+table used for the principal result; the MATLAB table remains a historical
+baseline.
 
 The illuminant is supplied explicitly from the private sphere-measurement
 sidecars; it is not inferred from EXIF or camera dates.
@@ -38,7 +44,7 @@ CLRS-589 capture is a separate 2020 project. The JSON emits this as
 `timeline_provenance` and keeps `reference_scope` as
 `compatible_sg_spectral_not_exact_per_unit`.
 
-## Implemented
+## Technical method
 
 - `read_spectrum_csv_interpolated()` reads two-column illuminant spectra, skips
   text headers, interpolates to the reference wavelength axis, and rejects
@@ -220,9 +226,9 @@ chart accuracy.
 
 The near-identical DeltaE under `--wb-from-flat-field` versus no WB is expected
 for a free 3x3 CCM: per-channel white-balance gains are absorbed by the fitted
-matrix. The value of this result is not the final DeltaE number; it is that the
-RAW patch extraction path now has explicit flat-field/WB provenance and can feed
-the same CCM fitter as the historical MATLAB table.
+matrix. The RAW patch extraction path retains explicit flat-field and
+white-balance provenance while using the same CCM fitter as the historical
+MATLAB baseline.
 
 The corrected RAW-patch validation is intentionally scoped to the f/8 CCSG capture.
 The private f/9 sphere set has 13 frames from `1:10` through `1:180`, and every
@@ -255,11 +261,11 @@ separate sphere nonuniformity from camera response, so this path is
 same-aperture-corrected, not shading-calibrated.
 
 The near-ceiling guard measures the source CFA with the same centered,
-per-position limits as `shading`. The selected 1/1000 s flat remains accepted,
-and the correction calculation after admission is unchanged; a flat with a
-near-ceiling central region is rejected. The archive-backed before/after comparison also
+per-position limits as `shading`. The selected 1/1000 s flat passes both limits,
+and its full-frame valid-sample mean supplies the correction normalization; a
+flat with a near-ceiling central region is rejected. The archive-backed comparison
 produced byte-identical 140-row corrected RGB tables (0 DN difference across
-all 420 channel values); the accepted feature output is committed with the
+all 420 channel values); the supporting output is included with the
 [patch-extraction evidence](PATCH_EXTRACTION.md#corrected-raw-patch-table-validation),
 which also records the rejected measured case.
 
@@ -281,24 +287,15 @@ which also records the rejected measured case.
 - Dark-patch exclusion is explicit and reference-lightness based. It is a
   reporting/fit policy, not silent data deletion, and not proof that the
   compatible 2019 reference is the exact 2020 physical chart.
-- The command consumes a patch RGB table. `camera_iq patches` can now produce a
-  corrected RAW-derived table, but RawDigger coordinates are still an external
+- The command consumes a patch RGB table. `camera_iq patches` produces a
+  corrected RAW-derived table, but RawDigger coordinates remain an external
   dependency.
 - The command uses the supplied illuminant SPD and cannot verify illumination
   stability during the chart capture.
-- Corrected RAW-patch CCM evidence currently covers the f/8 CCSG series only;
+- Corrected RAW-patch CCM evidence covers the f/8 CCSG series only;
   f/9 lacks a usable same-aperture flat in the local dataset cache.
 
-## Open engineering questions
-
-1. Replace RawDigger-coordinate dependency with automatic RAW-space chart
-   localization.
-2. Diagnose the dark-patch axis against the measured neutral ramp and RAW
-   black/flat-field floor before claiming a model-side color improvement.
-3. Add root-polynomial CCM variants only behind held-out/CV evidence that they
-   improve rather than overfit the compatible reference.
-
-## Implementation and tests
+## Code and verification
 
 - [`src/colorimetry.cpp`](../../src/colorimetry.cpp)
 - [`src/cmd_ccm_fit.cpp`](../../src/cmd_ccm_fit.cpp)

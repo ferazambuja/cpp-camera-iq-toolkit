@@ -86,7 +86,7 @@ spectra.
 
 The compatible-scope claim was independently tested against the X-Rite official
 ColorChecker-SG nominal Lab tables (Zenodo mirror, i1Pro 2 / M0), which ship both
-the `Before_Nov2014` and `After_Nov2014` pigment editions. Our
+the `Before_Nov2014` and `After_Nov2014` pigment editions. The toolkit's
 `ccsg_2_FIXED_ref.csv` reflectance was rendered to CIELAB (D50 / CIE 1931 2°,
 perfect-diffuser white Y=100) and compared **by label** to the manufacturer Lab.
 Reproduce with `tools/verify_ccsg_vs_xrite.py` (self-contained; hardcoded CMF/D50;

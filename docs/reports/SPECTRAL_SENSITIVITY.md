@@ -32,8 +32,8 @@ subset is:
 The current workflow reads the required 57 files directly through the
 configured archive root rather than mirroring the full archive.
 
-Derived manifests remain gitignored under `out/`. No RAW, workbook, PDF, or
-generated manifest is intended for commit.
+Derived manifests remain gitignored under `out/`. RAW files, workbooks, PDFs,
+and generated manifests remain outside the public repository.
 
 ## Manifest Run
 
@@ -253,7 +253,7 @@ Tier-1 legacy fidelity, normalized to the extracted green peak:
 This is a strong reimplementation-fidelity result. It is not a proof that the
 legacy curve is scientifically correct.
 
-The command now also emits the toolkit-derived SSF as `Wavelength,R,G,B` CSV via
+The command emits the toolkit-derived SSF as `Wavelength,R,G,B` CSV via
 `--ssf-csv-out`, so the `spectral-closure` and `spectral-quality` commands can
 consume the C++ extraction directly instead of the legacy `*_mono.csv`. The
 legacy CSV stays as a tier-1 fidelity comparison target only. This distinction

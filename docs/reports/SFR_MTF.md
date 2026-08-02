@@ -214,10 +214,9 @@ Automated coverage includes:
 - D810 and D800 trend/field fixture pins, including the intentional D800 gate
   failure.
 
-Local archive verification after validation hardening retained all 207 D800 and
-92 D810 accepted ROIs. Acceptance, aperture ordering, and the engineering
-interpretations above were unchanged; two D810 corner values moved by 0.0001
-cycles/pixel at four-decimal reporting precision.
+Archive verification retained all 207 D800 and 92 D810 accepted ROIs. Two D810
+corner values differ by 0.0001 cycles/pixel at four-decimal reporting precision
+without changing acceptance, aperture ordering, or the interpretations above.
 
 ## Interpretation limits
 

@@ -2,12 +2,10 @@
 
 ## Overview
 
-This study implements a 140-patch RAW ColorChecker-SG workflow with extraction
-checks, flat-field and white-balance policies, RGB-to-XYZ CCM fitting,
-CIEDE2000, and deterministic held-out evaluation. The corrected RAW path
-reached 4.134 mean held-out CIEDE2000 against a compatible spectral reference
-while retaining dark-patch error and reference provenance in the reported
-results.
+The corrected 140-patch RAW ColorChecker-SG workflow reached 4.134 mean held-out
+CIEDE2000 against a compatible spectral reference. The result integrates
+extraction checks, flat-field and white-balance policies, RGB-to-XYZ CCM
+fitting, and explicit dark-patch and reference-provenance diagnostics.
 
 [Documentation index](../README.md) ·
 [CCM report](../reports/CCM_FIT.md) ·
@@ -30,7 +28,7 @@ not a single optimized Delta E number.
 rectangular regions after RAW unpack, black handling, and bilinear demosaic;
 this reduced image is not a calibration reference.*
 
-## Implementation
+## Technical approach
 
 - RAW rectangle extraction through the toolkit's LibRaw, black handling, and
   bilinear demosaic.
@@ -83,7 +81,8 @@ Flat-field admission uses the same source-CFA, per-position limits as
 `shading`, including separate full-frame and centered-region measurements.
 This rejects a frame whose bright center is near ceiling even when its
 whole-frame fraction is below the limit. The selected 1/1000 s flat remains
-accepted, and the correction calculation after admission is unchanged.
+accepted; its full-frame valid-sample mean supplies the correction
+normalization.
 
 ## Interpretation limits
 
@@ -94,7 +93,7 @@ second physical chart session. The corrected evidence is scoped to the f/8
 capture because the available f/9 same-aperture sphere flats were too close to
 sensor ceiling.
 
-## Implementation and tests
+## Code and verification
 
 - Patch extraction:
   [`src/patches.cpp`](../../src/patches.cpp) and

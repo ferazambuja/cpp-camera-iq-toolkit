@@ -95,7 +95,9 @@ Each group reports the maximum Euclidean separation between reading pairs in
 maximum**. Δu′v′ and level CV have different units and are not ranked against
 one another. The chromaticity separations are nonzero, so the readings within a
 group are not colorimetrically identical, and treating a group as one repeated
-colour would discard a real difference.
+colour would discard observed numerical variation in recorded-XYZ-derived
+chromaticity. The available records do not determine whether that variation is
+physical, acquisition-related, or measurement uncertainty.
 
 ## Same-record XYZ closure
 

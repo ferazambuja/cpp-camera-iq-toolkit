@@ -5,17 +5,17 @@
 This C++20 toolkit turns RAW camera captures and measured references into
 inspectable image-quality results. It covers the measurement chain from
 LibRaw/CFA handling through color, spectral, tone, noise, and slanted-edge
-sharpness analysis, with structured JSON/CSV outputs and CTest-backed
-validation.
+sharpness analysis. Validation combines synthetic edge cases, archive-backed
+measurements, and independent reference comparisons.
 
-**C++20 · LibRaw · CMake/CTest · numerical methods · color science · JSON/CSV**
+**C++20 · LibRaw · CMake · numerical methods · color science · JSON/CSV**
 
-## Engineering results at a glance
+## Selected results and engineering decisions
 
 - **SFR/MTF:** processed **299 field ROIs** across Nikon D800 and D810 aperture
   sweeps. The D810 peak occurred at f/5.6. That trend did not hold on the D800,
-  whose field is asymmetric, so the two bodies are reported under separate
-  acceptance criteria rather than one.
+  whose field is asymmetric, so the two capture systems are reported under
+  separate acceptance criteria rather than one.
 - **Spectral characterization:** extracted a Canon 5D2 spectral-sensitivity
   function from monochromator RAW sweeps, closed four same-session camera/chart
   datasets with minimum channel correlation above **0.992**, and compared five
@@ -37,16 +37,16 @@ validation.
   samples with the same per-position near-ceiling limits over both the full
   frame and a centered region. The test rejects a 1/500 s frame whose worst CFA
   position is **11.63% near ceiling** in the centered region, while retaining
-  the 1/1000 s correction flat. Admission does not alter the correction itself:
-  the normalizer remains the full-frame valid-sample mean.
+  the 1/1000 s correction flat. The accepted flat uses the full-frame
+  valid-sample mean for correction normalization.
 - **Spectroradiometer ingest:** parsed **89 distinct MATLAB v5 readings** into
   40 measurement groups, resolved by content hash rather than by filenames that
-  number acquisitions instead of scenes. Separating absolute level from
-  normalized shape located the variation: across the 37 repeated groups the
-  spectral-integral CV reaches **41.65%**, while normalized shape stays within
-  **1.076%** and chromaticity within **0.002852** Δu′v′. The records cannot
-  separate source output, geometry, and acquisition settings, so this is
-  reported as within-group observed variation rather than drift.
+  number acquisitions instead of scenes. Across the 37 multi-reading groups,
+  spectral-integral CV was **7.17% median** and **41.65% maximum**; maximum
+  normalized-shape residual was **1.076%**; and maximum recorded-XYZ pair
+  separation was **0.002852 Δu′v′**. These metrics describe different
+  properties and do not identify a cause. An independent MATLAB R2026a export
+  matched all 89 readings, including exact hashes for **178 numeric vectors**.
 
 ## Featured case studies
 
@@ -63,10 +63,8 @@ to the OECF, noise, demosaic, localization, dataset, and provenance reports.
 
 ![Camera IQ toolkit measurement architecture](docs/figures/architecture.svg)
 
-The current architecture uses a thin executable over one static C++ core that
-contains command handling, validation, measurement algorithms, and
-serialization. The diagram describes the implementation as it exists; it does
-not imply a separate production service or ISP.
+A thin command-line interface over a reusable C++ core keeps input validation,
+measurement algorithms, and result serialization independently testable.
 
 ## Capability map
 
@@ -79,7 +77,7 @@ not imply a separate production service or ISP.
 | Tone and noise | Exposure grouping, relative OECF, Stepchart oracle/ring extraction, dark temporal noise, DSNU, DN-referred variance |
 | Sharpness | Green-linear slanted-edge SFR, MTF50/MTF50P, aperture sweeps, 23-ROI field maps |
 | Spatial response | Per-CFA flat-field maps, center-normalized R/G and B/G fields, quadrant asymmetry, bounded dark-control checks, and one capture-pair delta |
-| Engineering systems | CLI validation, JSON/CSV reporting, synthetic and negative-path tests, archive-backed checks, privacy-safe dataset IDs |
+| Validation and reporting | CLI validation, JSON/CSV reporting, synthetic and negative-path tests, archive-backed checks, privacy-safe dataset IDs |
 
 Implemented commands:
 

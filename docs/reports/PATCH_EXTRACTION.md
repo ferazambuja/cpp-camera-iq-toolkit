@@ -159,10 +159,10 @@ Result:
 
 The output reports `orientation_valid: true` and `best_orientation: "direct"`.
 
-## RawDigger Oracle Localization Gate
+## RawDigger oracle localization result
 
-The RawDigger-oracle validation path was added, but the first f/8 `1:10`
-corner-seeded run **does not pass** the predeclared geometry gate. With corners
+The f/8 `1:10` corner-seeded model **does not pass** the declared geometry
+criterion. With corners
 derived from RawDigger A1/A14/J14/J1 centers, the command writes
 `out/camera_iq_rawdigger_oracle_validation.json` and exits `1` because:
 
@@ -270,35 +270,28 @@ both rectangles, both near-ceiling arrays, both finite-coverage arrays, their
 policies, and the failing label. Accepted runs embed the same block under
 `corrections.flat_field.near_ceiling_gate`.
 
-The documented command's 1/1000 s flat measures 0% near ceiling in every CFA
-position in both regions and remains accepted. The correction math after that
-gate is unchanged. An archive-backed before/after run produced byte-identical
-140-row RGB CSVs: all 420 patch-channel values changed by 0 DN and both files
-had SHA-256 `4b8429cdacbb982d33ef56a76e09cc46d8c7aadde927e805e52bc5feec2c8f92`.
-Only the feature-side output is committed as
-[`ccsg_f8_flat_wb_patches.csv`](../data/ccsg_f8_flat_wb_patches.csv);
-equality to the pre-change output remains archive-backed. After rerunning the
-command above, current admitted output is directly checkable against that
-committed feature baseline with:
+The 1/1000 s flat measures 0% near ceiling in every CFA position in both
+regions and passes the screening criteria. Its full-frame valid-sample mean
+supplies the correction normalization. An archive-backed comparison produced
+identical 140-row RGB CSVs across all 420 patch-channel values.
+Both files had SHA-256
+`4b8429cdacbb982d33ef56a76e09cc46d8c7aadde927e805e52bc5feec2c8f92`.
+The accepted output is published as
+[`ccsg_f8_flat_wb_patches.csv`](../data/ccsg_f8_flat_wb_patches.csv) and can be
+compared after remeasurement with:
 
 ```bash
 cmp out/clrs589_raw_flat_wb_patches.csv \
   docs/data/ccsg_f8_flat_wb_patches.csv
 ```
 
-This verifies admitted correction output, not a correction result for the
+This verifies the accepted correction output, not a correction result for the
 rejected 1/500 s flat.
 
-That comparison needs the private RAW files, so it cannot run in CI. What does
-run there is `check_patch_baseline`, which validates the committed table on its
-own terms: its complete canonical-LF SHA-256 must match the digest published
-above; it must contain 140 headerless rows with three finite positive R/G/B
-fields; and A1 must still round to the
-`7677.11 / 7639.68 / 8712.55` this report publishes. The digest makes changes
-to any of the 420 serialized values, row order, blank lines, or final newline
-fail CI. The A1 comparison separately guards the rounded prose. This pins the
-committed output and its `--rgb-csv-out` byte contract; it does not pretend to
-re-measure the private archive.
+Remeasurement requires the private RAW files. Public verification checks the
+table's published digest, 140-row structure, finite positive R/G/B fields, and
+the reported A1 value of `7677.11 / 7639.68 / 8712.55`; it does not remeasure
+the archive.
 
 Same-aperture flat coverage is not available for the f/9 CCSG series in the
 private dataset. The f/9 sphere folder contains 13 frames (`1:10` through `1:180`);
@@ -330,20 +323,18 @@ cross-aperture approximation, not a measured same-aperture correction.
   controls, but the first RawDigger-oracle run fails the predeclared 5 px
   center gate, so the corner-seeded path is not used in the reported analysis.
 
-## Open engineering questions
+## Measurement limitations
 
-1. Decide whether to reproduce the historical TIFF workflow for parity or move
-   directly to RAW-space chart localization.
-2. Diagnose why the corner-seeded projective grid misses the RawDigger oracle
-   centers by up to 16.449 px before changing any predeclared validation gate.
-   The current residual pattern is an interior-column bow, so any
-   lens-distortion, chart-geometry, or non-projective placement hypothesis must
-   be measured against the serialized residuals.
-3. Diagnose the dark-patch / neutral-axis error before adding higher-order color
-   models; root-polynomial variants need held-out evidence before they are
-   treated as an improvement.
+- The historical TIFF workflow and RAW-space extraction use different
+  coordinate domains; this result uses RawDigger rectangles in RAW space.
+- The corner-seeded projective grid misses the RawDigger oracle centers by up
+  to 16.449 px. The interior-column bow constrains the failure pattern but does
+  not isolate lens distortion, chart geometry, or non-projective placement.
+- Dark-patch and neutral-axis errors remain unresolved. Higher-order color
+  models would require held-out evidence before they could be treated as an
+  improvement.
 
-## Implementation and tests
+## Code and verification
 
 - [`src/patches.cpp`](../../src/patches.cpp)
 - [`src/cmd_patches.cpp`](../../src/cmd_patches.cpp)

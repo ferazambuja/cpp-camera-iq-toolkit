@@ -2,9 +2,9 @@
 
 ## Overview
 
-This study implements a green-linear slanted-edge SFR pipeline in C++ and
-applies it to two archived 50 mm aperture sweeps, one on a D800 body and one on
-a D810 body. Slanted-edge SFR measures a whole capture system — lens, aperture,
+This study applies a green-linear slanted-edge SFR pipeline to two archived
+50 mm aperture sweeps, one with a D800 and one with a D810. Slanted-edge SFR
+measures a whole capture system — lens, aperture,
 focus and alignment state, OLPF, sensor sampling, and processing path — so every
 result below belongs to a capture system, not to a camera body or a lens alone.
 All 299 field ROIs were accepted. The result is not a universal lens rule: the
@@ -32,7 +32,7 @@ capture-specific focus. The engineering question was therefore two-part:
 sensor-linear green samples inside selected edge regions; this reduced image is
 not an analysis input.*
 
-## Implementation
+## Technical approach
 
 The `sfr` command:
 
@@ -46,9 +46,9 @@ The `sfr` command:
 - parses one coherent `_Y_multi.csv` batch for advisory comparison and 23-ROI
   field mapping.
 
-The current implementation also rejects non-finite or out-of-range numeric
-options, bounds ESF interpolation/allocation, validates oracle geometry and
-duplicates, and preserves diagnostic values when a measurement is rejected.
+Input validation rejects non-finite or out-of-range options, bounds ESF
+interpolation and allocation, checks oracle geometry and duplicate rows, and
+preserves diagnostic values for rejected measurements.
 
 ## Data and validation model
 
@@ -164,7 +164,7 @@ accuracy also differ. The common lens model and close capture times make a
 single lens copy plausible, not proven, and do not authorize ranking lens,
 body, or setup contributions.
 
-## Implementation and tests
+## Code and verification
 
 - Core: [`src/sfr.cpp`](../../src/sfr.cpp) and
   [`include/camera_iq/sfr.hpp`](../../include/camera_iq/sfr.hpp)

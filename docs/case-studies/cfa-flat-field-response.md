@@ -7,14 +7,12 @@
 [tests](../../tests/test_shading.cpp)
 
 The `shading` command measures spatial response directly in a black-subtracted
-Bayer mosaic. The capture system is a Fujifilm X-T100 with a Fujinon XF 14 mm
-f/2.8 R — an ultra-wide on APS-C, 21 mm equivalent — and every one of the 165
-RAF files in the audited `Images` tree records that same lens, the same serial
-`56A00213`, 14.0 mm, manual focus, and ISO 200. Aperture varies across the tree,
-and focus distance is not recorded. The result is deliberately a capture-system
-characterization: the available sphere captures do not separate illumination
-nonuniformity from the lens, alignment, mechanical shading, or sensor angular
-response.
+Bayer mosaic. This study screened 52 integrating-sphere captures from a
+Fujifilm X-T100 and Fujinon XF 14 mm f/2.8 R system and retained three f/8
+frames with usable headroom. The result remains a capture-system
+characterization because the available captures do not separate illumination
+nonuniformity from lens, alignment, mechanical-shading, or sensor-angular
+effects.
 
 ![CFA flat-field response summary](../figures/flat_field_response.svg)
 
@@ -76,10 +74,10 @@ geometry, 98% level, 1% limit, and per-position decision rule as `shading`. On t
 `1:500` frame it therefore reports the same four-position values: frame
 `[0, 0.3664%, 0.4964%, 0]` and gate `[0, 8.6908%, 11.6319%, 0]`, rejecting G2.
 Rejected runs retain those arrays, the effective rectangles, and the failing
-position in JSON. The published CCM path still admits its 1/1000 s flat because
-every CFA position measures 0% in both regions. No committed comparison artifact
-quantifies the correction error that the newly rejected 1/500 s flat would
-introduce, so no magnitude is claimed.
+position in JSON. The CCM path accepts its 1/1000 s flat because every CFA
+position measures 0% in both regions. The available evidence does not quantify
+the correction error that the rejected 1/500 s flat would introduce, so no
+magnitude is claimed.
 
 ## Physical capture and numerical path
 
@@ -103,8 +101,8 @@ The computation follows four stages:
    `C_G1G2`. JSON retains rejection diagnostics; CSV provides plottable map and
    scalar rows.
 
-The implementation uses the median to keep isolated defective pixels from
-moving large spatial bins. Synthetic tests cover CFA separation, transposition,
+Median binning prevents isolated defective pixels from moving large spatial
+bins. Synthetic validation covers CFA separation, transposition,
 near-ceiling discrimination, invalid geometry, missing ratio bins, unequal
 green gains, spatial green mismatch, radial/asymmetric fields, metadata-derived
 ceilings, dark-control verification, and pair comparisons.

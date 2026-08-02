@@ -312,7 +312,7 @@ local headroom loss. The correction normalizer itself is not this center region:
 `apply_flat_field()` uses the full-frame valid-sample mean of each demosaiced
 channel.
 
-`patches` now evaluates the source mosaic before demosaic with the shared
+`patches` evaluates the source mosaic before demosaic with the shared
 CFA-balanced ROI helper and the same declared 20% geometry, 98% level, 1%
 near-ceiling policy, 90% screening-coverage policy, and per-position decision
 rule as `shading`. Screening coverage is a fixed policy over the full-plane and
@@ -335,13 +335,11 @@ consumers rather than two independently implemented tests that happen to agree.
 Its remaining columns and `shading-v2-grid16x12-screening-coverage` policy ID
 still describe `shading`-specific map, dark-control, and asymmetry analysis.
 
-The selected `Sphere_f8.0_1:1000_DSCF0387.RAF` flat remains accepted because it
-measures 0% near ceiling at every CFA position in both regions. The gate change
-does not alter correction math after admission. The committed corrected-patch
-table pins the admitted 1/1000 s output, but no committed aggregate or current
-admitted execution supports a quantitative correction comparison against the
-newly rejected 1/500 s flat. This report therefore does not republish the
-historical private-run error magnitude.
+The selected `Sphere_f8.0_1:1000_DSCF0387.RAF` flat is accepted because it
+measures 0% near ceiling at every CFA position in both regions. Its full-frame
+valid-sample mean supplies the correction normalization. The available
+aggregate evidence does not support a quantitative correction comparison with
+the rejected 1/500 s flat, so no correction-error magnitude is claimed.
 
 ## JSON and CSV behavior
 

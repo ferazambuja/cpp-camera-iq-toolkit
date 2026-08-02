@@ -16,8 +16,8 @@ and principal results.
 [tests](../tests/test_sfr.cpp)
 
 The toolkit accepted 299 field ROIs across 13 aperture conditions. It captured a
-clear f/5.6 peak on the D810 capture system while retaining the D800 system's
-non-transfer result and off-axis behavior. Both sweeps record the same 50 mm
+clear f/5.6 peak on the D810 capture system; the D800 showed a different
+aperture trend and asymmetric off-axis behavior. Both sweeps record the same 50 mm
 f/1.4G lens model, so the findings describe capture systems, not camera bodies
 alone; physical lens-sample identity remains unverified.
 
@@ -29,15 +29,17 @@ alone; physical lens-sample identity remains unverified.
 [implementation](../src/spectral_response.cpp) ·
 [tests](../tests/test_spectral_response.cpp)
 
-The study connects RAW monochromator extraction to same-session physical
-closure and a five-camera color-fidelity comparison, with mixed SSF provenance
-shown directly beside the result.
+Four same-session camera/chart datasets reached minimum channel correlation
+above 0.992. A five-camera comparison then evaluated Luther-condition residuals
+and ISO 17321-style fidelity metrics while retaining the mixed SSF provenance
+needed to interpret the ordering.
 
 ### Spectroradiometer archive ingest and measurement-group analysis
 
 [Case study](case-studies/spectroradiometer-ingest.md) ·
 [aggregate data](data/spectro_group_summary.csv) ·
 [result receipt](data/spectro_result_receipt.json) ·
+[MATLAB cross-check receipt](data/spectro_matlab_crosscheck_receipt.json) ·
 [detailed report](reports/SPECTRORADIOMETER_INGEST.md) ·
 [implementation](../src/spectro_ingest.cpp) ·
 [tests](../tests/test_spectro_ingest.cpp)
@@ -45,7 +47,8 @@ shown directly beside the result.
 The command verifies exact file identities, parses 89 distinct readings, and
 reports absolute level, normalized spectral shape, recorded-XYZ chromaticity,
 and same-record numerical closure without assigning an unsupported physical
-cause to within-group variation.
+cause to within-group variation. An independent MATLAB R2026a export matched
+all 89 readings, including exact hashes for 178 numeric vectors.
 
 ### ColorChecker extraction and CCM validation
 
@@ -56,8 +59,9 @@ cause to within-group variation.
 [implementation](../src/colorimetry.cpp) ·
 [tests](../tests/test_colorimetry.cpp)
 
-The pipeline moves from RAW patch extraction through flat-field/WB handling to
-a linear RGB-to-XYZ fit and deterministic held-out Delta E diagnostics.
+The 140-patch workflow matched an independent extraction above 0.99999998
+correlation with sub-0.4 DN RMSE, rejected a 16.449 px localization error, and
+reached 4.134 mean held-out CIEDE2000 on the corrected RAW-to-CCM path.
 
 ### CFA flat-field response
 
@@ -68,20 +72,18 @@ a linear RGB-to-XYZ fit and deterministic held-out Delta E diagnostics.
 [implementation](../src/shading.cpp) ·
 [tests](../tests/test_shading.cpp)
 
-The analyzer separates four Bayer positions, rejects a near-ceiling central
-gate, checks global and center/corner dark residuals with compatible capture
-metadata, and reports capture-system green/chromatic fields with pair-difference
-and quadrant-asymmetry diagnostics. The capture system is a Fujifilm X-T100
-with a Fujinon XF 14 mm f/2.8 R; all 165 RAF files in the audited `Images` tree
-record that lens and serial. The same CFA-domain, per-position near-ceiling gate
-now also guards the flat used by the [CCM path](reports/CCM_FIT.md), which uses
-one of these very frames.
+The study retained three usable frames from 52 Fujifilm X-T100 and Fujinon XF
+14 mm f/2.8 R sphere captures. A 19.65% green-field quadrant asymmetry was
+inconsistent with a centered radial scalar model for the measured composite
+field, while missing source- and camera-rotation controls prevented lens-only
+attribution. The [CCM path](reports/CCM_FIT.md) applies the same source-CFA,
+per-position screening to its correction flat.
 
 ## Validation decisions
 
-- [RAW chart localization](reports/RAW_CHART_LOCALIZATION.md) correctly remains
-  a **FAIL**: high RGB correlation did not override a 16.449 px coordinate
-  error.
+- [RAW chart localization](reports/RAW_CHART_LOCALIZATION.md) is a retained
+  negative result: high RGB correlation did not compensate for a 16.449 px
+  coordinate error.
 - [OECF Stepchart analysis](reports/OECF_STEPCHART.md) rejects the wrong strip
   geometry, accepts the measured ring layout, and keeps DN-referred variance
   separate from electron-calibrated read-noise or dynamic-range claims.

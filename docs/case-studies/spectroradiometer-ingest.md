@@ -2,22 +2,22 @@
 
 ## Overview
 
-This study implements an executable C++ path from MATLAB v5 measurement files
-to verified spectra, measurement-group statistics, chromaticity diagnostics,
-and an XYZ closure check. The source archive contains 89 distinct readings in
-40 declared groups; 37 groups contain two or three measurements and three are
-singletons.
+This study resolves 89 distinct spectroradiometer readings into 40 declared
+measurement groups and reports absolute level, normalized spectral shape, and
+recorded-XYZ chromaticity as separate quantities. Thirty-seven groups contain
+two or three measurements; three are singletons.
 
 [Documentation index](../README.md) ·
 [detailed report](../reports/SPECTRORADIOMETER_INGEST.md) ·
 [aggregate CSV](../data/spectro_group_summary.csv) ·
 [result receipt](../data/spectro_result_receipt.json) ·
+[MATLAB cross-check receipt](../data/spectro_matlab_crosscheck_receipt.json) ·
 [implementation](../../src/spectro_ingest.cpp) ·
 [tests](../../tests/test_spectro_ingest.cpp)
 
 ![Measurement-group level and chromaticity variation](../figures/spectro_group_variation.svg)
 
-## What the code does
+## Technical approach
 
 `camera_iq spectro-ingest` resolves a dataset root or configured ID, reads the
 committed identity ledger, and verifies the SHA-256 of the exact bytes passed to
@@ -25,10 +25,18 @@ the MAT parser. Canonical paths must remain below the dataset root and cannot
 use symlinks. Optional alias verification confirms that the 45 descriptive
 copies are byte-identical without counting them as additional measurements.
 
-The command emits authoritative JSON plus separate CSVs for readings, group
+The command emits schema-versioned JSON plus separate CSVs for readings, group
 summaries, and spectra. Each spectrum is retained in absolute form and also
 normalized by its computed equal-weight spectral integral. Recorded XYZ,
 `totalRadiance`, CCT, and Duv remain visible as source metadata.
+
+## Independent parser verification
+
+An independent MATLAB R2026a export matched all 89 readings. The MATLAB and C++
+paths produced identical hashes for both numeric vectors in every reading — 178
+exact comparisons — and all 623 numeric-field comparisons met the declared
+`1e-12` absolute-or-relative tolerance. This establishes agreement between two
+parser implementations on this archive; it is not an instrument-accuracy test.
 
 ## Result
 

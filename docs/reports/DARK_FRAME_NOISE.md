@@ -105,7 +105,7 @@ measurable from the available short-exposure ladder.
 
 ## Validation
 
-Targeted red/green tests were added for:
+Verification covers:
 
 - Pair temporal noise: `stddev(frame1-frame2)/sqrt(2)`.
 - DSNU moment correction with a material temporal-noise subtraction.
