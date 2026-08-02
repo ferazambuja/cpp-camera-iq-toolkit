@@ -163,6 +163,9 @@ add_test(NAME check_portfolio_figures
 add_test(NAME check_public_paths_behavior
   COMMAND bash ${CMAKE_SOURCE_DIR}/tools/test_check_public_paths.sh
           ${CMAKE_SOURCE_DIR}/tools/check_public_paths.sh)
+add_test(NAME check_cie_cmf_1nm
+  COMMAND python3 ${CMAKE_SOURCE_DIR}/tools/check_cie_cmf_1nm.py
+          --repo-root ${CMAKE_SOURCE_DIR})
 add_test(NAME test_portfolio_docs
   COMMAND python3 ${CMAKE_SOURCE_DIR}/tools/test_portfolio_docs.py)
 add_test(NAME test_portfolio_figures

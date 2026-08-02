@@ -115,7 +115,28 @@ void append_as_double(std::string_view p, std::vector<double>& out) {
   }
 }
 
+std::size_t element_width(std::uint32_t type) {
+  switch (type) {
+    case kMiInt8: case kMiUint8: return 1;
+    case kMiInt16: case kMiUint16: return 2;
+    case kMiInt32: case kMiUint32: case kMiSingle: return 4;
+    case kMiDouble: case kMiInt64: case kMiUint64: return 8;
+    default: return 0;
+  }
+}
+
 std::vector<double> numeric_values(const Element& e) {
+  const std::size_t width = element_width(e.type);
+  if (width == 0) {
+    throw std::runtime_error("mat file: unsupported numeric element type");
+  }
+  // A payload that is not a whole number of samples means the element was
+  // misread. Rounding down would drop a sample and still return a plausible
+  // array, which is worse than refusing.
+  if (e.payload.size() % width != 0) {
+    throw std::runtime_error(
+        "mat file: numeric payload is not a whole number of samples");
+  }
   std::vector<double> out;
   switch (e.type) {
     case kMiInt8: append_as_double<std::int8_t>(e.payload, out); break;
@@ -210,6 +231,14 @@ Matrix parse_matrix(std::string_view body) {
 
   const Element real = read_element(body, off);
   m.values = numeric_values(real);
+  // Dimensions are what a caller indexes with, so they must describe the values
+  // that are actually present.
+  std::size_t expected = m.dims.empty() ? 0 : 1;
+  for (const std::size_t d : m.dims) expected *= d;
+  if (expected != m.values.size()) {
+    throw std::runtime_error(
+        "mat file: array dimensions disagree with the value count");
+  }
   return m;
 }
 
@@ -248,6 +277,13 @@ MatStruct read_mat_struct(const std::string& bytes) {
   if (!(bytes[kHeaderBytes - 2] == 'I' && bytes[kHeaderBytes - 1] == 'M')) {
     throw std::runtime_error(
         "mat file: missing the little-endian v5 indicator \"IM\"");
+  }
+  // Bytes 124-125 are the version. Every v5 file writes 0x0100; a different
+  // value is a format this reader has not been shown to parse.
+  const auto v_lo = static_cast<unsigned char>(bytes[kHeaderBytes - 4]);
+  const auto v_hi = static_cast<unsigned char>(bytes[kHeaderBytes - 3]);
+  if (!(v_lo == 0x00 && v_hi == 0x01)) {
+    throw std::runtime_error("mat file: unsupported MAT version field");
   }
 
   const std::string_view data(bytes);

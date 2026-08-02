@@ -27,13 +27,30 @@ superseded by `patches --sg-corners`.
 
 Measurement counts and group sizes as the scripts declare them:
 
-| Folder | Files | Group size | Result |
-|---|---:|---:|---:|
-| `Old/1 to 6` | 18 | 3 | 6 scenes |
-| `Old/7 to 9` | 6 | 2 | 3 scenes |
-| `Old/10 to 15` | 18 | 3 | 6 scenes |
-| `Old/prd` | 2 | 2 | 1 scene |
-| `PRD measurments` | 45 | 3 | 15 patches |
+| Folder | Files | Naming | Grouping |
+|---|---:|---|---|
+| `Old/1 to 6` | 18 | `patch_<N>trail_<M>` | patches 1-6, triplicate |
+| `Old/7 to 9` | 6 | `patch_<N>trail_<M>` | patches 7-9, duplicate |
+| `Old/10 to 15` | 18 | `patch_<N>trail_<M>` | patches 10-15, triplicate |
+| `Old/prd` | 2 | `prd_<M>` | one scene, duplicate |
+| `PRD measurments` | 45 | `PRD_<K>` | 24 scenes, two readings each |
+
+`load_all.m` averages the four `Old/` folders with its `stepSize` of 3 or 2.
+`PRD measurments` is not one of them: `create_single_file.m` reads that folder
+and writes every reading without averaging, and declares no group size.
+
+Its 45 files are 24 scenes with two readings each, less the three missing second
+readings. `PRD measurments copy/` holds the same 45 measurements under their
+original scene names, and radiance matching in
+[the capture manifest](../reports/FUJI_XT100_CCSG_MANIFEST.md) established
+`PRD1sceneK -> PRD_(2K-1)` and `PRD2sceneK -> PRD_2K`. The filenames carry the
+same evidence: the sequence runs `PRD_01` through `PRD_43`, then `PRD_45` and
+`PRD_47`, with 44, 46 and 48 absent — the second readings of scenes 22, 23
+and 24. Grouping this folder in threes would average across scene boundaries.
+
+`Old/Old code/patch_data.m` is part of this ledger rather than scratch: it
+averages the two `prd` readings, which is the provenance of the 16th row of
+`Old/XYZ_all.csv`.
 
 Each file is a MATLAB v5 MAT-file of about 2.3 KB holding one `measurements`
 struct:
@@ -49,46 +66,47 @@ struct:
 | `repeatOnError` | 1 x 1 | |
 | `numCurrentRepetitions` | 1 x 1 | |
 
-The whole payload of each file is a single `miCOMPRESSED` element, so reading
-one requires inflating a zlib stream before any MAT element can be parsed.
+Each of the 134 raw `measurements` files stores its whole payload as a single
+`miCOMPRESSED` element, so reading one requires inflating a zlib stream before
+any MAT element can be parsed. The 16 derived workspace saves under
+`Old/Old code/` hold several elements instead, so the reader scans a stream
+rather than assuming one element per file.
 
-## Why the instrument values are usable as a check
+## What reproducing the recorded XYZ does and does not establish
 
-Each file carries a spectrum and the instrument's own `XYZ`, `CCT`, and `Duv`
-for that same spectrum. Integrating the spectrum against color-matching
-functions and comparing to the recorded tristimulus is therefore a closure test
-with a measured reference rather than a self-consistency check.
+Each file carries a spectrum and the instrument's `XYZ`, `CCT` and `Duv`. Those
+are derived by the instrument from that same spectrum, not measured
+independently of it, so reproducing them is a closure test on this pipeline
+rather than a check against an independent reference. It validates MAT
+ingestion, wavelength ordering, the integration convention, the observer data,
+and the luminous-efficacy constant. It does not validate instrument accuracy,
+radiometric calibration, or traceability.
 
-The comparison has a limit the implementation reports rather than absorbs. The
-committed CMF table (`data/cie1931_2deg_cmf.csv`) is a 10 nm grid over
-380-730 nm; these measurements are a 2 nm grid over 380-780 nm. Reconciling the
-two requires resampling, and the direction chosen changes the answer:
+[SG reference provenance](../reports/SG_REFERENCE_PROVENANCE.md) already
+established the relationship: recomputing `683.017 * integral(SPD * CMF_2deg * 2nm)`
+reproduced the recorded tristimulus with the scale constant 683.017 at zero
+variance across 16 rows and three channels.
 
-| Method | X | Y | Z |
-|---|---:|---:|---:|
-| Interpolate the CMF up to the 2 nm measurement grid | -0.136% | -0.048% | -0.453% |
-| Resample the spectrum down to the CMF's 10 nm nodes | +0.241% | +0.116% | -0.284% |
+That result is reproduced here across every raw `measurements` struct in the
+archive. Integrating on the measurements' own 2 nm axis against the committed
+1 nm observer table (`data/cie1931_2deg_cmf_1nm.csv`) and scaling by
+683.017 lm/W agrees with the recorded tristimulus to a maximum of **0.0000354%**
+across all **134** files, on every channel.
 
-Measured on `PRD_01.mat` against its recorded tristimulus, scaling by 683 lm/W.
+The observer table is the whole of the difference. The same computation against
+the 10 nm table (`data/cie1931_2deg_cmf.csv`) leaves residuals of -0.136% on X,
+-0.048% on Y and -0.453% on Z, because interpolating a 10 nm grid up to a 2 nm
+axis under-resolves the short-wavelength `z` lobe. Resampling the spectrum down
+to 10 nm instead gives +0.241%, +0.116% and -0.284%. Neither is a bound on the
+other: both are lossy, and the interval they span on Z excludes the correct
+result entirely. The 10 nm table stays the observer for the chart-reflectance
+work, whose references are themselves on a 10 nm grid; this command uses the
+1 nm table because its input is finer than 10 nm.
 
-Neither method is the correct one; both are bounded by the table. Reporting a
-single figure would imply a precision the grid does not support, so the command
-computes both and publishes the pair. Their spread — 0.38% on X, 0.16% on Y,
-0.17% on Z — is the grid-induced uncertainty on any closure figure derived here.
-
-Two components of that residual are separable and were measured rather than
-assumed:
-
-- **Truncation** at 730 nm is bounded at 0.040% of X and 0.014% of Y, and is
-  exactly zero for Z, because the committed table's `z` value at 730 nm is
-  0.0000000 and the lobe has ended well before it. Truncation cannot explain the
-  Z residual.
-- **Sampling** of the `z` lobe accounts for the rest. Z reads low under both
-  methods rather than bracketing zero, which is the signature of a peak whose
-  area a 10 nm grid loses regardless of integration direction.
-
-The existing spectral commands are built on that same 10 nm grid and their
-published results depend on it. Changing the shared table is out of scope here.
+`tools/check_cie_cmf_1nm.py` gates the new table on the 360-830 nm grid being
+complete, `y` peaking at exactly 1.0 at 555 nm, the equal-energy stimulus
+landing on x = y = 1/3, and agreement with the committed 10 nm table at every
+shared wavelength.
 
 ## Planned command
 
@@ -109,6 +127,14 @@ file count is not a multiple of its group size is an error rather than a
 truncation, which is the one behavior of the original scripts that will not be
 reproduced: MATLAB's `i:i+stepSize-1` indexing reads past the end of a short
 final group.
+
+`PRD measurments` is deliberately absent from that list. A fixed stride cannot
+express it: 45 files over 24 scenes means three scenes carry a single reading,
+so no constant group size divides the folder. Its repeats are identified by
+index parity through `PRD1sceneK -> PRD_(2K-1)` and `PRD2sceneK -> PRD_2K`, which
+is a different grouping rule and needs its own option rather than a stride that
+would silently pair `PRD_43` with `PRD_45` across a scene boundary. Reproducing
+`create_single_file.m`, which averages nothing, needs no grouping at all.
 
 ## Reporting
 
