@@ -9,7 +9,7 @@ or editable copies of private references.
 | [`sfr_aperture_summary.csv`](sfr_aperture_summary.csv) | [SFR/MTF](../reports/SFR_MTF.md) | [aperture and field](../figures/sfr_aperture_field.svg) |
 | [`spectral_color_fidelity.csv`](spectral_color_fidelity.csv) | [spectral sensitivity](../reports/SPECTRAL_SENSITIVITY.md) | [five-camera comparison](../figures/spectral_color_fidelity.svg) |
 | [`ccm_validation_summary.csv`](ccm_validation_summary.csv) | [CCM fit](../reports/CCM_FIT.md) | [CCM validation](../figures/ccm_validation.svg) |
-| [`ccsg_f8_flat_wb_patches.csv`](ccsg_f8_flat_wb_patches.csv) | [patch extraction](../reports/PATCH_EXTRACTION.md) | accepted-flat 140-patch RGB regression table |
+| [`ccsg_f8_flat_wb_patches.csv`](ccsg_f8_flat_wb_patches.csv) | [patch extraction](../reports/PATCH_EXTRACTION.md) | accepted-flat 140-patch RGB regression table, enforced by `check_patch_baseline` |
 | [`flat_field_summary.csv`](flat_field_summary.csv) | [flat-field response](../reports/FLAT_FIELD_RESPONSE.md) | [CFA flat-field response](../figures/flat_field_response.svg) |
 | [`flat_field_response.csv`](flat_field_response.csv) | [flat-field response](../reports/FLAT_FIELD_RESPONSE.md) | [CFA flat-field response](../figures/flat_field_response.svg) |
 

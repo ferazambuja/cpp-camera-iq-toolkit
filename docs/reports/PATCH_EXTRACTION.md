@@ -272,6 +272,16 @@ cmp out/clrs589_raw_flat_wb_patches.csv \
 This verifies admitted correction output, not a correction result for the
 rejected 1/500 s flat.
 
+That comparison needs the private RAW files, so it cannot run in CI. What does
+run there is `check_patch_baseline`, which validates the committed table on its
+own terms: 140 rows, three finite positive R/G/B fields each, no header line —
+the header would break the `cmp` above — and an A1 row that still matches the
+`7677.11 / 7639.68 / 8712.55` this report publishes above. A committed table is
+only a regression guard if something fails when it drifts; without that check,
+the table and the prose quoting it could diverge unnoticed. The check is
+deliberately narrow: it pins the published claim and the file's contract with
+`--rgb-csv-out`, and it does not pretend to re-measure the archive.
+
 Same-aperture flat coverage is not available for the f/9 CCSG series in the
 private dataset. The f/9 sphere folder contains 13 frames (`1:10` through `1:180`);
 all 13 are rejected by the near-ceiling guard, including the shortest
