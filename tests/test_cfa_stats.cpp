@@ -142,6 +142,12 @@ void TESTS() {
   // exact `raw >= white` test reports zero saturation on a frame that is
   // completely clipped. near_ceiling_fraction measures the signal-referred
   // headroom instead: residual >= level * (white - black).
+  //
+  // These are not invented numbers. `Sphere_f8.0_1:10_DSCF0369.RAF` in the
+  // private CLRS-589 archive holds all 24,148,224 active pixels at exactly this
+  // plateau, giving stddev 0 with saturated_fraction 0 on every plane. The
+  // archive is not distributed, so this fixture is what CI can run; the
+  // measurement it stands in for is in docs/reports/RAW_STATS.md.
   {
     const std::array<double, 4> black = {1024, 1024, 1024, 1024};
     const double white = 16383;  // signal-referred ceiling 15359, 98% -> 15052

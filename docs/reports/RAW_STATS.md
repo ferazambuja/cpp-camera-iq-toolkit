@@ -37,11 +37,19 @@ modeling, or color correction yet.
 - Saturation is counted on the raw value before black subtraction:
   `raw >= white_level`.
 - `near_ceiling_fraction` counts residuals at or above 98% of the
-  signal-referred ceiling `white_level - black`. Sensors can plateau below the
-  reported white level — the Fuji X-T100 pins at raw 16381 against a
-  `white_level` of 16383 — so `saturated_fraction` reads zero on frames that are
-  entirely clipped. Use `near_ceiling_fraction` for headroom decisions and
-  `saturated_fraction` only for exact-white accounting.
+  signal-referred ceiling `white_level - black[p]`. Sensors can plateau below
+  the reported white level, so `saturated_fraction` reads zero on frames that
+  are entirely clipped; the measured Fuji case is in
+  [Clipped-frame contrast](#clipped-frame-contrast). Use
+  `near_ceiling_fraction` for headroom decisions and `saturated_fraction` only
+  for exact-white accounting.
+- The two statistics are nested rather than independent. The near-ceiling
+  threshold is `black[p] + level * (white_level - black[p])`, which lies below
+  `white_level` for any `level` at or under 1, and levels above 1 are rejected
+  as undefined. A saturated pixel therefore always counts as near-ceiling, so
+  `near_ceiling_fraction >= saturated_fraction` per plane wherever the
+  threshold is defined. The gap between them is the plateau band: pixels the
+  sensor holds below `white_level` but above 98% of the ceiling.
 - JSON records the effective `near_ceiling_level` beside the derived plane
   fractions. Full-frame and CFA-balanced ROI reports apply the same per-plane
   `white_level - black[p]` definition.
@@ -70,7 +78,9 @@ Result summary:
 | Active area | 6016 x 4014 |
 | Raw pitch | 12032 bytes |
 | Total active pixels assigned | 24,148,224 |
+| Signal-referred ceiling `white_level - black` | 15,359 DN |
 | Saturated fraction | 0 on all four CFA positions |
+| Near-ceiling fraction | 0 on all four CFA positions |
 
 Per-position signed residual statistics:
 
@@ -84,6 +94,51 @@ Per-position signed residual statistics:
 The two green positions agree closely (`G1` mean 117.9136 vs `G2` mean
 118.1097), which is a basic sanity check that the RGGB demultiplexing phase is
 correct for this zero-margin X-T100 capture.
+
+This frame has real headroom — the largest residual on any position is 7970 DN
+against a 15,359 DN ceiling — so both headroom statistics read zero and it does
+not exercise the case `near_ceiling_fraction` exists for. The frame below does.
+
+## Clipped-frame contrast
+
+Command:
+
+```bash
+./build/camera_iq raw-stats \
+  --dataset clrs589_project_camera \
+  "Images/Sphere/Sphere_f8.0_1:10_DSCF0369.RAF" \
+  --out out/sphere_f8_1_10_raw_stats.json
+```
+
+Same camera, same black and white levels, ISO 200 / f8 / 0.1 s — an
+integrating-sphere frame at 100× the exposure of the run above.
+
+| Channel | Count | Min | Max | Mean | Stddev | Saturated fraction | Near-ceiling fraction |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| R | 6,037,056 | 15357 | 15357 | 15357 | 0 | 0 | 1 |
+| G1 | 6,037,056 | 15357 | 15357 | 15357 | 0 | 0 | 1 |
+| G2 | 6,037,056 | 15357 | 15357 | 15357 | 0 | 0 | 1 |
+| B | 6,037,056 | 15357 | 15357 | 15357 | 0 | 0 | 1 |
+
+All 24,148,224 active pixels carry the identical residual 15357 DN, so the
+per-position standard deviation is exactly zero: the frame retains no spatial
+or photometric information at all. `saturated_fraction` still reads 0 on every
+position, because the X-T100 pins at raw 16381 and `white_level` is 16383.
+
+The plateau sits inside the band the two statistics bracket. With
+`black = 1024` and `level = 0.98`, near-ceiling begins at raw
+`1024 + 0.98 x 15359 = 16075.8`, and saturation begins at raw 16383:
+
+```
+  16075.8            16381          16383
+  near-ceiling  <->  plateau   <->  white_level
+       |---------------|--------------|
+       |<-- 305.2 DN ->|<-- 2 DN ---->|
+```
+
+A headroom gate written against `saturated_fraction` accepts this frame; one
+written against `near_ceiling_fraction` rejects it. That is the whole reason
+the second statistic is reported.
 
 ## Cross-Maker Regression Checks
 
@@ -120,12 +175,20 @@ reads post-`unpack()` and subtracts the 1023.75 DN effective pedestal.
 
 Per-position signed residual means after the fix:
 
-| Channel | Mean | Min | Max | Saturated fraction |
-|---|---:|---:|---:|---:|
-| G1 | 12455.1633 | 4130 | 14740 | 0.0782861 |
-| B | 5292.7913 | 2634 | 8113 | 0 |
-| R | 7442.6776 | 3138 | 12624 | 0 |
-| G2 | 12471.9586 | 5308 | 14740 | 0.0838083 |
+| Channel | Mean | Min | Max | Saturated fraction | Near-ceiling fraction |
+|---|---:|---:|---:|---:|---:|
+| G1 | 12455.1633 | 4130 | 14740 | 0.0782861 | 0.1406362 |
+| B | 5292.7913 | 2634 | 8113 | 0 | 0 |
+| R | 7442.6776 | 3138 | 12624 | 0 | 0 |
+| G2 | 12471.9586 | 5308 | 14740 | 0.0838083 | 0.1470595 |
+
+This body is the counterexample to reading the Fuji result as a general rule.
+The 5D Mark II does reach `white_level` exactly, so `saturated_fraction` is
+informative here — but it still undercounts the clipped population by roughly a
+factor of 1.8, because the green shoulder between 98% of the ceiling and white
+is real signal compression that exact-white accounting cannot see. The two
+statistics diverge on both bodies; only on the Fuji does one of them collapse
+to zero.
 
 ### Nikon active-area crop
 
@@ -158,12 +221,17 @@ active pixels, not the full `7424 x 4924` raw frame.
 
 Per-position signed residual means:
 
-| Channel | Mean | Min | Max | Saturated fraction |
-|---|---:|---:|---:|---:|
-| R | 646.6386 | 0 | 10203 | 0 |
-| G1 | 901.0370 | 0 | 14043 | 0 |
-| G2 | 902.6827 | 0 | 14091 | 0 |
-| B | 437.2619 | 0 | 7042 | 0 |
+| Channel | Mean | Min | Max | Saturated fraction | Near-ceiling fraction |
+|---|---:|---:|---:|---:|---:|
+| R | 646.6386 | 0 | 10203 | 0 | 0 |
+| G1 | 901.0370 | 0 | 14043 | 0 | 0 |
+| G2 | 902.6827 | 0 | 14091 | 0 | 0 |
+| B | 437.2619 | 0 | 7042 | 0 | 0 |
+
+This body reports `black_level = 0`, so the signal-referred ceiling equals
+`white_level` at 16383 DN and near-ceiling begins at 16055.3 DN. The brightest
+green residual is 14091, which is why both fractions read zero despite the
+frame sitting within 15% of the ceiling.
 
 ## Validation
 

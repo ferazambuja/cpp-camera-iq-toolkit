@@ -146,12 +146,12 @@ Load-bearing findings:
   figure is its most-peripheral ROI at 0.1647 against 0.1385 at center, +19%.
   The mid-aperture maximum is N=12 at 244 px horizontally and 1414 px above
   center, reading 0.2211 in the advisory path: +60% over center.
-- **The field is not centered rotationally symmetric; the mechanism is still
-  unresolved.** An off-axis maximum does not exclude a centered radial
-  response — it may peak on an annulus. Arbitrary near-radius pairs do not close
-  it either: every ROI here uses a fixed-axis, near-vertical edge, so changing
-  azimuth changes the sagittal/tangential mixture even for a centered
-  rotationally symmetric lens.
+- **Strong evidence against a centered rotationally symmetric field, short of
+  formal exclusion; the mechanism is unresolved.** An off-axis maximum does not
+  exclude a centered radial response — it may peak on an annulus. Arbitrary
+  near-radius pairs do not close it either: every ROI here uses a fixed-axis,
+  near-vertical edge, so changing azimuth changes the sagittal/tangential
+  mixture even for a centered rotationally symmetric lens.
 
   Near-mirror partners constrain it much harder. For an exactly vertical edge
   the S/T mixture depends on `|x| / r`, so an exact reflection through the
