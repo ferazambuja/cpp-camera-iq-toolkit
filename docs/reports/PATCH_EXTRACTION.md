@@ -246,11 +246,30 @@ neighbors. It therefore passed a 1% frame-wide policy by a factor of ten.
 The command now applies the same centered gate geometry as `shading`
 (`gate_center_frac = 0.20`) at the same 0.98 level and 1% policy, and rejects on
 either fraction with `flat-field RAW center is too close to the sensor ceiling
-for correction`. Both fractions appear in JSON as `near_ceiling_fraction` and
+for correction`. The rejection carries the measured fraction and the policy it
+failed, so the verdict can be checked from the command's own output. Both
+fractions appear in JSON as `near_ceiling_fraction` and
 `center_near_ceiling_fraction`, so a reader can tell which gate a flat passed.
-`patches` and `shading` now accept the same three f/8 sphere frames. Re-running
-the documented command reproduces every published patch to 0 DN: the frame it
-uses measures 0% in both regions.
+
+The same demosaic averaging applies to the new gate, and the measurement records
+how much. On `Sphere_f8.0_1:500_DSCF0386.RAF` the centered gate reads **2.3769%
+here against 11.6319% in `shading`** — the same region, the same level, the same
+policy, attenuated about 4.9× by bilinear demosaic. The gate still rejects the
+frame with 2.4× margin, but the two commands' gates are not equivalent tests:
+
+| Region | `shading` (CFA domain) | `patches` (post-demosaic) | Policy |
+|---|---:|---:|---:|
+| Whole frame | 0.4964% | 0.0996% | 1% |
+| Centered 20% gate | 11.6319% | 2.3769% | 1% |
+
+`patches` and `shading` accept the same three f/8 sphere frames on this archive.
+That is a measured agreement on three frames, not a property of the two gates: a
+flat whose CFA-domain center fraction fell between roughly 1% and 5% would be
+rejected by `shading` and accepted here. Closing that window would require
+measuring the flat before demosaic, which this command does not currently do.
+
+Re-running the documented command reproduces every published patch to 0 DN: the
+frame it uses measures 0% in both regions.
 
 Same-aperture flat coverage is not available for the f/9 CCSG series in the
 private dataset. The f/9 sphere folder contains 13 frames (`1:10` through `1:180`);

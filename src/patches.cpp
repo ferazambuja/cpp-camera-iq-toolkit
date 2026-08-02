@@ -1080,6 +1080,21 @@ double flat_center_near_ceiling_fraction(const std::vector<RgbPixel>& flat,
   return static_cast<double>(near) / total;
 }
 
+FlatFieldGateVerdict flat_field_near_ceiling_verdict(double frame_fraction,
+                                                     double center_fraction,
+                                                     double max_allowed) {
+  // Written as a negated `<=` throughout so NaN falls into the reject branch.
+  // The equivalent-looking `fraction > max_allowed` is false for NaN and would
+  // accept an unmeasurable flat.
+  if (!(frame_fraction <= max_allowed)) {
+    return {false, "frame", frame_fraction};
+  }
+  if (!(center_fraction <= max_allowed)) {
+    return {false, "center", center_fraction};
+  }
+  return {true, {}, 0.0};
+}
+
 void write_patch_report_json(
     std::ostream& os, std::string_view file_label,
     std::string_view coords_label, std::string_view coordinate_source_format,

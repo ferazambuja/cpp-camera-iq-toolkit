@@ -578,19 +578,23 @@ int cmd_patches(int argc, char** argv) {
           summary.center_gate_fraction);
       summary.max_allowed_near_ceiling_fraction =
           kMaxFlatNearCeilingFraction;
-      if (summary.near_ceiling_fraction > kMaxFlatNearCeilingFraction) {
-        std::cerr << "camera_iq patches: flat-field RAW is too close to the "
-                  << "sensor ceiling for correction\n";
-        return 1;
-      }
       // The center sets the correction scale and is the brightest region of a
-      // vignetted flat, so it clips before the frame-wide fraction moves. See
-      // docs/reports/FLAT_FIELD_RESPONSE.md for the capture that separated the
-      // two: 11.63% of the center gate near ceiling against 0.4964% frame-wide.
-      if (!(summary.center_near_ceiling_fraction <=
-            kMaxFlatNearCeilingFraction)) {
-        std::cerr << "camera_iq patches: flat-field RAW center is too close to "
-                  << "the sensor ceiling for correction\n";
+      // vignetted flat, so it clips before the frame-wide fraction moves. Both
+      // fractions here are measured after bilinear demosaic, which averages
+      // clipped samples with unclipped neighbours, so they read lower than the
+      // CFA-domain fractions `shading` reports on the same frame — see
+      // docs/reports/PATCH_EXTRACTION.md for both measurements of the capture
+      // that separated the two regions.
+      const auto verdict = flat_field_near_ceiling_verdict(
+          summary.near_ceiling_fraction, summary.center_near_ceiling_fraction,
+          kMaxFlatNearCeilingFraction);
+      if (!verdict.accepted) {
+        std::cerr << "camera_iq patches: flat-field RAW "
+                  << (verdict.region == "center" ? "center " : "")
+                  << "is too close to the sensor ceiling for correction ("
+                  << verdict.region << " near-ceiling fraction "
+                  << verdict.fraction << " against a policy of "
+                  << kMaxFlatNearCeilingFraction << ")\n";
         return 1;
       }
       flat_summary = summary;

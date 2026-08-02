@@ -75,7 +75,10 @@ flat-field frame on the whole-frame fraction alone, and so accepted this exact
 capture as a correction flat, at a measured 0.0996%. Its bilinear demosaic step
 dilutes clipping further by averaging clipped samples with unclipped neighbors.
 `patches` now applies the same centered gate as `shading` and publishes both
-fractions; the two commands accept the same three frames. The published CCM
+fractions. The dilution applies to the new gate too: it reads 2.3769% on that
+frame against 11.6319% in `shading`, still 2.4× over policy but roughly 4.9×
+attenuated, so the two commands agreeing on the same three frames is a measured
+result on this archive rather than a property of the gates. The published CCM
 result is unchanged, reproducing to 0 DN, because the flat it uses was never
 near ceiling in either region. Correcting the same capture with the clipped
 1/500 s flat instead costs up to 0.769% per-channel patch error, concentrated in

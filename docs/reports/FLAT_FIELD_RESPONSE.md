@@ -309,7 +309,11 @@ and the last one a frame-wide fraction will notice.
 `patches` now applies the same centered gate geometry as `shading`
 (`gate_center_frac = 0.20`) and rejects on either fraction. Both fractions are
 published in JSON so a reader can tell which gate a flat passed. The two
-commands now accept the same three f/8 frames.
+commands accept the same three f/8 frames on this archive — a measured
+agreement, not an equivalence, since `patches` measures after bilinear demosaic
+and reads 2.3769% on the `1:500` center gate against 11.6319% here. See
+[the patch-extraction guard](PATCH_EXTRACTION.md) for both measurements
+side by side.
 
 The correction that was already published does not change. Re-running the
 documented command against `Sphere_f8.0_1:1000_DSCF0387.RAF` reproduces every

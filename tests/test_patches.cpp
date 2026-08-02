@@ -3,6 +3,7 @@
 #include <cmath>
 #include <filesystem>
 #include <fstream>
+#include <limits>
 #include <optional>
 #include <sstream>
 #include <stdexcept>
@@ -634,6 +635,48 @@ void TESTS() {
     check(std::isnan(flat_center_near_ceiling_fraction(flat, w, h + 1, ceiling,
                                                        0.98, 0.20)),
           "flat center gate: size mismatch is undefined");
+  }
+
+  {
+    // The two fractions are measured separately but decided by one policy.
+    // Keeping that decision in a pure function is what makes it testable: the
+    // call site needs a real RAW file, so an inline comparison there is only
+    // exercised by hand.
+    using camera_iq::flat_field_near_ceiling_verdict;
+    const double nan = std::numeric_limits<double>::quiet_NaN();
+
+    const auto pass = flat_field_near_ceiling_verdict(0.004, 0.009, 0.01);
+    check(pass.accepted, "flat gate verdict: both fractions under policy pass");
+
+    const auto at_policy = flat_field_near_ceiling_verdict(0.01, 0.01, 0.01);
+    check(at_policy.accepted,
+          "flat gate verdict: exactly at policy is not a rejection");
+
+    const auto frame_over = flat_field_near_ceiling_verdict(0.02, 0.0, 0.01);
+    check(!frame_over.accepted && frame_over.region == "frame" &&
+              frame_over.fraction == 0.02,
+          "flat gate verdict: whole-frame excess rejects and reports itself");
+
+    // The case this gate was added for: the frame-wide fraction passes with
+    // room to spare while the centre that sets the correction scale is clipped.
+    const auto center_over = flat_field_near_ceiling_verdict(0.000996, 0.0238,
+                                                             0.01);
+    check(!center_over.accepted && center_over.region == "center" &&
+              center_over.fraction == 0.0238,
+          "flat gate verdict: center excess rejects when the frame passes");
+
+    const auto both = flat_field_near_ceiling_verdict(0.5, 0.9, 0.01);
+    check(!both.accepted && both.region == "frame",
+          "flat gate verdict: frame is reported first when both fail");
+
+    // An undefined measurement is not evidence of a clean flat. Both fractions
+    // must reject on NaN; a comparison written as `x > limit` would pass one.
+    check(!flat_field_near_ceiling_verdict(nan, 0.0, 0.01).accepted,
+          "flat gate verdict: undefined frame fraction rejects");
+    check(!flat_field_near_ceiling_verdict(0.0, nan, 0.01).accepted,
+          "flat gate verdict: undefined center fraction rejects");
+    check(!flat_field_near_ceiling_verdict(0.0, 0.0, nan).accepted,
+          "flat gate verdict: undefined policy rejects");
   }
 
   std::filesystem::remove_all(root);
