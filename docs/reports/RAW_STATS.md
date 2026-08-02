@@ -44,12 +44,15 @@ modeling, or color correction yet.
   `near_ceiling_fraction` for headroom decisions and `saturated_fraction` only
   for exact-white accounting.
 - The two statistics are nested rather than independent. The near-ceiling
-  threshold is `black[p] + level * (white_level - black[p])`, which lies below
-  `white_level` for any `level` at or under 1, and levels above 1 are rejected
-  as undefined. A saturated pixel therefore always counts as near-ceiling, so
-  `near_ceiling_fraction >= saturated_fraction` per plane wherever the
-  threshold is defined. The gap between them is the plateau band: pixels the
-  sensor holds below `white_level` but above 98% of the ceiling.
+  threshold is `black[p] + level * (white_level - black[p])`, which lies at or
+  below `white_level` for any `level` at or under 1, and levels above 1 are
+  rejected as undefined. A saturated pixel therefore always counts as
+  near-ceiling, so `near_ceiling_fraction >= saturated_fraction` per plane
+  wherever the threshold is defined. Their difference is a conservative
+  near-ceiling margin band: pixels below `white_level` but above 98% of the
+  signal-referred ceiling. That count is not, by itself, a measurement of a
+  sensor plateau, clipping, or response compression; those interpretations
+  require response-series or other independent evidence.
 - JSON records the effective `near_ceiling_level` beside the derived plane
   fractions. Full-frame and CFA-balanced ROI reports apply the same per-plane
   `white_level - black[p]` definition.
@@ -110,8 +113,10 @@ Command:
   --out out/sphere_f8_1_10_raw_stats.json
 ```
 
-Same camera, same black and white levels, ISO 200 / f8 / 0.1 s — an
-integrating-sphere frame at 100× the exposure of the run above.
+Same camera, same black and white levels, and ISO 200, but a different target
+and illumination. This integrating-sphere frame uses a 10× longer shutter
+(0.1 s versus 0.01 s) and f/8 rather than f/9. It is not a controlled exposure
+ratio against the CCSG frame above.
 
 | Channel | Count | Min | Max | Mean | Stddev | Saturated fraction | Near-ceiling fraction |
 |---|---:|---:|---:|---:|---:|---:|---:|
@@ -121,9 +126,10 @@ integrating-sphere frame at 100× the exposure of the run above.
 | B | 6,037,056 | 15357 | 15357 | 15357 | 0 | 0 | 1 |
 
 All 24,148,224 active pixels carry the identical residual 15357 DN, so the
-per-position standard deviation is exactly zero: the frame retains no spatial
-or photometric information at all. `saturated_fraction` still reads 0 on every
-position, because the X-T100 pins at raw 16381 and `white_level` is 16383.
+per-position standard deviation is exactly zero: the recorded plateau retains
+no within-frame spatial or tonal variation. `saturated_fraction` still reads 0
+on every position, because the X-T100 pins at raw 16381 and `white_level` is
+16383.
 
 The plateau sits inside the band the two statistics bracket. With
 `black = 1024` and `level = 0.98`, near-ceiling begins at raw
@@ -184,11 +190,12 @@ Per-position signed residual means after the fix:
 
 This body is the counterexample to reading the Fuji result as a general rule.
 The 5D Mark II does reach `white_level` exactly, so `saturated_fraction` is
-informative here — but it still undercounts the clipped population by roughly a
-factor of 1.8, because the green shoulder between 98% of the ceiling and white
-is real signal compression that exact-white accounting cannot see. The two
-statistics diverge on both bodies; only on the Fuji does one of them collapse
-to zero.
+informative here. The green planes report about 7.8–8.4% at exact white and
+14.1–14.7% in the conservative near-ceiling band, but the difference is only a
+count of samples in the top 2% of the signal-referred range. These frame
+statistics alone cannot decide whether those samples are clipped, compressed,
+or still response-bearing. The two statistics diverge on both bodies; only on
+the Fuji does exact-white accounting collapse to zero.
 
 ### Nikon active-area crop
 

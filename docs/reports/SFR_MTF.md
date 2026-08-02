@@ -172,13 +172,13 @@ Load-bearing findings:
   pair the upper site sits at the larger radius, so a centered profile that
   falls with radius predicts the opposite ordering.
 
-  This is strong evidence, not a formal exclusion. Reproducing it with a
-  centered rotationally symmetric response would require a radial profile that
-  rises by 33% across a 0.54% step in radius, plus edges vertical enough for
-  `|x|/r` to describe the mixture — the archive only records them as
-  near-vertical. Both are implausible; neither is ruled out by arithmetic here.
-  A formal exclusion needs controlled radial/tangential edge orientations or a
-  fitted radial-plus-orientation baseline, which this archive does not contain.
+  This is strong evidence, not a formal exclusion. At the tightest pair, MTF50
+  changes by 33% while nominal radius and `|x|/r` differ by only 0.54% and
+  0.80%. But the archive records the edges only as near-vertical, so a centered
+  radius-plus-orientation response could distribute the MTF50 difference across
+  both variables; the data cannot assign all 33% to radial slope. A formal
+  exclusion needs controlled radial/tangential edge orientations or a fitted
+  radial-plus-orientation baseline, which this archive does not contain.
 
   The cause is separately unresolved. Target, sensor or focus-plane tilt,
   decentering, and capture alignment all produce an upper/lower imbalance, and

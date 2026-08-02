@@ -127,14 +127,17 @@ Validation combines:
   against 0.0945; N=18/N=20 differ by 4.06% and read 0.1878 against 0.1055. All
   three favor the upper field, at three radii and two apertures, and in every
   pair the upper site sits at the *larger* radius — so a centered profile that
-  falls with radius predicts the opposite ordering. Explaining this with a
-  centered response would need a radial profile rising 33% across a 0.54% step
-  in radius. That is strong evidence against centered rotational symmetry rather
-  than a formal exclusion, which would require controlled radial/tangential edge
-  orientations this archive does not contain. The responsible component stays
-  open: tilt, decentering and alignment all produce an upper/lower imbalance,
-  and the aperture behavior does not separate them, since stopping down reduces
-  several geometric aberrations as well as widening depth-of-field tolerance.
+  falls with radius predicts the opposite ordering. At the tightest pair,
+  MTF50 changes by 33% while nominal radius and `|x|/r` differ by only 0.54% and
+  0.80%. That combination is strong evidence against centered rotational
+  symmetry, but not a formal exclusion: the archive records only near-vertical
+  edges, so a centered radius-plus-orientation response could distribute the
+  difference across both variables. Controlled radial/tangential orientations
+  or a fitted baseline would be needed to close that alternative. The
+  responsible component stays open: tilt, decentering and alignment all produce
+  an upper/lower imbalance, and the aperture behavior does not separate them,
+  since stopping down reduces several geometric aberrations as well as widening
+  depth-of-field tolerance.
 - Center agreement stayed within ±0.015 cycles/pixel on D800, while off-axis
   differences were larger—consistent with comparing green-linear CFA SFR to a
   rendered-luma reference path. The center agreement makes a toolkit-only gross
