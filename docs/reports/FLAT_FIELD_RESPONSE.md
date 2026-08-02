@@ -21,6 +21,13 @@ The CLRS-589 archive yielded three usable f/8 frames from 52 sphere captures.
 The primary green response reached 0.4801 at the lowest bin relative to its
 center, while `C_RG` remained within −2.27 pp and `C_BG` within +4.47 pp of
 unity. Green quadrant asymmetry was 19.65%, well above the 5% project policy.
+
+"Primary" here means the first frame of the documented pair run
+(`Sphere_f8.0_1:1000_DSCF0368.RAF`) and nothing more. The label carries no
+evidential weight: the two 1/1000 s frames are interchangeable, and if anything
+the repeat carries marginally more signal (green center 0.4942 against 0.4876 of
+ceiling). Both frames' statistics are published, including both `A` values, so
+no reported result depends on which one is called primary.
 The green-CFA field is consequently reported as a capture-system response; the
 capture does not isolate optical vignetting regardless of the `A` verdict.
 

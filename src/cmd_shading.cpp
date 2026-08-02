@@ -109,16 +109,12 @@ void write_options(JsonWriter& w, const ShadingOptions& opts) {
 }
 
 // Non-finite entries serialize as null: NaN marks a bin where the ratio is
-// undefined, and JSON has no NaN.
+// undefined, and JSON has no NaN. JsonWriter::value(double) owns that rule, so
+// this does not restate it — write_plane_array above relies on the same
+// behavior, and two spellings of one rule are how the two drift apart.
 void write_map(JsonWriter& w, const std::vector<double>& values) {
   w.begin_array();
-  for (const double v : values) {
-    if (std::isfinite(v)) {
-      w.value(v);
-    } else {
-      w.null();
-    }
-  }
+  for (const double v : values) w.value(v);
   w.end_array();
 }
 
