@@ -60,9 +60,10 @@ Instrument names above are quoted from file headers, not supplied from outside
 the archive.
 
 Both CGATS.17 reflectance files declare `INSTRUMENTATION i1Pro`, and both were
-created 2016-11-14. `SGMeasurements_CGATS.txt` additionally records
-`MEASUREMENT_GEOMETRY 45:00:00`, `MEASUREMENT_SOURCE A`, and
-`WEIGHTING_FUNCTION` entries for the CIE 1931 2-degree observer and D50.
+created 2016-11-14 (14:29 and 14:53). Both also record
+`MEASUREMENT_GEOMETRY 45:00:00`, `MEASUREMENT_SOURCE A`, and the same two
+`WEIGHTING_FUNCTION` entries, for the CIE 1931 2-degree observer and D50 — the
+conditions are identical across the pair, not specific to either file.
 
 The two files disagree on one field. `SGMeasurements_CGATS.txt` records
 `MANUFACTURER GretagMacbeth` while `CC24Patch_CGATS.txt` records
