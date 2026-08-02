@@ -1,5 +1,6 @@
 #include "camera_iq/patches.hpp"
 
+#include <cmath>
 #include <filesystem>
 #include <fstream>
 #include <optional>
@@ -36,6 +37,7 @@ using camera_iq::apply_flat_field;
 using camera_iq::apply_white_balance;
 using camera_iq::compare_patch_means_to_rgb;
 using camera_iq::extract_patch_means;
+using camera_iq::flat_center_near_ceiling_fraction;
 using camera_iq::flat_field_near_ceiling_threshold_fraction;
 using camera_iq::flat_field_normalization_policy;
 using camera_iq::read_patch_coords_csv;
@@ -271,9 +273,13 @@ void TESTS() {
         "flat report: normalization policy constant");
   check_near(flat_field_near_ceiling_threshold_fraction(), 0.98, 1e-12,
              "flat report: near-ceiling threshold constant");
+  check_near(camera_iq::flat_field_center_gate_fraction(), 0.20, 1e-12,
+             "flat report: center gate matches the shading gate fraction");
   flat_summary.near_ceiling_sample_count = 0;
   flat_summary.near_ceiling_fraction = 0.0;
   flat_summary.max_allowed_near_ceiling_fraction = 0.01;
+  flat_summary.center_near_ceiling_fraction = 0.0034;
+  flat_summary.center_gate_fraction = 0.20;
   RawMeta meta;
   meta.make = "Fixture";
   meta.model = "Synthetic";
@@ -304,6 +310,13 @@ void TESTS() {
   check(patch_doc.find("\"white_balance\":{\"policy\":\"flat_field_green_anchor\"") !=
             std::string::npos,
         "flat report: JSON records flat-derived WB policy");
+  // The center fraction must be published beside the whole-frame one. A reader
+  // cannot otherwise tell which of the two gates a flat actually passed.
+  check(patch_doc.find("\"center_near_ceiling_fraction\":0.0034") !=
+            std::string::npos,
+        "flat report: JSON records center-gate near-ceiling fraction");
+  check(patch_doc.find("\"center_gate_fraction\":0.2") != std::string::npos,
+        "flat report: JSON records the center-gate geometry");
 
   PatchGeometryReport geometry;
   geometry.chart_model = "ColorChecker-SG 14x10";
@@ -453,9 +466,9 @@ void TESTS() {
       "chart_cylindrical_bow_candidate";
   model_comparison.conclusive = false;
   model_comparison.diagnostic_conclusion =
-      "unresolved — off-centre capture required";
+      "unresolved — off-center capture required";
   model_comparison.identifiability_note =
-      "near-centred capture: unresolved — off-centre capture required";
+      "near-centered capture: unresolved — off-center capture required";
   LocalizationModelReport model;
   model.name = "isotropic_radial_k1_baseline";
   model.hypothesis = "baseline";
@@ -580,6 +593,48 @@ void TESTS() {
     threw = true;
   }
   check(threw, "coords: non-positive width rejected");
+
+  {
+    // A flat whose center clips while the whole-frame clipped fraction stays
+    // far below policy. This is the case the shading report isolated on
+    // Sphere_f8.0_1:500: 11.63% of the center gate near ceiling against 0.4964%
+    // across the frame. A whole-frame-only guard cannot see it, and the center
+    // is exactly where a normalizing flat must stay unclipped.
+    const int w = 20;
+    const int h = 20;
+    const CameraRgbPatch ceiling{1000.0, 1000.0, 1000.0};
+    std::vector<camera_iq::RgbPixel> flat(static_cast<std::size_t>(w) * h,
+                                          camera_iq::RgbPixel{100.0, 100.0,
+                                                              100.0});
+    for (int y = 8; y < 12; ++y) {
+      for (int x = 8; x < 12; ++x) {
+        flat[static_cast<std::size_t>(y) * w + x] =
+            camera_iq::RgbPixel{995.0, 995.0, 995.0};
+      }
+    }
+
+    check_near(
+        flat_center_near_ceiling_fraction(flat, w, h, ceiling, 0.98, 1.0), 0.04,
+        1e-12, "flat center gate: whole-frame fraction stays under policy");
+    check_near(
+        flat_center_near_ceiling_fraction(flat, w, h, ceiling, 0.98, 0.20), 1.0,
+        1e-12, "flat center gate: centered 20% region is fully clipped");
+
+    // Geometry and parameter validation must be explicit rather than silently
+    // returning a passing zero.
+    check(std::isnan(flat_center_near_ceiling_fraction(flat, w, h, ceiling, 0.98,
+                                                       0.0)),
+          "flat center gate: zero center fraction is undefined");
+    check(std::isnan(flat_center_near_ceiling_fraction(flat, 0, h, ceiling, 0.98,
+                                                       0.20)),
+          "flat center gate: non-positive width is undefined");
+    check(std::isnan(flat_center_near_ceiling_fraction(flat, w, h, ceiling, 0.98,
+                                                       1.5)),
+          "flat center gate: center fraction above one is undefined");
+    check(std::isnan(flat_center_near_ceiling_fraction(flat, w, h + 1, ceiling,
+                                                       0.98, 0.20)),
+          "flat center gate: size mismatch is undefined");
+  }
 
   std::filesystem::remove_all(root);
 }

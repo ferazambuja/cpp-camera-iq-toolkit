@@ -7,9 +7,13 @@
 [tests](../../tests/test_shading.cpp)
 
 The `shading` command measures spatial response directly in a black-subtracted
-Bayer mosaic. The result is deliberately a capture-system characterization:
-the available sphere captures do not separate illumination nonuniformity from
-the lens, alignment, mechanical shading, or sensor angular response.
+Bayer mosaic. The capture system is a Fujifilm X-T100 with a Fujinon XF 14 mm
+f/2.8 R — an ultra-wide on APS-C, 21 mm equivalent — and every one of the 165
+RAF files in this archive records that same lens, the same serial `56A00213`,
+14.0 mm, and ISO 200. The result is deliberately a capture-system
+characterization: the available sphere captures do not separate illumination
+nonuniformity from the lens, alignment, mechanical shading, or sensor angular
+response.
 
 ![CFA flat-field response summary](../figures/flat_field_response.svg)
 
@@ -18,7 +22,7 @@ the lens, alignment, mechanical shading, or sensor angular response.
 median. The green map shows the green-CFA relative response; `C_RG` and `C_BG`
 show independently center-normalized chromatic ratios. The 19.65% quadrant
 asymmetry exceeds the declared 5% project policy and diagnoses departure from a
-centred radial scalar model. It does not identify the responsible component;
+centered radial scalar model. It does not identify the responsible component;
 the missing source/rotation controls preclude isolated lens attribution
 regardless of `A`. The repeat reads 19.996%, a 0.348 percentage-point pair
 difference that supports stability of the observed high `A` only; two high-`A`
@@ -48,6 +52,15 @@ chromatic variation and close agreement between the two green positions. The
 left/right and top/bottom imbalance remains the controlling interpretation:
 one uniform-field capture cannot determine which physical component caused it.
 
+The imbalance keeps its orientation. In all three accepted frames the minimum
+green bin is the same bottom-left grid cell and the top-right bin is the
+brightest corner, so the gradient is fixed in the capture geometry rather than
+frame-specific. That constrains it without attributing it. The third accepted
+frame also does not repeat the pair's asymmetry: at 1/1600 s `A` measures
+0.160875 against 0.196484 and 0.199964 for the 1/1000 s pair, roughly ten times
+the within-pair difference. All three exceed the 5% policy, so the verdict holds,
+but the pair difference is not a general repeatability figure.
+
 ## Why the center gate is separate
 
 The f/8, 1/500 s frame is a useful negative case. Its worst green plane was
@@ -55,6 +68,18 @@ The f/8, 1/500 s frame is a useful negative case. Its worst green plane was
 over the whole frame. A whole-frame 1% test would accept it even though the
 normalizing center was already clipping. The command rejects it before any
 relative response map is emitted.
+
+That gate had to travel. Auditing which frames the toolkit uses as flats
+elsewhere showed that `patches` — the ColorChecker path — guarded its
+flat-field frame on the whole-frame fraction alone, and so accepted this exact
+capture as a correction flat, at a measured 0.0996%. Its bilinear demosaic step
+dilutes clipping further by averaging clipped samples with unclipped neighbors.
+`patches` now applies the same centered gate as `shading` and publishes both
+fractions; the two commands accept the same three frames. The published CCM
+result is unchanged, reproducing to 0 DN, because the flat it uses was never
+near ceiling in either region. Correcting the same capture with the clipped
+1/500 s flat instead costs up to 0.769% per-channel patch error, concentrated in
+the brightest field corner.
 
 ## Physical capture and numerical path
 

@@ -27,11 +27,18 @@ validation.
 - **Measurement judgment:** rejected a ColorChecker grid despite correlations
   above 0.999 because its center error reached **16.449 px**, and rejected an
   invalid Stepchart strip model before accepting the measured ring geometry.
-- **CFA flat-field response:** screened **52 sphere captures**, retained three
-  usable f/8 frames, and measured center-normalized green and chromatic fields.
-  A **19.65% quadrant asymmetry** diagnoses departure from a centred radial
-  scalar model; missing capture controls prevent isolated lens attribution
-  regardless of the diagnostic verdict.
+- **CFA flat-field response:** screened **52 sphere captures** from an X-T100 +
+  XF 14 mm f/2.8 R integrating-sphere set, retained three usable f/8 frames, and
+  measured center-normalized green and chromatic fields. A **19.65% quadrant
+  asymmetry** diagnoses departure from a centered radial scalar model; missing
+  capture controls prevent isolated lens attribution regardless of the
+  diagnostic verdict.
+- **Cross-command consistency:** auditing which frames each command uses as a
+  flat found that `patches` guarded its correction flat on a whole-frame
+  clipping fraction alone, and so accepted a frame whose normalizing center was
+  **11.63% clipped** while reading 0.0996% frame-wide. Both commands now apply
+  the same centered gate and accept the same three frames; the published CCM
+  result reproduces to **0 DN**.
 
 ## Featured case studies
 

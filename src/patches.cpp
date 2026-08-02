@@ -5,6 +5,7 @@
 #include <cstdint>
 #include <fstream>
 #include <iomanip>
+#include <limits>
 #include <map>
 #include <ostream>
 #include <stdexcept>
@@ -21,6 +22,9 @@ namespace {
 constexpr std::string_view kFlatFieldNormalizationPolicy =
     "per_channel_mean_valid_samples";
 constexpr double kFlatNearCeilingFraction = 0.98;
+// Matches ShadingOptions::gate_center_frac. The two commands measure a
+// normalizing flat's center with the same declared geometry on purpose.
+constexpr double kFlatCenterGateFraction = 0.20;
 
 std::string trim_cr(std::string s) {
   if (!s.empty() && s.back() == '\r') s.pop_back();
@@ -246,6 +250,10 @@ void write_corrections(JsonWriter& w, std::string_view flat_label,
     w.value(static_cast<std::int64_t>(flat->near_ceiling_sample_count));
     w.key("near_ceiling_fraction");
     w.value(flat->near_ceiling_fraction);
+    w.key("center_near_ceiling_fraction");
+    w.value(flat->center_near_ceiling_fraction);
+    w.key("center_gate_fraction");
+    w.value(flat->center_gate_fraction);
     w.key("near_ceiling_threshold_fraction");
     w.value(kFlatNearCeilingFraction);
     w.key("max_allowed_near_ceiling_fraction");
@@ -1022,6 +1030,54 @@ std::string_view flat_field_normalization_policy() {
 
 double flat_field_near_ceiling_threshold_fraction() {
   return kFlatNearCeilingFraction;
+}
+
+double flat_field_center_gate_fraction() { return kFlatCenterGateFraction; }
+
+double flat_center_near_ceiling_fraction(const std::vector<RgbPixel>& flat,
+                                         int width, int height,
+                                         const CameraRgbPatch& ceiling,
+                                         double level, double center_frac) {
+  const double undefined = std::numeric_limits<double>::quiet_NaN();
+  if (width <= 0 || height <= 0) return undefined;
+  if (flat.size() != static_cast<std::size_t>(width) *
+                         static_cast<std::size_t>(height)) {
+    return undefined;
+  }
+  if (!std::isfinite(level) || level <= 0.0 || level > 1.0) return undefined;
+  if (!std::isfinite(center_frac) || center_frac <= 0.0 || center_frac > 1.0) {
+    return undefined;
+  }
+  if (!std::isfinite(ceiling.r) || !std::isfinite(ceiling.g) ||
+      !std::isfinite(ceiling.b) || ceiling.r <= 0.0 || ceiling.g <= 0.0 ||
+      ceiling.b <= 0.0) {
+    return undefined;
+  }
+
+  const int gate_w = std::max(
+      1, static_cast<int>(static_cast<double>(width) * center_frac));
+  const int gate_h = std::max(
+      1, static_cast<int>(static_cast<double>(height) * center_frac));
+  const int x0 = (width - gate_w) / 2;
+  const int y0 = (height - gate_h) / 2;
+
+  const double r_limit = ceiling.r * level;
+  const double g_limit = ceiling.g * level;
+  const double b_limit = ceiling.b * level;
+  std::size_t near = 0;
+  for (int y = y0; y < y0 + gate_h; ++y) {
+    for (int x = x0; x < x0 + gate_w; ++x) {
+      const RgbPixel& p = flat[static_cast<std::size_t>(y) *
+                                   static_cast<std::size_t>(width) +
+                               static_cast<std::size_t>(x)];
+      if (p.r >= r_limit) ++near;
+      if (p.g >= g_limit) ++near;
+      if (p.b >= b_limit) ++near;
+    }
+  }
+  const double total = static_cast<double>(gate_w) *
+                       static_cast<double>(gate_h) * 3.0;
+  return static_cast<double>(near) / total;
 }
 
 void write_patch_report_json(

@@ -571,11 +571,26 @@ int cmd_patches(int argc, char** argv) {
               ? static_cast<double>(summary.near_ceiling_sample_count) /
                     total_samples
               : 0.0;
+      summary.center_gate_fraction = flat_field_center_gate_fraction();
+      summary.center_near_ceiling_fraction = flat_center_near_ceiling_fraction(
+          flat_rgb, cfa->width, cfa->height, ceiling,
+          flat_field_near_ceiling_threshold_fraction(),
+          summary.center_gate_fraction);
       summary.max_allowed_near_ceiling_fraction =
           kMaxFlatNearCeilingFraction;
       if (summary.near_ceiling_fraction > kMaxFlatNearCeilingFraction) {
         std::cerr << "camera_iq patches: flat-field RAW is too close to the "
                   << "sensor ceiling for correction\n";
+        return 1;
+      }
+      // The center sets the correction scale and is the brightest region of a
+      // vignetted flat, so it clips before the frame-wide fraction moves. See
+      // docs/reports/FLAT_FIELD_RESPONSE.md for the capture that separated the
+      // two: 11.63% of the center gate near ceiling against 0.4964% frame-wide.
+      if (!(summary.center_near_ceiling_fraction <=
+            kMaxFlatNearCeilingFraction)) {
+        std::cerr << "camera_iq patches: flat-field RAW center is too close to "
+                  << "the sensor ceiling for correction\n";
         return 1;
       }
       flat_summary = summary;
