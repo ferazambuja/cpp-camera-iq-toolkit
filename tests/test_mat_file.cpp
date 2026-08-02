@@ -41,9 +41,12 @@ std::string element(std::uint32_t type, const std::string& payload) {
 // MAT array class codes used here.
 constexpr std::uint32_t kMxStruct = 2;
 constexpr std::uint32_t kMxDouble = 6;
+constexpr std::uint32_t kMxUint8 = 9;
+constexpr std::uint32_t kMxUint16 = 11;
 
 // MAT data type codes used here.
 constexpr std::uint32_t kMiInt8 = 1;
+constexpr std::uint32_t kMiUint8 = 2;
 constexpr std::uint32_t kMiUint16 = 4;
 constexpr std::uint32_t kMiInt32 = 5;
 constexpr std::uint32_t kMiUint32 = 6;
@@ -79,6 +82,29 @@ std::string dimensions(const std::vector<std::int32_t>& dims) {
 
 std::string array_name(const std::string& name) {
   return element(kMiInt8, name);
+}
+
+// MATLAB writes the array class that matches the stored width, so a uint16
+// array is mxUINT16_CLASS carrying an miUINT16 payload. Building it as
+// mxDOUBLE_CLASS would test a container MATLAB never produces.
+std::string int_matrix(const std::string& name,
+                       const std::vector<std::int32_t>& dims,
+                       std::uint32_t klass, std::uint32_t mi_type,
+                       const std::string& payload) {
+  const std::string body = array_flags(klass) + dimensions(dims) +
+                           array_name(name) + element(mi_type, payload);
+  return element(kMiMatrix, body);
+}
+
+// A data element using the compact tag: payloads of at most four bytes put the
+// byte count in the high half of the first word instead of a second word.
+std::string compact_element(std::uint32_t type, const std::string& payload) {
+  std::string out;
+  put_u32(out, (static_cast<std::uint32_t>(payload.size()) << 16) | type);
+  std::string data = payload;
+  data.resize(4, '\0');
+  out += data;
+  return out;
 }
 
 std::string double_matrix(const std::string& name,
@@ -205,19 +231,93 @@ void TESTS() {
       std::memcpy(b, &v, 2);
       u16.append(b, 2);
     }
-    const std::string wl_matrix = element(
-        kMiMatrix, array_flags(kMxDouble) + dimensions({1, 2}) +
-                       array_name("") + element(kMiUint16, u16));
+    const std::string wl_matrix =
+        int_matrix("", {1, 2}, kMxUint16, kMiUint16, u16);
+    const std::string counter =
+        int_matrix("", {1, 1}, kMxUint8, kMiUint8, std::string(1, '\1'));
     const std::string file =
         mat_header() +
         struct_matrix("measurements",
                       {{"wl", wl_matrix},
-                       {"radiance", double_matrix("", {1, 2}, {0.5, 0.25})}});
+                       {"radiance", double_matrix("", {1, 2}, {0.5, 0.25})},
+                       {"repeatOnError", counter}});
     const auto s = camera_iq::read_mat_struct(file);
     check(s.at("wl").values == std::vector<double>{380, 382},
           "mat: a uint16 field widens to double");
     check(s.at("radiance").values == std::vector<double>{0.5, 0.25},
           "mat: a double field in the same struct is unaffected");
+    check(s.at("repeatOnError").values == std::vector<double>{1},
+          "mat: a uint8 field widens to double");
+  }
+
+  // The compact tag is what every real struct in the archive uses for its
+  // field-name length, and nothing above exercises it: the builder emits the
+  // long form throughout.
+  {
+    std::string len_payload;
+    put_u32(len_payload, 3);  // "wl" plus its NUL
+    const std::string body =
+        array_flags(kMxStruct) + dimensions({1, 1}) + array_name("m") +
+        compact_element(kMiInt32, len_payload) +
+        element(kMiInt8, std::string("wl\0", 3)) +
+        double_matrix("", {1, 2}, {380, 382});
+    const std::string file = mat_header() + element(kMiMatrix, body);
+    const auto s = camera_iq::read_mat_struct(file);
+    check(s.count("wl") == 1,
+          "mat: a compact-tag element is read as a full element");
+    check(s.at("wl").values == std::vector<double>{380, 382},
+          "mat: parsing resumes at the right offset after a compact tag");
+  }
+
+  // Boundaries. This reader accepts an archive-specific subset of MAT v5, so
+  // what it will not accept has to be as explicit as what it will.
+  {
+    std::string bad_version = mat_header();
+    bad_version[124] = '\0';
+    bad_version[125] = '\2';  // v5 files carry 0x0100
+    // A struct that would otherwise parse, so only the version can reject it.
+    bad_version += struct_matrix("m", {{"wl", double_matrix("", {1, 1},
+                                                            {380})}});
+    bool threw = false;
+    try {
+      camera_iq::read_mat_struct(bad_version);
+    } catch (const std::runtime_error&) {
+      threw = true;
+    }
+    check(threw, "mat: an unsupported version field is rejected");
+  }
+
+  {
+    // Five bytes cannot be a whole number of uint16 samples. Truncating to two
+    // would silently drop a sample and still report a plausible array.
+    const std::string ragged =
+        mat_header() +
+        struct_matrix("m", {{"wl", int_matrix("", {1, 2}, kMxUint16, kMiUint16,
+                                              std::string(5, '\1'))}});
+    bool threw = false;
+    try {
+      camera_iq::read_mat_struct(ragged);
+    } catch (const std::runtime_error&) {
+      threw = true;
+    }
+    check(threw, "mat: a payload that is not a whole number of samples is "
+                 "rejected");
+  }
+
+  {
+    // Dimensions are what a caller indexes with, so they have to agree with the
+    // number of values actually present.
+    const std::string lying =
+        mat_header() +
+        struct_matrix("m", {{"wl", double_matrix("", {1, 5}, {380, 382})}});
+    bool threw = false;
+    try {
+      camera_iq::read_mat_struct(lying);
+    } catch (const std::runtime_error&) {
+      threw = true;
+    }
+    check(threw, "mat: dimensions that disagree with the value count are "
+                 "rejected");
   }
 
   {

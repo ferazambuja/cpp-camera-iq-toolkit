@@ -20,10 +20,17 @@ using MatStruct = std::map<std::string, MatArray>;
 
 // Reads the first struct variable from the bytes of a MATLAB v5 MAT-file.
 //
-// These files store their whole payload as one compressed element, so this
-// inflates before parsing. Malformed input throws std::runtime_error naming
-// what failed: a reader that returned an empty struct instead would be
-// indistinguishable from a file that genuinely holds no fields.
+// This is a subset reader for the shape the spectroradiometer archive stores,
+// not a general MAT implementation. It accepts little-endian v5 files, walks
+// compressed and uncompressed element streams, and returns one struct of
+// numeric arrays. It does not implement cell arrays, objects, char arrays,
+// sparse arrays, complex parts, or v7.3/HDF5 files, and it flattens a struct
+// array to the field set of its first element rather than preserving the array.
+//
+// Malformed input throws std::runtime_error naming what failed, including a
+// numeric payload that is not a whole number of samples and dimensions that
+// disagree with the value count. A reader that returned an empty struct instead
+// would be indistinguishable from a file that genuinely holds no fields.
 MatStruct read_mat_struct(const std::string& bytes);
 
 }  // namespace camera_iq
