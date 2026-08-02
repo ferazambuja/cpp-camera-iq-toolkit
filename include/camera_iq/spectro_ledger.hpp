@@ -18,13 +18,13 @@ struct SpectroLedgerEntry {
   std::vector<std::string> alias_paths;
 };
 
-// The canonical readings of one repeat group, in repeat order.
+// The canonical readings of one measurement group, in declared order.
 struct SpectroLedgerGroup {
   std::string group_id;
   std::vector<SpectroLedgerEntry> readings;
 };
 
-// Parses the committed identity ledger into repeat groups.
+// Parses the committed identity ledger into measurement groups.
 //
 // Grouping a measurement archive by directory order silently mislabels it the
 // moment a file is missing or renamed, and this archive has both: three of its

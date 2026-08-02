@@ -12,7 +12,7 @@ using camera_iq::MatArray;
 using camera_iq::MatStruct;
 using camera_iq::SpectroMeasurement;
 using camera_iq::spectro_measurement_from_mat;
-using camera_iq::summarize_spectro_repeats;
+using camera_iq::summarize_spectro_group;
 using test::check;
 using test::check_near;
 
@@ -76,7 +76,7 @@ void TESTS() {
         "spectro record: acquisition flags retain their stored semantics");
 
   const auto repeats =
-      summarize_spectro_repeats({measurement(0.0), measurement(2.0, 4.0)});
+      summarize_spectro_group({measurement(0.0), measurement(2.0, 4.0)});
   check(repeats.count == 2, "repeat summary: reading count is explicit");
   check(repeats.wavelength_nm == parsed.wavelength_nm,
         "repeat summary: validated wavelength axis is retained");
@@ -91,7 +91,7 @@ void TESTS() {
   check_near(repeats.sample_stddev_recorded_xyz->at(1), std::sqrt(8.0),
              1e-12, "repeat summary: recorded XYZ spread uses n-1");
 
-  const auto singleton = summarize_spectro_repeats({parsed});
+  const auto singleton = summarize_spectro_group({parsed});
   check(!singleton.sample_stddev_spectral_radiance.has_value() &&
             !singleton.sample_stddev_recorded_xyz.has_value(),
         "repeat summary: one reading does not fabricate repeatability");
@@ -128,7 +128,7 @@ void TESTS() {
 
   bool empty_group_threw = false;
   try {
-    (void)summarize_spectro_repeats({});
+    (void)summarize_spectro_group({});
   } catch (const std::runtime_error&) {
     empty_group_threw = true;
   }
@@ -138,7 +138,7 @@ void TESTS() {
   try {
     SpectroMeasurement shifted = measurement(1.0);
     shifted.wavelength_nm[1] = 383.0;
-    (void)summarize_spectro_repeats({parsed, shifted});
+    (void)summarize_spectro_group({parsed, shifted});
   } catch (const std::runtime_error&) {
     axis_threw = true;
   }
@@ -150,7 +150,7 @@ void TESTS() {
     SpectroMeasurement invalid = parsed;
     invalid.spectral_radiance[0] =
         std::numeric_limits<double>::quiet_NaN();
-    (void)summarize_spectro_repeats({invalid});
+    (void)summarize_spectro_group({invalid});
   } catch (const std::runtime_error&) {
     direct_nonfinite_threw = true;
   }
@@ -163,7 +163,7 @@ void TESTS() {
   high_b.spectral_radiance[0] =
       std::nextafter(high_a.spectral_radiance[0],
                      std::numeric_limits<double>::infinity());
-  const auto high_summary = summarize_spectro_repeats({high_a, high_b});
+  const auto high_summary = summarize_spectro_group({high_a, high_b});
   const double exact_two_sample_spread =
       (high_b.spectral_radiance[0] - high_a.spectral_radiance[0]) /
       std::sqrt(2.0);
@@ -181,13 +181,48 @@ void TESTS() {
   SpectroMeasurement wide_high = parsed;
   wide_low.spectral_radiance[0] = -1.0e308;
   wide_high.spectral_radiance[0] = 1.0e308;
-  const auto wide = summarize_spectro_repeats({wide_low, wide_high});
+  const auto wide = summarize_spectro_group({wide_low, wide_high});
   check(std::isfinite(wide.mean_spectral_radiance[0]),
         "repeat summary: finite readings produce a finite mean");
   check(wide.sample_stddev_spectral_radiance.has_value() &&
             std::isfinite(wide.sample_stddev_spectral_radiance->at(0)),
         "repeat summary: finite readings produce a finite spread");
-  check_near(wide.sample_stddev_spectral_radiance->at(0),
-             std::sqrt(2.0) * 1.0e308, 1e-12,
-             "repeat summary: the spread of two extreme readings is exact");
+  const double expected_wide_spread = std::sqrt(2.0) * 1.0e308;
+  const double wide_relative_error =
+      std::fabs(wide.sample_stddev_spectral_radiance->at(0) -
+                expected_wide_spread) /
+      expected_wide_spread;
+  check(wide_relative_error <= 4.0 * std::numeric_limits<double>::epsilon(),
+        "repeat summary: the spread of two extreme readings is accurate");
+
+  // A representable residual must survive cancellation regardless of input
+  // order. Subtracting the first reading from every other reading loses the
+  // 1.0 term when the origin is near DBL_MAX and makes the mean order-dependent.
+  SpectroMeasurement max_positive = parsed;
+  SpectroMeasurement max_negative = parsed;
+  SpectroMeasurement unit = parsed;
+  max_positive.spectral_radiance[0] =
+      std::numeric_limits<double>::max();
+  max_negative.spectral_radiance[0] =
+      -std::numeric_limits<double>::max();
+  unit.spectral_radiance[0] = 1.0;
+  const auto cancellation_a = summarize_spectro_group(
+      {max_positive, max_negative, unit});
+  const auto cancellation_b = summarize_spectro_group(
+      {unit, max_positive, max_negative});
+  check_near(cancellation_a.mean_spectral_radiance[0], 1.0 / 3.0, 1e-15,
+             "repeat summary: cancellation preserves a representable mean");
+  check_near(cancellation_b.mean_spectral_radiance[0], 1.0 / 3.0, 1e-15,
+             "repeat summary: cancellation mean is permutation-invariant");
+
+  // Finite inputs do not imply that their sample deviation is representable
+  // as double. The API must refuse that result rather than silently emit inf.
+  bool unrepresentable_spread_threw = false;
+  try {
+    (void)summarize_spectro_group({max_negative, max_positive});
+  } catch (const std::runtime_error&) {
+    unrepresentable_spread_threw = true;
+  }
+  check(unrepresentable_spread_threw,
+        "repeat summary: an unrepresentable spread is refused");
 }

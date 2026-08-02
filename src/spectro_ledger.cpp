@@ -78,7 +78,7 @@ void require_digest(std::string_view value) {
 
 std::size_t parse_repeat_index(std::string_view value) {
   const std::string shown(value);
-  // Nine digits cannot overflow the accumulator below, and no repeat group in
+  // Nine digits cannot overflow the accumulator below, and no measurement group in
   // any plausible archive approaches it.
   if (value.empty() || value.size() > 9) {
     refuse("repeat_index is not a small positive integer: " + shown);

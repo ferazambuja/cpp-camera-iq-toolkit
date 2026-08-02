@@ -79,12 +79,11 @@ and a smaller chromatic one across the chart area. What it cannot do is separate
 sphere nonuniformity from camera response, so this path is
 same-aperture-corrected, not shading-calibrated.
 
-Auditing that link also corrected the guard that selects the flat. It measured
-near ceiling over the whole frame only, which admits a flat whose bright
-central gate is already near ceiling — the exact failure the flat-field study
-isolated. It now applies the same CFA-domain per-position gate as `shading`.
-The selected 1/1000 s flat remains accepted, and the correction math after that
-gate is unchanged.
+Flat-field admission uses the same source-CFA, per-position limits as
+`shading`, including separate full-frame and centered-region measurements.
+This rejects a frame whose bright center is near ceiling even when its
+whole-frame fraction is below the limit. The selected 1/1000 s flat remains
+accepted, and the correction calculation after admission is unchanged.
 
 ## Interpretation limits
 

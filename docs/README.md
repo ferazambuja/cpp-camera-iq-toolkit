@@ -33,6 +33,19 @@ The study connects RAW monochromator extraction to same-session physical
 closure and a five-camera color-fidelity comparison, with mixed SSF provenance
 shown directly beside the result.
 
+### Spectroradiometer archive ingest and measurement-group analysis
+
+[Case study](case-studies/spectroradiometer-ingest.md) ·
+[aggregate data](data/spectro_group_summary.csv) ·
+[detailed report](reports/SPECTRORADIOMETER_INGEST.md) ·
+[implementation](../src/spectro_ingest.cpp) ·
+[tests](../tests/test_spectro_ingest.cpp)
+
+The command verifies exact file identities, parses 89 distinct readings, and
+reports absolute level, normalized spectral shape, recorded-XYZ chromaticity,
+and same-record numerical closure without assigning an unsupported physical
+cause to within-group variation.
+
 ### ColorChecker extraction and CCM validation
 
 [Case study](case-studies/colorchecker-ccm.md) ·
@@ -102,6 +115,7 @@ one of these very frames.
 |---|---|
 | [Spectral sensitivity](reports/SPECTRAL_SENSITIVITY.md) | RAW extraction, physical closure, Luther residuals, and SMI-style analysis |
 | [Spectral archive inventory](reports/SPECTRAL_ARCHIVE_INVENTORY.md) | Camera/session/file-role map and measurement hazards |
+| [Spectroradiometer ingest](reports/SPECTRORADIOMETER_INGEST.md) | Exact-byte MAT ingestion, measurement-group analysis, chromaticity, and same-record XYZ closure |
 
 ### Exposure, tone, and noise
 

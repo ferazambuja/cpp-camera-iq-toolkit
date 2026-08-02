@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Derive a source-relative identity and repeat-group ledger for CLRS-589 MAT files.
+"""Derive a source-relative identity and measurement-group ledger for CLRS-589 MAT files.
 
 The private MAT payloads are not published. This tool hashes them in place and
 writes only relative source names, repeat identities, and SHA-256 digests. Exact

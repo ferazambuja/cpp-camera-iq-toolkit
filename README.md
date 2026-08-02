@@ -33,12 +33,18 @@ validation.
   asymmetry** diagnoses departure from a centered radial scalar model; missing
   capture controls prevent isolated lens attribution regardless of the
   diagnostic verdict.
-- **Cross-command consistency:** auditing which frames each command uses as a
-  flat found that `patches` guarded its correction flat on a whole-frame
-  post-demosaic fraction alone, and so accepted a frame whose worst CFA position
-  was **11.63% near ceiling** in the centered gate. Both commands now use one
-  CFA-domain, CFA-balanced, per-position gate. The selected 1/1000 s correction
-  flat remains accepted; the correction path after admission is unchanged.
+- **Flat-field input screening:** `patches` and `shading` evaluate source-CFA
+  samples with the same per-position near-ceiling limits over both the full
+  frame and a centered region. The test rejects a 1/500 s frame whose worst CFA
+  position is **11.63% near ceiling** in the centered region, while retaining
+  the 1/1000 s correction flat. The correction calculation after admission is
+  unchanged.
+- **Spectroradiometer ingest:** verified **89 distinct MATLAB readings** across
+  40 measurement groups, separated absolute level from normalized spectral
+  shape, and reproduced recorded XYZ with one archive-derived scale. Across the
+  37 groups with multiple readings, level CV is **7.17% median**;
+  normalized-shape and chromaticity diagnostics are reported separately and
+  are nonzero.
 
 ## Featured case studies
 
@@ -46,6 +52,7 @@ validation.
 |---|---|---|
 | [Nikon D800/D810 + 50 mm f/1.4G SFR aperture and field analysis](docs/case-studies/sfr-mtf-aperture-field.md) | Slanted-edge algorithm, field behavior, advisory cross-checks, failure transfer | 299 accepted field ROIs; capture-system-specific trend and field findings |
 | [Spectral sensitivity and color fidelity](docs/case-studies/spectral-color-fidelity.md) | RAW monochromator extraction, physical closure, Luther/SMI comparison | Four-camera closure; stable five-camera endpoint ordering |
+| [Spectroradiometer archive ingest](docs/case-studies/spectroradiometer-ingest.md) | Exact-byte identity, MATLAB v5 parsing, absolute/normalized group analysis, XYZ closure | 89 readings; level variation separated from shape and chromaticity |
 | [ColorChecker extraction and CCM validation](docs/case-studies/colorchecker-ccm.md) | RAW patch extraction, flat field/WB, linear CCM, held-out Delta E | 140-patch pipeline with explicit dark-patch diagnostics |
 | [CFA flat-field response](docs/case-studies/cfa-flat-field-response.md) | Black-subtracted Bayer grids, center normalization, near-ceiling/dark/pair checks | 3/52 usable sphere frames; green-field asymmetry separated from smaller R/G and B/G variation |
 
@@ -66,6 +73,7 @@ not imply a separate production service or ISP.
 | RAW/CFA | LibRaw unpack, active-area handling, tiled black subtraction, Bayer-plane statistics, bilinear demosaic |
 | Color | ColorChecker-SG extraction, flat-field and WB policies, RGB-to-XYZ CCM fitting, Delta E 76/2000, held-out diagnostics |
 | Spectral | Monochromator RAW extraction, physical closure, Luther-condition residuals, ISO 17321-style SMI approximation |
+| Spectroradiometry | Exact-byte MATLAB v5 ingest, measurement-group absolute/normalized spectra, chromaticity, and same-record XYZ closure |
 | Tone and noise | Exposure grouping, relative OECF, Stepchart oracle/ring extraction, dark temporal noise, DSNU, DN-referred variance |
 | Sharpness | Green-linear slanted-edge SFR, MTF50/MTF50P, aperture sweeps, 23-ROI field maps |
 | Spatial response | Per-CFA flat-field maps, center-normalized R/G and B/G fields, quadrant asymmetry, bounded dark-control checks, and one capture-pair delta |
@@ -76,7 +84,7 @@ Implemented commands:
 `manifest`, `raw-stats`, `demosaic`, `dark-calibration`, `noise`, `sfr`,
 `exposure-response`, `oecf-fit`, `oecf-stepchart`, `reference-info`,
 `ccm-fit`, `patches`, `spectral-response`, `spectral-closure`,
-`spectral-quality`, `spectral-smi`, and `shading`.
+`spectral-quality`, `spectral-smi`, `spectro-ingest`, and `shading`.
 
 ## Reproducibility and data access
 
@@ -95,6 +103,7 @@ ctest --test-dir build --output-on-failure
 # Rebuild the figures from committed aggregate CSVs.
 python3 tools/generate_portfolio_figures.py
 python3 tools/generate_portfolio_figures.py --check
+python3 tools/generate_spectro_report_figure.py --check
 ```
 
 A small synthetic fixture exercises the dataset and manifest path end to end. It
@@ -131,6 +140,14 @@ Real-data commands use a dataset ID and paths relative to that dataset:
   --raw "<relative/slanted-edge/file.NEF>" \
   --oracle-y-multi "<relative/advisory-table.csv>" \
   --out out/sfr.json
+
+./build/camera_iq spectro-ingest clrs589_project_camera \
+  --ledger data/spectro_identity_ledger.csv \
+  --verify-aliases \
+  --out out/spectro-ingest.json \
+  --groups-csv out/spectro-groups.csv \
+  --spectra-csv out/spectro-spectra.csv \
+  --readings-csv out/spectro-readings.csv
 ```
 
 Copy `configs/datasets.example.json` to the gitignored

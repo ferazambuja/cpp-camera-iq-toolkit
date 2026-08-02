@@ -70,13 +70,9 @@ over the whole frame. A whole-frame 1% test would accept it even though the
 bright central region was already near ceiling. The command rejects it before
 any relative response map is emitted.
 
-That gate had to travel. Auditing which frames the toolkit uses as flats
-elsewhere showed that `patches` — the ColorChecker path — guarded its
-flat-field frame on the whole-frame fraction alone, and so accepted this exact
-capture as a correction flat. That aggregation diluted a one-plane defect in
-both color and space. `patches` now measures the source CFA before demosaic with
-the same shared 20% geometry, 98% level, 1% policy, and per-position decision
-rule as `shading`. On the
+The same frame is also a negative case for ColorChecker flat-field admission.
+`patches` measures the source CFA before demosaic with the same 20% centered
+geometry, 98% level, 1% limit, and per-position decision rule as `shading`. On the
 `1:500` frame it therefore reports the same four-position values: frame
 `[0, 0.3664%, 0.4964%, 0]` and gate `[0, 8.6908%, 11.6319%, 0]`, rejecting G2.
 Rejected runs retain those arrays, the effective rectangles, and the failing
