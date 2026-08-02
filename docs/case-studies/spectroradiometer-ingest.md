@@ -11,6 +11,7 @@ singletons.
 [Documentation index](../README.md) ·
 [detailed report](../reports/SPECTRORADIOMETER_INGEST.md) ·
 [aggregate CSV](../data/spectro_group_summary.csv) ·
+[result receipt](../data/spectro_result_receipt.json) ·
 [implementation](../../src/spectro_ingest.cpp) ·
 [tests](../../tests/test_spectro_ingest.cpp)
 
@@ -32,9 +33,9 @@ normalized by its computed equal-weight spectral integral. Recorded XYZ,
 ## Result
 
 Across the 37 groups with at least two readings, the spectral-integral
-coefficient of variation is **7.17% median** and **41.65% maximum**. Normalized
-spectral shape changes less but is not constant: the maximum per-group relative
-L2 residual is **0.518% median** and **1.076% maximum**. Recorded-XYZ
+coefficient of variation is **7.17% median** and **41.65% maximum**. The maximum
+per-group normalized-shape relative L2 residual is **0.518% median** and
+**1.076% maximum**. Recorded-XYZ
 chromaticity also changes: maximum pairwise Δu′v′ is **0.000703 median** and
 **0.002852 maximum**.
 

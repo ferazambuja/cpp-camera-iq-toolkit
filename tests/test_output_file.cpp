@@ -79,6 +79,40 @@ void TESTS() {
   }
 
   {
+    const auto source = root / "source.mat";
+    const auto output = root / "hard-linked-output.json";
+    {
+      std::ofstream seed(source, std::ios::binary);
+      seed << "source evidence";
+    }
+    std::filesystem::create_hard_link(source, output);
+    std::ostringstream err;
+    const bool ok = write_output_file_checked(
+        output, "fixture", [](std::ostream& os) { os << "replacement"; },
+        err);
+    test::check(!ok, "checked writer refuses a multiply-linked output file");
+    test::check(read_text(source) == "source evidence",
+                "checked writer preserves a hard-linked source file");
+  }
+
+  {
+    const auto source = root / "symlink-source.mat";
+    const auto output = root / "symlinked-output.json";
+    {
+      std::ofstream seed(source, std::ios::binary);
+      seed << "source evidence";
+    }
+    std::filesystem::create_symlink(source, output);
+    std::ostringstream err;
+    const bool ok = write_output_file_checked(
+        output, "fixture", [](std::ostream& os) { os << "replacement"; },
+        err);
+    test::check(!ok, "checked writer refuses a symlinked output file");
+    test::check(read_text(source) == "source evidence",
+                "checked writer preserves a symlink target");
+  }
+
+  {
     std::ostringstream err;
     const auto path = root / "thrown.json";
     bool threw = false;

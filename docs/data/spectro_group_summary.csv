@@ -1,4 +1,4 @@
-group_id,count,mean_spectral_integral,sample_stddev_spectral_integral,coefficient_of_variation,max_pair_delta_uv,max_shape_relative_l2,variation_label
+group_id,count,mean_spectral_integral,sample_stddev_spectral_integral,coefficient_of_variation,max_pair_delta_u_prime_v_prime,max_shape_relative_l2,variation_label
 ramp_patch_01,3,0.74771404666666663,0.16348714104141321,0.21864928413508367,0.0028519486388656132,0.01075914397243751,within_group_observed_variation
 ramp_patch_02,3,1.68637824,0.026553443102573279,0.015745840685523361,0.0003203579826077042,0.002927961273527865,within_group_observed_variation
 ramp_patch_03,3,2.0041297199999999,0.27296647334089008,0.13620199861159191,0.000249631631724371,0.0035154361595422191,within_group_observed_variation
@@ -36,6 +36,6 @@ scene_18,2,1.2160852900000001,0.16286777763147681,0.13392792345303084,0.00082685
 scene_19,2,1.5349918,0.097709429237919532,0.06365469133966678,0.00056797065039896775,0.0051701474209348754,within_group_observed_variation
 scene_20,2,1.5089458000000002,0.026404781423068048,0.017498826944657684,0.00045490325790717732,0.004148567687190575,within_group_observed_variation
 scene_21,2,1.22357699,0.13377132353514412,0.10932808039741261,0.00059735464420645904,0.0044334812210650486,within_group_observed_variation
-scene_22,1,1.3050029999999999,,,,,within_group_observed_variation
-scene_23,1,1.4226144000000001,,,,,within_group_observed_variation
-scene_24,1,1.22197512,,,,,within_group_observed_variation
+scene_22,1,1.3050029999999999,,,,,not_established_single_measurement
+scene_23,1,1.4226144000000001,,,,,not_established_single_measurement
+scene_24,1,1.22197512,,,,,not_established_single_measurement

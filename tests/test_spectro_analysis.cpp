@@ -1,6 +1,7 @@
 #include "camera_iq/spectro_analysis.hpp"
 
 #include <cmath>
+#include <limits>
 #include <vector>
 
 #include "harness.hpp"
@@ -43,8 +44,8 @@ void TESTS() {
   check(same_shape.max_shape_relative_l2.has_value() &&
             *same_shape.max_shape_relative_l2 == 0.0,
         "spectro analysis: pure level scaling has zero shape residual");
-  check(same_shape.max_pair_delta_uv.has_value() &&
-            *same_shape.max_pair_delta_uv == 0.0,
+  check(same_shape.max_pair_delta_u_prime_v_prime.has_value() &&
+            *same_shape.max_pair_delta_u_prime_v_prime == 0.0,
         "spectro analysis: proportional XYZ has zero chromaticity separation");
 
   const auto singleton = analyze_spectro_group({reading(1.0)});
@@ -52,15 +53,15 @@ void TESTS() {
             !singleton.coefficient_of_variation.has_value() &&
             !singleton.sample_stddev_normalized_spectrum.has_value() &&
             !singleton.max_shape_relative_l2.has_value() &&
-            !singleton.max_pair_delta_uv.has_value(),
+            !singleton.max_pair_delta_u_prime_v_prime.has_value(),
         "spectro analysis: singleton variation metrics are absent");
 
   SpectroMeasurement changed_chromaticity = reading(2.0);
   changed_chromaticity.recorded_xyz[1] += 1.0;
   const auto chromatic =
       analyze_spectro_group({reading(1.0), changed_chromaticity});
-  check(chromatic.max_pair_delta_uv.has_value() &&
-            *chromatic.max_pair_delta_uv > 0.0,
+  check(chromatic.max_pair_delta_u_prime_v_prime.has_value() &&
+            *chromatic.max_pair_delta_u_prime_v_prime > 0.0,
         "spectro analysis: nonzero chromaticity variation is retained");
 
   SpectroMeasurement high_level_a = reading(1.0);
@@ -75,6 +76,22 @@ void TESTS() {
   check_near(*high_level.sample_stddev_spectral_integral / 1.0e307,
              2.5 * std::sqrt(2.0), 1e-12,
              "spectro analysis: high-level spread avoids squared overflow");
+
+  SpectroMeasurement lowest_level = reading(1.0);
+  lowest_level.wavelength_nm = {1.0, 2.0};
+  lowest_level.spectral_radiance = {
+      std::numeric_limits<double>::denorm_min(), 0.0};
+  const auto subnormal =
+      analyze_spectro_group({lowest_level, lowest_level});
+  check(subnormal.mean_spectral_integral ==
+            std::numeric_limits<double>::denorm_min(),
+        "spectro analysis: the mean retains a positive subnormal level");
+  check(subnormal.sample_stddev_spectral_integral.has_value() &&
+            *subnormal.sample_stddev_spectral_integral == 0.0 &&
+            subnormal.coefficient_of_variation.has_value() &&
+            *subnormal.coefficient_of_variation == 0.0,
+        "spectro analysis: identical subnormal levels have finite zero "
+        "variation");
 
   bool normalization_overflow_threw = false;
   try {

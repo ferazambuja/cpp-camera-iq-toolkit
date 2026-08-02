@@ -1,7 +1,7 @@
 #include "camera_iq/spectro_ingest.hpp"
 
+#include <array>
 #include <fstream>
-#include <iterator>
 #include <stdexcept>
 #include <string>
 #include <utility>
@@ -57,13 +57,31 @@ resolve_regular_file(const std::filesystem::path &canonical_root,
 }
 
 std::string read_bytes(const std::filesystem::path &path,
-                       const std::filesystem::path &shown) {
+                       const std::filesystem::path &shown,
+                       std::size_t max_input_bytes) {
+  std::error_code size_error;
+  const std::uintmax_t file_bytes =
+      std::filesystem::file_size(path, size_error);
+  if (size_error || file_bytes > max_input_bytes) {
+    refuse("declared path exceeds the input byte limit: " +
+           shown.generic_string());
+  }
   std::ifstream input(path, std::ios::binary);
   if (!input) {
     refuse("cannot open declared path " + shown.generic_string());
   }
-  std::string bytes{std::istreambuf_iterator<char>(input),
-                    std::istreambuf_iterator<char>()};
+  std::string bytes;
+  bytes.reserve(static_cast<std::size_t>(file_bytes));
+  std::array<char, 8192> buffer{};
+  while (input) {
+    input.read(buffer.data(), static_cast<std::streamsize>(buffer.size()));
+    const std::size_t count = static_cast<std::size_t>(input.gcount());
+    if (count > max_input_bytes - bytes.size()) {
+      refuse("declared path exceeds the input byte limit: " +
+             shown.generic_string());
+    }
+    bytes.append(buffer.data(), count);
+  }
   if (input.bad()) {
     refuse("cannot read declared path " + shown.generic_string());
   }
@@ -74,7 +92,8 @@ std::string read_bytes(const std::filesystem::path &path,
 
 SpectroArchiveIngest
 ingest_spectro_archive(const std::filesystem::path &archive_root,
-                       const std::string &ledger_csv, bool verify_aliases) {
+                       const std::string &ledger_csv, bool verify_aliases,
+                       std::size_t max_input_bytes) {
   std::error_code error;
   const std::filesystem::file_status root_status =
       std::filesystem::symlink_status(archive_root, error);
@@ -104,7 +123,7 @@ ingest_spectro_archive(const std::filesystem::path &archive_root,
       const std::filesystem::path relative(entry.canonical_path);
       const std::filesystem::path file =
           resolve_regular_file(canonical_root, relative);
-      const std::string bytes = read_bytes(file, relative);
+      const std::string bytes = read_bytes(file, relative, max_input_bytes);
       const std::string digest = sha256_hex(bytes);
       if (digest != entry.sha256) {
         refuse("SHA-256 mismatch for " + relative.generic_string());
@@ -115,7 +134,8 @@ ingest_spectro_archive(const std::filesystem::path &archive_root,
           const std::filesystem::path alias_relative(alias_name);
           const std::filesystem::path alias =
               resolve_regular_file(canonical_root, alias_relative);
-          const std::string alias_bytes = read_bytes(alias, alias_relative);
+          const std::string alias_bytes =
+              read_bytes(alias, alias_relative, max_input_bytes);
           if (sha256_hex(alias_bytes) != digest) {
             refuse("declared alias is not byte-identical: " +
                    alias_relative.generic_string());

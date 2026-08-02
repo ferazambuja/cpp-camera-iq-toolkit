@@ -1,5 +1,7 @@
 #include "camera_iq/spectro_colorimetry.hpp"
 
+#include <cmath>
+#include <limits>
 #include <vector>
 
 #include "harness.hpp"
@@ -39,6 +41,16 @@ void TESTS() {
         "spectro closure: equal-weight XYZ is recomputed from the spectrum");
   check_near(closure.max_absolute_relative_residual_percent, 0.0, 1e-12,
              "spectro closure: an exact synthetic relationship closes");
+
+  const auto high_range =
+      compute_spectro_closure({reading(1.0e200)}, observer);
+  check(std::isfinite(high_range.scale_value) &&
+            std::fabs(high_range.scale_value - 10.0) <=
+                4.0 * std::numeric_limits<double>::epsilon() * 10.0,
+        "spectro closure: a representable fit survives squared-product "
+        "overflow");
+  check(std::isfinite(high_range.max_absolute_relative_residual_percent),
+        "spectro closure: high-range residuals remain finite");
 
   bool mismatch_threw = false;
   try {

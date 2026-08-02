@@ -119,7 +119,7 @@ one archive-derived scale.
 The fit does not establish the instrument's undocumented software, observer
 normalization, or physical accuracy. The scale is not labeled `Kcd`, `Km`, or a
 standard luminous-efficacy constant. Both spectrum and XYZ originate in the
-same record, so this is an internal numerical closure check rather than an
+same record, so this is a same-record numerical closure check rather than an
 independent reference measurement.
 
 ## Recorded metadata boundary
@@ -144,6 +144,9 @@ The command can emit:
 - A per-reading CSV with identities, recorded metadata, computed closure, and
   SHA-256 hashes of the wavelength and radiance vectors as little-endian
   IEEE-754 binary64.
+- A compact [result receipt](../data/spectro_result_receipt.json) binding the
+  published aggregate and closure values to the identity-ledger and observer
+  hashes without publishing the source measurements.
 
 `tools/matlab/export_spectro_crosscheck.m` reads the same 89 ledger rows through
 MATLAB. `tools/compare_spectro_crosscheck.py` compares vector hashes exactly and
@@ -174,3 +177,4 @@ truth.
 - [`tests/test_spectro_analysis.cpp`](../../tests/test_spectro_analysis.cpp)
 - [`tests/test_spectro_colorimetry.cpp`](../../tests/test_spectro_colorimetry.cpp)
 - [`docs/data/spectro_group_summary.csv`](../data/spectro_group_summary.csv)
+- [`docs/data/spectro_result_receipt.json`](../data/spectro_result_receipt.json)

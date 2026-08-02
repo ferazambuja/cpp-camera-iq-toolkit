@@ -1,12 +1,12 @@
 #include "camera_iq/commands.hpp"
 
+#include <array>
 #include <bit>
 #include <cstdint>
 #include <filesystem>
 #include <fstream>
 #include <iomanip>
 #include <iostream>
-#include <iterator>
 #include <limits>
 #include <optional>
 #include <stdexcept>
@@ -46,7 +46,8 @@ void usage(std::ostream &out) {
          "  --out FILE          Authoritative JSON output\n"
          "  --groups-csv FILE   One row per measurement group\n"
          "  --spectra-csv FILE  Absolute and normalized group spectra\n"
-         "  --readings-csv FILE One row per canonical reading\n";
+         "  --readings-csv FILE One row per canonical reading\n"
+         "  -h, --help          Show this help\n";
 }
 
 std::optional<Arguments> parse_arguments(int argc, char **argv) {
@@ -85,14 +86,38 @@ std::optional<Arguments> parse_arguments(int argc, char **argv) {
 }
 
 std::string read_file(const std::filesystem::path &path,
-                      std::string_view description) {
+                      std::string_view description,
+                      std::size_t max_input_bytes) {
+  std::error_code size_error;
+  const std::uintmax_t file_bytes =
+      std::filesystem::file_size(path, size_error);
+  if (size_error) {
+    throw std::runtime_error("cannot inspect " + std::string(description) +
+                             " " + path.string());
+  }
+  if (file_bytes > max_input_bytes) {
+    throw std::runtime_error(std::string(description) +
+                             " exceeds the input byte limit " +
+                             path.string());
+  }
   std::ifstream input(path, std::ios::binary);
   if (!input) {
     throw std::runtime_error("cannot open " + std::string(description) + " " +
                              path.string());
   }
-  std::string bytes{std::istreambuf_iterator<char>(input),
-                    std::istreambuf_iterator<char>()};
+  std::string bytes;
+  bytes.reserve(static_cast<std::size_t>(file_bytes));
+  std::array<char, 8192> buffer{};
+  while (input) {
+    input.read(buffer.data(), static_cast<std::streamsize>(buffer.size()));
+    const std::size_t count = static_cast<std::size_t>(input.gcount());
+    if (count > max_input_bytes - bytes.size()) {
+      throw std::runtime_error(std::string(description) +
+                               " exceeds the input byte limit " +
+                               path.string());
+    }
+    bytes.append(buffer.data(), count);
+  }
   if (input.bad()) {
     throw std::runtime_error("cannot read " + std::string(description) + " " +
                              path.string());
@@ -187,6 +212,21 @@ void write_optional_array(JsonWriter &writer,
   }
 }
 
+std::string csv_escape(std::string_view value) {
+  if (value.find_first_of(",\"\r\n") == std::string_view::npos)
+    return std::string(value);
+  std::string escaped;
+  escaped.reserve(value.size() + 2);
+  escaped.push_back('"');
+  for (const char character : value) {
+    if (character == '"')
+      escaped.push_back('"');
+    escaped.push_back(character);
+  }
+  escaped.push_back('"');
+  return escaped;
+}
+
 void write_json(std::ostream &out, const SpectroArchiveIngest &archive,
                 const SpectroClosureResult &closure,
                 std::string_view dataset_label, std::string_view ledger_label,
@@ -195,7 +235,7 @@ void write_json(std::ostream &out, const SpectroArchiveIngest &archive,
   JsonWriter writer(out);
   writer.begin_object();
   writer.key("schema_version");
-  writer.value(1);
+  writer.value(2);
   writer.key("dataset");
   writer.value(dataset_label);
   writer.key("ledger");
@@ -285,8 +325,11 @@ void write_json(std::ostream &out, const SpectroArchiveIngest &archive,
     write_optional_array(writer, analysis.sample_stddev_normalized_spectrum);
     writer.key("max_relative_l2");
     write_optional(writer, analysis.max_shape_relative_l2);
-    writer.key("max_pair_delta_uv");
-    write_optional(writer, analysis.max_pair_delta_uv);
+    writer.end_object();
+    writer.key("recorded_xyz_chromaticity");
+    writer.begin_object();
+    writer.key("max_pair_delta_u_prime_v_prime");
+    write_optional(writer, analysis.max_pair_delta_u_prime_v_prime);
     writer.end_object();
     writer.key("singleton_reason");
     if (group.readings.size() == 1) {
@@ -359,10 +402,11 @@ void write_groups_csv(std::ostream &out, const SpectroArchiveIngest &archive) {
   out << std::setprecision(17)
       << "group_id,count,mean_spectral_integral,"
          "sample_stddev_spectral_integral,coefficient_of_variation,"
-         "max_pair_delta_uv,max_shape_relative_l2,variation_label\n";
+         "max_pair_delta_u_prime_v_prime,max_shape_relative_l2,"
+         "variation_label\n";
   for (const auto &group : archive.groups) {
     const auto &analysis = group.analysis;
-    out << group.group_id << ',' << group.readings.size() << ','
+    out << csv_escape(group.group_id) << ',' << group.readings.size() << ','
         << analysis.mean_spectral_integral << ',';
     if (analysis.sample_stddev_spectral_integral) {
       out << *analysis.sample_stddev_spectral_integral;
@@ -372,13 +416,17 @@ void write_groups_csv(std::ostream &out, const SpectroArchiveIngest &archive) {
       out << *analysis.coefficient_of_variation;
     }
     out << ',';
-    if (analysis.max_pair_delta_uv)
-      out << *analysis.max_pair_delta_uv;
+    if (analysis.max_pair_delta_u_prime_v_prime)
+      out << *analysis.max_pair_delta_u_prime_v_prime;
     out << ',';
     if (analysis.max_shape_relative_l2) {
       out << *analysis.max_shape_relative_l2;
     }
-    out << ",within_group_observed_variation\n";
+    out << ','
+        << (group.readings.size() == 1
+                ? "not_established_single_measurement"
+                : "within_group_observed_variation")
+        << '\n';
   }
 }
 
@@ -390,7 +438,8 @@ void write_spectra_csv(std::ostream &out, const SpectroArchiveIngest &archive) {
   for (const auto &group : archive.groups) {
     for (std::size_t index = 0; index < group.summary.wavelength_nm.size();
          ++index) {
-      out << group.group_id << ',' << group.summary.wavelength_nm[index] << ','
+      out << csv_escape(group.group_id) << ','
+          << group.summary.wavelength_nm[index] << ','
           << group.summary.mean_spectral_radiance[index] << ',';
       if (group.summary.sample_stddev_spectral_radiance) {
         out << group.summary.sample_stddev_spectral_radiance->at(index);
@@ -418,9 +467,10 @@ void write_readings_csv(std::ostream &out, const SpectroArchiveIngest &archive,
     for (std::size_t index = 0; index < group.readings.size(); ++index) {
       const auto &reading = group.readings[index];
       const auto &analyzed = group.analysis.readings[index];
-      out << group.group_id << ',' << reading.identity.repeat_index << ','
-          << reading.identity.canonical_path << ',' << reading.identity.sha256
-          << ',' << analyzed.spectral_integral << ','
+      out << csv_escape(group.group_id) << ','
+          << reading.identity.repeat_index << ','
+          << csv_escape(reading.identity.canonical_path) << ','
+          << reading.identity.sha256 << ',' << analyzed.spectral_integral << ','
           << binary64_le_sha256(reading.measurement.wavelength_nm) << ','
           << binary64_le_sha256(reading.measurement.spectral_radiance);
       for (const double value : reading.measurement.recorded_xyz) {
@@ -447,6 +497,11 @@ void write_readings_csv(std::ostream &out, const SpectroArchiveIngest &archive,
 } // namespace
 
 int cmd_spectro_ingest(int argc, char **argv) {
+  if (argc == 1 && (std::string_view(argv[0]) == "-h" ||
+                    std::string_view(argv[0]) == "--help")) {
+    usage(std::cout);
+    return 0;
+  }
   const std::optional<Arguments> parsed = parse_arguments(argc, argv);
   if (!parsed) {
     usage(std::cerr);
@@ -461,10 +516,13 @@ int cmd_spectro_ingest(int argc, char **argv) {
       return 1;
     }
     validate_output_paths(args, dataset->root);
-    const std::string ledger = read_file(args.ledger, "identity ledger");
+    constexpr std::size_t kMaxMetadataInputBytes = 4u << 20;
+    const std::string ledger =
+        read_file(args.ledger, "identity ledger", kMaxMetadataInputBytes);
     const SpectroArchiveIngest archive =
         ingest_spectro_archive(dataset->root, ledger, args.verify_aliases);
-    const std::string cmf_csv = read_file(args.cmf, "CMF table");
+    const std::string cmf_csv =
+        read_file(args.cmf, "CMF table", kMaxMetadataInputBytes);
     const SpectroCmfTable observer = read_spectro_cmf_csv(cmf_csv);
     std::vector<SpectroMeasurement> measurements;
     measurements.reserve(archive.canonical_reading_count);

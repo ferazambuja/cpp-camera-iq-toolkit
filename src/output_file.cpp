@@ -47,6 +47,21 @@ bool write_output_file_checked(
     const std::function<void(std::ostream&)>& write_body,
     std::ostream& err,
     bool append_newline) {
+  std::error_code link_error;
+  const std::filesystem::file_status destination_status =
+      std::filesystem::symlink_status(path, link_error);
+  if (!link_error && std::filesystem::is_symlink(destination_status)) {
+    report_failure(err, command_name, "refusing symlinked output", path);
+    return false;
+  }
+  if (!link_error && std::filesystem::is_regular_file(destination_status) &&
+      std::filesystem::hard_link_count(path, link_error) > 1 &&
+      !link_error) {
+    report_failure(err, command_name, "refusing multiply-linked output",
+                   path);
+    return false;
+  }
+
   const auto parent = path.parent_path();
   if (!parent.empty()) {
     std::error_code ec;

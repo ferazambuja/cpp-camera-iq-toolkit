@@ -3,9 +3,12 @@
 #include <algorithm>
 #include <cstdint>
 #include <cstring>
+#include <stdexcept>
 #include <string>
 #include <utility>
 #include <vector>
+
+#include <zlib.h>
 
 namespace spectro_test {
 
@@ -38,6 +41,7 @@ constexpr std::uint32_t kMiInt32 = 5;
 constexpr std::uint32_t kMiUint32 = 6;
 constexpr std::uint32_t kMiDouble = 9;
 constexpr std::uint32_t kMiMatrix = 14;
+constexpr std::uint32_t kMiCompressed = 15;
 
 inline std::string array_flags(std::uint32_t klass, std::uint32_t flags = 0) {
   std::string payload;
@@ -122,6 +126,24 @@ inline std::string measurement_mat(double radiance_offset = 0.0) {
               {"Duv", double_matrix("", {1, 1}, {-0.001})},
               {"repeatOnError", logical_matrix("", true)},
               {"numCurrentRepetitions", double_matrix("", {1, 1}, {0})}});
+}
+
+inline std::string compressed_measurement_mat(double radiance_offset = 0.0) {
+  const std::string uncompressed = measurement_mat(radiance_offset);
+  const std::string payload = uncompressed.substr(128);
+  uLongf compressed_size = compressBound(static_cast<uLong>(payload.size()));
+  std::string compressed(static_cast<std::size_t>(compressed_size), '\0');
+  if (compress2(reinterpret_cast<Bytef *>(compressed.data()), &compressed_size,
+                reinterpret_cast<const Bytef *>(payload.data()),
+                static_cast<uLong>(payload.size()), Z_BEST_SPEED) != Z_OK) {
+    throw std::runtime_error("spectro fixture: zlib compression failed");
+  }
+  compressed.resize(static_cast<std::size_t>(compressed_size));
+  std::string result = uncompressed.substr(0, 128);
+  put_u32(result, kMiCompressed);
+  put_u32(result, static_cast<std::uint32_t>(compressed.size()));
+  result += compressed;
+  return result;
 }
 
 } // namespace spectro_test
