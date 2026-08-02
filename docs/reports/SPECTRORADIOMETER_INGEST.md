@@ -156,6 +156,12 @@ numeric metadata within declared tolerances. This keeps MATLAB as an
 independent parser check rather than an ingest dependency or second source of
 truth.
 
+That comparison has not been run against this archive, and no published number
+here should be read as MATLAB-confirmed. CI cannot run it, because MATLAB is not
+available there. The gated `test_compare_spectro_crosscheck` exercises the
+comparator's own behaviour against constructed inputs, which establishes that
+the comparator would detect a disagreement, not that the two parsers agree.
+
 ## Interpretation limits
 
 - Group membership comes from the archive-derived, CTest-gated ledger.
