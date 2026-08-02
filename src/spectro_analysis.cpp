@@ -7,20 +7,78 @@
 namespace camera_iq {
 namespace {
 
+class CompensatedSum {
+public:
+  void add(double value) {
+    const double next = sum_ + value;
+    if (std::fabs(sum_) >= std::fabs(value)) {
+      correction_ += (sum_ - next) + value;
+    } else {
+      correction_ += (value - next) + sum_;
+    }
+    sum_ = next;
+  }
+
+  double value() const { return sum_ + correction_; }
+
+private:
+  double sum_ = 0.0;
+  double correction_ = 0.0;
+};
+
 double equal_weight_integral(const SpectroMeasurement &reading,
                              double wavelength_step_nm) {
-  double sum = 0.0;
-  double correction = 0.0;
+  double max_magnitude = 0.0;
+  double ordinary_sum = 0.0;
+  double ordinary_correction = 0.0;
+  bool ordinary_representable = true;
   for (const double sample : reading.spectral_radiance) {
-    const double next = sum + sample;
-    if (std::fabs(sum) >= std::fabs(sample)) {
-      correction += (sum - next) + sample;
-    } else {
-      correction += (sample - next) + sum;
+    if (!std::isfinite(sample)) {
+      throw std::runtime_error(
+          "spectro analysis: spectral radiance must be finite");
     }
-    sum = next;
+    max_magnitude = std::max(max_magnitude, std::fabs(sample));
+    if (ordinary_representable) {
+      const double next = ordinary_sum + sample;
+      if (!std::isfinite(next)) {
+        ordinary_representable = false;
+      } else {
+        if (std::fabs(ordinary_sum) >= std::fabs(sample)) {
+          ordinary_correction += (ordinary_sum - next) + sample;
+        } else {
+          ordinary_correction += (sample - next) + ordinary_sum;
+        }
+        ordinary_sum = next;
+        ordinary_representable = std::isfinite(ordinary_correction);
+      }
+    }
   }
-  const double integral = (sum + correction) * wavelength_step_nm;
+
+  if (ordinary_representable) {
+    const double integral =
+        (ordinary_sum + ordinary_correction) * wavelength_step_nm;
+    if (std::isfinite(integral)) {
+      if (integral <= 0.0) {
+        throw std::runtime_error(
+            "spectro analysis: spectral integral must be finite and positive");
+      }
+      return integral;
+    }
+  }
+
+  int sample_exponent = 0;
+  if (max_magnitude > 0.0)
+    (void)std::frexp(max_magnitude, &sample_exponent);
+
+  CompensatedSum sum;
+  for (const double sample : reading.spectral_radiance)
+    sum.add(std::ldexp(sample, -sample_exponent));
+
+  int step_exponent = 0;
+  const double step_fraction =
+      std::frexp(wavelength_step_nm, &step_exponent);
+  const double integral = std::ldexp(sum.value() * step_fraction,
+                                     sample_exponent + step_exponent);
   if (!std::isfinite(integral) || integral <= 0.0) {
     throw std::runtime_error(
         "spectro analysis: spectral integral must be finite and positive");
@@ -89,20 +147,13 @@ double representable_mean(const std::vector<double> &values) {
   if (max_magnitude > 0.0)
     (void)std::frexp(max_magnitude, &exponent);
 
-  double sum = 0.0;
-  double correction = 0.0;
+  CompensatedSum sum;
   const double divisor = static_cast<double>(values.size());
   for (const double value : values) {
     const double term = std::ldexp(value, -exponent) / divisor;
-    const double next = sum + term;
-    if (std::fabs(sum) >= std::fabs(term)) {
-      correction += (sum - next) + term;
-    } else {
-      correction += (term - next) + sum;
-    }
-    sum = next;
+    sum.add(term);
   }
-  const double result = std::ldexp(sum + correction, exponent);
+  const double result = std::ldexp(sum.value(), exponent);
   if (!std::isfinite(result))
     throw std::runtime_error("spectro analysis: mean is not representable");
   return result;

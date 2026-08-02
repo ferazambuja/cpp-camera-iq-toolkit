@@ -52,6 +52,28 @@ void TESTS() {
   check(std::isfinite(high_range.max_absolute_relative_residual_percent),
         "spectro closure: high-range residuals remain finite");
 
+  const auto cancellation_observer = read_spectro_cmf_csv(
+      "Wavelength (nm),X,Y,Z\n"
+      "1,1,1,1\n"
+      "2,1,1,1\n"
+      "3,1,1,1\n");
+  SpectroMeasurement cancellation = reading(1.0);
+  cancellation.wavelength_nm = {1.0, 2.0, 3.0};
+  const double three_quarters_max =
+      0.75 * std::numeric_limits<double>::max();
+  cancellation.spectral_radiance = {
+      three_quarters_max, three_quarters_max, -three_quarters_max};
+  cancellation.recorded_xyz = {
+      three_quarters_max, three_quarters_max, three_quarters_max};
+  const auto cancellation_closure =
+      compute_spectro_closure({cancellation}, cancellation_observer);
+  check(cancellation_closure.readings[0].computed_xyz ==
+            cancellation.recorded_xyz &&
+            cancellation_closure.max_absolute_relative_residual_percent ==
+                0.0,
+        "spectro closure: a representable tristimulus survives intermediate "
+        "summation overflow");
+
   bool mismatch_threw = false;
   try {
     SpectroMeasurement shifted = reading(1.0);

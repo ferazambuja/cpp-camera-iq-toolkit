@@ -74,7 +74,18 @@ std::array<double, 3> integrate_unscaled(const SpectroMeasurement &reading,
   if (!std::isfinite(step) || step <= 0.0) {
     throw std::runtime_error("spectro closure: invalid wavelength step");
   }
-  std::array<double, 3> result{};
+  std::vector<std::size_t> observer_indices;
+  observer_indices.reserve(reading.wavelength_nm.size());
+  std::array<double, 3> ordinary_result{};
+  bool ordinary_representable = true;
+  double radiance_magnitude = 0.0;
+  for (const double sample : reading.spectral_radiance) {
+    if (!std::isfinite(sample)) {
+      throw std::runtime_error(
+          "spectro closure: spectral radiance must be finite");
+    }
+    radiance_magnitude = std::max(radiance_magnitude, std::fabs(sample));
+  }
   for (std::size_t index = 0; index < reading.wavelength_nm.size(); ++index) {
     if (index > 0 && std::fabs((reading.wavelength_nm[index] -
                                 reading.wavelength_nm[index - 1]) -
@@ -92,10 +103,52 @@ std::array<double, 3> integrate_unscaled(const SpectroMeasurement &reading,
     }
     const std::size_t observer_index =
         static_cast<std::size_t>(found - observer.wavelength_nm.begin());
-    for (std::size_t channel = 0; channel < result.size(); ++channel) {
-      result[channel] += reading.spectral_radiance[index] *
-                         observer.xyz_bar[channel][observer_index] * step;
+    observer_indices.push_back(observer_index);
+    for (std::size_t channel = 0; channel < ordinary_result.size(); ++channel) {
+      const double term = reading.spectral_radiance[index] *
+                          observer.xyz_bar[channel][observer_index] * step;
+      const double next = ordinary_result[channel] + term;
+      if (!std::isfinite(term) || !std::isfinite(next)) {
+        ordinary_representable = false;
+      } else {
+        ordinary_result[channel] = next;
+      }
     }
+  }
+  if (ordinary_representable)
+    return ordinary_result;
+
+  int radiance_exponent = 0;
+  if (radiance_magnitude > 0.0)
+    (void)std::frexp(radiance_magnitude, &radiance_exponent);
+
+  int step_exponent = 0;
+  const double step_fraction = std::frexp(step, &step_exponent);
+  std::array<CompensatedSum, 3> sums;
+  std::array<int, 3> observer_exponents{};
+  for (std::size_t channel = 0; channel < observer.xyz_bar.size(); ++channel) {
+    double magnitude = 0.0;
+    for (const double value : observer.xyz_bar[channel])
+      magnitude = std::max(magnitude, std::fabs(value));
+    if (magnitude > 0.0)
+      (void)std::frexp(magnitude, &observer_exponents[channel]);
+  }
+  for (std::size_t index = 0; index < reading.wavelength_nm.size(); ++index) {
+    const double scaled_radiance =
+        std::ldexp(reading.spectral_radiance[index], -radiance_exponent);
+    for (std::size_t channel = 0; channel < sums.size(); ++channel) {
+      const double scaled_observer = std::ldexp(
+          observer.xyz_bar[channel][observer_indices[index]],
+          -observer_exponents[channel]);
+      sums[channel].add(scaled_radiance * scaled_observer);
+    }
+  }
+
+  std::array<double, 3> result{};
+  for (std::size_t channel = 0; channel < result.size(); ++channel) {
+    result[channel] = std::ldexp(
+        sums[channel].value() * step_fraction,
+        radiance_exponent + observer_exponents[channel] + step_exponent);
   }
   return result;
 }

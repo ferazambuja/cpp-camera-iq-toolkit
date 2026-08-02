@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+from collections import Counter
 import csv
 import hashlib
 import io
@@ -111,7 +112,17 @@ def validate(
     ledger_rows = rows(input_bytes["identity_ledger"])
     group_rows = rows(groups_bytes)
     evidence = receipt["evidence"]
-    group_ids = {row["group_id"] for row in ledger_rows}
+    ledger_membership = Counter(row["group_id"] for row in ledger_rows)
+    aggregate_ids = [row["group_id"] for row in group_rows]
+    if len(set(aggregate_ids)) != len(aggregate_ids):
+        raise ValueError("public group summary contains duplicate group IDs")
+    aggregate_membership = {
+        row["group_id"]: int(row["count"]) for row in group_rows
+    }
+    if dict(ledger_membership) != aggregate_membership:
+        raise ValueError(
+            "public group summary membership does not match the identity ledger"
+        )
     alias_count = sum(
         len([name for name in row["alias_paths"].split(";") if name])
         for row in ledger_rows
@@ -121,7 +132,7 @@ def validate(
     expected_evidence = {
         "canonical_readings": len(ledger_rows),
         "declared_aliases": alias_count,
-        "measurement_groups": len(group_ids),
+        "measurement_groups": len(ledger_membership),
         "repeated_groups": len(repeated),
         "singleton_groups": len(singletons),
     }

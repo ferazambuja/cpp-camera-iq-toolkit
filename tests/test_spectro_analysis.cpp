@@ -77,6 +77,20 @@ void TESTS() {
              2.5 * std::sqrt(2.0), 1e-12,
              "spectro analysis: high-level spread avoids squared overflow");
 
+  SpectroMeasurement cancellation_integral = reading(1.0);
+  cancellation_integral.wavelength_nm = {1.0, 2.0, 3.0};
+  const double three_quarters_max =
+      0.75 * std::numeric_limits<double>::max();
+  cancellation_integral.spectral_radiance = {
+      three_quarters_max, three_quarters_max, -three_quarters_max};
+  const auto cancellation_result =
+      analyze_spectro_group({cancellation_integral});
+  check(std::isfinite(cancellation_result.readings[0].spectral_integral) &&
+            cancellation_result.readings[0].spectral_integral ==
+                three_quarters_max,
+        "spectro analysis: a representable integral survives intermediate "
+        "summation overflow");
+
   SpectroMeasurement lowest_level = reading(1.0);
   lowest_level.wavelength_nm = {1.0, 2.0};
   lowest_level.spectral_radiance = {

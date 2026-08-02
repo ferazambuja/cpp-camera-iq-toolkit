@@ -12,6 +12,14 @@ from urllib.parse import unquote
 
 
 LINK_RE = re.compile(r"!?\[[^\]]*\]\(([^)]+)\)")
+REQUIRED_PROJECT_DOCUMENTS = (
+    Path("docs/README.md"),
+    Path("docs/case-studies/sfr-mtf-aperture-field.md"),
+    Path("docs/case-studies/spectral-color-fidelity.md"),
+    Path("docs/case-studies/colorchecker-ccm.md"),
+    Path("docs/case-studies/cfa-flat-field-response.md"),
+    Path("docs/case-studies/spectroradiometer-ingest.md"),
+)
 STALE_PATTERNS = {
     "obsolete CTest count": re.compile(r"\b16/16 CTest tests\b"),
     "implemented work labeled Next": re.compile(r"^## Next\b", re.MULTILINE),
@@ -203,14 +211,8 @@ def main() -> int:
     repo_root = args.repo_root.resolve()
     failures: list[str] = []
 
-    required = [
-        repo_root / "docs" / "README.md",
-        repo_root / "docs" / "case-studies" / "sfr-mtf-aperture-field.md",
-        repo_root / "docs" / "case-studies" / "spectral-color-fidelity.md",
-        repo_root / "docs" / "case-studies" / "colorchecker-ccm.md",
-        repo_root / "docs" / "case-studies" / "cfa-flat-field-response.md",
-    ]
-    for path in required:
+    for relative in REQUIRED_PROJECT_DOCUMENTS:
+        path = repo_root / relative
         if not path.is_file():
             failures.append(
                 f"missing required project document: {path.relative_to(repo_root)}"

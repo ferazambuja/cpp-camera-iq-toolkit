@@ -19,6 +19,36 @@ void report_failure(std::ostream& err, std::string_view command_name,
       << "\n";
 }
 
+bool output_path_uses_symlink(const std::filesystem::path& path,
+                              std::error_code& error) {
+  error.clear();
+  const std::filesystem::path absolute = std::filesystem::absolute(path, error);
+  if (error) {
+    return false;
+  }
+
+  std::filesystem::path current;
+  for (const auto& component : absolute.lexically_normal()) {
+    current /= component;
+    const auto status = std::filesystem::symlink_status(current, error);
+    if (error) {
+      if (error == std::errc::no_such_file_or_directory) {
+        error.clear();
+        return false;
+      }
+      return false;
+    }
+    // macOS exposes stable system roots such as /var and /tmp as top-level
+    // aliases. They precede the caller-controlled portion of the path; reject
+    // symlinks below that boundary, where an output can be redirected.
+    if (std::filesystem::is_symlink(status) &&
+        current.parent_path() != current.root_path()) {
+      return true;
+    }
+  }
+  return false;
+}
+
 }  // namespace
 
 bool finish_output_stream_checked(std::ostream& os,
@@ -48,17 +78,12 @@ bool write_output_file_checked(
     std::ostream& err,
     bool append_newline) {
   std::error_code link_error;
-  const std::filesystem::file_status destination_status =
-      std::filesystem::symlink_status(path, link_error);
-  if (!link_error && std::filesystem::is_symlink(destination_status)) {
-    report_failure(err, command_name, "refusing symlinked output", path);
+  if (output_path_uses_symlink(path, link_error)) {
+    report_failure(err, command_name, "refusing symlinked output path", path);
     return false;
   }
-  if (!link_error && std::filesystem::is_regular_file(destination_status) &&
-      std::filesystem::hard_link_count(path, link_error) > 1 &&
-      !link_error) {
-    report_failure(err, command_name, "refusing multiply-linked output",
-                   path);
+  if (link_error) {
+    report_failure(err, command_name, "cannot inspect output path", path);
     return false;
   }
 
@@ -71,6 +96,25 @@ bool write_output_file_checked(
                      path);
       return false;
     }
+  }
+
+  if (output_path_uses_symlink(path, link_error)) {
+    report_failure(err, command_name, "refusing symlinked output path", path);
+    return false;
+  }
+  if (link_error) {
+    report_failure(err, command_name, "cannot inspect output path", path);
+    return false;
+  }
+
+  const std::filesystem::file_status destination_status =
+      std::filesystem::symlink_status(path, link_error);
+  if (!link_error && std::filesystem::is_regular_file(destination_status) &&
+      std::filesystem::hard_link_count(path, link_error) > 1 &&
+      !link_error) {
+    report_failure(err, command_name, "refusing multiply-linked output",
+                   path);
+    return false;
   }
 
   std::ofstream os(path, std::ios::binary);

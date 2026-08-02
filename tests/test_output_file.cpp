@@ -113,6 +113,21 @@ void TESTS() {
   }
 
   {
+    const auto real_parent = root / "real-output-parent";
+    const auto linked_parent = root / "linked-output-parent";
+    std::filesystem::create_directories(real_parent);
+    std::filesystem::create_directory_symlink(real_parent, linked_parent);
+    const auto output = linked_parent / "redirected.json";
+    std::ostringstream err;
+    const bool ok = write_output_file_checked(
+        output, "fixture", [](std::ostream& os) { os << "replacement"; },
+        err);
+    test::check(!ok, "checked writer refuses a symlinked output parent");
+    test::check(!std::filesystem::exists(real_parent / "redirected.json"),
+                "checked writer does not follow a symlinked output parent");
+  }
+
+  {
     std::ostringstream err;
     const auto path = root / "thrown.json";
     bool threw = false;

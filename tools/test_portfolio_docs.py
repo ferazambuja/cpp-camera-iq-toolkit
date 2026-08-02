@@ -25,6 +25,12 @@ def matched(text: str) -> bool:
 
 
 class PublicationLanguageTests(unittest.TestCase):
+    def test_spectro_case_study_is_a_required_public_document(self) -> None:
+        self.assertIn(
+            Path("docs/case-studies/spectroradiometer-ingest.md"),
+            DOCS.REQUIRED_PROJECT_DOCUMENTS,
+        )
+
     def test_public_markdown_includes_untracked_public_plan(self) -> None:
         with tempfile.TemporaryDirectory() as temp:
             repo = Path(temp)

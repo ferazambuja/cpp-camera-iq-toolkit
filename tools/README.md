@@ -29,6 +29,32 @@
   hashes the private CLRS-589 MAT files and derives an explicit, source-relative
   measurement-group ledger; `--check` validates the committed ledger without claiming
   to re-read the unavailable source archive.
+- [`generate_spectro_receipt.py`](generate_spectro_receipt.py) cross-checks one
+  archive run's JSON, group CSV, and reading CSV before producing the compact
+  receipt. [`check_spectro_receipt.py`](check_spectro_receipt.py) binds that
+  receipt to the committed ledger, observer, and public aggregate and validates
+  the public metrics and value domains. With the private dataset configured,
+  regenerate and compare the archive-backed artifacts with:
+
+  ```bash
+  ./build/camera_iq spectro-ingest clrs589_project_camera \
+    --ledger data/spectro_identity_ledger.csv --verify-aliases \
+    --out out/spectro-ingest.json \
+    --groups-csv out/spectro-groups.csv \
+    --spectra-csv out/spectro-spectra.csv \
+    --readings-csv out/spectro-readings.csv
+  python3 tools/generate_spectro_receipt.py \
+    --result out/spectro-ingest.json \
+    --groups-csv out/spectro-groups.csv \
+    --readings-csv out/spectro-readings.csv \
+    --out out/spectro-receipt.json
+  cmp out/spectro-groups.csv docs/data/spectro_group_summary.csv
+  cmp out/spectro-receipt.json docs/data/spectro_result_receipt.json
+  ```
+
+  The public receipt checker validates the committed side of this boundary; it
+  cannot rerun archive-only closure or metadata values without the private MAT
+  files.
 - [`matlab/export_spectro_crosscheck.m`](matlab/export_spectro_crosscheck.m)
   reads the same ledger through MATLAB and exports binary64 vector hashes plus
   recorded metadata. [`compare_spectro_crosscheck.py`](compare_spectro_crosscheck.py)

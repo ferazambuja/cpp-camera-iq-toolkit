@@ -130,6 +130,21 @@ class SpectroReceiptGuardTests(unittest.TestCase):
             valid = run(receipt)
             self.assertEqual(valid.returncode, 0, valid.stderr)
 
+            regrouped_ledger = ledger.replace("scene_01", "different_group")
+            (data / "ledger.csv").write_text(regrouped_ledger, encoding="utf-8")
+            regrouped_receipt = copy.deepcopy(receipt)
+            regrouped_receipt["inputs"]["identity_ledger"]["sha256"] = (  # type: ignore[index]
+                hashlib.sha256(regrouped_ledger.encode()).hexdigest()
+            )
+            regrouped = run(regrouped_receipt)
+            self.assertNotEqual(
+                regrouped.returncode,
+                0,
+                "receipt guard accepted aggregate membership that disagrees "
+                "with the ledger",
+            )
+            (data / "ledger.csv").write_text(ledger, encoding="utf-8")
+
             mutations = {
                 "public artifact digest": (
                     "artifacts",
