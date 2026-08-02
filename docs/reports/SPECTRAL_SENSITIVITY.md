@@ -577,7 +577,7 @@ White-preserving optimization sensitivity (same CC-18 / D55 inputs):
 | Nikon D810 | 89.40 | 89.76 | +0.36 |
 | Phase One IQ3 100 | 88.29 | 86.64 | -1.65 |
 
-The `spectral-smi` command now reports this as a sensitivity bound:
+The `spectral-smi` command reports this as a sensitivity bound:
 `white_preserving_*` refits the 3x3 while forcing the camera's perfect-diffuser
 RGB response to map exactly to the CIE illuminant white. It is a plausible
 normalization variant, not a claim that ISO Annex B uses this exact optimizer.

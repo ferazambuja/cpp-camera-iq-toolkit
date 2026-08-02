@@ -327,8 +327,8 @@ commands:
 
 G2 rejects. Accepted and rejected `patches` JSON retain the two near-ceiling
 arrays, the two finite-coverage arrays, `min_finite_coverage`, the effective
-rectangles, and the per-position verdict, so a non-zero exit no longer discards
-the evidence. The shared helper and policy constants make the
+rectangles, and the per-position verdict, so a rejection is reported together
+with the measurements that caused it rather than as a bare failure. The shared helper and policy constants make the
 [52-frame screening table](../data/flat_field_summary.csv), with all eight
 per-position frame/gate near-ceiling fractions, the shared gate ledger for both
 consumers rather than two independently implemented tests that happen to agree.
