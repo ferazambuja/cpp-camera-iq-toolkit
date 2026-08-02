@@ -170,4 +170,24 @@ void TESTS() {
   check_near(high_summary.sample_stddev_spectral_radiance->at(0),
              exact_two_sample_spread, 1e-12,
              "repeat summary: variance remains accurate under a high offset");
+
+  // Both readings pass the finiteness gate, so the summary must not produce a
+  // value that does not. The accumulation subtracts one reading from another
+  // in double before any widening, and long double is double on every arm64
+  // target -- including this project's development machine -- so widening
+  // supplies no headroom there. The true spread here, sqrt(2) * 1e308, is
+  // representable; only the intermediate is not.
+  SpectroMeasurement wide_low = parsed;
+  SpectroMeasurement wide_high = parsed;
+  wide_low.spectral_radiance[0] = -1.0e308;
+  wide_high.spectral_radiance[0] = 1.0e308;
+  const auto wide = summarize_spectro_repeats({wide_low, wide_high});
+  check(std::isfinite(wide.mean_spectral_radiance[0]),
+        "repeat summary: finite readings produce a finite mean");
+  check(wide.sample_stddev_spectral_radiance.has_value() &&
+            std::isfinite(wide.sample_stddev_spectral_radiance->at(0)),
+        "repeat summary: finite readings produce a finite spread");
+  check_near(wide.sample_stddev_spectral_radiance->at(0),
+             std::sqrt(2.0) * 1.0e308, 1e-12,
+             "repeat summary: the spread of two extreme readings is exact");
 }

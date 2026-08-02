@@ -101,27 +101,48 @@ struct ShiftedStats {
 template <typename Select>
 ShiftedStats shifted_stats(const std::vector<SpectroMeasurement>& readings,
                            Select select) {
-  const double origin = select(readings.front());
+  // Readings that individually pass the finiteness gate can still overflow the
+  // accumulation: the difference of two values near the top of the range is not
+  // representable, and widening does not help, because long double is double on
+  // arm64. Dividing by a power of two first only shifts the exponent, so it
+  // loses nothing, and it brings every value into [-1, 1] where no partial sum
+  // or square can overflow. frexp supplies that exponent.
+  double max_magnitude = 0.0;
+  for (const auto& reading : readings) {
+    max_magnitude = std::max(max_magnitude, std::fabs(select(reading)));
+  }
+  int exponent = 0;
+  if (max_magnitude > 0.0) {
+    (void)std::frexp(max_magnitude, &exponent);
+  }
+  const auto scaled = [&](const SpectroMeasurement& reading) {
+    return std::ldexp(select(reading), -exponent);
+  };
+
+  const double origin = scaled(readings.front());
   long double offset_sum = 0.0L;
   for (const auto& reading : readings) {
-    offset_sum += static_cast<long double>(select(reading) - origin);
+    offset_sum += static_cast<long double>(scaled(reading) - origin);
   }
   const long double mean_offset =
       offset_sum / static_cast<long double>(readings.size());
 
   ShiftedStats stats;
-  stats.mean =
-      static_cast<double>(static_cast<long double>(origin) + mean_offset);
+  stats.mean = std::ldexp(
+      static_cast<double>(static_cast<long double>(origin) + mean_offset),
+      exponent);
   if (readings.size() < 2) return stats;
 
   long double squared_sum = 0.0L;
   for (const auto& reading : readings) {
     const long double difference =
-        static_cast<long double>(select(reading) - origin) - mean_offset;
+        static_cast<long double>(scaled(reading) - origin) - mean_offset;
     squared_sum += difference * difference;
   }
-  stats.sample_stddev = std::sqrt(static_cast<double>(
-      squared_sum / static_cast<long double>(readings.size() - 1)));
+  stats.sample_stddev = std::ldexp(
+      std::sqrt(static_cast<double>(
+          squared_sum / static_cast<long double>(readings.size() - 1))),
+      exponent);
   return stats;
 }
 
