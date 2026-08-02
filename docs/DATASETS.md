@@ -23,9 +23,9 @@ data/private/references/
 ```
 
 Copy `configs/datasets.example.json` to `configs/datasets.local.json` and point
-each dataset ID at the matching private root. On this machine, the heavy RAW /
-TIFF datasets can point at mounted archive roots while small CSV/XLSX/reference
-sidecars remain under `data/private/...`.
+each dataset ID at the matching private root. Roots are independent per dataset,
+so bulk RAW and TIFF captures can resolve to a mounted archive while small
+CSV/XLSX reference sidecars stay under `data/private/...`.
 
 ## Public References
 
@@ -85,8 +85,8 @@ requires RAW-like fixtures under `data/samples/` to be tiny text placeholders.
 They must include an explicit synthetic/not-real marker. Real RAW captures belong in
 `data/private/` or another local dataset root, not in tracked sample folders.
 
-The [documentation index](README.md) links every report and publication-safe
-aggregate. The check implementations are
+The [documentation index](README.md) links every report and aggregate table.
+The check implementations are
 [`tools/check_public_paths.sh`](../tools/check_public_paths.sh),
 [`tools/check_sample_fixtures.sh`](../tools/check_sample_fixtures.sh), and
 [`tools/check_portfolio_docs.py`](../tools/check_portfolio_docs.py).

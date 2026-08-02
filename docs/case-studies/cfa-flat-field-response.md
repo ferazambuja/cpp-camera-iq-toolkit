@@ -69,20 +69,20 @@ over the whole frame. A whole-frame 1% test would accept it even though the
 normalizing center was already clipping. The command rejects it before any
 relative response map is emitted.
 
-That gate had to travel. Auditing which frames the toolkit uses as flats
-elsewhere showed that `patches` — the ColorChecker path — guarded its
-flat-field frame on the whole-frame fraction alone, and so accepted this exact
-capture as a correction flat, at a measured 0.0996%. Its bilinear demosaic step
-dilutes clipping further by averaging clipped samples with unclipped neighbors.
-`patches` now applies the same centered gate as `shading` and publishes both
-fractions. The dilution applies to the new gate too: it reads 2.3769% on that
-frame against 11.6319% in `shading`, still 2.4× over policy but roughly 4.9×
-attenuated, so the two commands agreeing on the same three frames is a measured
-result on this archive rather than a property of the gates. The published CCM
-result is unchanged, reproducing to 0 DN, because the flat it uses was never
-near ceiling in either region. Correcting the same capture with the clipped
-1/500 s flat instead costs up to 0.769% per-channel patch error, concentrated in
-the brightest field corner.
+The same criterion governs the ColorChecker path, which corrects its patches
+with one of these sphere frames. It applies the centered gate at the same 0.98
+level and 1% policy, so a flat whose normalizer is clipping cannot be used for
+correction either.
+
+The two commands measure in different domains, and the difference is worth
+stating. `shading` reads the CFA mosaic directly; the ColorChecker path measures
+after bilinear demosaic, which averages clipped samples with unclipped
+neighbors. On the same frame the centered gate reads 2.3769% there against
+11.6319% here — still 2.4× over policy, but roughly 4.9× attenuated. Both
+commands accept the same three frames on this archive, which is a measured
+agreement rather than a property of the two gates. Correcting the capture with
+the clipped 1/500 s flat instead costs up to 0.769% per-channel patch error,
+concentrated in the brightest field corner.
 
 ## Physical capture and numerical path
 

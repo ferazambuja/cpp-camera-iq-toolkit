@@ -5,7 +5,7 @@ Dataset: `clrs589_project_camera`
 Command: `camera_iq ccm-fit`
 
 [Case study](../case-studies/colorchecker-ccm.md) ·
-[publication-safe aggregate CSV](../data/ccm_validation_summary.csv)
+[aggregate results CSV](../data/ccm_validation_summary.csv)
 
 ## Scope
 

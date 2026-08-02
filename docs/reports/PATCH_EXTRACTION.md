@@ -238,7 +238,7 @@ The guard measures two regions, not one. A whole-frame near-ceiling fraction
 cannot protect a normalizing flat: the center is the brightest region of a
 vignetted flat, so it clips first while the darker surround keeps the frame-wide
 fraction small. `Sphere_f8.0_1:500_DSCF0386.RAF` is the measured case —
-[11.6319% of its center gate near ceiling against 0.4964% frame-wide](FLAT_FIELD_RESPONSE.md#the-center-gate-had-to-transfer-with-it) —
+[11.6319% of its center gate near ceiling against 0.4964% frame-wide](FLAT_FIELD_RESPONSE.md#the-center-gate-applies-wherever-a-flat-normalizes) —
 and it reported only 0.0996% to this command, because the fraction is measured
 after bilinear demosaic, which averages clipped samples with unclipped
 neighbors. It therefore passed a 1% frame-wide policy by a factor of ten.

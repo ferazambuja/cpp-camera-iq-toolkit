@@ -129,5 +129,65 @@ class PublicationLanguageTests(unittest.TestCase):
                 self.assertFalse(matched(phrase))
 
 
+class HeadingAnchorTests(unittest.TestCase):
+    """A link to `FILE.md#section` is only checked as far as FILE.md unless the
+    fragment is resolved too, so renaming a heading breaks cross-references
+    silently."""
+
+    def test_slug_matches_github_heading_rules(self) -> None:
+        self.assertEqual(
+            DOCS.heading_slug("## The center gate applies wherever a flat normalizes"),
+            "the-center-gate-applies-wherever-a-flat-normalizes",
+        )
+        self.assertEqual(
+            DOCS.heading_slug("### Instrument identity as the files record it"),
+            "instrument-identity-as-the-files-record-it",
+        )
+        # Punctuation is dropped, not replaced, and `code` markers do not survive.
+        self.assertEqual(
+            DOCS.heading_slug("## `patches`, `shading`: one policy"),
+            "patches-shading-one-policy",
+        )
+
+    def test_non_heading_returns_no_slug(self) -> None:
+        self.assertIsNone(DOCS.heading_slug("Not a heading"))
+        self.assertIsNone(DOCS.heading_slug("#NoSpaceAfterHash"))
+
+    def test_document_anchors_collects_every_level(self) -> None:
+        text = "# Title\n\nbody\n\n## Section One\n\n### Sub Two\n"
+        self.assertEqual(
+            DOCS.document_anchors(text), {"title", "section-one", "sub-two"}
+        )
+
+    def test_missing_anchor_is_reported(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            repo = Path(temp)
+            subprocess.run(["git", "init", "--quiet"], cwd=repo, check=True)
+            docs = repo / "docs"
+            docs.mkdir()
+            (docs / "target.md").write_text("# Target\n\n## Real Section\n",
+                                            encoding="utf-8")
+            (docs / "source.md").write_text(
+                "[ok](target.md#real-section)\n[bad](target.md#renamed-section)\n",
+                encoding="utf-8",
+            )
+            problems = DOCS.anchor_failures(repo, docs / "source.md")
+            self.assertEqual(len(problems), 1)
+            self.assertIn("renamed-section", problems[0])
+
+    def test_same_document_anchor_is_resolved(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            repo = Path(temp)
+            subprocess.run(["git", "init", "--quiet"], cwd=repo, check=True)
+            docs = repo / "docs"
+            docs.mkdir()
+            page = docs / "page.md"
+            page.write_text("## Present\n\n[here](#present)\n[gone](#absent)\n",
+                            encoding="utf-8")
+            problems = DOCS.anchor_failures(repo, page)
+            self.assertEqual(len(problems), 1)
+            self.assertIn("absent", problems[0])
+
+
 if __name__ == "__main__":
     unittest.main()

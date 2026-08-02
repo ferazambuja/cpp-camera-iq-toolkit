@@ -78,7 +78,7 @@ gitignored `configs/datasets.local.json`, then run:
   --csv-out out/shading/f8_pair.csv
 ```
 
-The publication-safe tables are exported from the ignored result files with:
+The committed aggregate tables are exported from those result files with:
 
 ```bash
 python3 tools/export_shading_portfolio.py \
@@ -288,25 +288,23 @@ That is correct for flattening a chart capture and wrong for any camera-only
 shading claim, which is why the CCM evidence is labeled same-aperture-corrected
 rather than shading-calibrated.
 
-### The center gate had to transfer with it
+### The center gate applies wherever a flat normalizes
 
-Auditing that link exposed a defect in `patches`. Its flat-field guard measured
-near ceiling over the whole frame only, at the same 0.98 signal-referred level
-and 1% policy used here — and a whole-frame test is exactly what the
-[f/8, 1/500 s frame](#quality-gates) defeats. That frame measured 11.6319% near
-ceiling in the center gate against 0.4964% frame-wide, so `patches` accepted a
-flat whose normalizing center was clipping. Measured on the archive rather than
-argued from the code: the frame reported 0.0996% near-ceiling to `patches` and
-passed by a factor of ten.
+`patches` corrects its ColorChecker patches with one of these sphere frames, so
+the same criterion governs its flat selection. A whole-frame near-ceiling test is
+not sufficient for that job, and the [f/8, 1/500 s frame](#quality-gates) is the
+measured counterexample: 11.6319% near ceiling in the center gate against
+0.4964% frame-wide. A flat-selection rule reading only the frame-wide figure
+admits a flat whose normalizing center is already clipping.
 
-Two details made it worse than the frame-wide number suggests. `patches`
-measures the flat after bilinear demosaic, which averages clipped samples with
-unclipped neighbors and dilutes the signal the test looks for — hence 0.0996%
-where the mosaic-domain worst plane reads 0.4964%. And the center is the
-brightest region of a vignetted flat, so it is always the first region to clip
-and the last one a frame-wide fraction will notice.
+Two effects compound in the same direction. The center is the brightest region
+of a vignetted flat, so it is the first region to clip and the last one a
+frame-wide fraction registers. And `patches` measures the flat after bilinear
+demosaic, which averages clipped samples with unclipped neighbors and dilutes
+the signal the test looks for — that frame reports 0.0996% there against a
+0.4964% mosaic-domain worst plane.
 
-`patches` now applies the same centered gate geometry as `shading`
+`patches` therefore applies the same centered gate geometry as `shading`
 (`gate_center_frac = 0.20`) and rejects on either fraction. Both fractions are
 published in JSON so a reader can tell which gate a flat passed. The two
 commands accept the same three f/8 frames on this archive — a measured
@@ -336,7 +334,7 @@ and in the direction of the clipping.
 - CSV uses RFC 4180-escaped long-form rows and includes effective policy and all
   dark-control verdicts. Comparison mode appends both frames and measured
   maximum/RMS corner deltas.
-- Absolute input and dark paths are reduced to publication-safe labels.
+- Absolute input and dark paths are reduced to dataset-relative labels.
 
 ## Validation
 
