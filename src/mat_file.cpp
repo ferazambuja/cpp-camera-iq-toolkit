@@ -136,10 +136,14 @@ std::vector<double> numeric_values(const Element& e) {
 
 struct Matrix {
   std::uint32_t klass = 0;
+  // The array's own name at top level; the field name when nested in a struct.
   std::string name;
   std::vector<std::size_t> dims;
-  std::vector<double> values;                     // numeric arrays
-  std::vector<std::pair<std::string, Matrix>> fields;  // struct arrays
+  std::vector<double> values;  // numeric arrays
+  // std::vector<T> as a member of T is the one incomplete-type container the
+  // standard permits. Holding std::pair<std::string, Matrix> instead compiles
+  // on libc++ but is ill-formed, and libstdc++ rejects it.
+  std::vector<Matrix> fields;  // struct arrays
 };
 
 Matrix parse_matrix(std::string_view body);
@@ -172,7 +176,9 @@ void parse_struct_fields(std::string_view body, std::size_t off, Matrix& m) {
     if (field_el.type != kMiMatrix) {
       throw std::runtime_error("mat file: struct field is not an array");
     }
-    m.fields.emplace_back(names[i], parse_matrix(field_el.payload));
+    Matrix field = parse_matrix(field_el.payload);
+    field.name = names[i];
+    m.fields.push_back(std::move(field));
   }
 }
 
@@ -223,8 +229,8 @@ bool find_struct(std::string_view data, MatStruct& out) {
     if (e.type != kMiMatrix) continue;
     const Matrix m = parse_matrix(e.payload);
     if (m.klass != kMxStruct) continue;
-    for (const auto& [field_name, field] : m.fields) {
-      out.emplace(field_name, MatArray{field.dims, field.values});
+    for (const Matrix& field : m.fields) {
+      out.emplace(field.name, MatArray{field.dims, field.values});
     }
     return true;
   }
