@@ -24,6 +24,8 @@ add_compile_options(-Wall -Wextra -Wpedantic)
 # both ship a pkg-config file.
 find_package(PkgConfig REQUIRED)
 pkg_check_modules(LIBRAW REQUIRED IMPORTED_TARGET libraw)
+# zlib â MATLAB v5 MAT-files store their payload as a deflate stream.
+find_package(ZLIB REQUIRED)
 if(APPLE)
   # Homebrew's libraw.pc currently advertises -lstdc++; AppleClang already links
   # libc++ as the C++ runtime, so passing it through creates duplicate-runtime
@@ -46,6 +48,7 @@ add_library(camera_iq_core STATIC
   src/manifest.cpp
   src/raw_meta.cpp
   src/cfa_stats.cpp
+  src/mat_file.cpp
   src/roi.cpp
   src/demosaic.cpp
   src/dark_calibration.cpp
@@ -86,7 +89,7 @@ add_library(camera_iq_core STATIC
 target_include_directories(camera_iq_core PUBLIC include)
 target_compile_definitions(camera_iq_core PUBLIC
   CAMERA_IQ_VERSION="${PROJECT_VERSION}")
-target_link_libraries(camera_iq_core PUBLIC PkgConfig::LIBRAW)
+target_link_libraries(camera_iq_core PUBLIC PkgConfig::LIBRAW ZLIB::ZLIB)
 
 # CLI executable
 add_executable(camera_iq src/main.cpp)
@@ -111,6 +114,7 @@ camera_iq_add_test(test_exposure_series tests/test_exposure_series.cpp)
 camera_iq_add_test(test_raw_meta tests/test_raw_meta.cpp)
 camera_iq_add_test(test_manifest_json tests/test_manifest_json.cpp)
 camera_iq_add_test(test_cfa_stats tests/test_cfa_stats.cpp)
+camera_iq_add_test(test_mat_file tests/test_mat_file.cpp)
 camera_iq_add_test(test_roi tests/test_roi.cpp)
 camera_iq_add_test(test_demosaic tests/test_demosaic.cpp)
 camera_iq_add_test(test_dark_calibration tests/test_dark_calibration.cpp)
