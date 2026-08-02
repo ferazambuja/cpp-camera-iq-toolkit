@@ -43,8 +43,3 @@
 - [`libraw_bilinear_compare.cpp`](libraw_bilinear_compare.cpp) compares the
   toolkit's transparent bilinear path with LibRaw interpolation for local
   validation. It is not part of the default CMake build.
-- [`matlab/export_spectro_crosscheck.m`](matlab/export_spectro_crosscheck.m)
-  makes MATLAB emit its own reading of every spectroradiometer file, so the
-  subset MAT parser can be checked against the reference implementation of the
-  format rather than only against its own tests. Nothing on the ingest path
-  runs it, and no published number depends on it.
