@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import copy
 import hashlib
 import json
 import pathlib
@@ -13,10 +14,11 @@ import unittest
 
 
 SCRIPT = pathlib.Path(__file__).with_name("check_spectro_receipt.py")
+RESULT_SCHEMA_VERSION = 2
 
 
 class SpectroReceiptGuardTests(unittest.TestCase):
-    def test_guard_recomputes_public_counts_hashes_and_metrics(self) -> None:
+    def test_guard_recomputes_public_facts_and_validates_archive_run_receipt(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = pathlib.Path(directory)
             data = root / "data"
@@ -39,8 +41,19 @@ class SpectroReceiptGuardTests(unittest.TestCase):
             (data / "cmf.csv").write_text(cmf, encoding="utf-8")
             (data / "groups.csv").write_text(groups, encoding="utf-8")
             receipt = {
-                "receipt_schema_version": 1,
-                "result_schema_version": 2,
+                "receipt_schema_version": 2,
+                "result_schema_version": RESULT_SCHEMA_VERSION,
+                "derivation": {
+                    "tool": "tools/generate_spectro_receipt.py",
+                    "version": 1,
+                },
+                "artifacts": {
+                    "public_group_summary": {
+                        "sha256": hashlib.sha256(groups.encode()).hexdigest()
+                    },
+                    "archive_run_result": {"sha256": "c" * 64},
+                    "archive_run_readings": {"sha256": "d" * 64},
+                },
                 "inputs": {
                     "identity_ledger": {
                         "file": "ledger.csv",
@@ -73,12 +86,27 @@ class SpectroReceiptGuardTests(unittest.TestCase):
                         "maximum": 0.002,
                     },
                 },
+                "closure": {
+                    "sample_weighting": "uniform_equal_weight",
+                    "scale_source": "derived_from_recorded_xyz",
+                    "scale_value": 683.0,
+                    "max_absolute_relative_residual_percent": 1e-12,
+                    "rms_relative_residual_percent": 5e-13,
+                },
                 "recorded_metadata_checks": {
-                    "numbered_prd": {"count": 1},
-                    "other_records": {"count": 1},
+                    "numbered_prd": {
+                        "count": 1,
+                        "max_absolute_integral_ratio_error": 1e-9,
+                    },
+                    "other_records": {
+                        "count": 1,
+                        "total_radiance_to_integral_ratio": {
+                            "minimum": 0.001,
+                            "maximum": 0.002,
+                        },
+                    },
                 },
             }
-            (data / "receipt.json").write_text(json.dumps(receipt), encoding="utf-8")
 
             command = [
                 sys.executable,
@@ -90,14 +118,61 @@ class SpectroReceiptGuardTests(unittest.TestCase):
                 "--groups-csv",
                 "data/groups.csv",
             ]
-            valid = subprocess.run(command, text=True, capture_output=True, check=False)
+
+            def run(candidate: dict[str, object]) -> subprocess.CompletedProcess[str]:
+                (data / "receipt.json").write_text(
+                    json.dumps(candidate), encoding="utf-8"
+                )
+                return subprocess.run(
+                    command, text=True, capture_output=True, check=False
+                )
+
+            valid = run(receipt)
             self.assertEqual(valid.returncode, 0, valid.stderr)
 
-            (data / "groups.csv").write_text(
-                groups.replace(",0.5,0.002,", ",0.4,0.002,"), encoding="utf-8"
-            )
-            stale = subprocess.run(command, text=True, capture_output=True, check=False)
-            self.assertNotEqual(stale.returncode, 0)
+            mutations = {
+                "public artifact digest": (
+                    "artifacts",
+                    "public_group_summary",
+                    "sha256",
+                    "e" * 64,
+                ),
+                "archive artifact digest": (
+                    "artifacts",
+                    "archive_run_result",
+                    "sha256",
+                    "not-a-digest",
+                ),
+                "derivation version": ("derivation", "version", 2),
+                "closure source": ("closure", "scale_source", "assumed"),
+                "closure residual": (
+                    "closure",
+                    "max_absolute_relative_residual_percent",
+                    -1.0,
+                ),
+                "metadata error": (
+                    "recorded_metadata_checks",
+                    "numbered_prd",
+                    "max_absolute_integral_ratio_error",
+                    -1.0,
+                ),
+                "metadata ratio order": (
+                    "recorded_metadata_checks",
+                    "other_records",
+                    "total_radiance_to_integral_ratio",
+                    {"minimum": 2.0, "maximum": 1.0},
+                ),
+            }
+            for label, path in mutations.items():
+                with self.subTest(label=label):
+                    candidate = copy.deepcopy(receipt)
+                    *parents, value = path
+                    target: object = candidate
+                    for key in parents[:-1]:
+                        target = target[key]  # type: ignore[index]
+                    target[parents[-1]] = value  # type: ignore[index]
+                    rejected = run(candidate)
+                    self.assertNotEqual(rejected.returncode, 0, rejected.stderr)
 
 
 if __name__ == "__main__":

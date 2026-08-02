@@ -24,6 +24,8 @@
 namespace camera_iq {
 namespace {
 
+constexpr int kSpectroIngestSchemaVersion = 2;
+
 struct Arguments {
   std::string root_or_id;
   std::filesystem::path config = default_dataset_config_path();
@@ -235,7 +237,7 @@ void write_json(std::ostream &out, const SpectroArchiveIngest &archive,
   JsonWriter writer(out);
   writer.begin_object();
   writer.key("schema_version");
-  writer.value(2);
+  writer.value(kSpectroIngestSchemaVersion);
   writer.key("dataset");
   writer.value(dataset_label);
   writer.key("ledger");

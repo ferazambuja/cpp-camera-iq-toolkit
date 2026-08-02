@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Pin the shading schema version across the C++ producer and its Python consumers.
+"""Pin cross-language result schema versions across producers and consumers.
 
 `camera_iq shading` stamps `schema_version` from a C++ constant. The portfolio
 exporter declares the version it accepts and *rejects every input that does not
@@ -44,44 +44,81 @@ SOURCES = [
     ),
 ]
 
+SPECTRO_SOURCES = [
+    (
+        Path("src/cmd_spectro_ingest.cpp"),
+        "producer constant",
+        re.compile(r"constexpr int kSpectroIngestSchemaVersion\s*=\s*(\d+)\s*;"),
+    ),
+    (
+        Path("tools/generate_spectro_receipt.py"),
+        "receipt generator accepted version",
+        re.compile(r"^RESULT_SCHEMA_VERSION\s*=\s*(\d+)\s*$", re.MULTILINE),
+    ),
+    (
+        Path("tools/check_spectro_receipt.py"),
+        "receipt checker accepted version",
+        re.compile(r"^RESULT_SCHEMA_VERSION\s*=\s*(\d+)\s*$", re.MULTILINE),
+    ),
+    (
+        Path("tools/test_generate_spectro_receipt.py"),
+        "receipt generator test fixture",
+        re.compile(r"^RESULT_SCHEMA_VERSION\s*=\s*(\d+)\s*$", re.MULTILINE),
+    ),
+    (
+        Path("tools/test_check_spectro_receipt.py"),
+        "receipt checker test fixture",
+        re.compile(r"^RESULT_SCHEMA_VERSION\s*=\s*(\d+)\s*$", re.MULTILINE),
+    ),
+]
+
+CONTRACTS = {
+    "shading": SOURCES,
+    "spectro-ingest": SPECTRO_SOURCES,
+}
+
 
 def check(root: Path) -> list[str]:
     errors: list[str] = []
-    found: list[tuple[Path, str, int]] = []
-
-    for rel, description, pattern in SOURCES:
-        path = root / rel
-        if not path.is_file():
-            errors.append(f"{rel}: missing")
+    for contract, sources in CONTRACTS.items():
+        found: list[tuple[Path, str, int]] = []
+        contract_errors: list[str] = []
+        for rel, description, pattern in sources:
+            path = root / rel
+            if not path.is_file():
+                contract_errors.append(f"{rel}: missing")
+                continue
+            matches = pattern.findall(path.read_text())
+            if not matches:
+                declaration = (
+                    "SCHEMA_VERSION"
+                    if "export_shading_portfolio" in rel.name
+                    else "schema-version"
+                )
+                contract_errors.append(
+                    f"{rel}: no {declaration} declaration found ({description})"
+                )
+                continue
+            values = {int(match) for match in matches}
+            if len(values) > 1:
+                contract_errors.append(
+                    f"{rel}: declares conflicting schema versions {sorted(values)}"
+                )
+                continue
+            found.append((rel, description, values.pop()))
+        errors.extend(contract_errors)
+        if contract_errors:
             continue
-        matches = pattern.findall(path.read_text())
-        if not matches:
-            name = pattern.pattern.split("\\")[0].strip("^\"' ")
-            errors.append(
-                f"{rel}: no {'SCHEMA_VERSION' if 'export_shading_portfolio' in rel.name else name} "
-                f"declaration found ({description})"
+        versions = {version for _, _, version in found}
+        if len(versions) > 1:
+            detail = ", ".join(
+                f"{rel} ({description}) = {version}"
+                for rel, description, version in found
             )
-            continue
-        # A file may state the version more than once; they must agree with
-        # each other before they can agree with anything else.
-        values = {int(m) for m in matches}
-        if len(values) > 1:
             errors.append(
-                f"{rel}: declares conflicting schema versions {sorted(values)}"
+                f"{contract} schema version disagrees across producer and "
+                f"consumers: {detail}"
             )
-            continue
-        found.append((rel, description, values.pop()))
-
-    if errors:
-        return errors
-
-    versions = {v for _, _, v in found}
-    if len(versions) > 1:
-        detail = ", ".join(f"{rel} ({desc}) = {v}" for rel, desc, v in found)
-        errors.append(
-            "shading schema version disagrees across producer and consumers: "
-            + detail
-        )
     return errors
 
 
@@ -96,9 +133,13 @@ def main() -> int:
     if errors:
         return 1
     # check() already proved this matches; re-derive it only for the message.
-    match = SOURCES[0][2].search((Path(args.repo_root) / SOURCES[0][0]).read_text())
-    version = match.group(1) if match else "?"
-    print(f"shading schema contract ok: producer and consumers all at v{version}")
+    summaries = []
+    for contract, sources in CONTRACTS.items():
+        match = sources[0][2].search(
+            (Path(args.repo_root) / sources[0][0]).read_text()
+        )
+        summaries.append(f"{contract} v{match.group(1) if match else '?'}")
+    print("schema contracts ok: " + ", ".join(summaries))
     return 0
 
 

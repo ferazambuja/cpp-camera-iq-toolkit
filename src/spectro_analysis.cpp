@@ -29,16 +29,32 @@ double equal_weight_integral(const SpectroMeasurement &reading,
 }
 
 SpectroChromaticity chromaticity(const std::array<double, 3> &xyz) {
-  const double xyz_sum = xyz[0] + xyz[1] + xyz[2];
-  const double uv_denominator = xyz[0] + 15.0 * xyz[1] + 3.0 * xyz[2];
+  double max_magnitude = 0.0;
+  for (const double value : xyz) {
+    if (!std::isfinite(value)) {
+      throw std::runtime_error(
+          "spectro analysis: recorded XYZ cannot form chromaticity");
+    }
+    max_magnitude = std::max(max_magnitude, std::fabs(value));
+  }
+  int exponent = 0;
+  if (max_magnitude > 0.0)
+    (void)std::frexp(max_magnitude, &exponent);
+  const std::array<double, 3> scaled = {
+      std::ldexp(xyz[0], -exponent), std::ldexp(xyz[1], -exponent),
+      std::ldexp(xyz[2], -exponent)};
+  const double xyz_sum = scaled[0] + scaled[1] + scaled[2];
+  const double uv_denominator =
+      scaled[0] + 15.0 * scaled[1] + 3.0 * scaled[2];
   if (!std::isfinite(xyz_sum) || !std::isfinite(uv_denominator) ||
       xyz_sum <= 0.0 || uv_denominator <= 0.0) {
     throw std::runtime_error(
         "spectro analysis: recorded XYZ cannot form chromaticity");
   }
-  return SpectroChromaticity{xyz[0] / xyz_sum, xyz[1] / xyz_sum,
-                             4.0 * xyz[0] / uv_denominator,
-                             9.0 * xyz[1] / uv_denominator};
+  return SpectroChromaticity{
+      scaled[0] / xyz_sum, scaled[1] / xyz_sum,
+      4.0 * scaled[0] / uv_denominator,
+      9.0 * scaled[1] / uv_denominator};
 }
 
 double sample_stddev(const std::vector<double> &values, double mean) {
@@ -141,14 +157,20 @@ analyze_spectro_group(const std::vector<SpectroMeasurement> &readings) {
             "spectro analysis: normalized spectrum is not representable");
       }
       analyzed.normalized_spectrum.push_back(normalized);
-      result.mean_normalized_spectrum[index] +=
-          normalized / static_cast<double>(readings.size());
     }
     analyzed.recorded_xyz_chromaticity = chromaticity(reading.recorded_xyz);
     integrals.push_back(analyzed.spectral_integral);
     result.readings.push_back(std::move(analyzed));
   }
   result.mean_spectral_integral = representable_mean(integrals);
+  for (std::size_t wavelength = 0; wavelength < wavelengths.size();
+       ++wavelength) {
+    std::vector<double> values;
+    values.reserve(readings.size());
+    for (const auto &reading : result.readings)
+      values.push_back(reading.normalized_spectrum[wavelength]);
+    result.mean_normalized_spectrum[wavelength] = representable_mean(values);
+  }
 
   if (readings.size() == 1)
     return result;

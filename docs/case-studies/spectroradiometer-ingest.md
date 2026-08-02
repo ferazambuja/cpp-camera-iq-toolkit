@@ -35,9 +35,8 @@ normalized by its computed equal-weight spectral integral. Recorded XYZ,
 Across the 37 groups with at least two readings, the spectral-integral
 coefficient of variation is **7.17% median** and **41.65% maximum**. The maximum
 per-group normalized-shape relative L2 residual is **0.518% median** and
-**1.076% maximum**. Recorded-XYZ
-chromaticity also changes: maximum pairwise Δu′v′ is **0.000703 median** and
-**0.002852 maximum**.
+**1.076% maximum**. Recorded-XYZ-derived chromaticity values also differ within
+groups: maximum pairwise Δu′v′ is **0.000703 median** and **0.002852 maximum**.
 
 The spectra reproduce recorded XYZ with one archive-derived proportional scale
 of **683.016758** under equal 2 nm sample weights. With that fitted scale, the
@@ -48,11 +47,13 @@ evidence that the scale is a standard luminous-efficacy constant.
 ## Interpretation
 
 The measurements support a narrow conclusion: absolute level, normalized
-shape, and chromaticity all show nonzero within-group variation under their
-respective metrics. They do not identify why. Source output, geometry,
-acquisition settings, re-aiming, and instrument behavior are not separable from
-the retained records, so the result is labeled **within-group observed
-variation**, not source drift, instrument noise, or repeatability.
+shape, and recorded-XYZ-derived chromaticity values differ within groups under
+their respective metrics. The retained records do not establish whether those
+differences represent physical change, acquisition variation, or measurement
+uncertainty. Source output, geometry, acquisition settings, re-aiming, and
+instrument behavior are not separable, so the result is labeled
+**within-group observed variation**, not source drift, instrument noise, or
+repeatability.
 
 Three singletons remain in the output with null variation metrics. A single
 measurement establishes a level and shape, not a spread.

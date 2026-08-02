@@ -93,6 +93,39 @@ void TESTS() {
         "spectro analysis: identical subnormal levels have finite zero "
         "variation");
 
+  SpectroMeasurement subnormal_shape = reading(1.0);
+  subnormal_shape.wavelength_nm = {1.0, 2.0};
+  subnormal_shape.spectral_radiance = {
+      std::numeric_limits<double>::denorm_min(), 1.0};
+  const auto shape_underflow =
+      analyze_spectro_group({subnormal_shape, subnormal_shape});
+  check(shape_underflow.mean_normalized_spectrum[0] ==
+            std::numeric_limits<double>::denorm_min(),
+        "spectro analysis: the normalized mean retains a representable "
+        "subnormal sample");
+  check(shape_underflow.sample_stddev_normalized_spectrum.has_value() &&
+            (*shape_underflow.sample_stddev_normalized_spectrum)[0] == 0.0 &&
+            shape_underflow.max_shape_relative_l2.has_value() &&
+            *shape_underflow.max_shape_relative_l2 == 0.0,
+        "spectro analysis: identical subnormal shapes have zero variation");
+
+  SpectroMeasurement largest_xyz = reading(1.0);
+  largest_xyz.recorded_xyz = {std::numeric_limits<double>::max(),
+                              std::numeric_limits<double>::max(),
+                              std::numeric_limits<double>::max()};
+  const auto scaled_chromaticity = analyze_spectro_group({largest_xyz});
+  const auto &largest_chromaticity =
+      scaled_chromaticity.readings[0].recorded_xyz_chromaticity;
+  check_near(largest_chromaticity.x, 1.0 / 3.0, 1e-15,
+             "spectro analysis: chromaticity avoids a representable XYZ-sum "
+             "overflow");
+  check_near(largest_chromaticity.u_prime, 4.0 / 19.0, 1e-15,
+             "spectro analysis: u-prime avoids a representable denominator "
+             "overflow");
+  check_near(largest_chromaticity.v_prime, 9.0 / 19.0, 1e-15,
+             "spectro analysis: v-prime avoids a representable denominator "
+             "overflow");
+
   bool normalization_overflow_threw = false;
   try {
     SpectroMeasurement cancellation = reading(1.0);

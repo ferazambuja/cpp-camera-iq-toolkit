@@ -144,9 +144,11 @@ The command can emit:
 - A per-reading CSV with identities, recorded metadata, computed closure, and
   SHA-256 hashes of the wavelength and radiance vectors as little-endian
   IEEE-754 binary64.
-- A compact [result receipt](../data/spectro_result_receipt.json) binding the
-  published aggregate and closure values to the identity-ledger and observer
-  hashes without publishing the source measurements.
+- A compact [result receipt](../data/spectro_result_receipt.json) recording the
+  archive-run JSON and reading-table hashes alongside the committed
+  identity-ledger, observer, and aggregate hashes. Public verification covers
+  the committed inputs, aggregate, receipt structure, and value domains;
+  reproducing archive-only closure values requires the private measurements.
 
 `tools/matlab/export_spectro_crosscheck.m` reads the same 89 ledger rows through
 MATLAB. `tools/compare_spectro_crosscheck.py` compares vector hashes exactly and
@@ -161,8 +163,9 @@ truth.
   not establish repeatability under a documented fixed procedure.
 - The three singletons carry null spread, CV, shape-residual, and pairwise
   chromaticity metrics.
-- Absolute-level, normalized-shape, and chromaticity changes are reported
-  separately. No retained field identifies their cause.
+- Absolute-level, normalized-shape, and recorded-XYZ-derived chromaticity
+  differences are reported separately. The records do not distinguish physical
+  change, acquisition variation, or measurement uncertainty.
 - The source MAT files remain private; public inspection uses implementation,
   hermetic fixtures, the identity ledger, aggregate results, and deterministic
   figures.

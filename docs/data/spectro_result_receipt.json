@@ -1,4 +1,15 @@
 {
+  "artifacts": {
+    "archive_run_readings": {
+      "sha256": "931ee47e0dc3877c7775ece274f3e49d2b0961f3cc2515d5e4c520a61d97ab41"
+    },
+    "archive_run_result": {
+      "sha256": "e7a99db594496246fd003e7ac63f03c4b07973eec7c16fc0e4b2e132794bf1eb"
+    },
+    "public_group_summary": {
+      "sha256": "8b7ef3754f47fe9644023177f29b6bd67973dfbae02e147f00de4610fca842a7"
+    }
+  },
   "closure": {
     "max_absolute_relative_residual_percent": 1.5543122344752192e-13,
     "rms_relative_residual_percent": 5.004889505182855e-14,
@@ -43,7 +54,7 @@
       "sha256": "8116b60c868fd7844a3a96b9ce2041ce57b3ecc3455a630d11ff054b4ad78c51"
     }
   },
-  "receipt_schema_version": 1,
+  "receipt_schema_version": 2,
   "recorded_metadata_checks": {
     "numbered_prd": {
       "count": 45,

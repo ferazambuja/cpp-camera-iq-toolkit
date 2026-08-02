@@ -25,10 +25,24 @@ SPEC.loader.exec_module(CHECK)
 PRODUCER = Path("src/cmd_shading.cpp")
 EXPORTER = Path("tools/export_shading_portfolio.py")
 FIXTURE = Path("tools/test_export_shading_portfolio.py")
+SPECTRO_PRODUCER = Path("src/cmd_spectro_ingest.cpp")
+SPECTRO_GENERATOR = Path("tools/generate_spectro_receipt.py")
+SPECTRO_CHECKER = Path("tools/check_spectro_receipt.py")
+SPECTRO_FIXTURE = Path("tools/test_generate_spectro_receipt.py")
+SPECTRO_CHECK_FIXTURE = Path("tools/test_check_spectro_receipt.py")
 
 
 def staged(tmp: Path) -> Path:
-    for rel in (PRODUCER, EXPORTER, FIXTURE):
+    for rel in (
+        PRODUCER,
+        EXPORTER,
+        FIXTURE,
+        SPECTRO_PRODUCER,
+        SPECTRO_GENERATOR,
+        SPECTRO_CHECKER,
+        SPECTRO_FIXTURE,
+        SPECTRO_CHECK_FIXTURE,
+    ):
         (tmp / rel.parent).mkdir(parents=True, exist_ok=True)
         shutil.copy(ROOT / rel, tmp / rel)
     return tmp
@@ -80,6 +94,30 @@ def main() -> int:
         )
         expect_error(root, "test_export_shading_portfolio.py")
         (root / FIXTURE).write_text(fixture)
+
+        # The receipt generator must not silently accept a result schema that
+        # differs from the C++ producer.
+        spectro_generator = (root / SPECTRO_GENERATOR).read_text()
+        (root / SPECTRO_GENERATOR).write_text(
+            spectro_generator.replace(
+                "RESULT_SCHEMA_VERSION = 2",
+                "RESULT_SCHEMA_VERSION = 3",
+                1,
+            )
+        )
+        expect_error(root, "generate_spectro_receipt.py")
+        (root / SPECTRO_GENERATOR).write_text(spectro_generator)
+
+        spectro_check_fixture = (root / SPECTRO_CHECK_FIXTURE).read_text()
+        (root / SPECTRO_CHECK_FIXTURE).write_text(
+            spectro_check_fixture.replace(
+                "RESULT_SCHEMA_VERSION = 2",
+                "RESULT_SCHEMA_VERSION = 3",
+                1,
+            )
+        )
+        expect_error(root, "test_check_spectro_receipt.py")
+        (root / SPECTRO_CHECK_FIXTURE).write_text(spectro_check_fixture)
 
         # A missing declaration must fail loudly rather than silently pass.
         (root / EXPORTER).write_text(
