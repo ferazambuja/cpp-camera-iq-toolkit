@@ -12,10 +12,12 @@
 #include "camera_iq/demosaic.hpp"
 #include "camera_iq/localization_diagnosis.hpp"
 #include "camera_iq/raw_meta.hpp"
+#include "camera_iq/shading.hpp"
 #include "harness.hpp"
 
 using camera_iq::CameraRgbPatch;
 using camera_iq::FlatFieldCorrectionSummary;
+using camera_iq::FlatFieldNearCeilingDiagnostics;
 using camera_iq::PatchGeometryReport;
 using camera_iq::PatchGeometryReportPatch;
 using camera_iq::PatchGeometryReportPoint;
@@ -38,14 +40,15 @@ using camera_iq::apply_flat_field;
 using camera_iq::apply_white_balance;
 using camera_iq::compare_patch_means_to_rgb;
 using camera_iq::extract_patch_means;
-using camera_iq::flat_center_near_ceiling_fraction;
 using camera_iq::flat_field_near_ceiling_threshold_fraction;
 using camera_iq::flat_field_normalization_policy;
+using camera_iq::measure_flat_field_near_ceiling;
 using camera_iq::read_patch_coords_csv;
 using camera_iq::read_rawdigger_patch_table;
 using camera_iq::validate_patch_localization_against_oracle;
 using camera_iq::write_camera_rgb_csv;
 using camera_iq::write_patch_report_json;
+using camera_iq::write_patch_rejection_json;
 using camera_iq::white_balance_gains_from_flat_field;
 using test::check;
 using test::check_near;
@@ -61,6 +64,47 @@ void TESTS() {
     os << "1,1,2,2\n"
        << "3,2,2,3\n"
        << "5,5,4,4\n";
+  }
+
+  {
+    // Consumer parity includes denominator semantics. A missing CFA sample is
+    // excluded by both `patches` and `shading`; duplicated counters previously
+    // disagreed here even when their finite archive values happened to match.
+    camera_iq::RawCfaImage flat;
+    flat.width = 100;
+    flat.height = 100;
+    flat.row_stride_pixels = 100;
+    flat.color_at_position = {0, 1, 3, 2};
+    flat.cdesc = "RGBG";
+    flat.meta.white_level = 1000.0;
+    flat.meta.black_per_channel = {0.0, 0.0, 0.0, 0.0};
+    flat.samples.assign(10000, 100.0);
+    flat.samples[static_cast<std::size_t>(40) * 100 + 40] = 990.0;
+    flat.samples[static_cast<std::size_t>(40) * 100 + 42] = 990.0;
+    flat.samples[static_cast<std::size_t>(40) * 100 + 44] =
+        std::numeric_limits<double>::quiet_NaN();
+
+    const auto patch_gate =
+        measure_flat_field_near_ceiling(flat, 0.20, 0.98, 0.01);
+    camera_iq::ShadingOptions opts;
+    opts.grid_cols = 2;
+    opts.grid_rows = 2;
+    opts.gate_center_frac = 0.20;
+    opts.corner_block_px = 20;
+    opts.corner_inset_px = 4;
+    const auto shading = camera_iq::measure_shading_field(
+        flat.samples.data(), flat.width, flat.height, flat.row_stride_pixels,
+        opts, {1000.0, 1000.0, 1000.0, 1000.0});
+    check(patch_gate.has_value(),
+          "flat CFA gate parity: patches measurement produced");
+    if (patch_gate) {
+      check_near(patch_gate->near_ceiling_fraction_gate[0],
+                 shading.gates.near_ceiling_frac_gate[0], 1e-12,
+                 "flat CFA gate parity: missing-sample gate denominator shared");
+      check_near(patch_gate->near_ceiling_fraction_frame[0],
+                 shading.gates.near_ceiling_frac_frame[0], 1e-12,
+                 "flat CFA gate parity: missing-sample frame denominator shared");
+    }
   }
 
   const auto coords = read_patch_coords_csv(root / "coord.csv");
@@ -276,11 +320,18 @@ void TESTS() {
              "flat report: near-ceiling threshold constant");
   check_near(camera_iq::flat_field_center_gate_fraction(), 0.20, 1e-12,
              "flat report: center gate matches the shading gate fraction");
-  flat_summary.near_ceiling_sample_count = 0;
-  flat_summary.near_ceiling_fraction = 0.0;
-  flat_summary.max_allowed_near_ceiling_fraction = 0.01;
-  flat_summary.center_near_ceiling_fraction = 0.0034;
-  flat_summary.center_gate_fraction = 0.20;
+  FlatFieldNearCeilingDiagnostics report_gate;
+  report_gate.frame = camera_iq::RoiRect{0, 0, 2, 2};
+  report_gate.gate = camera_iq::RoiRect{0, 0, 2, 2};
+  report_gate.gate_center_fraction = 0.20;
+  report_gate.near_ceiling_level = 0.98;
+  report_gate.max_allowed_fraction = 0.01;
+  report_gate.labels = {"R", "G1", "G2", "B"};
+  report_gate.near_ceiling_fraction_frame = {0.0, 0.0, 0.0, 0.0};
+  report_gate.near_ceiling_fraction_gate = {0.0, 0.0034, 0.0, 0.0};
+  report_gate.verdict =
+      camera_iq::FlatFieldGateVerdict{true, "within_policy", {}, -1, {}, 0.0};
+  flat_summary.near_ceiling = report_gate;
   RawMeta meta;
   meta.make = "Fixture";
   meta.model = "Synthetic";
@@ -305,7 +356,7 @@ void TESTS() {
   check(patch_doc.find("\"normalization\":\"per_channel_mean_valid_samples\"") !=
             std::string::npos,
         "flat report: JSON records normalization policy");
-  check(patch_doc.find("\"near_ceiling_threshold_fraction\":0.98") !=
+  check(patch_doc.find("\"near_ceiling_level\":0.98") !=
             std::string::npos,
         "flat report: JSON records near-ceiling threshold");
   check(patch_doc.find("\"white_balance\":{\"policy\":\"flat_field_green_anchor\"") !=
@@ -313,11 +364,12 @@ void TESTS() {
         "flat report: JSON records flat-derived WB policy");
   // The center fraction must be published beside the whole-frame one. A reader
   // cannot otherwise tell which of the two gates a flat actually passed.
-  check(patch_doc.find("\"center_near_ceiling_fraction\":0.0034") !=
+  check(patch_doc.find("\"near_ceiling_fraction_gate\":[0,0.0034,0,0]") !=
             std::string::npos,
-        "flat report: JSON records center-gate near-ceiling fraction");
-  check(patch_doc.find("\"center_gate_fraction\":0.2") != std::string::npos,
-        "flat report: JSON records the center-gate geometry");
+        "flat report: JSON records per-position gate fractions");
+  check(patch_doc.find("\"gate\":{\"x\":0,\"y\":0,\"width\":2,\"height\":2}") !=
+            std::string::npos,
+        "flat report: JSON records the effective center-gate geometry");
 
   PatchGeometryReport geometry;
   geometry.chart_model = "ColorChecker-SG 14x10";
@@ -596,87 +648,150 @@ void TESTS() {
   check(threw, "coords: non-positive width rejected");
 
   {
-    // A flat whose center clips while the whole-frame clipped fraction stays
-    // far below policy. This is the case the shading report isolated on
-    // Sphere_f8.0_1:500: 11.63% of the center gate near ceiling against 0.4964%
-    // across the frame. A whole-frame-only guard cannot see it, and the center
-    // is exactly where a normalizing flat must stay unclipped.
-    const int w = 20;
-    const int h = 20;
-    const CameraRgbPatch ceiling{1000.0, 1000.0, 1000.0};
-    std::vector<camera_iq::RgbPixel> flat(static_cast<std::size_t>(w) * h,
-                                          camera_iq::RgbPixel{100.0, 100.0,
-                                                              100.0});
-    for (int y = 8; y < 12; ++y) {
-      for (int x = 8; x < 12; ++x) {
-        flat[static_cast<std::size_t>(y) * w + x] =
-            camera_iq::RgbPixel{995.0, 995.0, 995.0};
-      }
-    }
-
-    check_near(
-        flat_center_near_ceiling_fraction(flat, w, h, ceiling, 0.98, 1.0), 0.04,
-        1e-12, "flat center gate: whole-frame fraction stays under policy");
-    check_near(
-        flat_center_near_ceiling_fraction(flat, w, h, ceiling, 0.98, 0.20), 1.0,
-        1e-12, "flat center gate: centered 20% region is fully clipped");
-
-    // Geometry and parameter validation must be explicit rather than silently
-    // returning a passing zero.
-    check(std::isnan(flat_center_near_ceiling_fraction(flat, w, h, ceiling, 0.98,
-                                                       0.0)),
-          "flat center gate: zero center fraction is undefined");
-    check(std::isnan(flat_center_near_ceiling_fraction(flat, 0, h, ceiling, 0.98,
-                                                       0.20)),
-          "flat center gate: non-positive width is undefined");
-    check(std::isnan(flat_center_near_ceiling_fraction(flat, w, h, ceiling, 0.98,
-                                                       1.5)),
-          "flat center gate: center fraction above one is undefined");
-    check(std::isnan(flat_center_near_ceiling_fraction(flat, w, h + 1, ceiling,
-                                                       0.98, 0.20)),
-          "flat center gate: size mismatch is undefined");
-  }
-
-  {
-    // The two fractions are measured separately but decided by one policy.
-    // Keeping that decision in a pure function is what makes it testable: the
-    // call site needs a real RAW file, so an inline comparison there is only
-    // exercised by hand.
+    // Every position and both regions are validated before the policy is
+    // applied. Invalid measurements cannot masquerade as clean flats.
     using camera_iq::flat_field_near_ceiling_verdict;
     const double nan = std::numeric_limits<double>::quiet_NaN();
+    const std::array<std::string, 4> labels{"R", "G1", "G2", "B"};
+    const std::array<double, 4> zero{0.0, 0.0, 0.0, 0.0};
 
-    const auto pass = flat_field_near_ceiling_verdict(0.004, 0.009, 0.01);
+    const auto pass = flat_field_near_ceiling_verdict(
+        {0.004, 0.0, 0.0, 0.0}, {0.009, 0.0, 0.0, 0.0}, labels, 0.01);
     check(pass.accepted, "flat gate verdict: both fractions under policy pass");
 
-    const auto at_policy = flat_field_near_ceiling_verdict(0.01, 0.01, 0.01);
+    const auto at_policy = flat_field_near_ceiling_verdict(
+        {0.01, 0.0, 0.0, 0.0}, {0.01, 0.0, 0.0, 0.0}, labels, 0.01);
     check(at_policy.accepted,
           "flat gate verdict: exactly at policy is not a rejection");
 
-    const auto frame_over = flat_field_near_ceiling_verdict(0.02, 0.0, 0.01);
+    const auto frame_over = flat_field_near_ceiling_verdict(
+        {0.0, 0.02, 0.0, 0.0}, zero, labels, 0.01);
     check(!frame_over.accepted && frame_over.region == "frame" &&
+              frame_over.position == 1 && frame_over.label == "G1" &&
               frame_over.fraction == 0.02,
           "flat gate verdict: whole-frame excess rejects and reports itself");
 
-    // The case this gate was added for: the frame-wide fraction passes with
-    // room to spare while the centre that sets the correction scale is clipped.
-    const auto center_over = flat_field_near_ceiling_verdict(0.000996, 0.0238,
-                                                             0.01);
-    check(!center_over.accepted && center_over.region == "center" &&
-              center_over.fraction == 0.0238,
-          "flat gate verdict: center excess rejects when the frame passes");
+    const auto gate_over = flat_field_near_ceiling_verdict(
+        {0.0, 0.000996, 0.0, 0.0}, {0.0, 0.0238, 0.0, 0.0}, labels, 0.01);
+    check(!gate_over.accepted && gate_over.region == "gate" &&
+              gate_over.position == 1 && gate_over.fraction == 0.0238,
+          "flat gate verdict: center-gate excess rejects when frame passes");
 
-    const auto both = flat_field_near_ceiling_verdict(0.5, 0.9, 0.01);
+    const auto both = flat_field_near_ceiling_verdict(
+        {0.5, 0.0, 0.0, 0.0}, {0.9, 0.0, 0.0, 0.0}, labels, 0.01);
     check(!both.accepted && both.region == "frame",
           "flat gate verdict: frame is reported first when both fail");
 
-    // An undefined measurement is not evidence of a clean flat. Both fractions
-    // must reject on NaN; a comparison written as `x > limit` would pass one.
-    check(!flat_field_near_ceiling_verdict(nan, 0.0, 0.01).accepted,
-          "flat gate verdict: undefined frame fraction rejects");
-    check(!flat_field_near_ceiling_verdict(0.0, nan, 0.01).accepted,
-          "flat gate verdict: undefined center fraction rejects");
-    check(!flat_field_near_ceiling_verdict(0.0, 0.0, nan).accepted,
-          "flat gate verdict: undefined policy rejects");
+    for (double invalid : {nan, -0.1,
+                           std::numeric_limits<double>::infinity(), 1.1}) {
+      auto invalid_frame = zero;
+      invalid_frame[2] = invalid;
+      check(!flat_field_near_ceiling_verdict(invalid_frame, zero, labels, 0.01)
+                 .accepted,
+            "flat gate verdict: invalid frame fraction rejects");
+      auto invalid_gate = zero;
+      invalid_gate[3] = invalid;
+      check(!flat_field_near_ceiling_verdict(zero, invalid_gate, labels, 0.01)
+                 .accepted,
+            "flat gate verdict: invalid gate fraction rejects");
+    }
+    for (double invalid_policy : {nan, -0.1,
+                                  std::numeric_limits<double>::infinity(),
+                                  1.1}) {
+      check(!flat_field_near_ceiling_verdict(zero, zero, labels, invalid_policy)
+                 .accepted,
+            "flat gate verdict: invalid policy rejects");
+    }
+  }
+
+  {
+    // Regression: one CFA position at 2% near ceiling was diluted to 0.5% by
+    // the old four-position denominator and incorrectly accepted. Exercise
+    // every Bayer phase and every failing mosaic position independently.
+    const std::array<std::array<int, 4>, 4> phases = {
+        std::array<int, 4>{0, 1, 3, 2},  // RGGB
+        std::array<int, 4>{2, 3, 1, 0},  // BGGR
+        std::array<int, 4>{1, 0, 2, 3},  // GRBG
+        std::array<int, 4>{3, 2, 0, 1}   // GBRG
+    };
+    for (const auto& phase : phases) {
+      for (int failing_position = 0; failing_position < 4;
+           ++failing_position) {
+        camera_iq::RawCfaImage flat;
+        flat.width = 100;
+        flat.height = 100;
+        flat.row_stride_pixels = 100;
+        flat.color_at_position = phase;
+        flat.cdesc = "RGBG";
+        flat.meta.make = "Fixture";
+        flat.meta.model = "One-plane gate";
+        flat.meta.cfa_pattern = "fixture";
+        flat.meta.white_level = 1000.0;
+        flat.meta.black_per_channel = {0.0, 0.0, 0.0, 0.0};
+        flat.samples.assign(10000, 100.0);
+
+        int raised = 0;
+        for (int y = 40; y < 60 && raised < 2; ++y) {
+          for (int x = 40; x < 60 && raised < 2; ++x) {
+            if ((y & 1) * 2 + (x & 1) == failing_position) {
+              flat.samples[static_cast<std::size_t>(y) * 100 + x] = 990.0;
+              ++raised;
+            }
+          }
+        }
+
+        const auto diagnostics = measure_flat_field_near_ceiling(
+            flat, 0.20, 0.98, 0.01);
+        check(diagnostics.has_value(),
+              "flat CFA gate: valid diagnostics for every Bayer phase");
+        if (!diagnostics) continue;
+        check_near(diagnostics->near_ceiling_fraction_gate
+                       [static_cast<std::size_t>(failing_position)],
+                   0.02, 1e-12,
+                   "flat CFA gate: one-position excess is not pooled away");
+        check(!diagnostics->verdict.accepted &&
+                  diagnostics->verdict.region == "gate" &&
+                  diagnostics->verdict.position == failing_position,
+              "flat CFA gate: one-position excess identifies and rejects");
+      }
+    }
+  }
+
+  {
+    FlatFieldNearCeilingDiagnostics diagnostics;
+    diagnostics.measurement_domain = "raw_cfa_black_subtracted";
+    diagnostics.frame = camera_iq::RoiRect{0, 0, 100, 100};
+    diagnostics.gate = camera_iq::RoiRect{40, 40, 20, 20};
+    diagnostics.gate_center_fraction = 0.20;
+    diagnostics.near_ceiling_level = 0.98;
+    diagnostics.max_allowed_fraction = 0.01;
+    diagnostics.labels = {"R", "G1", "G2", "B"};
+    diagnostics.near_ceiling_fraction_frame = {0.0, 0.0008, 0.0, 0.0};
+    diagnostics.near_ceiling_fraction_gate = {0.0, 0.02, 0.0, 0.0};
+    diagnostics.verdict =
+        camera_iq::FlatFieldGateVerdict{false, "policy_exceeded", "gate", 1,
+                                        "G1", 0.02};
+    std::ostringstream rejected_json;
+    write_patch_rejection_json(rejected_json, "dataset:fixture/chart.RAF",
+                               "dataset:fixture/flat.RAF", RawMeta{}, 100, 100,
+                               diagnostics);
+    const std::string document = rejected_json.str();
+    check(document.find("\"status\":\"rejected\"") != std::string::npos &&
+              document.find("\"measurement_domain\":\"raw_cfa_black_subtracted\"") !=
+                  std::string::npos,
+          "flat rejection JSON: status and measurement domain retained");
+    const bool fractions_retained =
+        document.find("\"near_ceiling_fraction_frame\":[0,8e-04,0,0]") !=
+            std::string::npos &&
+        document.find("\"near_ceiling_fraction_gate\":[0,0.02,0,0]") !=
+            std::string::npos;
+    check(fractions_retained,
+          "flat rejection JSON: all per-position fractions retained");
+    check(document.find("\"gate\":{\"x\":40,\"y\":40,\"width\":20,\"height\":20}") !=
+                  std::string::npos &&
+              document.find("\"position\":1") != std::string::npos &&
+              document.find("\"label\":\"G1\"") != std::string::npos,
+          "flat rejection JSON: effective geometry and failing plane retained");
   }
 
   std::filesystem::remove_all(root);

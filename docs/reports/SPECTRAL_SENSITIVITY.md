@@ -288,6 +288,14 @@ configured dataset root.
 | Illuminant SPD | `PR655_HID_avg.txt` | PR-655 HID average, 101 samples, 380-780 nm at 4 nm |
 | SG reflectance | `SGMeasurements_CGATS.txt` | i1Pro / SpectraShop SG measurement, 140 patches A1..N10, 380-730 nm at 10 nm |
 
+The text illuminant export has no header, but its paired native
+`PR655_HID.spectrashop` project records `PR-655`. The SG and CC24 native projects
+both record `i1Pro` and probable unit identifier `1001351`; their CGATS exports
+record the shared 45:0/source-A/2-degree/D50 conditions. No archive file names
+the monochromator. Unknown wavelength, bandpass, and stray-light behavior can
+affect relative curves and rankings as well as absolute SSF values; the 2017 IQ3
+session below is a separate rig and timeline.
+
 The session `readme.rtf` states that the 5D2 target files were normalized to the
 same naming convention and that the CC/SG patch readings were reordered to match
 RawDigger. This makes tier-3 physical closure feasible without mixing
@@ -375,7 +383,8 @@ Four-camera Target set 1 fan-out (`--dark-rgb` supplied for every camera, shared
 PR-655 HID illuminant and SG reflectance). This retained closure table is a
 mixed-source baseline: the Canon row uses the toolkit RAW-derived SSF; the other
 three rows use their legacy `*_mono.csv` SSFs. Toolkit-SSF closure artifacts
-for D810, A7RII, and A7SII are not retained in this table, so it remains a
+for the Nikon D810, Sony A7RII, and Sony A7SII are not retained in this table,
+so it remains a
 mixed-source comparison:
 
 | Camera | SSF source | Gate-1 max ratio error | Patches | Target saturated / below-dark exclusions | R/G/B relative RMS | Minimum channel correlation |

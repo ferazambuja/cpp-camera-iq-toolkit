@@ -94,21 +94,15 @@ std::optional<ShadingGeometry> make_geometry(int width, int height,
     return std::nullopt;
   }
 
-  int gate_width = static_cast<int>(std::floor(width * opts.gate_center_frac));
-  int gate_height =
-      static_cast<int>(std::floor(height * opts.gate_center_frac));
-  gate_width &= ~1;
-  gate_height &= ~1;
-  if (gate_width < 2 || gate_height < 2) return std::nullopt;
+  const auto gate =
+      centered_cfa_balanced_roi(width, height, opts.gate_center_frac);
+  if (!gate) return std::nullopt;
 
   const int center_x = ((width - block) / 2) & ~1;
   const int center_y = ((height - block) / 2) & ~1;
-  const int gate_x = ((width - gate_width) / 2) & ~1;
-  const int gate_y = ((height - gate_height) / 2) & ~1;
   const int right_x = (width - inset - block) & ~1;
   const int bottom_y = (height - inset - block) & ~1;
 
-  const RoiRect gate_requested{gate_x, gate_y, gate_width, gate_height};
   const RoiRect center_requested{center_x, center_y, block, block};
   const std::array<RoiRect, 4> corner_requested = {
       RoiRect{inset, inset, block, block},
@@ -116,10 +110,8 @@ std::optional<ShadingGeometry> make_geometry(int width, int height,
       RoiRect{inset, bottom_y, block, block},
       RoiRect{right_x, bottom_y, block, block}};
 
-  const auto gate = cfa_balanced_roi(gate_requested, width, height);
   const auto center = cfa_balanced_roi(center_requested, width, height);
-  if (!gate || !center || !same_rect(*gate, gate_requested) ||
-      !same_rect(*center, center_requested)) {
+  if (!center || !same_rect(*center, center_requested)) {
     return std::nullopt;
   }
 
@@ -218,6 +210,15 @@ ShadingField measure_shading_field(const double* data, int width, int height,
   field.gates.min_bin_coverage = 1.0;
   bool aggregates_finite = true;
 
+  const auto near_ceiling = measure_cfa_near_ceiling(
+      data, width, height, row_stride_pixels, field.geometry.gate, ceiling,
+      opts.near_ceiling_level);
+  if (!near_ceiling) {
+    return rejected("near-ceiling measurement is undefined", opts);
+  }
+  field.gates.near_ceiling_frac_frame = near_ceiling->fraction_frame;
+  field.gates.near_ceiling_frac_gate = near_ceiling->fraction_gate;
+
   for (int p = 0; p < 4; ++p) {
     const int dy = p / 2;
     const int dx = p % 2;
@@ -259,42 +260,20 @@ ShadingField measure_shading_field(const double* data, int width, int height,
       field.blocks.corner_median[q][p] = median_of(block);
     }
 
-    const double near_ceiling = opts.near_ceiling_level * ceiling[p];
     long long frame_finite = 0;
-    long long frame_near = 0;
     long long frame_negative = 0;
-    long long gate_finite = 0;
-    long long gate_near = 0;
     for (int py = 0; py < plane_height; ++py) {
-      const int mosaic_y = 2 * py + dy;
-      const bool row_in_gate =
-          mosaic_y >= field.geometry.gate.y &&
-          mosaic_y < field.geometry.gate.y + field.geometry.gate.height;
       for (int px = 0; px < plane_width; ++px) {
-        const int mosaic_x = 2 * px + dx;
-        const bool in_gate =
-            row_in_gate && mosaic_x >= field.geometry.gate.x &&
-            mosaic_x < field.geometry.gate.x + field.geometry.gate.width;
         const double value = sample(py, px);
         if (!std::isfinite(value)) continue;
         ++frame_finite;
-        if (in_gate) ++gate_finite;
-        if (value >= near_ceiling) {
-          ++frame_near;
-          if (in_gate) ++gate_near;
-        }
         if (value < 0.0) ++frame_negative;
       }
     }
-    if (frame_finite == 0 || gate_finite == 0) aggregates_finite = false;
-    field.gates.near_ceiling_frac_frame[p] =
-        frame_finite > 0 ? static_cast<double>(frame_near) / frame_finite
-                         : 0.0;
+    if (frame_finite == 0) aggregates_finite = false;
     field.gates.negative_frac[p] =
         frame_finite > 0 ? static_cast<double>(frame_negative) / frame_finite
                          : 0.0;
-    field.gates.near_ceiling_frac_gate[p] =
-        gate_finite > 0 ? static_cast<double>(gate_near) / gate_finite : 0.0;
 
     const std::size_t bin_count =
         static_cast<std::size_t>(opts.grid_cols) * opts.grid_rows;
@@ -336,7 +315,9 @@ ShadingField measure_shading_field(const double* data, int width, int height,
   field.gates.negative_ok = true;
   for (int p = 0; p < 4; ++p) {
     field.gates.near_ceiling_ok &=
-        field.gates.near_ceiling_frac_gate[p] <= opts.near_ceiling_max;
+        flat_field_near_ceiling_passes(
+            field.gates.near_ceiling_frac_frame[p],
+            field.gates.near_ceiling_frac_gate[p], opts.near_ceiling_max);
     field.gates.low_signal_ok &=
         field.gates.center_signal_frac[p] >= opts.min_center_signal;
     field.gates.negative_ok &=

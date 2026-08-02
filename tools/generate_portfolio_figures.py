@@ -541,6 +541,14 @@ def generate_shading(data_dir: Path) -> str:
             "failed_gates",
             "max_near_ceiling_gate",
             "max_near_ceiling_frame",
+            "near_ceiling_gate_r",
+            "near_ceiling_gate_g1",
+            "near_ceiling_gate_g2",
+            "near_ceiling_gate_b",
+            "near_ceiling_frame_r",
+            "near_ceiling_frame_g1",
+            "near_ceiling_frame_g2",
+            "near_ceiling_frame_b",
             "green_center_signal",
             "green_asymmetry",
             "dark_controls_verified",
@@ -668,7 +676,7 @@ def generate_shading(data_dir: Path) -> str:
         (
             "A 16 by 12 center-normalized green response map and chromatic "
             "ratio maps for a Fujifilm X-T100 f/8 sphere capture, accompanied "
-            "by saturation, pair-difference, dark-control and asymmetry diagnostics."
+            "by near-ceiling, pair-difference, dark-control and asymmetry diagnostics."
         ),
     )
     out += [

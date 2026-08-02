@@ -78,7 +78,7 @@ def fraction4(value: Any, label: str) -> list[float]:
 
 def validated_gates(
     item: dict[str, Any], label: str
-) -> tuple[float, float, list[float], list[str]]:
+) -> tuple[list[float], list[float], list[float], list[str]]:
     gates = item.get("gates")
     if not isinstance(gates, dict):
         raise ValueError(f"{label}: missing gate evidence")
@@ -97,7 +97,9 @@ def validated_gates(
         raise ValueError(f"{label}: bin coverage must lie in [0, 1]")
     expected = {
         "near_ceiling_ok": all(
-            value <= float(EXPECTED_OPTIONS["near_ceiling_max"]) for value in gate
+            gate_value <= float(EXPECTED_OPTIONS["near_ceiling_max"])
+            and frame_value <= float(EXPECTED_OPTIONS["near_ceiling_max"])
+            for gate_value, frame_value in zip(gate, frame)
         ),
         "low_signal_ok": all(
             value >= float(EXPECTED_OPTIONS["min_center_signal"]) for value in center
@@ -124,7 +126,7 @@ def validated_gates(
         )
         if not bool(gates[key])
     ]
-    return max(gate), max(frame), center, failed
+    return gate, frame, center, failed
 
 
 def cfa_positions(item: dict[str, Any], label: str) -> dict[str, int]:
@@ -403,8 +405,10 @@ def write_summary(
                 match.group("shutter"),
                 str(accepted).lower(),
                 ";".join(failed),
-                f"{gate:.8f}",
-                f"{frame:.8f}",
+                f"{max(gate):.8f}",
+                f"{max(frame):.8f}",
+                *[f"{gate[positions[name]]:.8f}" for name in ("r", "g1", "g2", "b")],
+                *[f"{frame[positions[name]]:.8f}" for name in ("r", "g1", "g2", "b")],
                 f"{green_center:.8f}",
                 "" if asymmetry is None else f"{finite(asymmetry, 'asymmetry'):.8f}",
                 str(dark_controls_verified).lower(),
@@ -450,6 +454,14 @@ def write_summary(
                 "failed_gates",
                 "max_near_ceiling_gate",
                 "max_near_ceiling_frame",
+                "near_ceiling_gate_r",
+                "near_ceiling_gate_g1",
+                "near_ceiling_gate_g2",
+                "near_ceiling_gate_b",
+                "near_ceiling_frame_r",
+                "near_ceiling_frame_g1",
+                "near_ceiling_frame_g2",
+                "near_ceiling_frame_b",
                 "green_center_signal",
                 "green_asymmetry",
                 "dark_controls_verified",

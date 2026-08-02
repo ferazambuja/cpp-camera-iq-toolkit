@@ -22,4 +22,11 @@ std::optional<RoiRect> parse_roi_spec(std::string_view spec);
 std::optional<RoiRect> cfa_balanced_roi(const RoiRect& requested,
                                         int image_width, int image_height);
 
+// Builds a centered rectangle covering `linear_fraction` of each image axis,
+// then rounds its origin and extents inward to complete 2x2 CFA blocks. This is
+// the shared geometry contract for centered CFA-domain quality gates.
+std::optional<RoiRect> centered_cfa_balanced_roi(int image_width,
+                                                 int image_height,
+                                                 double linear_fraction);
+
 }  // namespace camera_iq

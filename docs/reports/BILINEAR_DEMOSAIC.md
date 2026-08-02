@@ -25,7 +25,8 @@ The command implements a transparent hand-written demosaic:
   per-position black levels used by `raw-stats`.
 - **Black-level source.** An earlier manifest pass anticipated deriving black
   from the 21 dark frames after finding LibRaw's *scalar* `black`
-  reports 0 for the X-T100. The implemented path reads the LibRaw `cblack` **tile**
+  reports 0 for the Fujifilm X-T100. The implemented path reads the LibRaw
+  `cblack` **tile**
   via `effective_black_levels()`, which correctly recovers the ~1024 DN pedestal
   the scalar hides (Fuji matches the X-T100 dark-frame mean of 1023.99). This is
   adequate for a DN-space demosaic preview, and the implemented

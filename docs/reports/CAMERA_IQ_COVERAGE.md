@@ -16,14 +16,15 @@ supported by the available image archives:
   accuracy.
 - Camera spectral sensitivity, physical closure, Luther/SMI color-fidelity
   ranking, and archive provenance.
-- Tone/OECF/linearity from CLRS exposure series and D800 Stepchart oracle data.
+- Tone/OECF/linearity from CLRS exposure series and Nikon D800 Stepchart oracle
+  data.
 - Dark-frame noise, DSNU, and DN-referred per-pixel temporal variance
   diagnostics.
 - Slanted-edge SFR/MTF, including center ROI and 23-ROI field maps on two Nikon
   archives.
-- Relative CFA flat-field response with central clipping, bounded dark-control,
-  one capture-pair-difference, chromatic-ratio, and quadrant-asymmetry
-  diagnostics.
+- Relative CFA flat-field response with central near-ceiling screening,
+  bounded dark-control, one capture-pair-difference, chromatic-ratio, and
+  quadrant-asymmetry diagnostics.
 
 The current archives do not provide the calibration or target captures needed
 for electron-calibrated gain/read noise, full well, engineering dynamic range,
@@ -69,8 +70,8 @@ locations.
 | Dark-frame temporal noise and DSNU | Covered | [Noise](DARK_FRAME_NOISE.md), [dark calibration](DARK_CALIBRATION.md) | Dark-pair temporal noise, moment/robust DSNU, dark-current diagnostic, outlier gating. | DN diagnostics; gain/PTC/DR refused where data does not support them. |
 | SFR / MTF center ROI | Covered | [SFR result](SFR_MTF.md), [archive map](SFR_MTF_ARCHIVE_INVENTORY.md) | Green-linear slanted-edge MTF50P, sinc correction, D810 aperture trend, Imatest advisory comparison. | Not luma/gamma Imatest parity, lp/mm, or rendered Y-channel equivalence. |
 | SFR / MTF field map | Covered | [SFR result](SFR_MTF.md), [archive map](SFR_MTF_ARCHIVE_INVENTORY.md) | 23-ROI field maps for D810 and D800, per-ROI oracle parsing, field/corner gates, D800 negative trend finding. | Still green-linear CFA SFR; no full sagittal/tangential lens model. |
-| CFA flat-field response | Covered as composite characterization; optical attribution remains partial | [Flat-field response](FLAT_FIELD_RESPONSE.md), [patch extraction](PATCH_EXTRACTION.md) | Per-CFA median maps, center-normalized R/G and B/G, center/full-frame clipping gates, bounded dark-control checks, one observed capture-pair delta, and quadrant asymmetry. | Available captures do not separate source, lens, alignment, mechanical shading, or sensor angular response; the single pair is not a repeatability estimate; not an isolated lens-vignetting metric. |
-| Vignetting/shading (optical attribution) | Partial | [Flat-field response](FLAT_FIELD_RESPONSE.md), [patch extraction](PATCH_EXTRACTION.md) | The composite field response above, plus flat-field correction inside patch extraction. | No isolated lens-vignetting metric. Attribution needs camera-rotation pairs and multi-aperture clip-free captures, neither of which the archive provides. |
+| CFA flat-field response | Covered as composite characterization; optical attribution remains partial | [Flat-field response](FLAT_FIELD_RESPONSE.md), [patch extraction](PATCH_EXTRACTION.md) | Per-CFA median maps, center-normalized R/G and B/G, center/full-frame near-ceiling gates, bounded dark-control checks, one observed capture-pair delta, and quadrant asymmetry. | Available captures do not separate source, lens, alignment, mechanical shading, or sensor angular response; the single pair is not a repeatability estimate; not an isolated lens-vignetting metric. |
+| Vignetting/shading (optical attribution) | Partial | [Flat-field response](FLAT_FIELD_RESPONSE.md), [patch extraction](PATCH_EXTRACTION.md) | The composite field response above, plus flat-field correction inside patch extraction. | No isolated lens-vignetting metric. Attribution needs camera-rotation pairs and multi-aperture headroom-safe captures, neither of which the archive provides. |
 | Distortion / chromatic aberration / flare | Partial / diagnostic only | [Localization](RAW_CHART_LOCALIZATION.md), [CCM fit](CCM_FIT.md) | Localization residuals and dark-patch flare evidence. | No standalone distortion, lateral CA, flare, or veiling-glare metric. |
 | Texture, autofocus, rolling shutter, HDR/video | Not covered | none | Out of current still-image archive scope. | Would need new target captures or different data. |
 

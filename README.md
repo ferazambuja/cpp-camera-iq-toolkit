@@ -33,12 +33,12 @@ validation.
   asymmetry** diagnoses departure from a centered radial scalar model; missing
   capture controls prevent isolated lens attribution regardless of the
   diagnostic verdict.
-- **Flat-field selection:** a normalizing flat is validated for clipping over
-  the whole frame and over the centered region that sets the correction scale.
-  The center of a vignetted flat is its brightest region and clips first: one
-  sphere capture reads **11.63%** near ceiling in that region against **0.0996%**
-  frame-wide, so a frame-wide test alone admits a flat whose normalizer is
-  already saturated.
+- **Cross-command consistency:** auditing which frames each command uses as a
+  flat found that `patches` guarded its correction flat on a whole-frame
+  post-demosaic fraction alone, and so accepted a frame whose worst CFA position
+  was **11.63% near ceiling** in the centered gate. Both commands now use one
+  CFA-domain, CFA-balanced, per-position gate. The selected 1/1000 s correction
+  flat remains accepted; the correction path after admission is unchanged.
 
 ## Featured case studies
 
@@ -47,7 +47,7 @@ validation.
 | [Nikon D800/D810 + 50 mm f/1.4G SFR aperture and field analysis](docs/case-studies/sfr-mtf-aperture-field.md) | Slanted-edge algorithm, field behavior, advisory cross-checks, failure transfer | 299 accepted field ROIs; capture-system-specific trend and field findings |
 | [Spectral sensitivity and color fidelity](docs/case-studies/spectral-color-fidelity.md) | RAW monochromator extraction, physical closure, Luther/SMI comparison | Four-camera closure; stable five-camera endpoint ordering |
 | [ColorChecker extraction and CCM validation](docs/case-studies/colorchecker-ccm.md) | RAW patch extraction, flat field/WB, linear CCM, held-out Delta E | 140-patch pipeline with explicit dark-patch diagnostics |
-| [CFA flat-field response](docs/case-studies/cfa-flat-field-response.md) | Black-subtracted Bayer grids, center normalization, clipping/dark/pair checks | 3/52 usable sphere frames; green-field asymmetry separated from smaller R/G and B/G variation |
+| [CFA flat-field response](docs/case-studies/cfa-flat-field-response.md) | Black-subtracted Bayer grids, center normalization, near-ceiling/dark/pair checks | 3/52 usable sphere frames; green-field asymmetry separated from smaller R/G and B/G variation |
 
 The [technical documentation index](docs/README.md) connects these case studies
 to the OECF, noise, demosaic, localization, dataset, and provenance reports.

@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <svg xmlns="http://www.w3.org/2000/svg" width="1200" height="800" viewBox="0 0 1200 800" role="img" aria-labelledby="title desc">
   <title id="title">CFA flat-field response characterization</title>
-  <desc id="desc">A 16 by 12 center-normalized green response map and chromatic ratio maps for a Fujifilm X-T100 f/8 sphere capture, accompanied by saturation, pair-difference, dark-control and asymmetry diagnostics.</desc>
+  <desc id="desc">A 16 by 12 center-normalized green response map and chromatic ratio maps for a Fujifilm X-T100 f/8 sphere capture, accompanied by near-ceiling, pair-difference, dark-control and asymmetry diagnostics.</desc>
   <style>
     text { font-family: Helvetica; fill: #172033; }
     .title { font-size: 25px; font-weight: 700; }

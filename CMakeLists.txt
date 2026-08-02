@@ -50,6 +50,7 @@ add_library(camera_iq_core STATIC
   src/cfa_stats.cpp
   src/mat_file.cpp
   src/roi.cpp
+  src/flat_field_gate.cpp
   src/demosaic.cpp
   src/dark_calibration.cpp
   src/noise.cpp

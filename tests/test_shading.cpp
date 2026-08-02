@@ -334,6 +334,38 @@ void TESTS() {
           "near-ceiling: whole-frame fraction alone would have accepted it");
   }
 
+  // Regression: the whole-frame measurement is also a gate, not decoration.
+  // A peripheral one-plane excess must reject even when the centered region is
+  // clean; otherwise `shading` and flat correction apply different policies.
+  {
+    const int width = 64;
+    const int height = 64;
+    auto mosaic = make_mosaic(width, height, {500, 500, 500, 500});
+    int raised = 0;
+    for (int y = 0; y < 16 && raised < 16; ++y) {
+      for (int x = 0; x < width && raised < 16; ++x) {
+        if ((y & 1) == 0 && (x & 1) == 0) {
+          mosaic[static_cast<std::size_t>(y) * width + x] = 1000.0;
+          ++raised;
+        }
+      }
+    }
+    ShadingOptions opts;
+    opts.grid_cols = 2;
+    opts.grid_rows = 2;
+    opts.corner_block_px = 16;
+    opts.corner_inset_px = 0;
+    opts.gate_center_frac = 0.5;
+    const auto field = measure_shading_field(mosaic.data(), width, height,
+                                             width, opts, kCeiling);
+    check(!field.valid && !field.gates.near_ceiling_ok,
+          "near-ceiling: peripheral one-plane excess rejects");
+    check_near(field.gates.near_ceiling_frac_gate[0], 0.0, 1e-12,
+               "near-ceiling: peripheral fixture leaves center gate clean");
+    check_near(field.gates.near_ceiling_frac_frame[0], 16.0 / 1024.0, 1e-12,
+               "near-ceiling: peripheral frame excess is retained");
+  }
+
   // Low signal: the center block is the normalizer, so a frame whose center
   // carries almost no signal cannot anchor a ratio.
   {

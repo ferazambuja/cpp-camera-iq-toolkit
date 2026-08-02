@@ -13,6 +13,7 @@
 #include <string_view>
 #include <vector>
 
+#include "camera_iq/flat_field_gate.hpp"
 #include "camera_iq/json_writer.hpp"
 #include "camera_iq/raw_meta.hpp"
 
@@ -21,10 +22,6 @@ namespace {
 
 constexpr std::string_view kFlatFieldNormalizationPolicy =
     "per_channel_mean_valid_samples";
-constexpr double kFlatNearCeilingFraction = 0.98;
-// Matches ShadingOptions::gate_center_frac. The two commands measure a
-// normalizing flat's center with the same declared geometry on purpose.
-constexpr double kFlatCenterGateFraction = 0.20;
 
 std::string trim_cr(std::string s) {
   if (!s.empty() && s.back() == '\r') s.pop_back();
@@ -222,6 +219,86 @@ void write_patch(JsonWriter& w, const PatchMean& patch, std::size_t index,
   w.end_object();
 }
 
+void write_roi(JsonWriter& w, const RoiRect& roi) {
+  w.begin_object();
+  w.key("x");
+  w.value(roi.x);
+  w.key("y");
+  w.value(roi.y);
+  w.key("width");
+  w.value(roi.width);
+  w.key("height");
+  w.value(roi.height);
+  w.end_object();
+}
+
+void write_fraction_array(JsonWriter& w,
+                          const std::array<double, 4>& fractions) {
+  w.begin_array();
+  for (double fraction : fractions) w.value(fraction);
+  w.end_array();
+}
+
+void write_flat_gate(JsonWriter& w,
+                     const FlatFieldNearCeilingDiagnostics& gate) {
+  w.begin_object();
+  w.key("measurement_domain");
+  w.value(gate.measurement_domain);
+  w.key("gate_center_fraction");
+  w.value(gate.gate_center_fraction);
+  w.key("near_ceiling_level");
+  w.value(gate.near_ceiling_level);
+  w.key("max_allowed_fraction");
+  w.value(gate.max_allowed_fraction);
+  w.key("geometry");
+  w.begin_object();
+  w.key("frame");
+  write_roi(w, gate.frame);
+  w.key("gate");
+  write_roi(w, gate.gate);
+  w.end_object();
+  w.key("labels");
+  w.begin_array();
+  for (const auto& label : gate.labels) w.value(label);
+  w.end_array();
+  w.key("near_ceiling_fraction_frame");
+  write_fraction_array(w, gate.near_ceiling_fraction_frame);
+  w.key("near_ceiling_fraction_gate");
+  write_fraction_array(w, gate.near_ceiling_fraction_gate);
+  w.key("verdict");
+  w.begin_object();
+  w.key("accepted");
+  w.value(gate.verdict.accepted);
+  w.key("reason");
+  w.value(gate.verdict.reason);
+  w.key("region");
+  if (gate.verdict.region.empty()) {
+    w.null();
+  } else {
+    w.value(gate.verdict.region);
+  }
+  w.key("position");
+  if (gate.verdict.position < 0) {
+    w.null();
+  } else {
+    w.value(gate.verdict.position);
+  }
+  w.key("label");
+  if (gate.verdict.label.empty()) {
+    w.null();
+  } else {
+    w.value(gate.verdict.label);
+  }
+  w.key("fraction");
+  if (gate.verdict.position < 0) {
+    w.null();
+  } else {
+    w.value(gate.verdict.fraction);
+  }
+  w.end_object();
+  w.end_object();
+}
+
 void write_corrections(JsonWriter& w, std::string_view flat_label,
                        const std::optional<FlatFieldCorrectionSummary>& flat,
                        const std::optional<WhiteBalanceGains>& wb,
@@ -246,18 +323,12 @@ void write_corrections(JsonWriter& w, std::string_view flat_label,
     w.value(static_cast<std::int64_t>(flat->valid_sample_count));
     w.key("clamped_sample_count");
     w.value(static_cast<std::int64_t>(flat->clamped_sample_count));
-    w.key("near_ceiling_sample_count");
-    w.value(static_cast<std::int64_t>(flat->near_ceiling_sample_count));
-    w.key("near_ceiling_fraction");
-    w.value(flat->near_ceiling_fraction);
-    w.key("center_near_ceiling_fraction");
-    w.value(flat->center_near_ceiling_fraction);
-    w.key("center_gate_fraction");
-    w.value(flat->center_gate_fraction);
-    w.key("near_ceiling_threshold_fraction");
-    w.value(kFlatNearCeilingFraction);
-    w.key("max_allowed_near_ceiling_fraction");
-    w.value(flat->max_allowed_near_ceiling_fraction);
+    w.key("near_ceiling_gate");
+    if (flat->near_ceiling) {
+      write_flat_gate(w, *flat->near_ceiling);
+    } else {
+      w.null();
+    }
     w.end_object();
   } else {
     w.null();
@@ -1029,70 +1100,154 @@ std::string_view flat_field_normalization_policy() {
 }
 
 double flat_field_near_ceiling_threshold_fraction() {
-  return kFlatNearCeilingFraction;
+  return kFlatFieldNearCeilingLevel;
 }
 
-double flat_field_center_gate_fraction() { return kFlatCenterGateFraction; }
+double flat_field_center_gate_fraction() {
+  return kFlatFieldGateCenterFraction;
+}
 
-double flat_center_near_ceiling_fraction(const std::vector<RgbPixel>& flat,
-                                         int width, int height,
-                                         const CameraRgbPatch& ceiling,
-                                         double level, double center_frac) {
-  const double undefined = std::numeric_limits<double>::quiet_NaN();
-  if (width <= 0 || height <= 0) return undefined;
-  if (flat.size() != static_cast<std::size_t>(width) *
-                         static_cast<std::size_t>(height)) {
-    return undefined;
+FlatFieldGateVerdict flat_field_near_ceiling_verdict(
+    const std::array<double, 4>& frame_fractions,
+    const std::array<double, 4>& gate_fractions,
+    const std::array<std::string, 4>& labels, double max_allowed) {
+  if (!valid_flat_field_fraction(max_allowed)) {
+    return {false, "invalid_policy", "policy", -1, {}, max_allowed};
   }
-  if (!std::isfinite(level) || level <= 0.0 || level > 1.0) return undefined;
-  if (!std::isfinite(center_frac) || center_frac <= 0.0 || center_frac > 1.0) {
-    return undefined;
-  }
-  if (!std::isfinite(ceiling.r) || !std::isfinite(ceiling.g) ||
-      !std::isfinite(ceiling.b) || ceiling.r <= 0.0 || ceiling.g <= 0.0 ||
-      ceiling.b <= 0.0) {
-    return undefined;
-  }
-
-  const int gate_w = std::max(
-      1, static_cast<int>(static_cast<double>(width) * center_frac));
-  const int gate_h = std::max(
-      1, static_cast<int>(static_cast<double>(height) * center_frac));
-  const int x0 = (width - gate_w) / 2;
-  const int y0 = (height - gate_h) / 2;
-
-  const double r_limit = ceiling.r * level;
-  const double g_limit = ceiling.g * level;
-  const double b_limit = ceiling.b * level;
-  std::size_t near = 0;
-  for (int y = y0; y < y0 + gate_h; ++y) {
-    for (int x = x0; x < x0 + gate_w; ++x) {
-      const RgbPixel& p = flat[static_cast<std::size_t>(y) *
-                                   static_cast<std::size_t>(width) +
-                               static_cast<std::size_t>(x)];
-      if (p.r >= r_limit) ++near;
-      if (p.g >= g_limit) ++near;
-      if (p.b >= b_limit) ++near;
+  for (int p = 0; p < 4; ++p) {
+    for (const auto& measurement :
+         {std::pair<std::string_view, double>{"frame", frame_fractions[p]},
+          std::pair<std::string_view, double>{"gate", gate_fractions[p]}}) {
+      if (!valid_flat_field_fraction(measurement.second)) {
+        return {false, "invalid_fraction", std::string(measurement.first), p,
+                labels[p], measurement.second};
+      }
     }
   }
-  const double total = static_cast<double>(gate_w) *
-                       static_cast<double>(gate_h) * 3.0;
-  return static_cast<double>(near) / total;
+
+  bool all_pass = true;
+  for (int p = 0; p < 4; ++p) {
+    all_pass &= flat_field_near_ceiling_passes(
+        frame_fractions[p], gate_fractions[p], max_allowed);
+  }
+  if (all_pass) return {true, "within_policy", {}, -1, {}, 0.0};
+
+  const auto first_excess = [&](const std::array<double, 4>& fractions,
+                                std::string_view region)
+      -> std::optional<FlatFieldGateVerdict> {
+    int worst = -1;
+    for (int p = 0; p < 4; ++p) {
+      if (fractions[p] > max_allowed &&
+          (worst < 0 || fractions[p] > fractions[worst])) {
+        worst = p;
+      }
+    }
+    if (worst < 0) return std::nullopt;
+    return FlatFieldGateVerdict{false, "policy_exceeded", std::string(region),
+                                worst, labels[worst], fractions[worst]};
+  };
+
+  if (const auto frame = first_excess(frame_fractions, "frame")) return *frame;
+  if (const auto gate = first_excess(gate_fractions, "gate")) return *gate;
+  return {false, "invalid_measurement", "policy", -1, {}, 0.0};
 }
 
-FlatFieldGateVerdict flat_field_near_ceiling_verdict(double frame_fraction,
-                                                     double center_fraction,
-                                                     double max_allowed) {
-  // Written as a negated `<=` throughout so NaN falls into the reject branch.
-  // The equivalent-looking `fraction > max_allowed` is false for NaN and would
-  // accept an unmeasurable flat.
-  if (!(frame_fraction <= max_allowed)) {
-    return {false, "frame", frame_fraction};
+std::optional<FlatFieldNearCeilingDiagnostics>
+measure_flat_field_near_ceiling(const RawCfaImage& flat, double center_fraction,
+                                double near_ceiling_level,
+                                double max_allowed_fraction) {
+  if (!std::isfinite(near_ceiling_level) || near_ceiling_level <= 0.0 ||
+      near_ceiling_level > 1.0 || !std::isfinite(max_allowed_fraction) ||
+      max_allowed_fraction < 0.0 || max_allowed_fraction > 1.0) {
+    return std::nullopt;
   }
-  if (!(center_fraction <= max_allowed)) {
-    return {false, "center", center_fraction};
+  const auto frame =
+      cfa_balanced_roi(RoiRect{0, 0, flat.width, flat.height}, flat.width,
+                       flat.height);
+  const auto gate =
+      centered_cfa_balanced_roi(flat.width, flat.height, center_fraction);
+  if (!frame || !gate || flat.row_stride_pixels < flat.width ||
+      flat.height <= 0) {
+    return std::nullopt;
   }
-  return {true, {}, 0.0};
+  const auto stride = static_cast<std::size_t>(flat.row_stride_pixels);
+  const auto height = static_cast<std::size_t>(flat.height);
+  if (stride > std::numeric_limits<std::size_t>::max() / height ||
+      flat.samples.size() < stride * height) {
+    return std::nullopt;
+  }
+
+  std::array<double, 4> ceiling{};
+  for (int p = 0; p < 4; ++p) {
+    ceiling[p] = flat.meta.white_level - flat.meta.black_per_channel[p];
+  }
+  const auto measurement = measure_cfa_near_ceiling(
+      flat.samples.data(), flat.width, flat.height, flat.row_stride_pixels,
+      *gate, ceiling, near_ceiling_level);
+  if (!measurement || measurement->frame.x != frame->x ||
+      measurement->frame.y != frame->y ||
+      measurement->frame.width != frame->width ||
+      measurement->frame.height != frame->height) {
+    return std::nullopt;
+  }
+
+  FlatFieldNearCeilingDiagnostics out;
+  out.frame = measurement->frame;
+  out.gate = measurement->gate;
+  out.gate_center_fraction = center_fraction;
+  out.near_ceiling_level = near_ceiling_level;
+  out.max_allowed_fraction = max_allowed_fraction;
+  out.labels = channel_labels(flat.cdesc, flat.color_at_position);
+  for (int p = 0; p < 4; ++p) {
+    out.near_ceiling_fraction_frame[p] = measurement->fraction_frame[p];
+    out.near_ceiling_fraction_gate[p] = measurement->fraction_gate[p];
+  }
+  out.verdict = flat_field_near_ceiling_verdict(
+      out.near_ceiling_fraction_frame, out.near_ceiling_fraction_gate,
+      out.labels, max_allowed_fraction);
+  return out;
+}
+
+void write_patch_rejection_json(
+    std::ostream& os, std::string_view file_label,
+    std::string_view flat_label, const RawMeta& meta, int width, int height,
+    const FlatFieldNearCeilingDiagnostics& diagnostics) {
+  JsonWriter w(os);
+  w.begin_object();
+  w.key("file");
+  w.value(file_label);
+  w.key("status");
+  w.value("rejected");
+  w.key("rejection_stage");
+  w.value("flat_field_near_ceiling_gate");
+  w.key("camera");
+  w.begin_object();
+  w.key("make");
+  w.value(meta.make);
+  w.key("model");
+  w.value(meta.model);
+  w.key("cfa_pattern");
+  w.value(meta.cfa_pattern);
+  w.key("black_level");
+  w.value(meta.black_level);
+  w.key("white_level");
+  w.value(meta.white_level);
+  w.end_object();
+  w.key("image");
+  w.begin_object();
+  w.key("width");
+  w.value(width);
+  w.key("height");
+  w.value(height);
+  w.end_object();
+  w.key("flat_field");
+  w.begin_object();
+  w.key("path");
+  w.value(flat_label);
+  w.key("near_ceiling_gate");
+  write_flat_gate(w, diagnostics);
+  w.end_object();
+  w.end_object();
 }
 
 void write_patch_report_json(
@@ -1112,6 +1267,8 @@ void write_patch_report_json(
   w.begin_object();
   w.key("file");
   w.value(file_label);
+  w.key("status");
+  w.value("accepted");
   w.key("coords_path");
   w.value(coords_label);
   w.key("coordinate_source_format");
