@@ -128,6 +128,51 @@ void TESTS() {
           "high-level API: CLI-safe path cannot use raw white by mistake");
   }
 
+  // Coverage gates `shading` too, not only the correction screen. A frame whose
+  // planes are mostly non-finite yields a near-ceiling fraction over almost no
+  // samples; that ratio is not evidence the field is clean.
+  {
+    RawCfaImage image;
+    image.width = 64;
+    image.height = 64;
+    image.row_stride_pixels = 64;
+    image.samples.assign(64 * 64, std::numeric_limits<double>::quiet_NaN());
+    // A 2x2-block checkerboard leaves every CFA position about half finite in
+    // both regions. Each plane therefore has a *defined* near-ceiling fraction
+    // of zero -- the samples that survive are far below the ceiling -- so the
+    // only thing wrong with this frame is how few samples it was measured over.
+    for (int y = 0; y < 64; ++y) {
+      for (int x = 0; x < 64; ++x) {
+        if (((x / 2) + (y / 2)) % 2 == 0) {
+          image.samples[static_cast<std::size_t>(y) * 64 + x] = 1000.0;
+        }
+      }
+    }
+    image.meta.white_level = 16383.0;
+    image.meta.black_per_channel = {1024.0, 1024.0, 1024.0, 1024.0};
+    image.color_at_position = kRGGB;
+    image.cdesc = kCdesc;
+
+    ShadingOptions opts;
+    opts.grid_cols = 2;
+    opts.grid_rows = 2;
+    opts.corner_block_px = 16;
+    opts.corner_inset_px = 0;
+    opts.gate_center_frac = 0.5;
+    const auto analysis = analyze_shading(image, opts);
+
+    for (int p = 0; p < 4; ++p) {
+      check_near(analysis.field.gates.near_ceiling_frac_frame[p], 0.0, 1e-12,
+                 "coverage: the surviving samples are far below the ceiling");
+      check(analysis.field.gates.finite_frac_frame[p] < 0.9,
+            "coverage: sparse whole-frame coverage is measured per plane");
+      check(analysis.field.gates.finite_frac_gate[p] < 0.9,
+            "coverage: sparse centered coverage is measured per plane");
+    }
+    check(!analysis.field.gates.near_ceiling_ok,
+          "coverage: a fraction over too few finite samples is not a pass");
+  }
+
   // Invalid metadata/buffer combinations must be rejected before pointer math.
   {
     RawCfaImage image;

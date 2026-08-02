@@ -17,6 +17,7 @@
 #include "camera_iq/json_writer.hpp"
 #include "camera_iq/output_file.hpp"
 #include "camera_iq/raw_meta.hpp"
+#include "camera_iq/flat_field_gate.hpp"
 #include "camera_iq/shading.hpp"
 
 namespace camera_iq {
@@ -97,6 +98,8 @@ void write_options(JsonWriter& w, const ShadingOptions& opts) {
   w.value(opts.near_ceiling_level);
   w.key("near_ceiling_max");
   w.value(opts.near_ceiling_max);
+  w.key("min_finite_coverage");
+  w.value(kFlatFieldMinFiniteCoverage);
   w.key("min_center_signal");
   w.value(opts.min_center_signal);
   w.key("max_negative_frac");
@@ -256,6 +259,12 @@ void write_shading_json(std::ostream& os, std::string_view file_label,
   write_plane_array(w, field.gates.near_ceiling_frac_gate);
   w.key("near_ceiling_fraction_frame");
   write_plane_array(w, field.gates.near_ceiling_frac_frame);
+  // Published beside the fractions above: each is a ratio over finite samples,
+  // so the coverage it was taken over is part of the evidence, not a footnote.
+  w.key("finite_fraction_gate");
+  write_plane_array(w, field.gates.finite_frac_gate);
+  w.key("finite_fraction_frame");
+  write_plane_array(w, field.gates.finite_frac_frame);
   w.key("negative_fraction");
   write_plane_array(w, field.gates.negative_frac);
   w.key("center_signal_fraction");
@@ -476,6 +485,8 @@ void write_shading_csv(std::ostream& os, std::string_view file_label,
           "", opts.near_ceiling_level, "fraction", ok);
   csv_row(os, file_label, "", -1, "analysis_option_near_ceiling_max", "", "",
           opts.near_ceiling_max, "fraction", ok);
+  csv_row(os, file_label, "", -1, "analysis_option_min_finite_coverage", "", "",
+          kFlatFieldMinFiniteCoverage, "fraction", ok);
   csv_row(os, file_label, "", -1, "analysis_option_min_center_signal", "", "",
           opts.min_center_signal, "fraction", ok);
   csv_row(os, file_label, "", -1, "analysis_option_max_negative_frac", "", "",
@@ -492,6 +503,10 @@ void write_shading_csv(std::ostream& os, std::string_view file_label,
             field.gates.near_ceiling_frac_gate[p], "fraction", ok);
     csv_row(os, file_label, ch, p, "near_ceiling_fraction_frame", "", "",
             field.gates.near_ceiling_frac_frame[p], "fraction", ok);
+    csv_row(os, file_label, ch, p, "finite_fraction_gate", "", "",
+            field.gates.finite_frac_gate[p], "fraction", ok);
+    csv_row(os, file_label, ch, p, "finite_fraction_frame", "", "",
+            field.gates.finite_frac_frame[p], "fraction", ok);
     csv_row(os, file_label, ch, p, "negative_fraction", "", "",
             field.gates.negative_frac[p], "fraction", ok);
     csv_row(os, file_label, ch, p, "center_signal_fraction", "", "",
