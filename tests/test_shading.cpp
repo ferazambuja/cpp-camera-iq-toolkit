@@ -128,6 +128,100 @@ void TESTS() {
           "high-level API: CLI-safe path cannot use raw white by mistake");
   }
 
+  // Coverage gates `shading` too, not only the correction screen. A frame whose
+  // planes are mostly non-finite yields a near-ceiling fraction over almost no
+  // samples; that ratio is not evidence the field is clean.
+  {
+    RawCfaImage image;
+    image.width = 64;
+    image.height = 64;
+    image.row_stride_pixels = 64;
+    image.samples.assign(64 * 64, std::numeric_limits<double>::quiet_NaN());
+    // A 2x2-block checkerboard leaves every CFA position about half finite in
+    // both regions. Each plane therefore has a *defined* near-ceiling fraction
+    // of zero -- the samples that survive are far below the ceiling -- so the
+    // only thing wrong with this frame is how few samples it was measured over.
+    for (int y = 0; y < 64; ++y) {
+      for (int x = 0; x < 64; ++x) {
+        if (((x / 2) + (y / 2)) % 2 == 0) {
+          image.samples[static_cast<std::size_t>(y) * 64 + x] = 1000.0;
+        }
+      }
+    }
+    image.meta.white_level = 16383.0;
+    image.meta.black_per_channel = {1024.0, 1024.0, 1024.0, 1024.0};
+    image.color_at_position = kRGGB;
+    image.cdesc = kCdesc;
+
+    ShadingOptions opts;
+    opts.grid_cols = 2;
+    opts.grid_rows = 2;
+    opts.corner_block_px = 16;
+    opts.corner_inset_px = 0;
+    opts.gate_center_frac = 0.5;
+    const auto analysis = analyze_shading(image, opts);
+
+    for (int p = 0; p < 4; ++p) {
+      check_near(analysis.field.gates.near_ceiling_frac_frame[p], 0.0, 1e-12,
+                 "coverage: the surviving samples are far below the ceiling");
+      check(analysis.field.gates.finite_frac_frame[p] < 0.9,
+            "coverage: sparse whole-frame coverage is measured per plane");
+      check(analysis.field.gates.finite_frac_gate[p] < 0.9,
+            "coverage: sparse centered coverage is measured per plane");
+    }
+    check(analysis.field.gates.near_ceiling_ok,
+          "coverage: zero near-ceiling fractions still pass the headroom gate");
+    check(analysis.field.rejection_reason ==
+              "screening finite coverage below policy",
+          "coverage: rejection names screening coverage rather than headroom");
+  }
+
+  // The screening policy is inclusive: exactly 90% finite coverage is enough,
+  // while the already-tested checkerboard below policy rejects. The missing
+  // 2x2 blocks are distributed evenly so every CFA position, screening region,
+  // and map bin lands on the same hand-counted boundary.
+  {
+    RawCfaImage image;
+    image.width = 40;
+    image.height = 40;
+    image.row_stride_pixels = 40;
+    image.samples.assign(40 * 40, 1000.0);
+    for (int block_y = 0; block_y < 20; ++block_y) {
+      for (int block_x = 0; block_x < 20; ++block_x) {
+        if ((block_y * 20 + block_x) % 10 != 0)
+          continue;
+        for (int dy = 0; dy < 2; ++dy) {
+          for (int dx = 0; dx < 2; ++dx) {
+            image.samples[static_cast<std::size_t>(2 * block_y + dy) * 40 +
+                          2 * block_x + dx] =
+                std::numeric_limits<double>::quiet_NaN();
+          }
+        }
+      }
+    }
+    image.meta.white_level = 16383.0;
+    image.meta.black_per_channel = {1024.0, 1024.0, 1024.0, 1024.0};
+    image.color_at_position = kRGGB;
+    image.cdesc = kCdesc;
+
+    ShadingOptions opts;
+    opts.grid_cols = 2;
+    opts.grid_rows = 2;
+    opts.corner_block_px = 8;
+    opts.corner_inset_px = 0;
+    opts.gate_center_frac = 0.5;
+    const auto analysis = analyze_shading(image, opts);
+
+    for (int p = 0; p < 4; ++p) {
+      check_near(analysis.field.gates.finite_frac_frame[p], 0.9, 1e-12,
+                 "coverage boundary: frame coverage is exactly 90 percent");
+      check_near(analysis.field.gates.finite_frac_gate[p], 0.9, 1e-12,
+                 "coverage boundary: gate coverage is exactly 90 percent");
+    }
+    check(analysis.field.valid,
+          "coverage boundary: exactly 90 percent remains accepted");
+  }
+
   // Invalid metadata/buffer combinations must be rejected before pointer math.
   {
     RawCfaImage image;
@@ -240,10 +334,12 @@ void TESTS() {
     const auto odd = make_mosaic(odd_width, height, {500, 500, 500, 500});
     opts.corner_block_px = 32;
     opts.gate_center_frac = 0.5;
-    const auto odd_field = measure_shading_field(
-        odd.data(), odd_width, height, odd_width, opts, kCeiling);
-    check(!odd_field.valid,
-          "geometry: odd mosaic dimensions cannot claim mirrored corners");
+    const auto odd_field = measure_shading_field(odd.data(), odd_width, height,
+                                                 odd_width, opts, kCeiling);
+    check(!odd_field.valid && odd_field.signal_ceiling_measured &&
+              !odd_field.gates.measured,
+          "geometry: odd mosaic rejects after ceiling validation but before "
+          "gate measurement");
   }
 
   // Bounded missing samples are controlled by the coverage policy. Fractions
@@ -464,9 +560,9 @@ void TESTS() {
                                              width, opts, kCeiling);
 
     check(field.valid, "clean frame: accepted");
-    check(field.gates.near_ceiling_ok && field.gates.low_signal_ok &&
-              field.gates.negative_ok && field.gates.coverage_ok &&
-              field.gates.finite_ok,
+    check(field.gates.near_ceiling_ok && field.gates.screening_coverage_ok &&
+              field.gates.low_signal_ok && field.gates.negative_ok &&
+              field.gates.coverage_ok && field.gates.finite_ok,
           "clean frame: every gate verdict is pass");
     check_near(field.gates.center_signal_frac[0], 0.5, 1e-9,
                "clean frame: center signal fraction reported when passing");
