@@ -12,7 +12,7 @@ state, OLPF, sampling, and processing together, so every value below is a
 capture-system result rather than a camera-body or lens property.
 
 [Case study](../case-studies/sfr-mtf-aperture-field.md) ·
-[publication-safe aggregate CSV](../data/sfr_aperture_summary.csv) ·
+[aggregate results CSV](../data/sfr_aperture_summary.csv) ·
 [archive and oracle contract](SFR_MTF_ARCHIVE_INVENTORY.md)
 
 ![D800 and D810 SFR aperture and field summary](../figures/sfr_aperture_field.svg)

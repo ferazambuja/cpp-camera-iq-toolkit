@@ -11,7 +11,7 @@ RAW-extracted camera spectral-sensitivity function, same-session physical
 closure, Luther-condition residuals, and an ISO 17321-style SMI approximation.
 
 [Case study](../case-studies/spectral-color-fidelity.md) ·
-[publication-safe aggregate CSV](../data/spectral_color_fidelity.csv) ·
+[aggregate results CSV](../data/spectral_color_fidelity.csv) ·
 [archive role map](SPECTRAL_ARCHIVE_INVENTORY.md)
 
 The source archive was read only. The tracked repository records relative

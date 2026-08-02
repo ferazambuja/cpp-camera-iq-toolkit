@@ -13,9 +13,9 @@ validation.
 ## Engineering results at a glance
 
 - **SFR/MTF:** processed **299 field ROIs** across Nikon D800 and D810 aperture
-  sweeps. The D810 peak occurred at f/5.6; the D810 trend did not transfer to
-  the D800, where field asymmetry and capture-specific behavior were retained as
-  findings rather than forced into a passing rule.
+  sweeps. The D810 peak occurred at f/5.6. That trend did not hold on the D800,
+  whose field is asymmetric, so the two bodies are reported under separate
+  acceptance criteria rather than one.
 - **Spectral characterization:** extracted a Canon 5D2 spectral-sensitivity
   function from monochromator RAW sweeps, closed four same-session camera/chart
   datasets with minimum channel correlation above **0.992**, and compared five
@@ -33,14 +33,12 @@ validation.
   asymmetry** diagnoses departure from a centered radial scalar model; missing
   capture controls prevent isolated lens attribution regardless of the
   diagnostic verdict.
-- **Cross-command consistency:** auditing which frames each command uses as a
-  flat found that `patches` guarded its correction flat on a whole-frame
-  clipping fraction alone, and so accepted a frame whose normalizing center was
-  **11.63% clipped** in the CFA domain while reading 0.0996% frame-wide. Both
-  commands now apply the same centered gate geometry, though `patches` measures
-  it after demosaic and reads **2.38%** on that frame; the two accept the same
-  three frames on this archive and the published CCM result reproduces to
-  **0 DN**.
+- **Flat-field selection:** a normalizing flat is validated for clipping over
+  the whole frame and over the centered region that sets the correction scale.
+  The center of a vignetted flat is its brightest region and clips first: one
+  sphere capture reads **11.63%** near ceiling in that region against **0.0996%**
+  frame-wide, so a frame-wide test alone admits a flat whose normalizer is
+  already saturated.
 
 ## Featured case studies
 
@@ -82,10 +80,10 @@ Implemented commands:
 
 ## Reproducibility and data access
 
-The source RAW datasets are intentionally outside Git, but the repository does
-not stop at prose. It includes publication-safe aggregate tables, deterministic
-SVG generation, public fixtures for parser/CLI paths, implementation links,
-and the full test suite.
+The source RAW datasets are intentionally outside Git. Every reported number is
+still reproducible from what is committed: aggregate result tables, deterministic
+SVG generation from those tables, fixtures covering the parser and CLI paths,
+and the test suite.
 
 ```bash
 cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
@@ -97,8 +95,8 @@ python3 tools/generate_portfolio_figures.py
 python3 tools/generate_portfolio_figures.py --check
 ```
 
-A tiny fixture demonstrates the public dataset/manifest path without pretending
-to be a real image-quality capture:
+A small synthetic fixture exercises the dataset and manifest path end to end. It
+carries no image-quality content and is not a substitute for a real capture:
 
 ```bash
 ./build/camera_iq manifest data/samples/manifest_fixture --no-exif \

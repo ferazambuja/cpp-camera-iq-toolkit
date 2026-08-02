@@ -133,6 +133,69 @@ def link_target(raw: str) -> str:
     return target
 
 
+HEADING_RE = re.compile(r"^(#{1,6})\s+(.*?)\s*$")
+
+
+def heading_slug(line: str) -> str | None:
+    """GitHub's anchor for a Markdown heading, or None if the line is not one.
+
+    Lowercase, punctuation dropped rather than replaced, spaces to hyphens.
+    """
+    match = HEADING_RE.match(line)
+    if not match:
+        return None
+    text = match.group(2)
+    text = re.sub(r"`([^`]*)`", r"\1", text)          # inline code markers
+    text = re.sub(r"!?\[([^\]]*)\]\([^)]*\)", r"\1", text)  # links keep their label
+    text = text.lower()
+    text = re.sub(r"[^\w\s-]", "", text)
+    return re.sub(r"\s+", "-", text.strip())
+
+
+def document_anchors(text: str) -> set[str]:
+    anchors = set()
+    fenced = False
+    for line in text.splitlines():
+        if line.lstrip().startswith("```"):
+            fenced = not fenced
+            continue
+        if fenced:
+            continue
+        slug = heading_slug(line)
+        if slug:
+            anchors.add(slug)
+    return anchors
+
+
+def anchor_failures(repo_root: Path, path: Path) -> list[str]:
+    """Reports `#fragment` link targets that no heading in the target file
+    defines. Checking the file path alone lets a heading rename break every
+    cross-reference to it without any check noticing."""
+    failures: list[str] = []
+    text = path.read_text(encoding="utf-8")
+    for match in LINK_RE.finditer(text):
+        target = link_target(match.group(1))
+        if not target or target.startswith(("http://", "https://", "mailto:")):
+            continue
+        if "://" in target or "#" not in target:
+            continue
+        file_part, _, fragment = target.partition("#")
+        if not fragment:
+            continue
+        if file_part:
+            resolved = (path.parent / unquote(file_part)).resolve()
+        else:
+            resolved = path
+        if resolved.suffix != ".md" or not resolved.is_file():
+            continue
+        anchors = document_anchors(resolved.read_text(encoding="utf-8"))
+        if unquote(fragment) not in anchors:
+            failures.append(
+                f"broken link anchor: {path.relative_to(repo_root)} -> {target}"
+            )
+    return failures
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--repo-root", type=Path, required=True)
@@ -170,6 +233,7 @@ def main() -> int:
                 failures.append(
                     f"broken internal link: {path.relative_to(repo_root)} -> {target}"
                 )
+        failures.extend(anchor_failures(repo_root, path))
         if path == repo_root / "README.md" or repo_root / "docs" in path.parents:
             for label, pattern in {**STALE_PATTERNS, **INTERNAL_PATTERNS}.items():
                 if pattern.search(text):

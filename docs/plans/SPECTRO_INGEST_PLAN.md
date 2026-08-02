@@ -59,18 +59,36 @@ for that same spectrum. Integrating the spectrum against color-matching
 functions and comparing to the recorded tristimulus is therefore a closure test
 with a measured reference rather than a self-consistency check.
 
-The comparison has a known limit that the implementation must report rather than
-absorb. Integrating `PRD_01.mat` against the committed 10 nm CMF table
-(`data/cie1931_2deg_cmf.csv`, 380-730 nm) and scaling by 683 lm/W reproduces the
-recorded tristimulus to within 0.14% on X, 0.05% on Y, and 0.45% on Z. The
-residual is a sampling artifact, not an instrument disagreement: the committed
-table is a 10 nm grid covering 380-730 nm, while these measurements are on a 2 nm
-grid covering 380-780 nm, so the sharp short-wavelength `z` lobe is
-under-resolved and the 730-780 nm tail is truncated.
+The comparison has a limit the implementation reports rather than absorbs. The
+committed CMF table (`data/cie1931_2deg_cmf.csv`) is a 10 nm grid over
+380-730 nm; these measurements are a 2 nm grid over 380-780 nm. Reconciling the
+two requires resampling, and the direction chosen changes the answer:
+
+| Method | X | Y | Z |
+|---|---:|---:|---:|
+| Interpolate the CMF up to the 2 nm measurement grid | -0.136% | -0.048% | -0.453% |
+| Resample the spectrum down to the CMF's 10 nm nodes | +0.241% | +0.116% | -0.284% |
+
+Measured on `PRD_01.mat` against its recorded tristimulus, scaling by 683 lm/W.
+
+Neither method is the correct one; both are bounded by the table. Reporting a
+single figure would imply a precision the grid does not support, so the command
+computes both and publishes the pair. Their spread — 0.38% on X, 0.16% on Y,
+0.17% on Z — is the grid-induced uncertainty on any closure figure derived here.
+
+Two components of that residual are separable and were measured rather than
+assumed:
+
+- **Truncation** at 730 nm is bounded at 0.040% of X and 0.014% of Y, and is
+  exactly zero for Z, because the committed table's `z` value at 730 nm is
+  0.0000000 and the lobe has ended well before it. Truncation cannot explain the
+  Z residual.
+- **Sampling** of the `z` lobe accounts for the rest. Z reads low under both
+  methods rather than bracketing zero, which is the signature of a peak whose
+  area a 10 nm grid loses regardless of integration direction.
 
 The existing spectral commands are built on that same 10 nm grid and their
-published results depend on it, so this command reports the agreement it
-achieves and the grid it used. Changing the shared table is out of scope here.
+published results depend on it. Changing the shared table is out of scope here.
 
 ## Planned command
 

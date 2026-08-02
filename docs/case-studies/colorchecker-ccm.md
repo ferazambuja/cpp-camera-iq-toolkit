@@ -79,11 +79,11 @@ and a smaller chromatic one across the chart area. What it cannot do is separate
 sphere nonuniformity from camera response, so this path is
 same-aperture-corrected, not shading-calibrated.
 
-Auditing that link also corrected the guard that selects the flat. It measured
-near ceiling over the whole frame only, which admits a flat whose normalizing
-center is already clipping — the exact failure the flat-field study isolated. It
-now applies the same centered gate as `shading`. The results above are
-unchanged, reproducing to 0 DN.
+The flat is screened for clipping over two regions rather than one. A frame-wide
+fraction alone admits a flat whose normalizing center is already saturated,
+since the center of a vignetted flat is its brightest region; the centered gate
+is the same one the flat-field study uses. The flat behind the results above
+measures 0% near ceiling in both regions.
 
 ## Interpretation limits
 

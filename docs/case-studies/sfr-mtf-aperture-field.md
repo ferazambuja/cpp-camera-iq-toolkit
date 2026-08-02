@@ -60,8 +60,8 @@ toolkit's sensor-linear green path.
 ### Recorded capture configuration
 
 All 18 aperture-sweep files record the same AF-S Nikkor 50mm f/1.4G lens
-model at 50 mm, an approximate 0.84 m focus distance, and ISO 100. A
-publication-safe metadata audit is recorded in the
+model at 50 mm, an approximate 0.84 m focus distance, and ISO 100. The
+full per-file metadata audit is in the
 [archive inventory](../reports/SFR_MTF_ARCHIVE_INVENTORY.md#capture-metadata-audit).
 The two sets differ in ways that matter:
 
@@ -112,40 +112,42 @@ Validation combines:
   `Center` and `Pt Way` — so the comparable advisory figure is its
   most-peripheral ROI, +19% over center. The mid-aperture maximum sits at grid
   point N=12, a top-center edge 1414 px above center, and +60% over center in
-  the advisory path. That maximum alone proves nothing about symmetry: a
-  centered radial response may peak on an annulus. Comparing arbitrary
-  near-radius ROIs proves nothing either, because every edge here is fixed-axis
-  and near-vertical, so a change in field azimuth changes the sagittal/tangential
-  mixture even for a perfectly centered lens.
-- **Near-mirror partners constrain it much harder.** For an exactly vertical
-  edge the sagittal/tangential mixture depends on `|x| / r`, so an exact
-  reflection through the horizontal axis would preserve radius and mixture
-  together, and any centered rotationally symmetric system — astigmatic ones
-  included — would have to return the same MTF50. The grid offers three
-  near-reflections: N=14/N=16 differ by 0.54% in radius and 0.80% in mixture yet
-  read 0.1403 against 0.1054 at f/4; N=2/N=4 differ by 0.76% and read 0.1647
-  against 0.0945; N=18/N=20 differ by 4.06% and read 0.1878 against 0.1055. All
-  three favor the upper field, at three radii and two apertures, and in every
-  pair the upper site sits at the *larger* radius — so a centered profile that
-  falls with radius predicts the opposite ordering. At the tightest pair,
-  MTF50 changes by 33% while nominal radius and `|x|/r` differ by only 0.54% and
-  0.80%. That combination is strong evidence against centered rotational
-  symmetry, but not a formal exclusion: the archive records only near-vertical
-  edges, so a centered radius-plus-orientation response could distribute the
-  difference across both variables. Controlled radial/tangential orientations
-  or a fitted baseline would be needed to close that alternative. The
-  responsible component stays open: tilt, decentering and alignment all produce
-  an upper/lower imbalance, and the aperture behavior does not separate them,
-  since stopping down reduces several geometric aberrations as well as widening
-  depth-of-field tolerance.
+  the advisory path.
+- **Near-mirrored ROI pairs measure field symmetry directly.** Every edge in this
+  archive is fixed-axis and near-vertical, so for an exactly vertical edge the
+  sagittal/tangential mixture is set by `|x| / r`. A reflection through the
+  horizontal axis preserves radius and mixture together, which means any centered
+  rotationally symmetric system — astigmatic ones included — must return the same
+  MTF50 for both members of the pair. The grid offers three such near-reflections:
+
+  | Pair | Δ radius | Δ mixture | MTF50 upper | MTF50 lower |
+  |---|---:|---:|---:|---:|
+  | N=14 / N=16 (f/4) | 0.54% | 0.80% | 0.1403 | 0.1054 |
+  | N=2 / N=4 | 0.76% | — | 0.1647 | 0.0945 |
+  | N=18 / N=20 | 4.06% | — | 0.1878 | 0.1055 |
+
+  All three favor the upper field, across three radii and two apertures, and in
+  every pair the upper site sits at the *larger* radius — the opposite ordering
+  from what a centered profile falling with radius would predict. At the tightest
+  pair MTF50 changes by 33% while radius and mixture differ by 0.54% and 0.80%.
+- **The result is bounded as capture-system asymmetry.** The evidence above is
+  strong against centered rotational symmetry but short of a formal exclusion,
+  since only near-vertical edges are recorded and a centered
+  radius-plus-orientation response could distribute the difference across both
+  variables. Closing that alternative needs controlled radial/tangential
+  orientations. The responsible component is likewise unresolved: tilt,
+  decentering and alignment all produce an upper/lower imbalance, and aperture
+  behavior does not separate them, because stopping down reduces several
+  geometric aberrations as well as widening depth-of-field tolerance.
 - Center agreement stayed within ±0.015 cycles/pixel on D800, while off-axis
   differences were larger—consistent with comparing green-linear CFA SFR to a
   rendered-luma reference path. The center agreement makes a toolkit-only gross
   numerical artifact less likely, but both paths use the same captures and do
   not independently identify the physical cause.
 
-The decision was to keep gates capture-system-specific. The D800 non-transfer
-result is more informative than redefining a rule until both datasets pass.
+Acceptance criteria are therefore defined per capture system. A single threshold
+wide enough to pass both bodies would report agreement where the measurement
+shows two different field behaviors.
 
 ## Interpretation limits
 
