@@ -67,6 +67,24 @@ but all patches under that fit remained 4.126 and the excluded subset remained
 7.952. The reduction is therefore reported as a flare-handling policy, not
 evidence that discarding difficult patches created a better camera model.
 
+## What the correction flat contributes
+
+The flat used to correct these patches, `Sphere_f8.0_1:1000_DSCF0387.RAF`, is
+the same frame characterized in the
+[CFA flat-field case study](cfa-flat-field-response.md), so it is measured
+rather than assumed: green falls to 0.4816 of center, `C_BG` reaches 1.0447,
+`C_RG` falls to 0.9773, and it is 0% near ceiling in both the whole frame and
+the centered gate. Dividing by it therefore removes a strong intensity gradient
+and a smaller chromatic one across the chart area. What it cannot do is separate
+sphere nonuniformity from camera response, so this path is
+same-aperture-corrected, not shading-calibrated.
+
+Auditing that link also corrected the guard that selects the flat. It measured
+near ceiling over the whole frame only, which admits a flat whose normalizing
+center is already clipping — the exact failure the flat-field study isolated. It
+now applies the same centered gate as `shading`. The results above are
+unchanged, reproducing to 0 DN.
+
 ## Interpretation limits
 
 The spectral reference is a compatible SG reference verified against

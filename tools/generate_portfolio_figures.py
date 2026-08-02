@@ -171,7 +171,7 @@ def generate_sfr(data_dir: Path) -> str:
     out = svg_start(
         width,
         height,
-        "D800 and D810 slanted-edge SFR summary",
+        "Nikon D800 and D810 slanted-edge SFR summary",
         (
             "Panel A compares toolkit green-linear center MTF50 with advisory "
             "Imatest values across aperture. Panel B shows toolkit center minus "
@@ -180,7 +180,7 @@ def generate_sfr(data_dir: Path) -> str:
     )
     out += [
         '  <rect width="1000" height="650" rx="16" fill="#ffffff"/>',
-        '  <text x="44" y="46" class="title">D800 / D810 slanted-edge SFR</text>',
+        '  <text x="44" y="46" class="title">Nikon D800 / D810 slanted-edge SFR</text>',
         (
             '  <text x="44" y="72" class="subtitle">Solid: toolkit green-linear '
             'MTF50 · dashed: advisory Imatest center values</text>'
@@ -738,7 +738,7 @@ def generate_shading(data_dir: Path) -> str:
         '<rect x="42" y="646" width="1116" height="105" rx="12" fill="#fff7ed" stroke="#fed7aa"/>',
         '<text x="62" y="678" class="panel-title">Engineering interpretation</text>',
         '<text x="62" y="704" class="subtitle">Green falls to roughly one-half of its center response at the most affected bins, while R/G and B/G vary by only a few percent.</text>',
-        '<text x="62" y="727" class="subtitle">The green-CFA map is a capture-system field response; A diagnoses departure from a centred radial scalar model but does not identify its cause.</text>',
+        '<text x="62" y="727" class="subtitle">The green-CFA map is a capture-system field response; A diagnoses departure from a centered radial scalar model but does not identify its cause.</text>',
         '<text x="62" y="750" class="subtitle">An exposure-metadata-compatible dark control checks global and center/corner residuals; the repeat frame bounds this pair only.</text>',
         '<text x="1152" y="780" text-anchor="end" class="axis">Source: docs/data/flat_field_*.csv</text>',
         "</svg>",

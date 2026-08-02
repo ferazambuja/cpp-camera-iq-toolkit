@@ -189,6 +189,12 @@ struct FlatFieldCorrectionSummary {
   std::size_t clamped_sample_count = 0;
   std::size_t near_ceiling_sample_count = 0;
   double near_ceiling_fraction = 0;
+  // Same near-ceiling test restricted to the centered gate region. Both
+  // fractions are published because they answer different questions: the
+  // whole-frame value describes the flat, the center value describes the region
+  // that sets the correction scale.
+  double center_near_ceiling_fraction = 0;
+  double center_gate_fraction = 0;
   double max_allowed_near_ceiling_fraction = 0;
 };
 
@@ -241,6 +247,43 @@ void write_camera_rgb_csv(std::ostream& os,
 
 std::string_view flat_field_normalization_policy();
 double flat_field_near_ceiling_threshold_fraction();
+double flat_field_center_gate_fraction();
+
+// Fraction of flat samples at or above `level * ceiling` inside a centered
+// rectangle covering `center_frac` of the frame on each axis. R, G and B are
+// counted independently so the result is directly comparable with the
+// whole-frame fraction the flat-field guard already reports.
+//
+// A whole-frame fraction alone cannot protect a normalizing flat: the center is
+// the brightest region of a vignetted flat and therefore clips first, while the
+// darker surround keeps the frame-wide fraction small. Returns NaN for invalid
+// geometry or parameters rather than a zero that would read as a pass.
+double flat_center_near_ceiling_fraction(const std::vector<RgbPixel>& flat,
+                                         int width, int height,
+                                         const CameraRgbPatch& ceiling,
+                                         double level, double center_frac);
+
+// Outcome of applying the near-ceiling policy to a flat. `region` names the
+// measurement that failed ("frame" or "center") and `fraction` is its value, so
+// a rejection can state its own evidence instead of only its conclusion.
+struct FlatFieldGateVerdict {
+  bool accepted = true;
+  std::string_view region;
+  double fraction = 0.0;
+};
+
+// Applies one policy to both near-ceiling measurements. The whole-frame
+// fraction is checked first so a flat that fails both reports the coarser
+// reason. An undefined fraction — or an undefined policy — rejects: a
+// measurement that could not be taken is not evidence that the flat is clean,
+// and `fraction > max_allowed` would silently pass it.
+//
+// This is a free function rather than an inline comparison in cmd_patches
+// because that call site needs a real RAW file to reach, which puts the
+// decision out of reach of the test suite.
+FlatFieldGateVerdict flat_field_near_ceiling_verdict(double frame_fraction,
+                                                     double center_fraction,
+                                                     double max_allowed);
 
 void write_patch_report_json(
     std::ostream& os, std::string_view file_label,

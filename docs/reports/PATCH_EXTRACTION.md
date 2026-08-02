@@ -53,7 +53,13 @@ convention:
 - Flat-field RAWs are rejected if more than 1% of demosaiced channel samples
   are above 98% of that channel's black-subtracted sensor ceiling, preventing
   clipped/near-clipped flats from producing authoritative-looking corrections.
-  JSON records both the measured fraction and the 98% threshold.
+  The same test is applied twice: once over the whole frame and once over a
+  centered gate covering 20% of each axis, matching `shading`'s
+  `gate_center_frac`. Either fraction above policy rejects the flat, and an
+  undefined fraction rejects rather than passes. The center gate is not
+  redundant: the center of a vignetted flat clips first and sets the correction
+  scale, while the darker surround keeps the frame-wide fraction small. JSON
+  records both measured fractions, the gate geometry, and the 98% threshold.
 - Optional white-balance policy: explicit `--wb-gains R,G,B`, or
   `--wb-from-flat-field`, which anchors the flat/sphere green normalizer and
   scales red/blue to match it.
@@ -211,7 +217,8 @@ Result:
 | flat normalization | per-channel mean of valid samples |
 | flat normalizer R/G/B | 3240.165 / 5979.162 / 3199.320 DN |
 | flat clamped samples | 0 |
-| flat near-ceiling samples | 0 / 72.43M |
+| flat near-ceiling samples, full frame | 0 / 72.43M |
+| flat near-ceiling fraction, centered 20% gate | 0 |
 | flat-derived WB gains R/G/B | 1.845327 / 1.000000 / 1.868886 |
 | first patch A1 corrected RGB | 7677.11 / 7639.68 / 8712.55 |
 
@@ -220,12 +227,49 @@ corrected reference RGB table is supplied. RawDigger's `Ravg/Gavg/Bavg` values
 are uncorrected RAW rectangle means, so they are valid as a geometry/extraction
 oracle only for the uncorrected mode above.
 
-The same-aperture `Sphere_f8.0_1:10` through roughly `1:200` frames are too near
-the clipped flat maximum for meaningful vignetting correction. The validation run
+The same-aperture `Sphere_f8.0_1:10` through `1:500` frames are too near the
+clipped flat maximum for meaningful vignetting correction. The validation run
 uses `Sphere_f8.0_1:1000_DSCF0387.RAF`, whose CFA means are well below the
-ceiling and preserve spatial variation. The command now rejects
+ceiling and preserve spatial variation. The command rejects
 `Sphere_f8.0_1:10_DSCF0369.RAF` with `flat-field RAW is too close to the sensor
 ceiling for correction`.
+
+The guard measures two regions, not one. A whole-frame near-ceiling fraction
+cannot protect a normalizing flat: the center is the brightest region of a
+vignetted flat, so it clips first while the darker surround keeps the frame-wide
+fraction small. `Sphere_f8.0_1:500_DSCF0386.RAF` is the measured case —
+[11.6319% of its center gate near ceiling against 0.4964% frame-wide](FLAT_FIELD_RESPONSE.md#the-center-gate-had-to-transfer-with-it) —
+and it reported only 0.0996% to this command, because the fraction is measured
+after bilinear demosaic, which averages clipped samples with unclipped
+neighbors. It therefore passed a 1% frame-wide policy by a factor of ten.
+
+The command now applies the same centered gate geometry as `shading`
+(`gate_center_frac = 0.20`) at the same 0.98 level and 1% policy, and rejects on
+either fraction with `flat-field RAW center is too close to the sensor ceiling
+for correction`. The rejection carries the measured fraction and the policy it
+failed, so the verdict can be checked from the command's own output. Both
+fractions appear in JSON as `near_ceiling_fraction` and
+`center_near_ceiling_fraction`, so a reader can tell which gate a flat passed.
+
+The same demosaic averaging applies to the new gate, and the measurement records
+how much. On `Sphere_f8.0_1:500_DSCF0386.RAF` the centered gate reads **2.3769%
+here against 11.6319% in `shading`** — the same region, the same level, the same
+policy, attenuated about 4.9× by bilinear demosaic. The gate still rejects the
+frame with 2.4× margin, but the two commands' gates are not equivalent tests:
+
+| Region | `shading` (CFA domain) | `patches` (post-demosaic) | Policy |
+|---|---:|---:|---:|
+| Whole frame | 0.4964% | 0.0996% | 1% |
+| Centered 20% gate | 11.6319% | 2.3769% | 1% |
+
+`patches` and `shading` accept the same three f/8 sphere frames on this archive.
+That is a measured agreement on three frames, not a property of the two gates: a
+flat whose CFA-domain center fraction fell between roughly 1% and 5% would be
+rejected by `shading` and accepted here. Closing that window would require
+measuring the flat before demosaic, which this command does not currently do.
+
+Re-running the documented command reproduces every published patch to 0 DN: the
+frame it uses measures 0% in both regions.
 
 Same-aperture flat coverage is not available for the f/9 CCSG series in the
 private dataset. The f/9 sphere folder contains 13 frames (`1:10` through `1:180`);

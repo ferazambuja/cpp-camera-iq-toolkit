@@ -19,16 +19,16 @@ namespace camera_iq {
 //   center block   (corner_block_px)   normalizer and low-signal anchor
 //   bin grid       (grid_cols/rows)    the response maps
 //
-// The gate region is larger than the block it protects: a clipped centre biases
+// The gate region is larger than the block it protects: a clipped center biases
 // reported falloff toward less falloff, so the gate has to see more of the
 // frame than the region being normalized by.
 struct ShadingOptions {
   int grid_cols = 16;
   int grid_rows = 12;
-  // Linear fraction of each CFA plane, centred. Gates only — never the
+  // Linear fraction of each CFA plane, centered. Gates only — never the
   // normalizer.
   double gate_center_frac = 0.20;
-  // Centre/corner block edge in mosaic pixels; each CFA plane sees half of it.
+  // Center/corner block edge in mosaic pixels; each CFA plane sees half of it.
   int corner_block_px = 400;
   // Corner-block inset from the frame edge, in mosaic pixels.
   int corner_inset_px = 120;
@@ -40,7 +40,7 @@ struct ShadingOptions {
   double min_center_signal = 0.05;
   double max_negative_frac = 0.01;
   double min_bin_coverage = 0.90;
-  // Declared diagnostic threshold for departure from a centred radial scalar
+  // Declared diagnostic threshold for departure from a centered radial scalar
   // model. It never grants or refuses attribution to any physical component.
   double asymmetry_policy = 0.05;
 };
@@ -55,7 +55,7 @@ struct ShadingGates {
   std::array<double, 4> near_ceiling_frac_gate{0, 0, 0, 0};
   std::array<double, 4> near_ceiling_frac_frame{0, 0, 0, 0};
   std::array<double, 4> negative_frac{0, 0, 0, 0};
-  // Centre-block median as a fraction of that plane's signal-referred ceiling.
+  // Center-block median as a fraction of that plane's signal-referred ceiling.
   std::array<double, 4> center_signal_frac{0, 0, 0, 0};
   // Worst per-bin fraction of expected samples that were finite and usable.
   double min_bin_coverage = 0.0;
@@ -80,25 +80,25 @@ struct ShadingGates {
 // by that plane's own `center_block_median`. The center-block median therefore
 // normalizes to 1.0; individual center samples or grid bins need not.
 //
-// `valid` is false when the measurement cannot be normalized — the centre-block
+// `valid` is false when the measurement cannot be normalized — the center-block
 // median is a denominator on every map and scalar, so a non-positive one
 // rejects rather than dividing. A rejected measurement keeps every diagnostic
 // it computed (`bin_median`, `center_block_median`) and leaves `relative`
 // empty, mirroring how the SFR command preserves diagnostics on a rejected
-// centre.
+// center.
 
-// Corner/centre block scalars and the quadrant-asymmetry statistic.
+// Corner/center block scalars and the quadrant-asymmetry statistic.
 //
 // Corners are indexed TL, TR, BL, BR and are `corner_block_px` blocks inset by
 // `corner_inset_px`. They are deliberately not the grid's corner bins: a 16x12
-// bin is centred at 1/32 of the frame width and never reaches the corner. The
+// bin is centered at 1/32 of the frame width and never reaches the corner. The
 // grid drives the maps; these blocks drive the scalars.
 //
 //   A = ( max_q G(q) - min_q G(q) ) / mean_q G(q)
 //
 // over the four corner blocks of the green relative-response map, where G is
 // the mean of the two green planes. The four blocks sit at equal radius, so a
-// centred radially symmetric field drives A to zero analytically — and to
+// centered radially symmetric field drives A to zero analytically — and to
 // within a small discretization residual in a sampled synthetic fixture. That
 // residual depends on the field, CFA sampling, block geometry, and estimator;
 // it is not a universal sampling floor. A value above the policy is a
@@ -106,7 +106,7 @@ struct ShadingGates {
 // source, lens, sensor, alignment, or another capture term caused it.
 //
 // Equal radius is what licenses the inference. An off-axis maximum alone does
-// not: a centred radial response may peak on an annulus.
+// not: a centered radial response may peak on an annulus.
 struct ShadingBlocks {
   std::array<std::array<double, 4>, 4> corner_median{};
   std::array<std::array<double, 4>, 4> corner_relative{};

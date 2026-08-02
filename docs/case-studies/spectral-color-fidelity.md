@@ -41,9 +41,9 @@ For the retained Canon 5D2 end-to-end extraction, toolkit-vs-legacy normalized
 response correlation was **0.99937 / 0.99979 / 0.99991** for R/G/B.
 
 The dense 140-patch closure used a toolkit-extracted Canon SSF and measured
-legacy SSFs for D810, A7RII, and A7SII. All four cameras matched all 140 patches,
-with minimum channel correlation above **0.992**. A 24-patch complementary run
-held minimum correlation above **0.997**.
+legacy SSFs for the Nikon D810, Sony A7RII, and Sony A7SII. All four cameras
+matched all 140 patches, with minimum channel correlation above **0.992**. A
+24-patch complementary run held minimum correlation above **0.997**.
 
 Toolkit RAW extractions for the other three 2016 cameras reproduced the
 reported Luther ordering at the shown precision, which checks that the ranking
@@ -70,6 +70,15 @@ paywalled Annex-B optimizer and normalization. Canon uses a toolkit RAW-derived
 SSF in the retained aggregate; the other plotted rows use measured legacy SSFs.
 The Phase One session lacks a same-session broadband target and chart
 reflectance, so it is valid for an SSF-only comparison but not physical closure.
+
+Instrument identity is bounded by what the archive records. The chart
+reflectance files declare `INSTRUMENTATION i1Pro` in their CGATS.17 headers; the
+illuminant SPD carries no header, so its PR-655 attribution rests on the
+filename; and no file identifies the monochromator by make or model, leaving its
+bandwidth and wavelength accuracy uncharacterized. See the
+[archive map](../reports/SPECTRAL_ARCHIVE_INVENTORY.md#instrument-identity-as-the-files-record-it).
+That limits absolute SSF claims, not the relative ordering reported here, which
+compares curves measured on the same rig.
 
 ## Implementation and tests
 

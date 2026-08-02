@@ -571,11 +571,30 @@ int cmd_patches(int argc, char** argv) {
               ? static_cast<double>(summary.near_ceiling_sample_count) /
                     total_samples
               : 0.0;
+      summary.center_gate_fraction = flat_field_center_gate_fraction();
+      summary.center_near_ceiling_fraction = flat_center_near_ceiling_fraction(
+          flat_rgb, cfa->width, cfa->height, ceiling,
+          flat_field_near_ceiling_threshold_fraction(),
+          summary.center_gate_fraction);
       summary.max_allowed_near_ceiling_fraction =
           kMaxFlatNearCeilingFraction;
-      if (summary.near_ceiling_fraction > kMaxFlatNearCeilingFraction) {
-        std::cerr << "camera_iq patches: flat-field RAW is too close to the "
-                  << "sensor ceiling for correction\n";
+      // The center sets the correction scale and is the brightest region of a
+      // vignetted flat, so it clips before the frame-wide fraction moves. Both
+      // fractions here are measured after bilinear demosaic, which averages
+      // clipped samples with unclipped neighbours, so they read lower than the
+      // CFA-domain fractions `shading` reports on the same frame — see
+      // docs/reports/PATCH_EXTRACTION.md for both measurements of the capture
+      // that separated the two regions.
+      const auto verdict = flat_field_near_ceiling_verdict(
+          summary.near_ceiling_fraction, summary.center_near_ceiling_fraction,
+          kMaxFlatNearCeilingFraction);
+      if (!verdict.accepted) {
+        std::cerr << "camera_iq patches: flat-field RAW "
+                  << (verdict.region == "center" ? "center " : "")
+                  << "is too close to the sensor ceiling for correction ("
+                  << verdict.region << " near-ceiling fraction "
+                  << verdict.fraction << " against a policy of "
+                  << kMaxFlatNearCeilingFraction << ")\n";
         return 1;
       }
       flat_summary = summary;

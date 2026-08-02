@@ -12,7 +12,7 @@ validation.
 
 ## Engineering results at a glance
 
-- **SFR/MTF:** processed **299 field ROIs** across D800 and D810 aperture
+- **SFR/MTF:** processed **299 field ROIs** across Nikon D800 and D810 aperture
   sweeps. The D810 peak occurred at f/5.6; the D810 trend did not transfer to
   the D800, where field asymmetry and capture-specific behavior were retained as
   findings rather than forced into a passing rule.
@@ -27,17 +27,26 @@ validation.
 - **Measurement judgment:** rejected a ColorChecker grid despite correlations
   above 0.999 because its center error reached **16.449 px**, and rejected an
   invalid Stepchart strip model before accepting the measured ring geometry.
-- **CFA flat-field response:** screened **52 sphere captures**, retained three
-  usable f/8 frames, and measured center-normalized green and chromatic fields.
-  A **19.65% quadrant asymmetry** diagnoses departure from a centred radial
-  scalar model; missing capture controls prevent isolated lens attribution
-  regardless of the diagnostic verdict.
+- **CFA flat-field response:** screened **52 sphere captures** from a Fujifilm X-T100 +
+  Fujinon XF 14 mm f/2.8 R integrating-sphere set, retained three usable f/8 frames, and
+  measured center-normalized green and chromatic fields. A **19.65% quadrant
+  asymmetry** diagnoses departure from a centered radial scalar model; missing
+  capture controls prevent isolated lens attribution regardless of the
+  diagnostic verdict.
+- **Cross-command consistency:** auditing which frames each command uses as a
+  flat found that `patches` guarded its correction flat on a whole-frame
+  clipping fraction alone, and so accepted a frame whose normalizing center was
+  **11.63% clipped** in the CFA domain while reading 0.0996% frame-wide. Both
+  commands now apply the same centered gate geometry, though `patches` measures
+  it after demosaic and reads **2.38%** on that frame; the two accept the same
+  three frames on this archive and the published CCM result reproduces to
+  **0 DN**.
 
 ## Featured case studies
 
 | Case study | Methods | Result |
 |---|---|---|
-| [D800/D810 + 50 mm f/1.4G SFR aperture and field analysis](docs/case-studies/sfr-mtf-aperture-field.md) | Slanted-edge algorithm, field behavior, advisory cross-checks, failure transfer | 299 accepted field ROIs; capture-system-specific trend and field findings |
+| [Nikon D800/D810 + 50 mm f/1.4G SFR aperture and field analysis](docs/case-studies/sfr-mtf-aperture-field.md) | Slanted-edge algorithm, field behavior, advisory cross-checks, failure transfer | 299 accepted field ROIs; capture-system-specific trend and field findings |
 | [Spectral sensitivity and color fidelity](docs/case-studies/spectral-color-fidelity.md) | RAW monochromator extraction, physical closure, Luther/SMI comparison | Four-camera closure; stable five-camera endpoint ordering |
 | [ColorChecker extraction and CCM validation](docs/case-studies/colorchecker-ccm.md) | RAW patch extraction, flat field/WB, linear CCM, held-out Delta E | 140-patch pipeline with explicit dark-patch diagnostics |
 | [CFA flat-field response](docs/case-studies/cfa-flat-field-response.md) | Black-subtracted Bayer grids, center normalization, clipping/dark/pair checks | 3/52 usable sphere frames; green-field asymmetry separated from smaller R/G and B/G variation |

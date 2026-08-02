@@ -31,6 +31,36 @@ no reported result depends on which one is called primary.
 The green-CFA field is consequently reported as a capture-system response; the
 capture does not isolate optical vignetting regardless of the `A` verdict.
 
+## Recorded capture configuration
+
+An ExifTool audit of the CLRS-589 `Images` tree records a single optical
+configuration across all 165 RAF files, including the 52 sphere and 21 dark
+frames this study uses:
+
+| Property | Recorded value |
+|---|---|
+| Camera body | Fujifilm X-T100 (APS-C) |
+| Lens | Fujinon XF 14 mm f/2.8 R |
+| Lens serial number | `56A00213` |
+| Focal length | 14.0 mm (21 mm 35 mm-equivalent, 1.5x) |
+| ISO | 200 |
+| Aperture | f/5.6, f/8, f/9 |
+
+The lens is an ultra-wide on APS-C. That is the context required to read the
+falloff magnitude below, where green response reaches roughly one-half of its
+center value. It also fixes a provenance asymmetry with the
+[SFR archive](SFR_MTF_ARCHIVE_INVENTORY.md#capture-metadata-audit), whose
+captures record no lens serial: here the serial is present and identical in
+every audited file, so lens *sample* identity is verified rather than inferred
+from a matching model name.
+
+Naming the lens does not attribute the measured field to it. The
+integrating-sphere field is itself visibly nonuniform, and the archive contains
+no source- or camera-rotation control, so the result remains a capture-system
+characterization however well the optical state is documented. The value of the
+record is the opposite one: it establishes that no optical-configuration change
+can explain differences between frames in this archive, because there are none.
+
 ## Reproduction
 
 Source RAFs and dark frames stay outside Git. Configure the dataset root in the
@@ -164,8 +194,24 @@ apertures have no usable frame, the archive provides no aperture comparison.
 | `C_BG` | 0.999718 | 1.044729 | blue response up to 4.473 pp above normalized green |
 | `C_G1G2` | 0.998943 | 1.002342 | greens agree within 0.234 pp |
 
-The green map has strong horizontal and vertical imbalance. Its four-corner
-asymmetry statistic is:
+The green map has strong horizontal and vertical imbalance, and the imbalance
+keeps the same orientation in every accepted frame. The minimum green bin is the
+same bottom-left grid cell in all three, and the top-right bin is always the
+brightest corner:
+
+| Frame | TL | TR | BL | BR |
+|---|---:|---:|---:|---:|
+| f/8, 1/1000 s primary | 0.5118 | 0.6276 | 0.4801 | 0.5174 |
+| f/8, 1/1000 s repeat | 0.5117 | 0.6331 | 0.4816 | 0.5165 |
+| f/8, 1/1600 s | 0.5141 | 0.6022 | 0.4859 | 0.5309 |
+
+These are corner cells of the 16 × 12 map, not the 400 × 400 px corner blocks
+that feed `A`; the two geometries differ by design and the values are not
+interchangeable. A gradient that keeps its direction across three frames is
+fixed in the capture geometry rather than frame-specific, which still does not
+separate sphere, lens, alignment, or sensor angular terms.
+
+Its four-corner asymmetry statistic is:
 
 ```text
 A = (max corner G - min corner G) / mean corner G = 0.196484
@@ -180,6 +226,16 @@ value derived from this pair. The two frames measure `A` at 0.196484 and
 0.199964, an observed difference of 0.00348. That supports stability of the
 high-`A` observation for this pair only; it does not establish a null
 distribution, calibrate the 0.05 policy, or estimate repeatability.
+
+The third accepted frame is outside that pair and does not reproduce its value.
+The f/8, 1/1600 s capture measures `A` = 0.160875, which is 0.0356 below the
+primary and 0.0391 below the repeat — roughly ten times the 0.00348 within-pair
+difference, and driven mainly by its lower top-right corner in the table above.
+All three exceed the
+0.05 policy, so the verdict does not change, but `A` is not constant across
+exposure here and the within-pair difference must not be quoted as a general
+repeatability figure. All three values are in the
+[frame screening table](../data/flat_field_summary.csv).
 
 ## Bounded dark-control and capture-pair checks
 
@@ -207,6 +263,65 @@ difference over four corners × four CFA positions measured:
 
 This pair bounds short-term repeat behavior for these captures. It is not a
 population estimate or a substitute for a larger repeatability study.
+
+## Transfer to the flat-field-corrected CCM path
+
+The repeat frame of this pair, `Sphere_f8.0_1:1000_DSCF0387.RAF`, is also the
+flat that corrects the ColorChecker-SG patches in the [CCM fit](CCM_FIT.md) and
+[patch extraction](PATCH_EXTRACTION.md) reports. The numbers above therefore
+characterize the exact frame that path divides by. Two of them bound the
+corrected color result:
+
+- green falls to 0.4816 of center, so the correction gain applied to a patch
+  depends strongly on where the patch sits. The chart occupies a subregion of
+  the frame, so the gain range actually applied is narrower than the full-field
+  range and is not measured here.
+- the chromatic maps are not flat. `C_BG` reaches 1.0447 and `C_RG` falls to
+  0.9773, so a per-plane division also imposes an inverse chromatic gradient
+  across the chart area.
+
+The correction is a full per-position image-domain division rather than a radial
+model, so it removes the measured gradient instead of approximating it. What it
+cannot separate is the part of the flat that belongs to the sphere rather than
+the camera: correcting with this frame divides out source nonuniformity too.
+That is correct for flattening a chart capture and wrong for any camera-only
+shading claim, which is why the CCM evidence is labeled same-aperture-corrected
+rather than shading-calibrated.
+
+### The center gate had to transfer with it
+
+Auditing that link exposed a defect in `patches`. Its flat-field guard measured
+near ceiling over the whole frame only, at the same 0.98 signal-referred level
+and 1% policy used here — and a whole-frame test is exactly what the
+[f/8, 1/500 s frame](#quality-gates) defeats. That frame measured 11.6319% near
+ceiling in the center gate against 0.4964% frame-wide, so `patches` accepted a
+flat whose normalizing center was clipping. Measured on the archive rather than
+argued from the code: the frame reported 0.0996% near-ceiling to `patches` and
+passed by a factor of ten.
+
+Two details made it worse than the frame-wide number suggests. `patches`
+measures the flat after bilinear demosaic, which averages clipped samples with
+unclipped neighbors and dilutes the signal the test looks for — hence 0.0996%
+where the mosaic-domain worst plane reads 0.4964%. And the center is the
+brightest region of a vignetted flat, so it is always the first region to clip
+and the last one a frame-wide fraction will notice.
+
+`patches` now applies the same centered gate geometry as `shading`
+(`gate_center_frac = 0.20`) and rejects on either fraction. Both fractions are
+published in JSON so a reader can tell which gate a flat passed. The two
+commands accept the same three f/8 frames on this archive — a measured
+agreement, not an equivalence, since `patches` measures after bilinear demosaic
+and reads 2.3769% on the `1:500` center gate against 11.6319% here. See
+[the patch-extraction guard](PATCH_EXTRACTION.md) for both measurements
+side by side.
+
+The correction that was already published does not change. Re-running the
+documented command against `Sphere_f8.0_1:1000_DSCF0387.RAF` reproduces every
+patch to 0 DN, because that frame measures 0% near ceiling in both regions. The
+measured cost of the old guard was bounded separately by correcting the same
+capture with the clipped 1/500 s flat: up to 0.769% per-channel patch error,
+0.189% median, concentrated in the brightest field corner. Small, but systematic
+and in the direction of the clipping.
 
 ## JSON and CSV behavior
 

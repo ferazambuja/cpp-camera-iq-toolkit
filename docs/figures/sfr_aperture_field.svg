@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <svg xmlns="http://www.w3.org/2000/svg" width="1000" height="650" viewBox="0 0 1000 650" role="img" aria-labelledby="title desc">
-  <title id="title">D800 and D810 slanted-edge SFR summary</title>
+  <title id="title">Nikon D800 and D810 slanted-edge SFR summary</title>
   <desc id="desc">Panel A compares toolkit green-linear center MTF50 with advisory Imatest values across aperture. Panel B shows toolkit center minus physical-corner maximum for the four field-map apertures.</desc>
   <style>
     text { font-family: Helvetica; fill: #172033; }
@@ -14,7 +14,7 @@
     .node-detail { font-size: 12px; fill: #5f6b7a; }
   </style>
   <rect width="1000" height="650" rx="16" fill="#ffffff"/>
-  <text x="44" y="46" class="title">D800 / D810 slanted-edge SFR</text>
+  <text x="44" y="46" class="title">Nikon D800 / D810 slanted-edge SFR</text>
   <text x="44" y="72" class="subtitle">Solid: toolkit green-linear MTF50 · dashed: advisory Imatest center values</text>
   <rect x="36" y="94" width="596" height="500" rx="12" fill="#f7f9fc"/>
   <rect x="650" y="94" width="314" height="500" rx="12" fill="#f7f9fc"/>

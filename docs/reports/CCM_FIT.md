@@ -231,6 +231,37 @@ same-aperture f/9 sphere flat in the private dataset. Applying the f/8 flat to f
 CCSG frames would be a labeled cross-aperture approximation, not the evidence
 used for this result.
 
+### What the correction frame itself measures
+
+`Sphere_f8.0_1:1000_DSCF0387.RAF` is not only an input here. It is also the
+repeat frame of the pair characterized in the
+[flat-field response report](FLAT_FIELD_RESPONSE.md#transfer-to-the-flat-field-corrected-ccm-path),
+so its own field is measured rather than assumed:
+
+| Measured property of the correction frame | Value |
+|---|---:|
+| Green relative response, minimum bin | 0.4816 |
+| `C_RG` range | 0.9773 – 1.0000 |
+| `C_BG` range | 0.9997 – 1.0447 |
+| Green quadrant asymmetry `A` | 0.199964 |
+| Near-ceiling fraction, frame and centered gate | 0 |
+
+The dividing flat therefore carries both a strong intensity gradient and a
+smaller chromatic one, so the correction imposes an inverse chromatic gradient
+across the chart area in addition to flattening intensity. Because the flat is
+divided per position rather than fitted to a radial model, the measured
+asymmetry is removed rather than approximated — but the correction cannot
+separate sphere nonuniformity from camera response, so this path is
+same-aperture-corrected, not shading-calibrated.
+
+The near-ceiling guard that selects this frame was also corrected during that
+audit: it now measures a centered gate as well as the whole frame, matching
+`shading`. The published numbers above are unchanged — re-running the documented
+command reproduces every patch to 0 DN — but a flat with a clipped center can no
+longer be admitted. See
+[patch extraction](PATCH_EXTRACTION.md#corrected-raw-patch-table-validation)
+for the measured case.
+
 ## Scientific Boundaries
 
 - The result is labeled **vs compatible SG spectral reference**, not exact
