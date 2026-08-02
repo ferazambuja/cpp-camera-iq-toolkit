@@ -199,6 +199,11 @@ add_test(NAME check_patch_baseline
           --repo-root ${CMAKE_SOURCE_DIR})
 add_test(NAME test_check_patch_baseline
   COMMAND python3 ${CMAKE_SOURCE_DIR}/tools/test_check_patch_baseline.py)
+add_test(NAME check_schema_contract
+  COMMAND python3 ${CMAKE_SOURCE_DIR}/tools/check_schema_contract.py
+          --repo-root ${CMAKE_SOURCE_DIR})
+add_test(NAME test_check_schema_contract
+  COMMAND python3 ${CMAKE_SOURCE_DIR}/tools/test_check_schema_contract.py)
 add_test(NAME test_portfolio_docs
   COMMAND python3 ${CMAKE_SOURCE_DIR}/tools/test_portfolio_docs.py)
 add_test(NAME test_portfolio_figures

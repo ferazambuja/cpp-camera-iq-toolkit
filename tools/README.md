@@ -52,3 +52,10 @@
 - [`libraw_bilinear_compare.cpp`](libraw_bilinear_compare.cpp) compares the
   toolkit's transparent bilinear path with LibRaw interpolation for local
   validation. It is not part of the default CMake build.
+
+`check_schema_contract.py` compares the `schema_version` the shading
+producer stamps against the version the portfolio exporter accepts and the
+version its own test fixture declares. Those are three literals in two
+languages; they disagreed once already, and the exporter rejects every input
+that does not match, so the documented regeneration pipeline failed while the
+suite stayed green. Registered as the `check_schema_contract` test.
