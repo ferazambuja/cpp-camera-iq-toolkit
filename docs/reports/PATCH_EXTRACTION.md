@@ -71,7 +71,9 @@ convention:
   The 90% figure is the coverage number `shading` already declares for map bins,
   applied here to the screening regions; that is a new application of an
   existing declared value, not a pre-existing rule. JSON records both coverage
-  arrays and the policy beside the near-ceiling fractions.
+  arrays and the policy beside the near-ceiling fractions. Coverage failures
+  are diagnosed against the 90% coverage policy rather than mislabeled as a
+  near-ceiling excess against 1%.
 - Optional white-balance policy: explicit `--wb-gains R,G,B`, or
   `--wb-from-flat-field`, which anchors the flat/sphere green normalizer and
   scales red/blue to match it.
@@ -264,8 +266,9 @@ per-position decision. On the `1:500` frame both report:
 
 The command rejects G2. It emits `status: "rejected"` and returns non-zero;
 whether written to stdout or `--out`, the JSON retains the measurement domain,
-both rectangles, both four-position arrays, policy, and failing label. Accepted
-runs embed the same block under `corrections.flat_field.near_ceiling_gate`.
+both rectangles, both near-ceiling arrays, both finite-coverage arrays, their
+policies, and the failing label. Accepted runs embed the same block under
+`corrections.flat_field.near_ceiling_gate`.
 
 The documented command's 1/1000 s flat measures 0% near ceiling in every CFA
 position in both regions and remains accepted. The correction math after that

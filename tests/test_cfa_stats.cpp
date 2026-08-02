@@ -138,10 +138,11 @@ void TESTS() {
 
   // --- near-ceiling: the sensor plateau can sit below the metadata white ---
   //
-  // The Fuji X-T100 pins at RAW 16381 while white_level reports 16383, so an
-  // exact `raw >= white` test reports zero saturation on a frame that is
-  // completely clipped. near_ceiling_fraction measures the signal-referred
-  // headroom instead: residual >= level * (white - black).
+  // The measured Fuji X-T100 frame pins at RAW 16381 while white_level reports
+  // 16383, so an exact `raw >= white` test reports zero saturation despite no
+  // recorded within-frame variation. near_ceiling_fraction measures the
+  // signal-referred headroom instead: residual >= level * (white - black). This
+  // fixture does not identify clipping or response compression by itself.
   //
   // These are not invented numbers. `Sphere_f8.0_1:10_DSCF0369.RAF` in the
   // private CLRS-589 archive holds all 24,148,224 active pixels at exactly this

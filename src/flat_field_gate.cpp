@@ -37,7 +37,8 @@ std::optional<CfaNearCeilingMeasurement> measure_cfa_near_ceiling(
   // `shading` rejects an odd mosaic outright rather than publish a trimmed
   // frame, and screening must agree with it. Trimming would leave the last row
   // or column unscreened while apply_flat_field() still corrects those pixels.
-  if ((width & 1) != 0 || (height & 1) != 0) return std::nullopt;
+  if ((width & 1) != 0 || (height & 1) != 0)
+    return std::nullopt;
 
   const auto frame =
       cfa_balanced_roi(RoiRect{0, 0, width, height}, width, height);
@@ -66,8 +67,10 @@ std::optional<CfaNearCeilingMeasurement> measure_cfa_near_ceiling(
       // Counted before the finiteness test so coverage has a denominator that
       // does not shrink with the very samples it is measuring.
       ++frame_total[position];
-      if (in_gate) ++gate_total[position];
-      if (!std::isfinite(value)) continue;
+      if (in_gate)
+        ++gate_total[position];
+      if (!std::isfinite(value))
+        continue;
       ++frame_finite[position];
       if (in_gate) ++gate_finite[position];
       if (value >= near_ceiling_level * signal_ceiling[position]) {
@@ -92,16 +95,14 @@ std::optional<CfaNearCeilingMeasurement> measure_cfa_near_ceiling(
             ? static_cast<double>(gate_near[p]) /
                   static_cast<double>(gate_finite[p])
             : undefined;
-    out.finite_fraction_frame[p] =
-        frame_total[p] > 0
-            ? static_cast<double>(frame_finite[p]) /
-                  static_cast<double>(frame_total[p])
-            : undefined;
-    out.finite_fraction_gate[p] =
-        gate_total[p] > 0
-            ? static_cast<double>(gate_finite[p]) /
-                  static_cast<double>(gate_total[p])
-            : undefined;
+    out.finite_fraction_frame[p] = frame_total[p] > 0
+                                       ? static_cast<double>(frame_finite[p]) /
+                                             static_cast<double>(frame_total[p])
+                                       : undefined;
+    out.finite_fraction_gate[p] = gate_total[p] > 0
+                                      ? static_cast<double>(gate_finite[p]) /
+                                            static_cast<double>(gate_total[p])
+                                      : undefined;
   }
   return out;
 }

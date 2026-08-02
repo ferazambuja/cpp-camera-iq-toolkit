@@ -67,6 +67,9 @@ struct ShadingGates {
   double min_bin_coverage = 0.0;
 
   bool near_ceiling_ok = false;
+  // Screening-region finite coverage is distinct from near-ceiling headroom
+  // and from the per-map-bin coverage verdict below.
+  bool screening_coverage_ok = false;
   bool low_signal_ok = false;
   bool negative_ok = false;
   bool coverage_ok = false;

@@ -531,13 +531,8 @@ int cmd_patches(int argc, char** argv) {
                                                write_rejection, std::cerr)) {
           return 1;
         }
-        const auto& verdict = near_ceiling->verdict;
-        std::cerr << "camera_iq patches: flat-field RAW is too close to the "
-                     "sensor ceiling for correction ("
-                  << verdict.region << " " << verdict.label << "["
-                  << verdict.position << "] near-ceiling fraction "
-                  << verdict.fraction << " against a policy of "
-                  << kFlatFieldMaxNearCeilingFraction << ")\n";
+        std::cerr << "camera_iq patches: "
+                  << format_flat_field_gate_rejection(*near_ceiling) << '\n';
         return 1;
       }
       const auto flat_rgb =

@@ -51,11 +51,14 @@ ShadingField accepted_field() {
     }
   }
   f.gates.near_ceiling_ok = true;
+  f.gates.screening_coverage_ok = true;
   f.gates.low_signal_ok = true;
   f.gates.negative_ok = true;
   f.gates.coverage_ok = true;
   f.gates.finite_ok = true;
   f.gates.min_bin_coverage = 1.0;
+  f.gates.finite_frac_gate = {0.91, 0.92, 0.93, 0.94};
+  f.gates.finite_frac_frame = {0.95, 0.96, 0.97, 0.98};
   for (int p = 0; p < 4; ++p) {
     f.gates.center_signal_frac[p] = 0.49;
     f.gates.near_ceiling_frac_gate[p] = 0.0;
@@ -150,6 +153,12 @@ void TESTS() {
           "shading json: gate-region near-ceiling fraction serialized");
     check(contains(json, "\"near_ceiling_fraction_frame\""),
           "shading json: whole-frame near-ceiling fraction serialized too");
+    check(
+        contains(json, "\"finite_fraction_gate\":[0.91,0.92,0.93,0.94]") &&
+            contains(json, "\"finite_fraction_frame\":[0.95,0.96,0.97,0.98]") &&
+            contains(json, "\"min_finite_coverage\":0.9") &&
+            contains(json, "\"screening_coverage_ok\":true"),
+        "shading json: screening coverage evidence and verdict are pinned");
     check(contains(json, "\"schema_version\":2") &&
               contains(json, "\"analysis_options\"") &&
               contains(json, "\"near_ceiling_max\":0.01") &&
@@ -179,8 +188,11 @@ void TESTS() {
     ShadingField field = accepted_field();
     field.valid = false;
     field.gates.near_ceiling_ok = false;
+    field.gates.screening_coverage_ok = false;
     field.gates.near_ceiling_frac_gate = {0.116, 0.116, 0.116, 0.116};
     field.gates.near_ceiling_frac_frame = {0.005, 0.005, 0.005, 0.005};
+    field.gates.finite_frac_gate = {0.5, 0.6, 0.7, 0.8};
+    field.gates.finite_frac_frame = {0.4, 0.5, 0.6, 0.7};
     for (int p = 0; p < 4; ++p) field.relative[p].clear();
     const ShadingChromatic chroma;  // never computed
     ShadingPedestal pedestal;
@@ -195,6 +207,10 @@ void TESTS() {
           "shading json: rejected result keeps the fraction that rejected it");
     check(contains(json, "\"near_ceiling_ok\":false"),
           "shading json: the failing gate is identifiable");
+    check(contains(json, "\"finite_fraction_gate\":[0.5,0.6,0.7,0.8]") &&
+              contains(json, "\"finite_fraction_frame\":[0.4,0.5,0.6,0.7]") &&
+              contains(json, "\"screening_coverage_ok\":false"),
+          "shading json: rejected screening coverage evidence survives");
     check(contains(json, "\"center_block_median\""),
           "shading json: measured diagnostics survive rejection");
   }
@@ -336,6 +352,14 @@ void TESTS() {
           "shading csv: chromatic maps are rows, not columns");
     check(contains(csv, "near_ceiling_fraction_gate"),
           "shading csv: gate diagnostics travel with the measurement");
+    check(
+        contains(csv, ",R,0,finite_fraction_gate,,,0.91,fraction,true") &&
+            contains(csv, ",B,3,finite_fraction_frame,,,0.98,fraction,true") &&
+            contains(csv, ",,-1,analysis_option_min_finite_coverage,,,0.9,"
+                          "fraction,true") &&
+            contains(csv, ",,-1,screening_coverage_ok,,,1,boolean,true"),
+        "shading csv: screening coverage arrays, policy, and verdict are "
+        "pinned");
     check(contains(csv, "green_asymmetry"),
           "shading csv: A is in the table, not only in the JSON");
     check(contains(csv, "analysis_option_near_ceiling_max") &&

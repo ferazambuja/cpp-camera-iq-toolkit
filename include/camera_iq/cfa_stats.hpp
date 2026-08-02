@@ -6,12 +6,14 @@
 #include <optional>
 #include <string>
 
+#include "camera_iq/near_ceiling.hpp"
+
 namespace camera_iq {
 
-// Raw-statistics headroom policy. This is deliberately owned by raw-stats;
-// matching numeric thresholds in shading or patch extraction remain separate
-// analysis policies with their own serialized provenance.
-inline constexpr double kRawStatsNearCeilingLevel = 0.98;
+// Backward-compatible raw-statistics name for the shared default. Raw-stats,
+// shading, and flat-field correction still serialize their effective runtime
+// values independently, so an override never disappears into this alias.
+inline constexpr double kRawStatsNearCeilingLevel = kDefaultNearCeilingLevel;
 
 // Signal-referred near-ceiling threshold for one CFA position, or nullopt when
 // the metadata cannot define one: a non-finite level/white/black, a level
@@ -36,10 +38,12 @@ struct ChannelStats {
   double below_black_fraction = 0.0;  // fraction with residual < 0
   double saturated_fraction = 0.0;  // fraction with RAW value >= white
   // Fraction with residual >= near_ceiling_level * (white - black). Sensors
-  // often plateau below the reported white level — the Fuji X-T100 pins at RAW
-  // 16381 against a white_level of 16383 — so `saturated_fraction` can read
-  // zero on a completely clipped frame. This is the signal-referred headroom
-  // measure that does not depend on hitting `white` exactly.
+  // can plateau below the reported white level — the measured Fuji X-T100 frame
+  // pins at RAW 16381 against a white_level of 16383 — so
+  // `saturated_fraction` can read zero despite no recorded within-frame
+  // variation. This is the signal-referred headroom measure that does not
+  // depend on hitting `white` exactly; it does not by itself identify clipping
+  // or response compression.
   double near_ceiling_fraction = 0.0;
 };
 

@@ -163,6 +163,7 @@ in JSON even when a frame is rejected.
 | Check | Default | Region | Failure behavior |
 |---|---:|---|---|
 | Near ceiling | >1% of samples at ≥98% ceiling | full plane and center gate, per CFA position | reject; omit derived maps |
+| Screening finite coverage | <90% finite samples | full plane and center gate, per CFA position | reject an untrustworthy near-ceiling ratio |
 | Center signal | median <5% ceiling | center block | reject denominator |
 | Negative residual | >1% | full plane | reject pedestal/black anomaly |
 | Bin coverage | <90% finite samples | each map bin | reject incomplete map |
@@ -312,19 +313,23 @@ channel.
 
 `patches` now evaluates the source mosaic before demosaic with the shared
 CFA-balanced ROI helper and the same declared 20% geometry, 98% level, 1%
-policy, and per-position decision rule as `shading`. The `1:500` result is
-therefore identical in both commands:
+near-ceiling policy, 90% screening-coverage policy, and per-position decision
+rule as `shading`. Screening coverage is a fixed policy over the full-plane and
+center-gate populations; it is distinct from `shading`'s configurable 90%
+per-map-bin coverage gate. The `1:500` result is therefore identical in both
+commands:
 
 | Region | R | G1 | G2 | B | Policy |
 |---|---:|---:|---:|---:|---:|
 | Whole frame | 0% | 0.3664% | 0.4964% | 0% | 1% |
 | Centered gate (`x=2406, y=1606, w=1202, h=802`) | 0% | 8.6908% | 11.6319% | 0% | 1% |
 
-G2 rejects. Accepted and rejected `patches` JSON retain both arrays, the
-effective rectangles, and the per-position verdict, so a non-zero exit no
-longer discards the evidence. The shared helper and policy constants make the
-[52-frame screening table](../data/flat_field_summary.csv), now with all eight
-per-position frame/gate fractions, the shared near-ceiling-gate ledger for both
+G2 rejects. Accepted and rejected `patches` JSON retain the two near-ceiling
+arrays, the two finite-coverage arrays, `min_finite_coverage`, the effective
+rectangles, and the per-position verdict, so a non-zero exit no longer discards
+the evidence. The shared helper and policy constants make the
+[52-frame screening table](../data/flat_field_summary.csv), with all eight
+per-position frame/gate near-ceiling fractions, the shared gate ledger for both
 consumers rather than two independently implemented tests that happen to agree.
 Its remaining columns and `shading-v1-grid16x12-default-gates` policy ID still
 describe `shading`-specific map, dark-control, and asymmetry analysis.
@@ -342,14 +347,17 @@ historical private-run error magnitude.
 - JSON records schema version and every effective option alongside
   dataset-relative filenames, signal ceilings, geometry, gate diagnostics,
   response maps, chromatic completeness, dark-control evidence, asymmetry, and
-  interpretation scope.
+  interpretation scope. Screening coverage is explicit as
+  `min_finite_coverage`, `finite_fraction_frame`,
+  `finite_fraction_gate`, and `screening_coverage_ok`.
 - A rejected frame retains its measured gates and center/corner medians while
   relative and chromatic maps become `null`.
 - Undefined ratio bins become JSON `null`; `chromatic_complete` and
   `missing_chromatic_bin_count` make the condition explicit.
-- CSV uses RFC 4180-escaped long-form rows and includes effective policy and all
-  dark-control verdicts. Comparison mode appends both frames and measured
-  maximum/RMS corner deltas.
+- CSV uses RFC 4180-escaped long-form rows and includes the screening-coverage
+  arrays, `analysis_option_min_finite_coverage`, its verdict, every other
+  effective policy, and all dark-control verdicts. Comparison mode appends both
+  frames and measured maximum/RMS corner deltas.
 - Absolute input and dark paths are reduced to dataset-relative labels.
 
 ## Validation
@@ -360,8 +368,8 @@ The shading tests cover:
 - CFA-balanced geometry and impossible-region rejection;
 - finite/range validation, mirrored geometry, gate containment, and grid bounds;
 - central versus full-frame near-ceiling fractions;
-- low signal, negative residuals, independently binding finite coverage, and
-  zero denominators;
+- low signal, negative residuals, independently binding per-position screening
+  coverage, independently binding per-bin coverage, and zero denominators;
 - independent CFA planes, unequal gains, and row/column orientation;
 - exact synthetic `C_RG`/`C_BG`, spatial `C_G1G2`, and missing bins;
 - radial and asymmetric green fields;

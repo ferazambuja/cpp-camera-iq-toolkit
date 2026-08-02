@@ -313,15 +313,16 @@ ShadingField measure_shading_field(const double* data, int width, int height,
 
   field.gates.finite_ok = aggregates_finite;
   field.gates.near_ceiling_ok = true;
+  field.gates.screening_coverage_ok = true;
   field.gates.low_signal_ok = true;
   field.gates.negative_ok = true;
   for (int p = 0; p < 4; ++p) {
-    field.gates.near_ceiling_ok &=
-        flat_field_near_ceiling_passes(
-            field.gates.near_ceiling_frac_frame[p],
-            field.gates.near_ceiling_frac_gate[p],
-            field.gates.finite_frac_frame[p], field.gates.finite_frac_gate[p],
-            opts.near_ceiling_max, kFlatFieldMinFiniteCoverage);
+    field.gates.near_ceiling_ok &= flat_field_near_ceiling_fractions_pass(
+        field.gates.near_ceiling_frac_frame[p],
+        field.gates.near_ceiling_frac_gate[p], opts.near_ceiling_max);
+    field.gates.screening_coverage_ok &= flat_field_finite_coverage_passes(
+        field.gates.finite_frac_frame[p], field.gates.finite_frac_gate[p],
+        kFlatFieldMinFiniteCoverage);
     field.gates.low_signal_ok &=
         field.gates.center_signal_frac[p] >= opts.min_center_signal;
     field.gates.negative_ok &=
@@ -330,6 +331,10 @@ ShadingField measure_shading_field(const double* data, int width, int height,
   field.gates.coverage_ok =
       field.gates.min_bin_coverage >= opts.min_bin_coverage;
 
+  if (!field.gates.screening_coverage_ok) {
+    field.rejection_reason = "screening finite coverage below policy";
+    return field;
+  }
   if (!field.gates.near_ceiling_ok || !field.gates.low_signal_ok ||
       !field.gates.negative_ok || !field.gates.coverage_ok ||
       !field.gates.finite_ok) {

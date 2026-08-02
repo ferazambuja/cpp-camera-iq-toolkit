@@ -14,10 +14,10 @@
 #include <vector>
 
 #include "camera_iq/dataset_config.hpp"
+#include "camera_iq/flat_field_gate.hpp"
 #include "camera_iq/json_writer.hpp"
 #include "camera_iq/output_file.hpp"
 #include "camera_iq/raw_meta.hpp"
-#include "camera_iq/flat_field_gate.hpp"
 #include "camera_iq/shading.hpp"
 
 namespace camera_iq {
@@ -273,6 +273,8 @@ void write_shading_json(std::ostream& os, std::string_view file_label,
   w.value(field.gates.min_bin_coverage);
   w.key("near_ceiling_ok");
   w.value(field.gates.near_ceiling_ok);
+  w.key("screening_coverage_ok");
+  w.value(field.gates.screening_coverage_ok);
   w.key("low_signal_ok");
   w.value(field.gates.low_signal_ok);
   w.key("negative_ok");
@@ -516,6 +518,8 @@ void write_shading_csv(std::ostream& os, std::string_view file_label,
   }
   csv_row(os, file_label, "", -1, "min_bin_coverage", "", "",
           field.gates.min_bin_coverage, "fraction", ok);
+  csv_row(os, file_label, "", -1, "screening_coverage_ok", "", "",
+          field.gates.screening_coverage_ok ? 1.0 : 0.0, "boolean", ok);
   if (pedestal.measured) {
     csv_row(os, file_label, "", -1, "pedestal_max_abs_residual", "", "",
             pedestal.max_abs_residual_dn, "dn", ok);

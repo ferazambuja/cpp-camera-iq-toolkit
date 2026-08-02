@@ -7,12 +7,12 @@
 
 #include "harness.hpp"
 
-using camera_iq::RoiRect;
 using camera_iq::flat_field_near_ceiling_passes;
 using camera_iq::kFlatFieldMaxNearCeilingFraction;
 using camera_iq::kFlatFieldMinFiniteCoverage;
 using camera_iq::kFlatFieldNearCeilingLevel;
 using camera_iq::measure_cfa_near_ceiling;
+using camera_iq::RoiRect;
 using test::check;
 using test::check_near;
 
@@ -22,8 +22,8 @@ constexpr int kWidth = 8;
 constexpr int kHeight = 6;
 const std::array<double, 4> kCeilings{100.0, 100.0, 100.0, 100.0};
 
-// Mosaic position index for a pixel, in the R/G1/G2/B order the reports and the
-// published summary CSV use.
+// Mosaic position index for a pixel. This shared helper is deliberately
+// position-only; color labels require the caller's CFA metadata.
 std::size_t position_of(int x, int y) {
   return static_cast<std::size_t>((y % 2) * 2 + (x % 2));
 }
@@ -32,7 +32,7 @@ std::vector<double> flat_frame(double value) {
   return std::vector<double>(static_cast<std::size_t>(kWidth) * kHeight, value);
 }
 
-}  // namespace
+} // namespace
 
 void TESTS() {
   // Even origin and size, so every CFA position contributes the same sample
@@ -41,9 +41,9 @@ void TESTS() {
 
   {
     const auto frame = flat_frame(50.0);
-    const auto measurement = measure_cfa_near_ceiling(
-        frame.data(), kWidth, kHeight, kWidth, gate, kCeilings,
-        kFlatFieldNearCeilingLevel);
+    const auto measurement =
+        measure_cfa_near_ceiling(frame.data(), kWidth, kHeight, kWidth, gate,
+                                 kCeilings, kFlatFieldNearCeilingLevel);
     check(measurement.has_value(), "gate: even Bayer geometry is measurable");
     for (std::size_t p = 0; p < 4; ++p) {
       check_near(measurement->fraction_frame[p], 0.0, 1e-12,
@@ -65,9 +65,10 @@ void TESTS() {
     // frame, and `patches` must agree: it corrects every pixel in the image,
     // so a frame trimmed for screening would leave the last row or column
     // corrected but never screened.
-    const std::vector<double> odd_w(static_cast<std::size_t>(7) * kHeight, 50.0);
-    check(!measure_cfa_near_ceiling(odd_w.data(), 7, kHeight, 7, gate, kCeilings,
-                                    kFlatFieldNearCeilingLevel)
+    const std::vector<double> odd_w(static_cast<std::size_t>(7) * kHeight,
+                                    50.0);
+    check(!measure_cfa_near_ceiling(odd_w.data(), 7, kHeight, 7, gate,
+                                    kCeilings, kFlatFieldNearCeilingLevel)
                .has_value(),
           "gate: odd active width is rejected, not trimmed out of screening");
 
@@ -106,12 +107,12 @@ void TESTS() {
         }
       }
     }
-    const auto measurement = measure_cfa_near_ceiling(
-        frame.data(), kWidth, kHeight, kWidth, gate, kCeilings,
-        kFlatFieldNearCeilingLevel);
+    const auto measurement =
+        measure_cfa_near_ceiling(frame.data(), kWidth, kHeight, kWidth, gate,
+                                 kCeilings, kFlatFieldNearCeilingLevel);
     check(measurement.has_value(),
           "gate: one saturated position stays measurable");
-    check(target == 2, "gate: (even x, odd y) is position 2, the G2 index");
+    check(target == 2, "gate: (even x, odd y) is position 2");
     for (std::size_t p = 0; p < 4; ++p) {
       const double expected = p == target ? 1.0 : 0.0;
       check_near(measurement->fraction_frame[p], expected, 1e-12,
@@ -148,9 +149,9 @@ void TESTS() {
         }
       }
     }
-    const auto measurement = measure_cfa_near_ceiling(
-        frame.data(), kWidth, kHeight, kWidth, gate, kCeilings,
-        kFlatFieldNearCeilingLevel);
+    const auto measurement =
+        measure_cfa_near_ceiling(frame.data(), kWidth, kHeight, kWidth, gate,
+                                 kCeilings, kFlatFieldNearCeilingLevel);
     check(measurement.has_value(),
           "gate: an all-missing plane still returns the other three");
     check(std::isnan(measurement->fraction_frame[target]),
@@ -163,7 +164,8 @@ void TESTS() {
               kFlatFieldMaxNearCeilingFraction, kFlatFieldMinFiniteCoverage),
           "gate: an unmeasurable plane cannot masquerade as a clean flat");
     for (std::size_t p = 0; p < 4; ++p) {
-      if (p == target) continue;
+      if (p == target)
+        continue;
       check_near(measurement->fraction_frame[p], 0.0, 1e-12,
                  "gate: one missing plane does not disturb the others");
     }
@@ -187,9 +189,9 @@ void TESTS() {
         frame[static_cast<std::size_t>(y) * kWidth + x] = 1.0;
       }
     }
-    const auto measurement = measure_cfa_near_ceiling(
-        frame.data(), kWidth, kHeight, kWidth, gate, kCeilings,
-        kFlatFieldNearCeilingLevel);
+    const auto measurement =
+        measure_cfa_near_ceiling(frame.data(), kWidth, kHeight, kWidth, gate,
+                                 kCeilings, kFlatFieldNearCeilingLevel);
     check(measurement.has_value(), "gate: a sparse frame is still measurable");
     for (std::size_t p = 0; p < 4; ++p) {
       check_near(measurement->fraction_frame[p], 0.0, 1e-12,
@@ -219,5 +221,10 @@ void TESTS() {
           "gate: a negative fraction rejects");
     check(flat_field_near_ceiling_passes(0.01, 0.01, 1.0, 1.0, 0.01, 0.9),
           "gate: exactly at policy is not a rejection");
+    check(flat_field_near_ceiling_passes(0.0, 0.0, 0.9, 0.9, 0.01, 0.9),
+          "gate: coverage exactly at policy is accepted");
+    check(!flat_field_near_ceiling_passes(0.0, 0.0, std::nextafter(0.9, 0.0),
+                                          0.9, 0.01, 0.9),
+          "gate: coverage immediately below policy is rejected");
   }
 }
