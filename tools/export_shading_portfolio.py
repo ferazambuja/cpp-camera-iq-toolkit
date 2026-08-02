@@ -384,6 +384,87 @@ def validated_chromatic_maps(
                 raise ValueError(f"{label}: {key} disagrees with relative maps")
 
 
+def validate_inventory_document(
+    item: dict[str, Any],
+    label: str,
+    *,
+    require_verified_pedestal: bool = False,
+) -> dict[str, Any]:
+    """Validate one producer document at the exporter's publication boundary.
+
+    Screening inventory entries may defer dark verification to their matching
+    detailed document. Callers publishing detailed/response evidence set
+    ``require_verified_pedestal`` so accepted data cannot cross that boundary
+    without the verified control.
+    """
+    validate_options(item, label)
+
+    file_value = item.get("file")
+    if not isinstance(file_value, str) or not file_value:
+        raise ValueError(f"{label}: missing file label")
+    match = NAME_RE.search(file_value)
+    if not match:
+        raise ValueError(f"{label}: filename does not encode aperture/shutter")
+
+    grid = item.get("grid")
+    if not isinstance(grid, dict) or set(grid) != {"cols", "rows"}:
+        raise ValueError(f"{label}: grid must contain only cols and rows")
+    if any(
+        isinstance(grid[key], bool) or not isinstance(grid[key], int)
+        for key in ("cols", "rows")
+    ):
+        raise ValueError(f"{label}: grid dimensions must be integers")
+    cols, rows = grid["cols"], grid["rows"]
+    if cols <= 0 or rows <= 0:
+        raise ValueError(f"{label}: grid dimensions must be positive")
+    options = item["analysis_options"]
+    option_cols = int(options["grid_cols"])
+    option_rows = int(options["grid_rows"])
+    if (cols, rows) != (option_cols, option_rows):
+        raise ValueError(
+            f"{label}: grid {cols}x{rows} does not match analysis_options "
+            f"{option_cols}x{option_rows}"
+        )
+
+    gate, frame, finite_gate, finite_frame, center, failed = validated_gates(
+        item, label
+    )
+    positions = cfa_positions(item, label)
+    if item["gates"]["finite_ok"] is True:
+        validated_measurement_evidence(item, label)
+
+    accepted = item.get("accepted")
+    if not isinstance(accepted, bool):
+        raise ValueError(f"{label}: accepted verdict is not boolean")
+    if accepted == bool(failed):
+        raise ValueError(f"{label}: acceptance and gate verdicts disagree")
+
+    asymmetry = None
+    dark_controls_verified = False
+    if accepted:
+        asymmetry = validated_green_asymmetry(item, label, positions)
+        validated_chromatic_maps(item, label, positions)
+        dark_controls_verified = validated_pedestal(item, label)
+        if require_verified_pedestal and not dark_controls_verified:
+            raise ValueError(f"{label}: accepted result lacks verified dark controls")
+
+    return {
+        "file_label": file_value,
+        "aperture": match.group("aperture"),
+        "shutter": match.group("shutter"),
+        "gate": gate,
+        "frame": frame,
+        "finite_gate": finite_gate,
+        "finite_frame": finite_frame,
+        "center": center,
+        "failed": failed,
+        "positions": positions,
+        "accepted": accepted,
+        "asymmetry": asymmetry,
+        "dark_controls_verified": dark_controls_verified,
+    }
+
+
 def write_summary(
     inventory_dir: Path,
     detailed: dict[str, dict[str, Any]],
@@ -397,35 +478,29 @@ def write_summary(
     aperture_census: dict[str, int] = {}
     for path in sorted(inventory_dir.glob("*.json")):
         item = load(path)
-        file_label = str(item["file"])
+        validated = validate_inventory_document(item, str(path))
+        file_label = validated["file_label"]
         if file_label in seen_files:
             raise ValueError(f"{path}: duplicate inventory file label {file_label}")
         seen_files.add(file_label)
-        validate_options(item, str(path))
-        match = NAME_RE.search(file_label)
-        if not match:
-            raise ValueError(f"{path}: filename does not encode aperture/shutter")
-        gate, frame, finite_gate, finite_frame, center, failed = validated_gates(
-            item, str(path)
-        )
-        positions = cfa_positions(item, str(path))
-        if item["gates"]["finite_ok"] is True:
-            validated_measurement_evidence(item, str(path))
+        gate = validated["gate"]
+        frame = validated["frame"]
+        finite_gate = validated["finite_gate"]
+        finite_frame = validated["finite_frame"]
+        center = validated["center"]
+        failed = validated["failed"]
+        positions = validated["positions"]
         green_center = 0.5 * (
             finite(center[positions["g1"]], "G1 center signal")
             + finite(center[positions["g2"]], "G2 center signal")
         )
-        accepted_value = item.get("accepted")
-        if not isinstance(accepted_value, bool):
-            raise ValueError(f"{path}: accepted verdict is not boolean")
-        accepted = accepted_value
-        if accepted == bool(failed):
-            raise ValueError(f"{path}: acceptance and gate verdicts disagree")
+        accepted = validated["accepted"]
         if accepted:
             accepted_files.add(file_label)
         if accepted and file_label not in detailed:
             raise ValueError(f"{file_label}: accepted result lacks detailed evidence")
         detail = detailed.get(file_label, item)
+        detail_validated = validated
         if detail is not item:
             validate_options(detail, f"detailed {file_label}")
             for key in (
@@ -447,23 +522,18 @@ def write_summary(
                 "asymmetry_exceeds_policy",
             ):
                 if detail.get(key) != item.get(key):
-                    raise ValueError(f"{file_label}: detailed and inventory {key} disagree")
-        asymmetry = None
-        dark_controls_verified = False
+                    raise ValueError(
+                        f"{file_label}: detailed and inventory {key} disagree"
+                    )
+            detail_validated = validate_inventory_document(
+                detail,
+                f"detailed {file_label}",
+                require_verified_pedestal=True,
+            )
+        asymmetry = detail_validated["asymmetry"]
+        dark_controls_verified = detail_validated["dark_controls_verified"]
         if accepted:
-            detail_positions = cfa_positions(detail, f"detailed {file_label}")
-            asymmetry = validated_green_asymmetry(
-                detail, f"detailed {file_label}", detail_positions
-            )
-            validated_chromatic_maps(
-                detail, f"detailed {file_label}", detail_positions
-            )
-            dark_controls_verified = validated_pedestal(
-                detail, f"detailed {file_label}"
-            )
             accepted_evidence[file_label] = detail
-        if accepted and not dark_controls_verified:
-            raise ValueError(f"{file_label}: accepted result lacks verified dark controls")
         comparison_file = ""
         max_delta = ""
         rms_delta = ""
@@ -474,8 +544,8 @@ def write_summary(
         rows.append(
             [
                 file_label,
-                match.group("aperture"),
-                match.group("shutter"),
+                validated["aperture"],
+                validated["shutter"],
                 str(accepted).lower(),
                 ";".join(failed),
                 f"{max(gate):.8f}",
@@ -493,7 +563,7 @@ def write_summary(
                 POLICY_ID,
             ]
         )
-        aperture = match.group("aperture")
+        aperture = validated["aperture"]
         aperture_census[aperture] = aperture_census.get(aperture, 0) + 1
 
     if len(rows) != 52 or len(seen_files) != 52 or len(accepted_files) != 3:
@@ -567,10 +637,11 @@ def write_response(
         for item in measurements(load(path)):
             if not item.get("accepted"):
                 continue
-            file_label = str(item["file"])
-            validate_options(item, str(path))
-            positions = cfa_positions(item, str(path))
-            validated_chromatic_maps(item, str(path), positions)
+            validated = validate_inventory_document(
+                item, str(path), require_verified_pedestal=True
+            )
+            file_label = validated["file_label"]
+            positions = validated["positions"]
             canonical = accepted_evidence.get(file_label)
             if canonical is None:
                 raise ValueError(f"{file_label}: response is not an accepted inventory member")

@@ -1,4 +1,5 @@
 #include "camera_iq/commands.hpp"
+#include "camera_iq/spectro_ingest.hpp"
 #include "camera_iq/toolkit.hpp"
 
 #include <chrono>
@@ -119,7 +120,9 @@ void TESTS() {
 
   const std::string json = read_bytes(json_path);
   check(
-      contains(json, "\"schema_version\":2") &&
+      contains(json, "\"schema_version\":" +
+                         std::to_string(
+                             camera_iq::kSpectroIngestSchemaVersion)) &&
           contains(json, "\"sample_weighting\":\"uniform_equal_weight\"") &&
           contains(json, "\"declared_aliases\":1") &&
           contains(json, "\"aliases_verified\":true") &&

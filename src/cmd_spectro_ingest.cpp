@@ -24,8 +24,6 @@
 namespace camera_iq {
 namespace {
 
-constexpr int kSpectroIngestSchemaVersion = 2;
-
 struct Arguments {
   std::string root_or_id;
   std::filesystem::path config = default_dataset_config_path();
