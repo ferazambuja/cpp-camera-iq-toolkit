@@ -123,7 +123,7 @@ serial. The same centered clipping gate now also guards the flat used by the
 |---|---|
 | [Fujifilm X-T100 ColorChecker-SG manifest](reports/FUJI_XT100_CCSG_MANIFEST.md) | Dataset enumeration, CFA/black verification, and caveats |
 | [Dataset handling](DATASETS.md) | Public/private data boundary and local configuration |
-| [Publication-safe aggregate tables](data/README.md) | Figure inputs and regeneration |
+| [Aggregate result tables](data/README.md) | Figure inputs and regeneration |
 
 ## Reproducibility and data access
 

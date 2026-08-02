@@ -80,10 +80,11 @@ Implemented commands:
 
 ## Reproducibility and data access
 
-The source RAW datasets are intentionally outside Git. Every reported number is
-still reproducible from what is committed: aggregate result tables, deterministic
-SVG generation from those tables, fixtures covering the parser and CLI paths,
-and the test suite.
+The source RAW datasets are intentionally outside Git. What is committed
+therefore supports checking results rather than re-deriving them: aggregate
+result tables, deterministic SVG generation from those tables, fixtures covering
+the parser and CLI paths, and the test suite all run without the archives.
+Re-measuring from RAW requires the private captures.
 
 ```bash
 cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
