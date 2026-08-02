@@ -115,9 +115,10 @@ What was recovered:
 - **Wavelength axis:** each `.mat` carries `measurements.wl` = 380–780 nm at
   2 nm (201 points), matching the 201 CSV columns. The commented-out header
   line in `create_single_file.m` explains why the CSVs lack the axis.
-- **Row labels fully mapped:** `PRD measurments copy/` is not a copy — it holds
-  the same 45 measurements under their original scene names. Exact radiance
-  matching proves `PRD1sceneK → PRD_(2K−1)` and `PRD2sceneK → PRD_2K`:
+- **Row labels fully mapped:** `PRD measurments copy/` is an exact-content alias
+  directory for the same 45 measurements under their original scene names.
+  Exact radiance matching proves `PRD1sceneK → PRD_(2K−1)` and
+  `PRD2sceneK → PRD_2K`:
   **two spectroradiometer readings per scene, 24 scenes**, with scenes 22–24
   missing the second reading (hence no `PRD_44/46/48`).
 - **Measurement content:** spot radiance (W·sr⁻¹·m⁻²·nm⁻¹ scale), XYZ

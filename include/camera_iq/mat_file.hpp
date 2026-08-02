@@ -14,31 +14,39 @@ namespace camera_iq {
 struct MatArray {
   std::vector<std::size_t> dims;
   std::vector<double> values;
+  // MATLAB logical arrays use a numeric storage element but retain Boolean
+  // semantics. Values are validated as 0/1 before widening to double.
+  bool logical = false;
 };
 
 // A MATLAB struct with numeric fields, keyed by field name.
 using MatStruct = std::map<std::string, MatArray>;
 
-// Reads the first struct variable from the bytes of a MATLAB v5 MAT-file.
+// Reads one named scalar struct variable from MATLAB v5 MAT-file bytes.
 //
 // This is a subset reader for the shape the spectroradiometer archive stores,
 // not a general MAT implementation. It accepts little-endian v5 files, walks
-// compressed and uncompressed element streams, and returns one struct of
-// numeric arrays. It does not implement cell arrays, objects, char arrays,
-// sparse arrays, complex parts, or v7.3/HDF5 files, and it flattens a struct
-// array to the field set of its first element rather than preserving the array.
+// compressed and uncompressed element streams, skips unrelated top-level
+// payloads after inspecting their common matrix header, and returns one struct
+// of numeric arrays. It does not implement cell arrays, objects, char arrays,
+// sparse arrays, complex arrays, nested structs, non-scalar structs, or
+// v7.3/HDF5 files. Logical uint8 arrays are preserved explicitly. Duplicate
+// requested variables or field names are errors.
 //
 // Malformed input throws std::runtime_error naming what failed, including a
-// numeric payload that is not a whole number of samples and dimensions that
-// disagree with the value count. A reader that returned an empty struct instead
-// would be indistinguishable from a file that genuinely holds no fields.
+// numeric payload that is not a whole number of samples, invalid or overflowing
+// dimensions, unsupported array classes or storage types, malformed padding,
+// and excessive nesting.
+// A reader that returned an empty struct instead would be indistinguishable from
+// a file that genuinely holds no fields.
 //   variable_name       name of the struct variable to return. Files may hold
 //                       more than one, and taking whichever comes first makes
 //                       the result depend on write order.
-//   max_inflated_bytes  cap on the total inflated size of a compressed element.
-//                       A small file can declare an unbounded expansion, and
-//                       refusing is diagnosable where an out-of-memory abort is
-//                       not. The archive's largest payload is a few kilobytes.
+//   max_inflated_bytes  cap on total inflated bytes across the file, including
+//                       sibling and nested compressed elements. A small file can
+//                       declare an unbounded expansion, and refusing is
+//                       diagnosable where an out-of-memory abort is not. The
+//                       archive's largest payload is a few kilobytes.
 MatStruct read_mat_struct(const std::string& bytes,
                           std::string_view variable_name = "measurements",
                           std::size_t max_inflated_bytes = 64u << 20);

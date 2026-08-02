@@ -18,6 +18,13 @@
 
 ## Reference preparation and verification
 
+- [`check_cie_cmf_1nm.py`](check_cie_cmf_1nm.py) verifies the official CIE
+  source-copy hashes and the declared selection/rounding transformations in all
+  four project tables.
+- [`generate_spectro_identity_ledger.py`](generate_spectro_identity_ledger.py)
+  hashes the private CLRS-589 MAT files and derives an explicit, source-relative
+  repeat-group ledger; `--check` validates the committed ledger without claiming
+  to re-read the unavailable source archive.
 - [`gen_cie_d50.py`](gen_cie_d50.py) and
   [`gen_cie_d55.py`](gen_cie_d55.py) regenerate the committed daylight SPDs and
   verify their white points.
@@ -36,3 +43,8 @@
 - [`libraw_bilinear_compare.cpp`](libraw_bilinear_compare.cpp) compares the
   toolkit's transparent bilinear path with LibRaw interpolation for local
   validation. It is not part of the default CMake build.
+- [`matlab/export_spectro_crosscheck.m`](matlab/export_spectro_crosscheck.m)
+  makes MATLAB emit its own reading of every spectroradiometer file, so the
+  subset MAT parser can be checked against the reference implementation of the
+  format rather than only against its own tests. Nothing on the ingest path
+  runs it, and no published number depends on it.

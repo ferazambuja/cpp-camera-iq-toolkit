@@ -35,6 +35,7 @@ capture.
 | Neutral ramp reference (XYZ, derived) | `Old/Patches_XYZ.xlsx`, `Old/XYZ_all.csv` | same 16 rows | neutral | absolute XYZ, CIE 1931 2° |
 | Ramp trials | `Old/{1 to 6,7 to 9,10 to 15}/patch_Ntrail_M.mat` | steps **1–15** | neutral | spectroradiometer `measurements{wl,radiance,XYZ,totalRadiance,CCT,Duv}` |
 | PRD (white ref) | `Old/prd/prd_{1,2}.mat`; `PRD measurments/PRD_NN.mat` (+`PRD_SPD_all.csv`,`XYZ_all.csv`) | 2 + 45 readings | neutral | Perfect Reflecting Diffuser radiance/XYZ |
+| Measurement identity ledger | [`data/spectro_identity_ledger.csv`](../../data/spectro_identity_ledger.csv) | 89 distinct readings, 45 byte-identical aliases, 40 measurement groups (37 repeated, 3 singleton) | neutral | source-relative paths and SHA-256 identities; no spectra |
 | Illuminant SPD | three configured sphere-SPD files | 3 | — | integrating-sphere spectral radiance (W/m²·µm·sr) |
 | Camera measurement | `Images/ccsg_matlab.csv` | **140 patches** | colored | linear camera RGB (dark-subtracted + sphere vignette-corrected) |
 | Camera measurement (alt) | `Images/CCSG_rawdigger.csv` (A1… labels), `ccsg_matlab_dark_frame_corrected.csv` | 140 | colored | RawDigger export / dark-corrected |
@@ -52,7 +53,7 @@ Build pipeline confirmed by `Old/load_all.m` + `PRD measurments/create_single_fi
 | Claim | Method | Result |
 |---|---|---|
 | All measured spectra are neutral | chromaticity (x,y) of all 150 `.mat` (134 raw `measurements` structs + 16 legacy averaged in `Old/Old code/`) | max chroma radius **0.011** (ramp) / **0.004** (PRD); averaged rows Y 166→679, raw trials Y 131→679, x,y ≈ const → grayscale, not color |
-| Reference XYZ is a derived view of the SPD | recompute `683.017·∫ SPD·CMF₂°·2nm` | scale k = **683.017** across all 16 rows × 3 channels, **zero variance** (683 = Km) |
+| Recorded XYZ is numerically consistent with integration of the same SPD | compare recorded XYZ with `2 nm · Σ(SPD · CMF₂°)` | equal-weight sample summation is consistent with the records up to one archive-derived scale; fitting the canonical measurements gives **683.016758**, while using the historical rounded factor **683.017** leaves a constant signed residual of **3.5397e-05%** |
 | Ramp rows 1–15 = trial averages | mean of `patch_Ntrail_M.mat` XYZ vs xlsx | max\|Δ\| ≈ **4e-13** every row |
 | Row 16 = mean(prd_1, prd_2), not a chart patch | mean of `prd_{1,2}.mat` XYZ vs xlsx row 16 | max\|Δ\| = **4.55e-13**; no `patch_16*` file exists |
 | Camera order ≠ reference order | corr(camera green[:16], reference Y[:16]) | **−0.07**, ratio CV 126% |
@@ -72,6 +73,14 @@ Illuminant conditions (verified): ramp trials (n=42) **CCT mean 5984 K
 (the `Old/prd` pair reads ~5612 K). PRD is a distinct condition from the ramp.
 Absolute radiance XYZ (Y in cd/m²) — needs a white point to reach Lab/ΔE. **Not
 D50.**
+
+For the same-spectrum comparison, each unscaled channel value is
+`qᵢ꜀ = 2 nm · Σλ SPDᵢ(λ) · CMF꜀(λ)`. The reported proportional factor is the
+zero-intercept least-squares estimate
+`k = Σᵢ꜀ qᵢ꜀ XYZᵢ꜀ / Σᵢ꜀ qᵢ꜀²` over 89 canonical readings × 3 channels
+(267 terms). The committed identity ledger and observer table specify the
+population and reference data; recomputing the fit still requires the private
+spectra.
 
 ## Verification vs X-Rite manufacturer reference (2026-07-05)
 
@@ -130,8 +139,11 @@ to be the sole mechanism, and not a bad reference.
 
 ## Consequences
 
-1. **Source of truth for neutrals is the SPD, not the XYZ file.** Regenerate XYZ
-   in-code from the SPD; the xlsx XYZ carries no independent information.
+1. **The spectrum is the primary signal for recomputation.** Retain the recorded
+   XYZ as same-spectrum closure metadata, not as an independent reference. The
+   fitted proportional factor is specific to these records; it is not the SI
+   value `Kcd = 683 lm/W` or the CIE photopic maximum `Km ≈ 683.002 lm/W`, and
+   the agreement does not identify undocumented instrument software.
 2. **The project spectroradiometry is neutral-only, but the toolkit has a compatible
    colored spectral reference.** Use `ccsg.xlsx` for the colored CCM/ΔE demo and
    label it as compatible/standard until physical chart identity is proven.
