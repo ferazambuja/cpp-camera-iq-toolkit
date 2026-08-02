@@ -3,21 +3,27 @@
 
 from __future__ import annotations
 
-import importlib.util
 import copy
 import csv
 import json
 import tempfile
 from pathlib import Path
+from types import ModuleType
 
 
 ROOT = Path(__file__).resolve().parents[1]
-SPEC = importlib.util.spec_from_file_location(
+
+
+def load_source_module(name: str, path: Path) -> ModuleType:
+    module = ModuleType(name)
+    module.__file__ = str(path)
+    exec(compile(path.read_text(), str(path), "exec"), module.__dict__)
+    return module
+
+
+EXPORT = load_source_module(
     "export_shading_portfolio", ROOT / "tools" / "export_shading_portfolio.py"
 )
-assert SPEC and SPEC.loader
-EXPORT = importlib.util.module_from_spec(SPEC)
-SPEC.loader.exec_module(EXPORT)
 
 
 def expect_error(action, needle: str) -> None:
@@ -130,6 +136,50 @@ def write_json(path: Path, value: dict) -> None:
 
 
 def main() -> None:
+    legacy = {
+        **document("dataset:fixture/legacy.RAF", False),
+        "schema_version": 2,
+    }
+    expect_error(
+        lambda: EXPORT.validate_options(legacy, "legacy fixture"),
+        "unsupported shading schema",
+    )
+
+    shared = document(
+        "dataset:fixture/Images/Sphere/Sphere_f8.0_1:1000_DSCF0001.RAF",
+        True,
+    )
+    if not hasattr(EXPORT, "validate_inventory_document"):
+        raise AssertionError(
+            "exporter lacks the shared per-document publication validator"
+        )
+    validated = EXPORT.validate_inventory_document(
+        shared, "shared fixture", require_verified_pedestal=True
+    )
+    if validated["file_label"] != shared["file"]:
+        raise AssertionError("shared validator did not preserve the file label")
+
+    missing_file = copy.deepcopy(shared)
+    del missing_file["file"]
+    expect_error(
+        lambda: EXPORT.validate_inventory_document(missing_file, "missing file"),
+        "missing file label",
+    )
+
+    mismatched_grid = copy.deepcopy(shared)
+    mismatched_grid["grid"]["cols"] = 15
+    mismatched_grid["relative_response"] = [
+        values[: 15 * 12] for values in mismatched_grid["relative_response"]
+    ]
+    for key in ("c_rg", "c_bg", "c_g1g2"):
+        mismatched_grid[key] = mismatched_grid[key][: 15 * 12]
+    expect_error(
+        lambda: EXPORT.validate_inventory_document(
+            mismatched_grid, "mismatched grid"
+        ),
+        "grid 15x12 does not match analysis_options 16x12",
+    )
+
     peripheral = document("dataset:fixture/peripheral.RAF", False)
     peripheral["gates"]["near_ceiling_fraction_gate"] = [0.0] * 4
     peripheral["gates"]["near_ceiling_fraction_frame"] = [0.02, 0.0, 0.0, 0.0]
@@ -288,6 +338,23 @@ def main() -> None:
         )
 
         primary_inventory = inventory / "18.json"
+        unverified_inventory = copy.deepcopy(primary)
+        unverified_inventory["pedestal"]["verified"] = False
+        unverified_inventory["pedestal"]["pedestal_unverified"] = True
+        write_json(primary_inventory, unverified_inventory)
+        try:
+            EXPORT.write_summary(
+                inventory,
+                detailed,
+                comparison,
+                root / "inventory-defers-dark-evidence.csv",
+            )
+        except ValueError as error:
+            raise AssertionError(
+                "screening inventory should defer dark verification to detailed evidence"
+            ) from error
+        write_json(primary_inventory, primary)
+
         missing_center = copy.deepcopy(primary)
         missing_center["center_block_median"] = None
         write_json(primary_inventory, missing_center)

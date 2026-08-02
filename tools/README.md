@@ -53,7 +53,16 @@
   toolkit's transparent bilinear path with LibRaw interpolation for local
   validation. It is not part of the default CMake build.
 
-`check_schema_contract.py` pins cross-language result schemas. It compares the
-shading producer with its portfolio exporter and fixture, and the
-spectroradiometer producer with its receipt generator, checker, and fixture.
+`check_schema_contract.py` runs a synthetic accepted field through the real C++
+shading JSON serializer and then through the portfolio exporter's live
+validators. It also validates the exporter's independently literal canonical
+fixture. This protects the cross-language case the component suites cannot:
+the producer and its direct JSON/CSV assertions can advance together while the
+Python exporter remains stale. Comments and intentional legacy-schema fixtures
+are not treated as contract authorities. No private RAW input is required.
+The same test reads the compiled C++ spectroradiometer schema authority and
+behavior-probes the live receipt generator and committed-receipt checker to
+prove their exported version controls their production admission paths. Source
+comments, strings, docstrings, dead constants, and stale bytecode cannot satisfy
+either contract; the independent receipt tests still exercise their fixtures.
 Registered as the `check_schema_contract` test.

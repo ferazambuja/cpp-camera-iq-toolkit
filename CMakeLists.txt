@@ -164,12 +164,25 @@ camera_iq_add_test(test_flat_field_gate tests/test_flat_field_gate.cpp)
 camera_iq_add_test(test_shading tests/test_shading.cpp)
 camera_iq_add_test(test_cmd_shading tests/test_cmd_shading.cpp)
 
+# Test-only producer for the cross-language shading publication contract. It
+# serializes a synthetic accepted field through the real C++ JSON writer; no
+# private RAW input is needed.
+add_executable(emit_shading_contract tests/emit_shading_contract.cpp)
+target_link_libraries(emit_shading_contract PRIVATE camera_iq_core)
+add_executable(emit_spectro_schema tests/emit_spectro_schema.cpp)
+target_link_libraries(emit_spectro_schema PRIVATE camera_iq_core)
+
 add_test(NAME check_public_paths
   COMMAND bash ${CMAKE_SOURCE_DIR}/tools/check_public_paths.sh)
 add_test(NAME check_sample_fixtures
   COMMAND bash ${CMAKE_SOURCE_DIR}/tools/check_sample_fixtures.sh)
 add_test(NAME check_verify_ccsg_vs_xrite_behavior
   COMMAND bash ${CMAKE_SOURCE_DIR}/tools/check_verify_ccsg_vs_xrite_behavior.sh)
+set_tests_properties(
+  check_public_paths
+  check_sample_fixtures
+  check_verify_ccsg_vs_xrite_behavior
+  PROPERTIES WORKING_DIRECTORY ${CMAKE_SOURCE_DIR})
 add_test(NAME check_portfolio_docs
   COMMAND python3 ${CMAKE_SOURCE_DIR}/tools/check_portfolio_docs.py
           --repo-root ${CMAKE_SOURCE_DIR})
@@ -208,9 +221,13 @@ add_test(NAME test_check_patch_baseline
   COMMAND python3 ${CMAKE_SOURCE_DIR}/tools/test_check_patch_baseline.py)
 add_test(NAME check_schema_contract
   COMMAND python3 ${CMAKE_SOURCE_DIR}/tools/check_schema_contract.py
-          --repo-root ${CMAKE_SOURCE_DIR})
+          --repo-root ${CMAKE_SOURCE_DIR}
+          --shading-producer $<TARGET_FILE:emit_shading_contract>
+          --spectro-producer $<TARGET_FILE:emit_spectro_schema>)
 add_test(NAME test_check_schema_contract
-  COMMAND python3 ${CMAKE_SOURCE_DIR}/tools/test_check_schema_contract.py)
+  COMMAND python3 ${CMAKE_SOURCE_DIR}/tools/test_check_schema_contract.py
+          --shading-producer $<TARGET_FILE:emit_shading_contract>
+          --spectro-producer $<TARGET_FILE:emit_spectro_schema>)
 add_test(NAME test_portfolio_docs
   COMMAND python3 ${CMAKE_SOURCE_DIR}/tools/test_portfolio_docs.py)
 add_test(NAME test_portfolio_figures

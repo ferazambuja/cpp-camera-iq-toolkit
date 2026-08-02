@@ -11,6 +11,9 @@
 
 namespace camera_iq {
 
+// Authoritative schema written by the spectro-ingest JSON serializer.
+inline constexpr int kSpectroIngestSchemaVersion = 2;
+
 struct IngestedSpectroReading {
   SpectroLedgerEntry identity;
   SpectroMeasurement measurement;

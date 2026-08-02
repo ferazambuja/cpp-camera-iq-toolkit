@@ -1,131 +1,186 @@
 #!/usr/bin/env python3
-"""Negative-path checks for the producer/exporter schema pin.
-
-The check only earns its place if it fails when the two sides drift, so these
-cases move each side in turn and require an error naming both values.
-"""
+"""Mutation checks for the cross-language result-contract gate."""
 
 from __future__ import annotations
 
-import importlib.util
-import re
+import argparse
+import copy
 import shutil
 import tempfile
 from pathlib import Path
+from types import ModuleType
 
 
 ROOT = Path(__file__).resolve().parents[1]
-SPEC = importlib.util.spec_from_file_location(
+
+
+def load_source_module(name: str, path: Path) -> ModuleType:
+    module = ModuleType(name)
+    module.__file__ = str(path)
+    exec(compile(path.read_text(), str(path), "exec"), module.__dict__)
+    return module
+
+
+CHECK = load_source_module(
     "check_schema_contract", ROOT / "tools" / "check_schema_contract.py"
 )
-assert SPEC and SPEC.loader
-CHECK = importlib.util.module_from_spec(SPEC)
-SPEC.loader.exec_module(CHECK)
 
-PRODUCER = Path("src/cmd_shading.cpp")
-EXPORTER = Path("tools/export_shading_portfolio.py")
-FIXTURE = Path("tools/test_export_shading_portfolio.py")
-SPECTRO_PRODUCER = Path("src/cmd_spectro_ingest.cpp")
-SPECTRO_GENERATOR = Path("tools/generate_spectro_receipt.py")
-SPECTRO_CHECKER = Path("tools/check_spectro_receipt.py")
-SPECTRO_FIXTURE = Path("tools/test_generate_spectro_receipt.py")
-SPECTRO_CHECK_FIXTURE = Path("tools/test_check_spectro_receipt.py")
+SPECTRO_FILES = [rel for rel, _, _ in CHECK.SPECTRO_PYTHON_SOURCES]
 
 
-def staged(tmp: Path) -> Path:
-    for rel in (
-        PRODUCER,
-        EXPORTER,
-        FIXTURE,
-        SPECTRO_PRODUCER,
-        SPECTRO_GENERATOR,
-        SPECTRO_CHECKER,
-        SPECTRO_FIXTURE,
-        SPECTRO_CHECK_FIXTURE,
-    ):
+def expect_error(errors: list[str], needle: str) -> None:
+    if not errors:
+        raise AssertionError(f"expected an error mentioning {needle!r}, got none")
+    if not any(needle in error for error in errors):
+        raise AssertionError(f"expected {needle!r} in {errors!r}")
+
+
+def staged_spectro(tmp: Path) -> Path:
+    for rel in SPECTRO_FILES:
         (tmp / rel.parent).mkdir(parents=True, exist_ok=True)
         shutil.copy(ROOT / rel, tmp / rel)
     return tmp
 
 
-def expect_error(root: Path, needle: str) -> None:
-    errors = CHECK.check(root)
-    if not errors:
-        raise SystemExit(f"expected an error mentioning {needle!r}, got none")
-    if not any(needle in e for e in errors):
-        raise SystemExit(f"expected {needle!r} in {errors!r}")
-
-
 def main() -> int:
-    errors = CHECK.check(ROOT)
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--shading-producer", type=Path, required=True)
+    parser.add_argument("--spectro-producer", type=Path, required=True)
+    args = parser.parse_args()
+
+    exporter, producer, fixture = CHECK.load_shading_contract(
+        ROOT, args.shading_producer.resolve()
+    )
+    spectro_version = CHECK.load_spectro_producer_version(
+        args.spectro_producer.resolve()
+    )
+    errors = CHECK.check_shading_documents(exporter, producer, fixture)
     if errors:
-        raise SystemExit(f"committed tree should validate cleanly: {errors}")
+        raise AssertionError(f"committed shading contract should validate: {errors}")
+
+    bumped_producer = copy.deepcopy(producer)
+    bumped_producer["schema_version"] = 4
+    expect_error(
+        CHECK.check_shading_documents(exporter, bumped_producer, fixture),
+        "live C++ shading JSON: unsupported shading schema",
+    )
+
+    bumped_exporter_version = exporter.SCHEMA_VERSION
+    exporter.SCHEMA_VERSION = 4
+    try:
+        expect_error(
+            CHECK.check_shading_documents(exporter, producer, fixture),
+            "unsupported shading schema",
+        )
+    finally:
+        exporter.SCHEMA_VERSION = bumped_exporter_version
+
+    stale_fixture = copy.deepcopy(fixture)
+    stale_fixture["schema_version"] = 2
+    expect_error(
+        CHECK.check_shading_documents(exporter, producer, stale_fixture),
+        "canonical exporter fixture: unsupported shading schema",
+    )
+
+    incomplete_producer = copy.deepcopy(producer)
+    del incomplete_producer["analysis_options"]["min_finite_coverage"]
+    expect_error(
+        CHECK.check_shading_documents(exporter, incomplete_producer, fixture),
+        "live C++ shading JSON: incomplete or unexpected analysis options",
+    )
+
+    missing_file = copy.deepcopy(producer)
+    del missing_file["file"]
+    expect_error(
+        CHECK.check_shading_documents(exporter, missing_file, fixture),
+        "live C++ shading JSON: missing file label",
+    )
+
+    mismatched_grid = copy.deepcopy(producer)
+    mismatched_grid["grid"]["cols"] = 15
+    mismatched_grid["relative_response"] = [
+        values[: 15 * 12] for values in mismatched_grid["relative_response"]
+    ]
+    for key in ("c_rg", "c_bg", "c_g1g2"):
+        mismatched_grid[key] = mismatched_grid[key][: 15 * 12]
+    expect_error(
+        CHECK.check_shading_documents(exporter, mismatched_grid, fixture),
+        "live C++ shading JSON: grid 15x12 does not match analysis_options 16x12",
+    )
+
+    expanded_fixture = copy.deepcopy(fixture)
+    expanded_fixture["analysis_options"]["unpublished_option"] = 1
+    expect_error(
+        CHECK.check_shading_documents(exporter, producer, expanded_fixture),
+        "canonical exporter fixture: incomplete or unexpected analysis options",
+    )
 
     with tempfile.TemporaryDirectory() as raw:
-        root = staged(Path(raw))
-
-        # The producer is bumped and the Python side is not. This is the exact
-        # sequence that broke the documented export pipeline between #16 and
-        # #19: every real result file was rejected while the suite stayed green,
-        # because the exporter's fixture still declared the old version.
-        original = (root / PRODUCER).read_text()
-        (root / PRODUCER).write_text(
-            original.replace(
-                "constexpr int kShadingSchemaVersion = 3;",
-                "constexpr int kShadingSchemaVersion = 4;",
+        root = staged_spectro(Path(raw))
+        spectro_errors = CHECK.check_spectro(root, spectro_version)
+        if spectro_errors:
+            raise AssertionError(
+                f"committed spectro contract should validate: {spectro_errors}"
             )
-        )
-        expect_error(root, "cmd_shading.cpp")
-        (root / PRODUCER).write_text(original)
 
-        # The exporter is bumped and the producer is not.
-        exporter = (root / EXPORTER).read_text()
-        (root / EXPORTER).write_text(
-            re.sub(r"SCHEMA_VERSION = 3", "SCHEMA_VERSION = 4", exporter)
+        generator_path = root / Path("tools/generate_spectro_receipt.py")
+        generator = generator_path.read_text()
+        generator_path.write_text(
+            generator.replace("RESULT_SCHEMA_VERSION = 2", "RESULT_SCHEMA_VERSION = 3", 1)
         )
-        expect_error(root, "export_shading_portfolio.py")
-        (root / EXPORTER).write_text(exporter)
-
-        # The exporter's own fixture drifts. A fixture that encodes the old
-        # contract is what let the suite stay green through the regression.
-        fixture = (root / FIXTURE).read_text()
-        (root / FIXTURE).write_text(
-            fixture.replace('"schema_version": 3', '"schema_version": 2', 1)
+        expect_error(
+            CHECK.check_spectro(root, spectro_version),
+            "generate_spectro_receipt.py",
         )
-        expect_error(root, "test_export_shading_portfolio.py")
-        (root / FIXTURE).write_text(fixture)
+        generator_path.write_text(generator)
 
-        # The receipt generator must not silently accept a result schema that
-        # differs from the C++ producer.
-        spectro_generator = (root / SPECTRO_GENERATOR).read_text()
-        (root / SPECTRO_GENERATOR).write_text(
-            spectro_generator.replace(
+        generator_path.write_text(
+            generator.replace(
                 "RESULT_SCHEMA_VERSION = 2",
-                "RESULT_SCHEMA_VERSION = 3",
+                '"""\nRESULT_SCHEMA_VERSION = 2\n"""',
                 1,
             )
         )
-        expect_error(root, "generate_spectro_receipt.py")
-        (root / SPECTRO_GENERATOR).write_text(spectro_generator)
+        expect_error(
+            CHECK.check_spectro(root, spectro_version),
+            "generate_spectro_receipt.py",
+        )
+        generator_path.write_text(generator)
 
-        spectro_check_fixture = (root / SPECTRO_CHECK_FIXTURE).read_text()
-        (root / SPECTRO_CHECK_FIXTURE).write_text(
-            spectro_check_fixture.replace(
-                "RESULT_SCHEMA_VERSION = 2",
-                "RESULT_SCHEMA_VERSION = 3",
+        generator_path.write_text(
+            generator.replace(
+                'result.get("schema_version") != RESULT_SCHEMA_VERSION',
+                'result.get("schema_version") != 3',
                 1,
             )
         )
-        expect_error(root, "test_check_spectro_receipt.py")
-        (root / SPECTRO_CHECK_FIXTURE).write_text(spectro_check_fixture)
-
-        # A missing declaration must fail loudly rather than silently pass.
-        (root / EXPORTER).write_text(
-            exporter.replace("SCHEMA_VERSION = 3", "# removed")
+        expect_error(
+            CHECK.check_spectro(root, spectro_version),
+            "does not control the production generator schema check",
         )
-        expect_error(root, "no SCHEMA_VERSION")
+        generator_path.write_text(generator)
 
-    print("check_schema_contract negative paths ok")
+        checker_path = root / Path("tools/check_spectro_receipt.py")
+        checker_source = checker_path.read_text()
+        checker_path.write_text(
+            checker_source.replace(
+                'receipt.get("result_schema_version") != RESULT_SCHEMA_VERSION',
+                'receipt.get("result_schema_version") != 3',
+                1,
+            )
+        )
+        expect_error(
+            CHECK.check_spectro(root, spectro_version),
+            "does not control the production checker schema check",
+        )
+        checker_path.write_text(checker_source)
+
+        expect_error(
+            CHECK.check_spectro(root, spectro_version + 1),
+            "compiled C++ spectro schema",
+        )
+
+    print("check_schema_contract mutations ok")
     return 0
 
 

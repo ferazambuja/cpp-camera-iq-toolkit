@@ -1,145 +1,301 @@
 #!/usr/bin/env python3
-"""Pin cross-language result schema versions across producers and consumers.
+"""Check the shading and spectroradiometer cross-language result contracts.
 
-`camera_iq shading` stamps `schema_version` from a C++ constant. The portfolio
-exporter declares the version it accepts and *rejects every input that does not
-match*, and its own test fixture declares that version a third time. Three
-independent literals in two languages, agreeing by convention.
+The shading check runs a test-only C++ emitter through the real serializer and
+the exporter's shared publication validator. The spectroradiometer check reads
+the compiled C++ authority and behavior-probes the production receipt tools.
 
-That convention has already failed once. Bumping the producer to 3 left the
-exporter pinned at 2, so the documented regeneration pipeline rejected every
-real result file while the test suite stayed green -- the fixture encoded the
-old contract, so nothing in CI ever compared the two sides.
-
-A static_assert cannot span the language boundary, so this does the comparison
-instead: read all three declarations and require one value.
-
-Usage: python3 tools/check_schema_contract.py [--repo-root PATH]
+Usage:
+  python3 tools/check_schema_contract.py --shading-producer PATH \
+      --spectro-producer PATH [--repo-root PATH]
 """
 
 from __future__ import annotations
 
 import argparse
-import re
+import json
+import subprocess
 import sys
+import tempfile
 from pathlib import Path
+from types import ModuleType
+from typing import Any
 
 
-# (path, human description, regex capturing the version)
-SOURCES = [
-    (
-        Path("src/cmd_shading.cpp"),
-        "producer constant",
-        re.compile(r"constexpr int kShadingSchemaVersion\s*=\s*(\d+)\s*;"),
-    ),
-    (
-        Path("tools/export_shading_portfolio.py"),
-        "exporter accepted version",
-        re.compile(r"^SCHEMA_VERSION\s*=\s*(\d+)\s*$", re.MULTILINE),
-    ),
-    (
-        Path("tools/test_export_shading_portfolio.py"),
-        "exporter test fixture",
-        re.compile(r'"schema_version":\s*(\d+)'),
-    ),
-]
-
-SPECTRO_SOURCES = [
-    (
-        Path("src/cmd_spectro_ingest.cpp"),
-        "producer constant",
-        re.compile(r"constexpr int kSpectroIngestSchemaVersion\s*=\s*(\d+)\s*;"),
-    ),
+SPECTRO_PYTHON_SOURCES = [
     (
         Path("tools/generate_spectro_receipt.py"),
         "receipt generator accepted version",
-        re.compile(r"^RESULT_SCHEMA_VERSION\s*=\s*(\d+)\s*$", re.MULTILINE),
+        "generator",
     ),
     (
         Path("tools/check_spectro_receipt.py"),
         "receipt checker accepted version",
-        re.compile(r"^RESULT_SCHEMA_VERSION\s*=\s*(\d+)\s*$", re.MULTILINE),
-    ),
-    (
-        Path("tools/test_generate_spectro_receipt.py"),
-        "receipt generator test fixture",
-        re.compile(r"^RESULT_SCHEMA_VERSION\s*=\s*(\d+)\s*$", re.MULTILINE),
-    ),
-    (
-        Path("tools/test_check_spectro_receipt.py"),
-        "receipt checker test fixture",
-        re.compile(r"^RESULT_SCHEMA_VERSION\s*=\s*(\d+)\s*$", re.MULTILINE),
+        "checker",
     ),
 ]
 
-CONTRACTS = {
-    "shading": SOURCES,
-    "spectro-ingest": SPECTRO_SOURCES,
-}
+
+def load_module(name: str, path: Path) -> ModuleType:
+    # Execute the source we just read instead of accepting a timestamp/size
+    # matched .pyc. Mutation tests deliberately make same-size edits within one
+    # filesystem timestamp tick; stale bytecode would turn those into a false
+    # pass in the contract checker itself.
+    module = ModuleType(name)
+    module.__file__ = str(path)
+    source = path.read_text()
+    try:
+        exec(compile(source, str(path), "exec"), module.__dict__)
+    except Exception as error:
+        raise RuntimeError(f"{path}: cannot load module: {error}") from error
+    return module
 
 
-def check(root: Path) -> list[str]:
+def load_producer_document(producer: Path) -> dict[str, Any]:
+    try:
+        result = subprocess.run(
+            [str(producer)],
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+    except OSError as error:
+        raise RuntimeError(f"{producer}: cannot execute: {error}") from error
+    if result.returncode != 0:
+        detail = result.stderr.strip() or f"exit status {result.returncode}"
+        raise RuntimeError(f"{producer}: producer failed: {detail}")
+    try:
+        document = json.loads(result.stdout)
+    except json.JSONDecodeError as error:
+        raise RuntimeError(
+            f"{producer}: producer did not emit valid JSON: {error}"
+        ) from error
+    if not isinstance(document, dict):
+        raise RuntimeError(f"{producer}: producer JSON is not an object")
+    return document
+
+
+def check_shading_documents(
+    exporter: ModuleType,
+    producer_document: dict[str, Any],
+    fixture_document: dict[str, Any],
+) -> list[str]:
     errors: list[str] = []
-    for contract, sources in CONTRACTS.items():
-        found: list[tuple[Path, str, int]] = []
-        contract_errors: list[str] = []
-        for rel, description, pattern in sources:
-            path = root / rel
-            if not path.is_file():
-                contract_errors.append(f"{rel}: missing")
-                continue
-            matches = pattern.findall(path.read_text())
-            if not matches:
-                declaration = (
-                    "SCHEMA_VERSION"
-                    if "export_shading_portfolio" in rel.name
-                    else "schema-version"
-                )
-                contract_errors.append(
-                    f"{rel}: no {declaration} declaration found ({description})"
-                )
-                continue
-            values = {int(match) for match in matches}
-            if len(values) > 1:
-                contract_errors.append(
-                    f"{rel}: declares conflicting schema versions {sorted(values)}"
-                )
-                continue
-            found.append((rel, description, values.pop()))
-        errors.extend(contract_errors)
-        if contract_errors:
-            continue
-        versions = {version for _, _, version in found}
-        if len(versions) > 1:
-            detail = ", ".join(
-                f"{rel} ({description}) = {version}"
-                for rel, description, version in found
+    for label, document in (
+        ("live C++ shading JSON", producer_document),
+        ("canonical exporter fixture", fixture_document),
+    ):
+        try:
+            exporter.validate_inventory_document(
+                document, label, require_verified_pedestal=True
             )
-            errors.append(
-                f"{contract} schema version disagrees across producer and "
-                f"consumers: {detail}"
-            )
+        except (AttributeError, KeyError, TypeError, ValueError) as error:
+            errors.append(str(error))
+
+    producer_contract = {
+        "schema_version": producer_document.get("schema_version"),
+        "analysis_options": producer_document.get("analysis_options"),
+    }
+    fixture_contract = {
+        "schema_version": fixture_document.get("schema_version"),
+        "analysis_options": fixture_document.get("analysis_options"),
+    }
+    if producer_contract != fixture_contract:
+        errors.append(
+            "live C++ shading JSON and canonical exporter fixture disagree: "
+            f"producer schema={producer_contract['schema_version']!r}, "
+            f"fixture schema={fixture_contract['schema_version']!r}, "
+            "or their complete analysis_options differ"
+        )
     return errors
+
+
+def load_spectro_producer_version(producer: Path) -> int:
+    try:
+        result = subprocess.run(
+            [str(producer)], check=False, capture_output=True, text=True
+        )
+    except OSError as error:
+        raise RuntimeError(f"{producer}: cannot execute: {error}") from error
+    if result.returncode != 0:
+        detail = result.stderr.strip() or f"exit status {result.returncode}"
+        raise RuntimeError(f"{producer}: producer failed: {detail}")
+    try:
+        version = int(result.stdout.strip())
+    except ValueError as error:
+        raise RuntimeError(
+            f"{producer}: producer did not emit one integer schema version"
+        ) from error
+    if version <= 0:
+        raise RuntimeError(f"{producer}: schema version must be positive")
+    return version
+
+
+def probe_python_version_binding(
+    module: ModuleType, kind: str, version: int, label: str
+) -> str | None:
+    """Prove the exported constant controls the production admission path."""
+    probe = version + 97
+    module.RESULT_SCHEMA_VERSION = probe
+
+    def invoke(result_version: int) -> str:
+        try:
+            if kind == "generator":
+                result = {
+                    "schema_version": result_version,
+                    "groups": [],
+                    "evidence": {
+                        "measurement_groups": 0,
+                        "canonical_readings": 0,
+                    },
+                }
+                module.summarize(result, [], [], {})
+            elif kind == "checker":
+                with tempfile.TemporaryDirectory() as directory:
+                    root = Path(directory)
+                    receipt = root / "receipt.json"
+                    groups = root / "groups.csv"
+                    receipt.write_text(
+                        json.dumps(
+                            {
+                                "receipt_schema_version": (
+                                    module.RECEIPT_SCHEMA_VERSION
+                                ),
+                                "result_schema_version": result_version,
+                            }
+                        )
+                    )
+                    groups.write_text("")
+                    module.validate(root, receipt, groups)
+            else:
+                return f"unknown version-binding probe {kind!r}"
+        except Exception as error:
+            return str(error)
+        return ""
+
+    try:
+        prior_error = invoke(version)
+        probe_error = invoke(probe)
+        if str(probe) not in prior_error or str(probe) in probe_error:
+            return (
+                f"{label}: RESULT_SCHEMA_VERSION does not control the production "
+                f"{kind} schema check"
+            )
+    finally:
+        module.RESULT_SCHEMA_VERSION = version
+    return None
+
+
+def check_spectro(root: Path, producer_version: int) -> list[str]:
+    errors: list[str] = []
+    found: list[tuple[Path, str, int]] = [
+        (
+            Path("compiled C++ spectro schema"),
+            "producer authority",
+            producer_version,
+        )
+    ]
+
+    for index, (rel, description, kind) in enumerate(SPECTRO_PYTHON_SOURCES):
+        path = root / rel
+        if not path.is_file():
+            errors.append(f"{rel}: missing")
+            continue
+        try:
+            module = load_module(f"spectro_contract_{index}", path)
+        except (ImportError, OSError, RuntimeError) as error:
+            errors.append(f"{rel}: cannot load {description}: {error}")
+            continue
+        version = getattr(module, "RESULT_SCHEMA_VERSION", None)
+        if isinstance(version, bool) or not isinstance(version, int):
+            errors.append(
+                f"{rel}: no live integer RESULT_SCHEMA_VERSION ({description})"
+            )
+            continue
+        binding_error = probe_python_version_binding(
+            module, kind, version, str(rel)
+        )
+        if binding_error:
+            errors.append(binding_error)
+            continue
+        found.append((rel, description, version))
+
+    if errors:
+        return errors
+    versions = {version for _, _, version in found}
+    if len(versions) > 1:
+        detail = ", ".join(
+            f"{rel} ({description}) = {version}"
+            for rel, description, version in found
+        )
+        errors.append(
+            "spectro-ingest schema version disagrees across producer and "
+            f"consumers: {detail}"
+        )
+    return errors
+
+
+def load_shading_contract(
+    root: Path, producer: Path
+) -> tuple[ModuleType, dict[str, Any], dict[str, Any]]:
+    exporter = load_module(
+        "schema_contract_exporter", root / "tools" / "export_shading_portfolio.py"
+    )
+    fixture_module = load_module(
+        "schema_contract_fixture",
+        root / "tools" / "test_export_shading_portfolio.py",
+    )
+    fixture_document = fixture_module.document(
+        "dataset:fixture/Images/Sphere/Sphere_f8.0_1:1000_DSCF0001.RAF",
+        True,
+    )
+    return exporter, load_producer_document(producer), fixture_document
+
+
+def check(root: Path, shading_producer: Path, spectro_producer: Path) -> list[str]:
+    try:
+        spectro_version = load_spectro_producer_version(spectro_producer)
+    except RuntimeError as error:
+        return [str(error)]
+    try:
+        exporter, producer_document, fixture_document = load_shading_contract(
+            root, shading_producer
+        )
+    except (AttributeError, ImportError, OSError, RuntimeError) as error:
+        return [str(error), *check_spectro(root, spectro_version)]
+    return [
+        *check_shading_documents(exporter, producer_document, fixture_document),
+        *check_spectro(root, spectro_version),
+    ]
 
 
 def main() -> int:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--repo-root", default=Path(__file__).resolve().parents[1])
+    parser.add_argument(
+        "--repo-root", type=Path, default=Path(__file__).resolve().parents[1]
+    )
+    parser.add_argument("--shading-producer", type=Path, required=True)
+    parser.add_argument("--spectro-producer", type=Path, required=True)
     args = parser.parse_args()
 
-    errors = check(Path(args.repo_root))
+    root = args.repo_root.resolve()
+    errors = check(
+        root, args.shading_producer.resolve(), args.spectro_producer.resolve()
+    )
     for error in errors:
         print(error, file=sys.stderr)
     if errors:
         return 1
-    # check() already proved this matches; re-derive it only for the message.
-    summaries = []
-    for contract, sources in CONTRACTS.items():
-        match = sources[0][2].search(
-            (Path(args.repo_root) / sources[0][0]).read_text()
-        )
-        summaries.append(f"{contract} v{match.group(1) if match else '?'}")
-    print("schema contracts ok: " + ", ".join(summaries))
+
+    exporter, _, _ = load_shading_contract(root, args.shading_producer.resolve())
+    spectro_version = load_spectro_producer_version(
+        args.spectro_producer.resolve()
+    )
+    print(
+        "schema contracts ok: live shading JSON accepted by exporter "
+        f"v{exporter.SCHEMA_VERSION}; compiled spectro-ingest schema "
+        f"v{spectro_version} is behavior-bound to both receipt tools"
+    )
     return 0
 
 
