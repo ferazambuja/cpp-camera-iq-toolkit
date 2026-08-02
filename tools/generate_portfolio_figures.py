@@ -316,7 +316,7 @@ def generate_sfr(data_dir: Path) -> str:
         '  <text x="672" y="598" class="subtitle">the strongest physical corner.</text>',
         (
             '  <text x="44" y="626" class="subtitle">Aggregate measurements from '
-            'the publication-safe table in docs/data/sfr_aperture_summary.csv.</text>'
+            'the aggregate table in docs/data/sfr_aperture_summary.csv.</text>'
         ),
         "</svg>",
     ]
