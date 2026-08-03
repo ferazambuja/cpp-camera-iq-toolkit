@@ -9,10 +9,12 @@ import hashlib
 import json
 import math
 import pathlib
+import re
 import sys
 
 
 KEY_FIELDS = ("group_id", "measurement_index", "canonical_path")
+SOURCE_HASH_FIELD = "sha256"
 HASH_FIELDS = (
     "wavelength_binary64_le_sha256",
     "radiance_binary64_le_sha256",
@@ -26,7 +28,8 @@ NUMERIC_FIELDS = (
     "recorded_cct_k",
     "recorded_duv",
 )
-REQUIRED_FIELDS = KEY_FIELDS + HASH_FIELDS + NUMERIC_FIELDS
+REQUIRED_FIELDS = KEY_FIELDS + (SOURCE_HASH_FIELD,) + HASH_FIELDS + NUMERIC_FIELDS
+SHA256_PATTERN = re.compile(r"[0-9a-f]{64}")
 
 
 def read_rows(path: pathlib.Path) -> dict[tuple[str, ...], dict[str, str]]:
@@ -40,20 +43,25 @@ def read_rows(path: pathlib.Path) -> dict[tuple[str, ...], dict[str, str]]:
             key = tuple(row[field] for field in KEY_FIELDS)
             if key in rows:
                 raise ValueError(f"{path.name}:{line_number}: duplicate reading key {key}")
+            for field in (SOURCE_HASH_FIELD,) + HASH_FIELDS:
+                if SHA256_PATTERN.fullmatch(row[field]) is None:
+                    raise ValueError(
+                        f"{path.name}:{line_number}: {field} is not a lowercase SHA-256"
+                    )
             rows[key] = row
     if not rows:
         raise ValueError(f"{path.name}: no readings")
     return rows
 
 
-def read_ledger_keys(path: pathlib.Path) -> set[tuple[str, ...]]:
-    required = ("group_id", "repeat_index", "canonical_path")
+def read_ledger_entries(path: pathlib.Path) -> dict[tuple[str, ...], str]:
+    required = ("group_id", "repeat_index", "canonical_path", SOURCE_HASH_FIELD)
     with path.open(newline="", encoding="utf-8") as stream:
         reader = csv.DictReader(stream)
         missing = [field for field in required if field not in (reader.fieldnames or [])]
         if missing:
             raise ValueError(f"{path.name}: missing ledger fields: {', '.join(missing)}")
-        keys: set[tuple[str, ...]] = set()
+        entries: dict[tuple[str, ...], str] = {}
         for line_number, row in enumerate(reader, start=2):
             try:
                 measurement_index = str(int(row["repeat_index"]))
@@ -62,12 +70,17 @@ def read_ledger_keys(path: pathlib.Path) -> set[tuple[str, ...]]:
                     f"{path.name}:{line_number}: repeat_index is not an integer"
                 ) from error
             key = (row["group_id"], measurement_index, row["canonical_path"])
-            if key in keys:
+            if key in entries:
                 raise ValueError(f"{path.name}:{line_number}: duplicate ledger key {key}")
-            keys.add(key)
-    if not keys:
+            source_sha256 = row[SOURCE_HASH_FIELD]
+            if SHA256_PATTERN.fullmatch(source_sha256) is None:
+                raise ValueError(
+                    f"{path.name}:{line_number}: sha256 is not a lowercase SHA-256"
+                )
+            entries[key] = source_sha256
+    if not entries:
         raise ValueError(f"{path.name}: no ledger readings")
-    return keys
+    return entries
 
 
 def finite_number(text: str, field: str, key: tuple[str, ...]) -> float:
@@ -109,6 +122,7 @@ def write_receipt(
         "comparison": {
             "result": "match",
             "reading_count": reading_count,
+            "source_file_hash_comparisons": reading_count,
             "hash_fields": list(HASH_FIELDS),
             "exact_hash_comparisons": reading_count * len(HASH_FIELDS),
             "numeric_fields": numeric_differences,
@@ -168,9 +182,14 @@ def compare(
     cpp = read_rows(cpp_path)
     matlab = read_rows(matlab_path)
     if receipt_path is not None:
-        ledger_keys = read_ledger_keys(ledger_path)
-        if set(cpp) != ledger_keys:
+        ledger_entries = read_ledger_entries(ledger_path)
+        if set(cpp) != set(ledger_entries):
             raise ValueError("C++ reading keys do not match the ledger")
+        for key, declared_sha256 in ledger_entries.items():
+            if cpp[key][SOURCE_HASH_FIELD] != declared_sha256:
+                raise ValueError(
+                    f"{key}: source SHA-256 does not match the ledger"
+                )
     failures: list[str] = []
     cpp_keys = set(cpp)
     matlab_keys = set(matlab)
@@ -188,6 +207,12 @@ def compare(
         for field in NUMERIC_FIELDS
     }
     for key in sorted(cpp_keys & matlab_keys):
+        if cpp[key][SOURCE_HASH_FIELD] != matlab[key][SOURCE_HASH_FIELD]:
+            failures.append(
+                f"{key}: {SOURCE_HASH_FIELD} differs: "
+                f"C++={cpp[key][SOURCE_HASH_FIELD]} "
+                f"MATLAB={matlab[key][SOURCE_HASH_FIELD]}"
+            )
         for field in HASH_FIELDS:
             if cpp[key][field] != matlab[key][field]:
                 failures.append(

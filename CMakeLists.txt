@@ -238,3 +238,14 @@ add_test(NAME test_portfolio_figures
   COMMAND python3 ${CMAKE_SOURCE_DIR}/tools/test_portfolio_figures.py)
 add_test(NAME test_export_shading_portfolio
   COMMAND python3 ${CMAKE_SOURCE_DIR}/tools/test_export_shading_portfolio.py)
+
+# Several hermetic tests use stable names below the operating-system temporary
+# directory. Give each build configuration its own temporary root so Release,
+# sanitizer, gcc, and clang suites can run concurrently without deleting one
+# another's fixtures.
+set(CAMERA_IQ_TEST_TMPDIR "${CMAKE_CURRENT_BINARY_DIR}/test-tmp")
+file(MAKE_DIRECTORY "${CAMERA_IQ_TEST_TMPDIR}")
+get_property(CAMERA_IQ_REGISTERED_TESTS DIRECTORY PROPERTY TESTS)
+set_tests_properties(${CAMERA_IQ_REGISTERED_TESTS} PROPERTIES
+  ENVIRONMENT
+    "TMPDIR=${CAMERA_IQ_TEST_TMPDIR};TMP=${CAMERA_IQ_TEST_TMPDIR};TEMP=${CAMERA_IQ_TEST_TMPDIR}")

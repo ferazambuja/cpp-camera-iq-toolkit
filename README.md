@@ -14,8 +14,8 @@ measurements, and independent reference comparisons.
 
 - **SFR/MTF:** processed **299 field ROIs** across Nikon D800 and D810 aperture
   sweeps. The D810 peak occurred at f/5.6. That trend did not hold on the D800,
-  whose field is asymmetric, so the two capture systems are reported under
-  separate acceptance criteria rather than one.
+  which showed asymmetric off-axis behavior, so the two capture systems are
+  reported under separate acceptance criteria rather than one.
 - **Spectral characterization:** extracted a Canon 5D2 spectral-sensitivity
   function from monochromator RAW sweeps, closed four same-session camera/chart
   datasets with minimum channel correlation above **0.992**, and compared five
@@ -30,9 +30,9 @@ measurements, and independent reference comparisons.
 - **CFA flat-field response:** screened **52 sphere captures** from a Fujifilm X-T100 +
   Fujinon XF 14 mm f/2.8 R integrating-sphere set, retained three usable f/8 frames, and
   measured center-normalized green and chromatic fields. A **19.65% quadrant
-  asymmetry** diagnoses departure from a centered radial scalar model; missing
-  capture controls prevent isolated lens attribution regardless of the
-  diagnostic verdict.
+  asymmetry** exceeded the declared 5% criterion and was inconsistent with a
+  centered radial scalar model for the measured composite field; missing
+  capture controls prevent isolated lens attribution.
 - **Flat-field input screening:** `patches` and `shading` evaluate source-CFA
   samples with the same per-position near-ceiling limits over both the full
   frame and a centered region. The test rejects a 1/500 s frame whose worst CFA
@@ -45,8 +45,9 @@ measurements, and independent reference comparisons.
   spectral-integral CV was **7.17% median** and **41.65% maximum**; maximum
   normalized-shape residual was **1.076%**; and maximum recorded-XYZ pair
   separation was **0.002852 Δu′v′**. These metrics describe different
-  properties and do not identify a cause. An independent MATLAB R2026a export
-  matched all 89 readings, including exact hashes for **178 numeric vectors**.
+  properties, their maxima occur in different groups, and they do not identify
+  a cause. An independent MATLAB R2026a export matched all 89 readings,
+  including source-file identities and exact hashes for **178 numeric vectors**.
 
 ## Featured case studies
 

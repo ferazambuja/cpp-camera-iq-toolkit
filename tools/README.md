@@ -56,7 +56,8 @@
   cannot rerun archive-only closure or metadata values without the private MAT
   files.
 - [`matlab/export_spectro_crosscheck.m`](matlab/export_spectro_crosscheck.m)
-  reads the same ledger through MATLAB and exports binary64 vector hashes plus
+  verifies each MAT file against its ledger digest, reads the same ledger
+  through MATLAB, and exports source identity, binary64 vector hashes, and
   recorded metadata. [`compare_spectro_crosscheck.py`](compare_spectro_crosscheck.py)
   compares that artifact with `spectro-ingest --readings-csv`. With MATLAB and
   the private archive available, retain a privacy-safe receipt with:
@@ -77,8 +78,11 @@
   The receipt records artifact/source hashes, comparison counts, tolerances,
   and maximum differences rather than per-reading measurements or local paths.
   The checker rehashes both supplied CSVs and requires the C++ artifact to match
-  the readings hash in `spectro_result_receipt.json`. Without the optional CSV
-  arguments it checks the retained public receipt and source bindings only.
+  the readings hash in `spectro_result_receipt.json`; it also cross-checks the
+  dataset, reading count, and ledger identity against that result receipt.
+  Without the optional CSV arguments it checks the retained public receipt and
+  source bindings only. `--repo-root` supports manual invocation from any
+  working directory.
   Generation, mismatch behavior, source binding, and privacy checks are covered
   by CTest.
 - [`gen_cie_d50.py`](gen_cie_d50.py) and

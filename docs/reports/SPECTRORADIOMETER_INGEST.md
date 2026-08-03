@@ -79,6 +79,8 @@ r_shape = max_i ||ŝ_i - mean(ŝ)||₂ / ||mean(ŝ)||₂
 The public group table reports **7.17% median / 41.65% maximum** spectral-
 integral CV and **0.518% median / 1.076% maximum** normalized-shape residual
 across the 37 multi-reading groups.
+The level maximum occurs in `ramp_patch_05`; the shape maximum occurs in
+`ramp_patch_01`. They do not describe one measurement condition.
 
 ## Chromaticity
 
@@ -93,11 +95,13 @@ v′ = 9Y / (X + 15Y + 3Z)
 Each group reports the maximum Euclidean separation between reading pairs in
 `u′,v′`. The measured maximum-pair Δu′v′ is **0.000703 median** and **0.002852
 maximum**. Δu′v′ and level CV have different units and are not ranked against
-one another. The chromaticity separations are nonzero, so the readings within a
-group are not colorimetrically identical, and treating a group as one repeated
-colour would discard observed numerical variation in recorded-XYZ-derived
-chromaticity. The available records do not determine whether that variation is
-physical, acquisition-related, or measurement uncertainty.
+one another. The chromaticity maximum occurs in `ramp_patch_01`, not in the
+group with the maximum level CV. The chromaticity separations are nonzero, so
+the readings within a group are not colorimetrically identical. Treating a
+group as one repeated colour would discard observed numerical variation in
+recorded-XYZ-derived chromaticity. The available records do not determine
+whether that variation is physical, acquisition-related, or measurement
+uncertainty.
 
 ## Same-record XYZ closure
 
@@ -153,18 +157,20 @@ The command can emit:
   the committed inputs, aggregate, receipt structure, and value domains;
   reproducing archive-only closure values requires the private measurements.
 
-`tools/matlab/export_spectro_crosscheck.m` reads the same 89 ledger rows through
-MATLAB. `tools/compare_spectro_crosscheck.py` compares vector hashes exactly and
-numeric metadata within declared tolerances. This keeps MATLAB as an
-independent parser check rather than an ingest dependency or second source of
-truth.
+`tools/matlab/export_spectro_crosscheck.m` verifies each source MAT file against
+the ledger digest, then reads the same 89 rows through MATLAB.
+`tools/compare_spectro_crosscheck.py` requires the C++ and MATLAB source-file
+identities to agree, compares vector hashes exactly, and compares numeric
+metadata within declared tolerances. This keeps MATLAB as an independent parser
+check rather than an ingest dependency or second source of truth.
 
-The archive comparison with MATLAB R2026a matched all 89 readings. The two
-parsers produced identical SHA-256 hashes for both numeric vectors in every
-reading (178 exact comparisons), and all 623 numeric-field comparisons met
-the declared `1e-12` absolute-or-relative tolerance. The largest absolute
-difference was `4.55e-12` for CCT; the largest relative difference across the
-seven numeric fields was `4.21e-15`. A compact
+The archive comparison with MATLAB R2026a matched all 89 readings. Both paths
+verified the source MAT file digest for every reading against the identity
+ledger. The two parsers produced identical SHA-256 hashes for both numeric
+vectors in every reading (178 exact comparisons), and all 623 numeric-field
+comparisons met the declared `1e-12` absolute-or-relative tolerance. The
+largest absolute difference was `4.55e-12` for CCT; the largest relative
+difference across the seven numeric fields was `4.21e-15`. A compact
 [cross-check receipt](../data/spectro_matlab_crosscheck_receipt.json) binds the
 two private comparison artifacts and the public ledger/exporter/comparator by
 hash without publishing per-reading values or local paths. This establishes

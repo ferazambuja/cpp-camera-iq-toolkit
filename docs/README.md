@@ -48,7 +48,8 @@ The command verifies exact file identities, parses 89 distinct readings, and
 reports absolute level, normalized spectral shape, recorded-XYZ chromaticity,
 and same-record numerical closure without assigning an unsupported physical
 cause to within-group variation. An independent MATLAB R2026a export matched
-all 89 readings, including exact hashes for 178 numeric vectors.
+all 89 readings, including ledger-bound source-file identities and exact hashes
+for 178 numeric vectors.
 
 ### ColorChecker extraction and CCM validation
 
@@ -73,10 +74,11 @@ reached 4.134 mean held-out CIEDE2000 on the corrected RAW-to-CCM path.
 [tests](../tests/test_shading.cpp)
 
 The study retained three usable frames from 52 Fujifilm X-T100 and Fujinon XF
-14 mm f/2.8 R sphere captures. A 19.65% green-field quadrant asymmetry was
-inconsistent with a centered radial scalar model for the measured composite
-field, while missing source- and camera-rotation controls prevented lens-only
-attribution. The [CCM path](reports/CCM_FIT.md) applies the same source-CFA,
+14 mm f/2.8 R sphere captures. A 19.65% green-field quadrant asymmetry exceeded
+the declared 5% criterion and was inconsistent with a centered radial scalar
+model for the measured composite field, while missing source- and
+camera-rotation controls prevented lens-only attribution. The
+[CCM path](reports/CCM_FIT.md) applies the same source-CFA,
 per-position screening to its correction flat.
 
 ## Validation decisions

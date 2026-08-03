@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import csv
 import hashlib
 import json
 import math
@@ -37,6 +38,21 @@ def file_sha256(path: pathlib.Path) -> str:
         for chunk in iter(lambda: stream.read(1024 * 1024), b""):
             digest.update(chunk)
     return digest.hexdigest()
+
+
+def ledger_reading_count(path: pathlib.Path) -> int:
+    required = {"group_id", "repeat_index", "canonical_path", "sha256"}
+    with path.open(newline="", encoding="utf-8") as stream:
+        reader = csv.DictReader(stream)
+        missing = required - set(reader.fieldnames or [])
+        if missing:
+            raise ValueError(
+                f"identity ledger is missing fields: {', '.join(sorted(missing))}"
+            )
+        count = sum(1 for _ in reader)
+    if count < 1:
+        raise ValueError("identity ledger has no readings")
+    return count
 
 
 def strings(value: Any):
@@ -74,6 +90,8 @@ def validate(
         errors.append(f"schema must be {SCHEMA}")
     if not isinstance(document.get("dataset_id"), str) or not document["dataset_id"]:
         errors.append("dataset_id must be a non-empty string")
+    elif document["dataset_id"] != result_receipt.get("dataset"):
+        errors.append("dataset_id does not match the result receipt")
     release = document.get("matlab_release")
     if not isinstance(release, str) or MATLAB_RELEASE_PATTERN.fullmatch(release) is None:
         errors.append("matlab_release must look like R2026a")
@@ -90,8 +108,27 @@ def validate(
     if not isinstance(reading_count, int) or isinstance(reading_count, bool) or reading_count < 1:
         errors.append("comparison.reading_count must be a positive integer")
         reading_count = 0
+    try:
+        result_reading_count = result_receipt["evidence"]["canonical_readings"]
+    except (KeyError, TypeError):
+        errors.append("result receipt is missing evidence.canonical_readings")
+    else:
+        if (
+            not isinstance(result_reading_count, int)
+            or isinstance(result_reading_count, bool)
+            or result_reading_count < 1
+        ):
+            errors.append(
+                "result receipt evidence.canonical_readings must be a positive integer"
+            )
+        elif reading_count != result_reading_count:
+            errors.append("comparison.reading_count does not match the result receipt")
+    if reading_count != ledger_reading_count(ledger):
+        errors.append("comparison.reading_count does not match the identity ledger")
     if comparison.get("hash_fields") != list(HASH_FIELDS):
         errors.append("comparison.hash_fields do not match the comparator contract")
+    if comparison.get("source_file_hash_comparisons") != reading_count:
+        errors.append("comparison.source_file_hash_comparisons is inconsistent")
     if comparison.get("exact_hash_comparisons") != reading_count * len(HASH_FIELDS):
         errors.append("comparison.exact_hash_comparisons is inconsistent")
     if comparison.get("numeric_comparisons") != reading_count * len(NUMERIC_FIELDS):
@@ -195,41 +232,69 @@ def validate(
             expected = file_sha256(path)
             if source_hashes[name] != expected:
                 errors.append(f"source_sha256.{name} hash mismatch")
+        try:
+            result_ledger_hash = result_receipt["inputs"]["identity_ledger"][
+                "sha256"
+            ]
+        except (KeyError, TypeError):
+            errors.append(
+                "result receipt is missing inputs.identity_ledger.sha256"
+            )
+        else:
+            if source_hashes["identity_ledger"] != result_ledger_hash:
+                errors.append(
+                    "source_sha256.identity_ledger does not match the result receipt"
+                )
     return errors
 
 
 def main() -> int:
     tools = pathlib.Path(__file__).parent
-    repo = tools.parent
+    default_repo = tools.parent
     parser = argparse.ArgumentParser()
+    parser.add_argument("--repo-root", type=pathlib.Path, default=default_repo)
     parser.add_argument(
         "--receipt",
         type=pathlib.Path,
-        default=repo / "docs/data/spectro_matlab_crosscheck_receipt.json",
+        default=pathlib.Path("docs/data/spectro_matlab_crosscheck_receipt.json"),
     )
     parser.add_argument(
         "--ledger",
         type=pathlib.Path,
-        default=repo / "data/spectro_identity_ledger.csv",
+        default=pathlib.Path("data/spectro_identity_ledger.csv"),
     )
     parser.add_argument(
         "--matlab-exporter",
         type=pathlib.Path,
-        default=tools / "matlab/export_spectro_crosscheck.m",
+        default=pathlib.Path("tools/matlab/export_spectro_crosscheck.m"),
     )
     parser.add_argument(
         "--comparator",
         type=pathlib.Path,
-        default=tools / "compare_spectro_crosscheck.py",
+        default=pathlib.Path("tools/compare_spectro_crosscheck.py"),
     )
     parser.add_argument(
         "--result-receipt",
         type=pathlib.Path,
-        default=repo / "docs/data/spectro_result_receipt.json",
+        default=pathlib.Path("docs/data/spectro_result_receipt.json"),
     )
     parser.add_argument("--cpp-csv", type=pathlib.Path)
     parser.add_argument("--matlab-csv", type=pathlib.Path)
     args = parser.parse_args()
+    repo = args.repo_root.resolve()
+
+    def from_repo(path: pathlib.Path | None) -> pathlib.Path | None:
+        if path is None or path.is_absolute():
+            return path
+        return repo / path
+
+    args.receipt = from_repo(args.receipt)
+    args.ledger = from_repo(args.ledger)
+    args.matlab_exporter = from_repo(args.matlab_exporter)
+    args.comparator = from_repo(args.comparator)
+    args.result_receipt = from_repo(args.result_receipt)
+    args.cpp_csv = from_repo(args.cpp_csv)
+    args.matlab_csv = from_repo(args.matlab_csv)
     try:
         if (args.cpp_csv is None) != (args.matlab_csv is None):
             raise ValueError("--cpp-csv and --matlab-csv must be provided together")

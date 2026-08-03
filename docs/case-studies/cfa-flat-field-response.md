@@ -20,10 +20,11 @@ effects.
 16 × 12 per-CFA medians divided by that plane's 400 × 400 px center-block
 median. The green map shows the green-CFA relative response; `C_RG` and `C_BG`
 show independently center-normalized chromatic ratios. The 19.65% quadrant
-asymmetry exceeds the declared 5% project policy and diagnoses departure from a
-centered radial scalar model. It does not identify the responsible component;
-the missing source/rotation controls preclude isolated lens attribution
-regardless of `A`. The repeat reads 19.996%, a 0.348 percentage-point pair
+asymmetry exceeds the declared 5% project policy and is inconsistent with a
+centered radial scalar model for the measured composite. It does not identify
+the responsible component;
+the missing source and rotation controls preclude isolated lens attribution.
+The repeat reads 19.996%, a 0.348 percentage-point pair
 difference that supports stability of the observed high `A` only; two high-`A`
 frames do not derive or validate the policy threshold.*
 

@@ -225,9 +225,9 @@ Its four-corner asymmetry statistic is:
 A = (max corner G - min corner G) / mean corner G = 0.196484
 ```
 
-`A` exceeds the declared 0.05 project policy. This diagnoses departure from a
-centered radial scalar model; it neither identifies the source of the asymmetry
-nor decides whether a lens contribution is present.
+`A` exceeds the declared 0.05 project policy and is inconsistent with a
+centered radial scalar model for the measured composite. It neither identifies
+the source of the asymmetry nor decides whether a lens contribution is present.
 
 The threshold is a declared project policy, not an industry standard and not a
 value derived from this pair. The two frames measure `A` at 0.196484 and

@@ -17,7 +17,7 @@ arguments
 end
 
 ledger = readtable(ledger_csv, TextType="string", VariableNamingRule="preserve");
-required = ["group_id", "repeat_index", "canonical_path"];
+required = ["group_id", "repeat_index", "canonical_path", "sha256"];
 if ~all(ismember(required, string(ledger.Properties.VariableNames)))
     error("spectro:ledgerSchema", "Ledger is missing required columns.");
 end
@@ -26,6 +26,7 @@ n = height(ledger);
 group_id = strings(n, 1);
 measurement_index = zeros(n, 1);
 canonical_path = strings(n, 1);
+sha256 = strings(n, 1);
 wavelength_binary64_le_sha256 = strings(n, 1);
 radiance_binary64_le_sha256 = strings(n, 1);
 spectral_integral = zeros(n, 1);
@@ -39,6 +40,16 @@ recorded_duv = zeros(n, 1);
 for row = 1:n
     relative = ledger.canonical_path(row);
     source = fullfile(archive_root, relative);
+    declared_sha256 = lower(ledger.sha256(row));
+    if isempty(regexp(char(declared_sha256), '^[0-9a-f]{64}$', 'once'))
+        error("spectro:ledgerDigest", ...
+              "Invalid SHA-256 in ledger for %s", relative);
+    end
+    sha256(row) = file_sha256(source);
+    if sha256(row) ~= declared_sha256
+        error("spectro:sourceDigest", ...
+              "Source SHA-256 does not match the ledger for %s", relative);
+    end
     loaded = load(source, "measurements");
     if ~isfield(loaded, "measurements")
         error("spectro:missingMeasurements", ...
@@ -73,11 +84,24 @@ for row = 1:n
     recorded_duv(row) = double(measurement.Duv);
 end
 
-output = table(group_id, measurement_index, canonical_path, ...
+output = table(group_id, measurement_index, canonical_path, sha256, ...
     wavelength_binary64_le_sha256, radiance_binary64_le_sha256, ...
     spectral_integral, recorded_x, recorded_y, recorded_z, ...
     recorded_total_radiance, recorded_cct_k, recorded_duv);
 writetable(output, output_csv);
+end
+
+function digest = file_sha256(path)
+stream = fopen(path, "rb");
+if stream < 0
+    error("spectro:sourceOpen", "Cannot open source file %s", path);
+end
+cleanup = onCleanup(@() fclose(stream)); %#ok<NASGU>
+bytes = fread(stream, Inf, "*uint8");
+engine = java.security.MessageDigest.getInstance("SHA-256");
+engine.update(typecast(bytes(:), "int8"));
+raw = typecast(int8(engine.digest()), "uint8");
+digest = string(lower(reshape(dec2hex(raw, 2).', 1, [])));
 end
 
 function digest = binary64_le_sha256(values)

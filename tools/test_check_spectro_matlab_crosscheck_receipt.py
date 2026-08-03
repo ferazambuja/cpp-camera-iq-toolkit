@@ -19,6 +19,7 @@ FIELDS = [
     "group_id",
     "measurement_index",
     "canonical_path",
+    "sha256",
     "wavelength_binary64_le_sha256",
     "radiance_binary64_le_sha256",
     "spectral_integral",
@@ -38,6 +39,7 @@ def run_checker(
     result_receipt: pathlib.Path,
     cpp: pathlib.Path | None = None,
     matlab: pathlib.Path | None = None,
+    repo_root: pathlib.Path | None = None,
 ) -> subprocess.CompletedProcess[str]:
     command = [
         sys.executable,
@@ -53,6 +55,8 @@ def run_checker(
         "--comparator",
         str(COMPARATOR),
     ]
+    if repo_root is not None:
+        command.extend(["--repo-root", str(repo_root)])
     if cpp is not None and matlab is not None:
         command.extend(["--cpp-csv", str(cpp), "--matlab-csv", str(matlab)])
     return subprocess.run(
@@ -68,6 +72,7 @@ def main() -> int:
         "group_id": "scene_01",
         "measurement_index": "1",
         "canonical_path": "reading.mat",
+        "sha256": "c" * 64,
         "wavelength_binary64_le_sha256": "a" * 64,
         "radiance_binary64_le_sha256": "b" * 64,
         "spectral_integral": "12",
@@ -91,8 +96,8 @@ def main() -> int:
         exporter = root / "exporter.m"
         receipt = root / "receipt.json"
         ledger.write_text(
-            "group_id,repeat_index,canonical_path\n"
-            "scene_01,1,reading.mat\n",
+            "group_id,repeat_index,canonical_path,sha256\n"
+            f"scene_01,1,reading.mat,{'c' * 64}\n",
             encoding="utf-8",
         )
         exporter.write_text("exporter fixture\n", encoding="utf-8")
@@ -123,6 +128,13 @@ def main() -> int:
         result_receipt.write_text(
             json.dumps(
                 {
+                    "dataset": "fixture_dataset",
+                    "evidence": {"canonical_readings": 1},
+                    "inputs": {
+                        "identity_ledger": {
+                            "sha256": hashlib.sha256(ledger.read_bytes()).hexdigest()
+                        }
+                    },
                     "artifacts": {
                         "archive_run_readings": {
                             "sha256": hashlib.sha256(cpp.read_bytes()).hexdigest()
@@ -136,6 +148,78 @@ def main() -> int:
         valid = run_checker(receipt, ledger, exporter, result_receipt)
         assert valid.returncode == 0, valid.stderr
         assert "valid" in valid.stdout
+
+        repo_root_supported = run_checker(
+            receipt, ledger, exporter, result_receipt, repo_root=root
+        )
+        assert repo_root_supported.returncode == 0, repo_root_supported.stderr
+
+        result_document = json.loads(result_receipt.read_text(encoding="utf-8"))
+        result_document["dataset"] = "different_dataset"
+        result_receipt.write_text(json.dumps(result_document), encoding="utf-8")
+        wrong_dataset = run_checker(receipt, ledger, exporter, result_receipt)
+        assert wrong_dataset.returncode != 0
+        assert "dataset_id does not match" in wrong_dataset.stderr
+        result_document["dataset"] = "fixture_dataset"
+
+        result_document["evidence"]["canonical_readings"] = 2
+        result_receipt.write_text(json.dumps(result_document), encoding="utf-8")
+        wrong_authority_count = run_checker(receipt, ledger, exporter, result_receipt)
+        assert wrong_authority_count.returncode != 0
+        assert "reading_count does not match the result receipt" in (
+            wrong_authority_count.stderr
+        )
+        result_document["evidence"]["canonical_readings"] = 1
+
+        result_document["evidence"]["canonical_readings"] = True
+        result_receipt.write_text(json.dumps(result_document), encoding="utf-8")
+        invalid_authority_count = run_checker(
+            receipt, ledger, exporter, result_receipt
+        )
+        assert invalid_authority_count.returncode != 0
+        assert "result receipt evidence.canonical_readings" in (
+            invalid_authority_count.stderr
+        )
+        result_document["evidence"]["canonical_readings"] = 1
+
+        result_document["inputs"]["identity_ledger"]["sha256"] = "d" * 64
+        result_receipt.write_text(json.dumps(result_document), encoding="utf-8")
+        wrong_ledger_authority = run_checker(
+            receipt, ledger, exporter, result_receipt
+        )
+        assert wrong_ledger_authority.returncode != 0
+        assert "identity_ledger does not match the result receipt" in (
+            wrong_ledger_authority.stderr
+        )
+        result_document["inputs"]["identity_ledger"]["sha256"] = hashlib.sha256(
+            ledger.read_bytes()
+        ).hexdigest()
+        result_receipt.write_text(json.dumps(result_document), encoding="utf-8")
+
+        document = json.loads(receipt.read_text(encoding="utf-8"))
+        document["comparison"]["reading_count"] = 2
+        document["comparison"]["exact_hash_comparisons"] = 4
+        document["comparison"]["numeric_comparisons"] = 14
+        receipt.write_text(json.dumps(document), encoding="utf-8")
+        wrong_ledger_count = run_checker(receipt, ledger, exporter, result_receipt)
+        assert wrong_ledger_count.returncode != 0
+        assert "reading_count does not match the identity ledger" in (
+            wrong_ledger_count.stderr
+        )
+        document["comparison"]["reading_count"] = 1
+        document["comparison"]["exact_hash_comparisons"] = 2
+        document["comparison"]["numeric_comparisons"] = 7
+        receipt.write_text(json.dumps(document), encoding="utf-8")
+
+        document["comparison"]["source_file_hash_comparisons"] = 0
+        receipt.write_text(json.dumps(document), encoding="utf-8")
+        wrong_source_count = run_checker(receipt, ledger, exporter, result_receipt)
+        assert wrong_source_count.returncode != 0
+        assert "source_file_hash_comparisons is inconsistent" in (
+            wrong_source_count.stderr
+        )
+        document["comparison"]["source_file_hash_comparisons"] = 1
+        receipt.write_text(json.dumps(document), encoding="utf-8")
 
         fresh = run_checker(
             receipt, ledger, exporter, result_receipt, cpp=cpp, matlab=matlab
@@ -154,10 +238,10 @@ def main() -> int:
         ledger.write_text("changed ledger fixture\n", encoding="utf-8")
         stale = run_checker(receipt, ledger, exporter, result_receipt)
         assert stale.returncode != 0
-        assert "identity_ledger" in stale.stderr
+        assert "identity ledger" in stale.stderr
         ledger.write_text(
-            "group_id,repeat_index,canonical_path\n"
-            "scene_01,1,reading.mat\n",
+            "group_id,repeat_index,canonical_path,sha256\n"
+            f"scene_01,1,reading.mat,{'c' * 64}\n",
             encoding="utf-8",
         )
 

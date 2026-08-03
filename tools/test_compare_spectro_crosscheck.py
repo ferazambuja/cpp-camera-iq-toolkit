@@ -17,6 +17,7 @@ FIELDS = [
     "group_id",
     "measurement_index",
     "canonical_path",
+    "sha256",
     "wavelength_binary64_le_sha256",
     "radiance_binary64_le_sha256",
     "spectral_integral",
@@ -54,6 +55,7 @@ def main() -> int:
         "group_id": "scene_01",
         "measurement_index": "1",
         "canonical_path": "reading.mat",
+        "sha256": "c" * 64,
         "wavelength_binary64_le_sha256": "a" * 64,
         "radiance_binary64_le_sha256": "b" * 64,
         "spectral_integral": "12",
@@ -77,8 +79,8 @@ def main() -> int:
         ledger = root / "ledger.csv"
         exporter = root / "exporter.m"
         ledger.write_text(
-            "group_id,repeat_index,canonical_path\n"
-            "scene_01,1,reading.mat\n",
+            "group_id,repeat_index,canonical_path,sha256\n"
+            f"scene_01,1,reading.mat,{'c' * 64}\n",
             encoding="utf-8",
         )
         exporter.write_text("exporter fixture\n", encoding="utf-8")
@@ -105,6 +107,7 @@ def main() -> int:
         comparison = receipt["comparison"]
         assert comparison["result"] == "match"
         assert comparison["reading_count"] == 1
+        assert comparison["source_file_hash_comparisons"] == 1
         assert comparison["exact_hash_comparisons"] == 2
         assert comparison["numeric_comparisons"] == 7
         assert comparison["numeric_fields"]["recorded_y"] == {
@@ -124,8 +127,8 @@ def main() -> int:
         )
 
         ledger.write_text(
-            "group_id,repeat_index,canonical_path\n"
-            "scene_01,1,different.mat\n",
+            "group_id,repeat_index,canonical_path,sha256\n"
+            f"scene_01,1,different.mat,{'c' * 64}\n",
             encoding="utf-8",
         )
         wrong_ledger = run(
@@ -145,8 +148,35 @@ def main() -> int:
         assert wrong_ledger.returncode != 0
         assert "keys do not match the ledger" in wrong_ledger.stderr
         ledger.write_text(
-            "group_id,repeat_index,canonical_path\n"
-            "scene_01,1,reading.mat\n",
+            "group_id,repeat_index,canonical_path,sha256\n"
+            f"scene_01,1,reading.mat,{'c' * 64}\n",
+            encoding="utf-8",
+        )
+
+        ledger.write_text(
+            "group_id,repeat_index,canonical_path,sha256\n"
+            f"scene_01,1,reading.mat,{'d' * 64}\n",
+            encoding="utf-8",
+        )
+        wrong_source = run(
+            cpp,
+            matlab,
+            "--receipt",
+            str(receipt_path),
+            "--dataset-id",
+            "fixture_dataset",
+            "--matlab-release",
+            "R2026a",
+            "--ledger",
+            str(ledger),
+            "--matlab-exporter",
+            str(exporter),
+        )
+        assert wrong_source.returncode != 0
+        assert "source SHA-256 does not match the ledger" in wrong_source.stderr
+        ledger.write_text(
+            "group_id,repeat_index,canonical_path,sha256\n"
+            f"scene_01,1,reading.mat,{'c' * 64}\n",
             encoding="utf-8",
         )
 
@@ -167,6 +197,24 @@ def main() -> int:
         mismatch = run(cpp, matlab)
         assert mismatch.returncode != 0
         assert "radiance_binary64_le_sha256" in mismatch.stderr
+
+        invalid_hash = dict(row)
+        invalid_hash["radiance_binary64_le_sha256"] = "not-a-sha256"
+        write_csv(cpp, invalid_hash)
+        write_csv(matlab, invalid_hash)
+        malformed = run(cpp, matlab)
+        assert malformed.returncode != 0
+        assert "radiance_binary64_le_sha256 is not a lowercase SHA-256" in (
+            malformed.stderr
+        )
+        write_csv(cpp, row)
+
+        changed_source = dict(row)
+        changed_source["sha256"] = "d" * 64
+        write_csv(matlab, changed_source)
+        source_mismatch = run(cpp, matlab)
+        assert source_mismatch.returncode != 0
+        assert "sha256 differs" in source_mismatch.stderr
 
         changed_number = dict(row)
         changed_number["recorded_y"] = "20.1"

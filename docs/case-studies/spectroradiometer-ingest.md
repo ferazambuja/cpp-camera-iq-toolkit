@@ -24,6 +24,9 @@ committed identity ledger, and verifies the SHA-256 of the exact bytes passed to
 the MAT parser. Canonical paths must remain below the dataset root and cannot
 use symlinks. Optional alias verification confirms that the 45 descriptive
 copies are byte-identical without counting them as additional measurements.
+The scoped C++ reader supports the compressed MATLAB Level-5 structures used
+by this archive, so the analysis does not require MATLAB at runtime. MATLAB is
+reserved for the separate parser check below.
 
 The command emits schema-versioned JSON plus separate CSVs for readings, group
 summaries, and spectra. Each spectrum is retained in absolute form and also
@@ -32,11 +35,12 @@ normalized by its computed equal-weight spectral integral. Recorded XYZ,
 
 ## Independent parser verification
 
-An independent MATLAB R2026a export matched all 89 readings. The MATLAB and C++
-paths produced identical hashes for both numeric vectors in every reading — 178
-exact comparisons — and all 623 numeric-field comparisons met the declared
-`1e-12` absolute-or-relative tolerance. This establishes agreement between two
-parser implementations on this archive; it is not an instrument-accuracy test.
+An independent MATLAB R2026a export matched all 89 readings. Both paths verified
+each source MAT file against the committed identity ledger, produced identical
+hashes for both numeric vectors in every reading — 178 exact comparisons — and
+met the declared `1e-12` absolute-or-relative tolerance in all 623 numeric-field
+comparisons. This establishes agreement between two parser implementations on
+this archive; it is not an instrument-accuracy test.
 
 ## Result
 
@@ -45,6 +49,8 @@ coefficient of variation is **7.17% median** and **41.65% maximum**. The maximum
 per-group normalized-shape relative L2 residual is **0.518% median** and
 **1.076% maximum**. Recorded-XYZ-derived chromaticity values also differ within
 groups: maximum pairwise Δu′v′ is **0.000703 median** and **0.002852 maximum**.
+The level maximum occurs in a different group from the shape and chromaticity
+maxima; the three values do not describe one measurement condition.
 
 The spectra reproduce recorded XYZ with one archive-derived proportional scale
 of **683.016758** under equal 2 nm sample weights. With that fitted scale, the
