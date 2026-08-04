@@ -44,7 +44,6 @@ void TESTS() {
   check_near(res.quality_index, 1.0 - std::sqrt(1.0 / 3.0), 1e-9,
              "quality: index is 1 minus the combined residual");
 
-  // DOC-EVIDENCE: spectral-fidelity.luther-scale-invariance
   // The Luther residual depends on the subspace spanned by the three SSFs,
   // not on their arbitrary amplitude normalization. A small common scale used
   // to trip the absolute Gram-matrix threshold even though the basis remained
@@ -55,11 +54,15 @@ void TESTS() {
   }
   const auto small_res = compute_spectral_quality(small);
   for (std::size_t i = 0; i < 3; ++i) {
-    check_near(small_res.cmf_residual[i], res.cmf_residual[i], 1e-12,
-               "quality: common SSF scaling preserves each CMF residual");
+    CAMERA_IQ_DOC_EVIDENCE(
+        spectral_fidelity_luther_scale_invariance,
+        check_near(small_res.cmf_residual[i], res.cmf_residual[i], 1e-12,
+                   "quality: common SSF scaling preserves each CMF residual"));
   }
-  check_near(small_res.combined_residual, res.combined_residual, 1e-12,
-             "quality: common SSF scaling preserves the combined residual");
+  CAMERA_IQ_DOC_EVIDENCE(
+      spectral_fidelity_luther_scale_invariance,
+      check_near(small_res.combined_residual, res.combined_residual, 1e-12,
+                 "quality: common SSF scaling preserves the combined residual"));
 
   SpectralQualityInputs per_channel = synthetic();
   constexpr std::array<double, 3> scale{1e-6, 1e3, 7.0};
@@ -67,8 +70,10 @@ void TESTS() {
     for (double& value : per_channel.ssf[channel]) value *= scale[channel];
   }
   const auto per_channel_res = compute_spectral_quality(per_channel);
-  check_near(per_channel_res.combined_residual, res.combined_residual, 1e-12,
-             "quality: independent SSF channel scaling preserves the residual");
+  CAMERA_IQ_DOC_EVIDENCE(
+      spectral_fidelity_luther_scale_invariance,
+      check_near(per_channel_res.combined_residual, res.combined_residual, 1e-12,
+                 "quality: independent SSF channel scaling preserves the residual"));
 
   // Degenerate SSF basis (two identical channels + a dependent third) must not
   // silently return garbage; a rank-deficient basis is rejected.

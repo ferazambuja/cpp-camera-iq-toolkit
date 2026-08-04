@@ -9,6 +9,11 @@
 #include <iostream>
 #include <string>
 
+// Bind a public documentation claim to the assertion that exercises it. The
+// evidence identifier is a compile-time token for the documentation guard;
+// the wrapped assertion remains ordinary executable test code.
+#define CAMERA_IQ_DOC_EVIDENCE(evidence_id, assertion) assertion
+
 namespace test {
 
 inline int failures = 0;

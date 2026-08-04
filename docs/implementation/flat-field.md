@@ -127,19 +127,32 @@ outputs so an aggregate cannot be detached from the policy that produced it.
 At the library/unit layer, the primary scalar and geometry assertions are in
 [`test_shading.cpp`](../../tests/test_shading.cpp).
 
-Synthetic fields in [`test_shading.cpp`](../../tests/test_shading.cpp)
-distinguish a centered radial response from a four-corner
-asymmetry and keep R, G1, G2, and B independent. For the sampled centered-radial
-fixture and its declared CFA/block geometry, green asymmetry must remain below
-`1e-3`; that is a fixture-specific discretization bound, not a universal
-sampling floor. Gate fixtures in
+Other synthetic fields in
+[`test_shading.cpp`](../../tests/test_shading.cpp) distinguish a centered radial
+response from a four-corner asymmetry and keep R, G1, G2, and B independent.
+
+For the sampled centered-radial fixture and its declared CFA/block geometry,
+[`test_shading.cpp`](../../tests/test_shading.cpp) requires green asymmetry to
+remain below `1e-3`; that is a fixture-specific discretization bound, not a
+universal sampling floor, and the centered field must not trip the `0.05`
+policy.
+<!-- test-evidence: flat_field_radial_asymmetry -->
+
+Gate fixtures in
 [`test_flat_field_gate.cpp`](../../tests/test_flat_field_gate.cpp) require the
-declared rectangle to equal its clipped, CFA-balanced form and verify that
+declared rectangle to equal its clipped, CFA-balanced form. Odd active-image
+dimensions, an odd-origin gate, and a gate escaping the frame are refused
+rather than silently trimmed or re-aligned.
+<!-- test-evidence: flat_field_cfa_balanced_roi -->
+
+Separate boundary fixtures in
+[`test_flat_field_gate.cpp`](../../tests/test_flat_field_gate.cpp) verify that
 exactly `1%` near-ceiling samples and exactly `90%` finite coverage pass, while
-values beyond either inclusive boundary fail per CFA position. Other fixtures
-cover zero chromatic denominators, odd-mosaic refusal, dark metadata and
-pedestal controls, and matched comparison geometry.
-<!-- test-evidence: flat-field.threshold-boundaries -->
+values beyond either inclusive boundary fail per CFA position.
+<!-- test-evidence: flat_field_threshold_boundaries -->
+
+Other fixtures cover zero chromatic denominators, dark metadata and pedestal
+controls, and matched comparison geometry.
 
 At the command/serialization layer,
 [`test_cmd_shading.cpp`](../../tests/test_cmd_shading.cpp) checks

@@ -259,11 +259,30 @@ class ProvenanceContractTests(unittest.TestCase):
 class EvidenceAttributionTests(unittest.TestCase):
     def fixture_contracts(self):
         return {
-            "example.threshold": DOCS.EvidenceAttributionContract(
+            "example_threshold": DOCS.EvidenceAttributionContract(
                 document=Path("docs/implementation/example.md"),
                 test=Path("tests/test_example.cpp"),
             )
         }
+
+    def write_evidence_macro(self, repo: Path, expansion: str = "assertion") -> None:
+        header = repo / "tests" / "harness.hpp"
+        header.parent.mkdir(parents=True, exist_ok=True)
+        header.write_text(
+            "#define CAMERA_IQ_DOC_EVIDENCE(evidence_id, assertion) "
+            f"{expansion}\n",
+            encoding="utf-8",
+        )
+
+    def write_cmake_registration(self, repo: Path) -> None:
+        (repo / "CMakeLists.txt").write_text(
+            "function(camera_iq_add_test name source)\n"
+            "  add_executable(${name} ${source})\n"
+            "  add_test(NAME ${name} COMMAND ${name})\n"
+            "endfunction()\n"
+            "camera_iq_add_test(test_example tests/test_example.cpp)\n",
+            encoding="utf-8",
+        )
 
     def write_valid_fixture(self, repo: Path) -> None:
         document = repo / "docs" / "implementation" / "example.md"
@@ -271,16 +290,479 @@ class EvidenceAttributionTests(unittest.TestCase):
         document.write_text(
             "The threshold is pinned by "
             "[`test_example.cpp`](../../tests/test_example.cpp).\n"
-            "<!-- test-evidence: example.threshold -->\n",
+            "<!-- test-evidence: example_threshold -->\n",
             encoding="utf-8",
         )
         test = repo / "tests" / "test_example.cpp"
         test.parent.mkdir(parents=True)
         test.write_text(
-            "// DOC-EVIDENCE: example.threshold\n"
-            "check(value == 1);\n",
+            "CAMERA_IQ_DOC_EVIDENCE(example_threshold, "
+            "check(value == 1));\n",
             encoding="utf-8",
         )
+        self.write_evidence_macro(repo)
+
+    def test_executable_evidence_call_can_bind_a_claim(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            repo = Path(temp)
+            document = repo / "docs" / "implementation" / "example.md"
+            document.parent.mkdir(parents=True)
+            document.write_text(
+                "The threshold is pinned by "
+                "[`test_example.cpp`](../../tests/test_example.cpp).\n"
+                "<!-- test-evidence: example_threshold -->\n",
+                encoding="utf-8",
+            )
+            test = repo / "tests" / "test_example.cpp"
+            test.parent.mkdir(parents=True)
+            test.write_text(
+                "CAMERA_IQ_DOC_EVIDENCE(example_threshold, "
+                "check(value == 1));\n",
+                encoding="utf-8",
+            )
+            self.write_evidence_macro(repo)
+            contracts = {
+                "example_threshold": DOCS.EvidenceAttributionContract(
+                    document=Path("docs/implementation/example.md"),
+                    test=Path("tests/test_example.cpp"),
+                )
+            }
+            self.assertEqual(
+                [], DOCS.evidence_attribution_failures(repo, contracts)
+            )
+
+    def test_non_executable_evidence_text_is_rejected(self) -> None:
+        for source in (
+            "// CAMERA_IQ_DOC_EVIDENCE(example_threshold, check(true));\n",
+            "/* CAMERA_IQ_DOC_EVIDENCE(example_threshold, check(true)); */\n",
+            'const char* fixture = "CAMERA_IQ_DOC_EVIDENCE('
+            'example_threshold, check(true));";\n',
+            'const char* fixture = R"(CAMERA_IQ_DOC_EVIDENCE('
+            'example_threshold, check(true));)";\n',
+        ):
+            with self.subTest(source=source):
+                with tempfile.TemporaryDirectory() as temp:
+                    repo = Path(temp)
+                    document = repo / "docs" / "implementation" / "example.md"
+                    document.parent.mkdir(parents=True)
+                    document.write_text(
+                        "The threshold is pinned by "
+                        "[`test_example.cpp`](../../tests/test_example.cpp).\n"
+                        "<!-- test-evidence: example_threshold -->\n",
+                        encoding="utf-8",
+                    )
+                    test = repo / "tests" / "test_example.cpp"
+                    test.parent.mkdir(parents=True)
+                    test.write_text(source, encoding="utf-8")
+                    self.write_evidence_macro(repo)
+                    contracts = {
+                        "example_threshold": DOCS.EvidenceAttributionContract(
+                            document=Path("docs/implementation/example.md"),
+                            test=Path("tests/test_example.cpp"),
+                        )
+                    }
+                    failures = DOCS.evidence_attribution_failures(repo, contracts)
+                    self.assertTrue(
+                        any(
+                            "executable assertion count is 0" in item
+                            for item in failures
+                        ),
+                        failures,
+                    )
+
+    def test_disabled_cpp_evidence_call_is_rejected(self) -> None:
+        for source in (
+            "#if 0\n"
+            "CAMERA_IQ_DOC_EVIDENCE(example_threshold, check(true));\n"
+            "#endif\n",
+            "#i\\\nf 0\n"
+            "CAMERA_IQ_DOC_EVIDENCE(example_threshold, check(true));\n"
+            "#endif\n",
+        ):
+            with self.subTest(source=source):
+                with tempfile.TemporaryDirectory() as temp:
+                    repo = Path(temp)
+                    self.write_valid_fixture(repo)
+                    (repo / "tests" / "test_example.cpp").write_text(
+                        source, encoding="utf-8"
+                    )
+                    failures = DOCS.evidence_attribution_failures(
+                        repo, self.fixture_contracts()
+                    )
+                    self.assertTrue(
+                        any(
+                            "executable assertion count is 0" in item
+                            for item in failures
+                        ),
+                        failures,
+                    )
+
+    def test_spliced_comment_and_multiline_macro_are_not_evidence(self) -> None:
+        for source in (
+            "// explanation \\\n"
+            "CAMERA_IQ_DOC_EVIDENCE(example_threshold, check(true));\n",
+            "#define FAKE_EVIDENCE \\\n"
+            "CAMERA_IQ_DOC_EVIDENCE(example_threshold, check(true))\n",
+        ):
+            with self.subTest(source=source):
+                with tempfile.TemporaryDirectory() as temp:
+                    repo = Path(temp)
+                    self.write_valid_fixture(repo)
+                    (repo / "tests" / "test_example.cpp").write_text(
+                        source, encoding="utf-8"
+                    )
+                    failures = DOCS.evidence_attribution_failures(
+                        repo, self.fixture_contracts()
+                    )
+                    self.assertTrue(
+                        any(
+                            "executable assertion count is 0" in item
+                            for item in failures
+                        ),
+                        failures,
+                    )
+
+    def test_non_assertion_wrapper_expression_is_rejected(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            repo = Path(temp)
+            self.write_valid_fixture(repo)
+            (repo / "tests" / "test_example.cpp").write_text(
+                "CAMERA_IQ_DOC_EVIDENCE(example_threshold, 0);\n",
+                encoding="utf-8",
+            )
+            failures = DOCS.evidence_attribution_failures(
+                repo, self.fixture_contracts()
+            )
+            self.assertTrue(
+                any("executable assertion count is 0" in item for item in failures),
+                failures,
+            )
+
+    def test_noop_evidence_macro_is_rejected(self) -> None:
+        for content in (
+            "#define CAMERA_IQ_DOC_EVIDENCE(evidence_id, assertion) "
+            "((void)0)\n",
+            "#if 0\n"
+            "#define CAMERA_IQ_DOC_EVIDENCE(evidence_id, assertion) assertion\n"
+            "#endif\n",
+        ):
+            with self.subTest(content=content):
+                with tempfile.TemporaryDirectory() as temp:
+                    repo = Path(temp)
+                    self.write_valid_fixture(repo)
+                    (repo / "tests" / "harness.hpp").write_text(
+                        content, encoding="utf-8"
+                    )
+                    failures = DOCS.evidence_attribution_failures(
+                        repo, self.fixture_contracts()
+                    )
+                    self.assertTrue(
+                        any("evidence macro must execute its assertion" in item
+                            for item in failures),
+                        failures,
+                    )
+
+    def test_local_evidence_macro_redefinition_is_rejected(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            repo = Path(temp)
+            self.write_valid_fixture(repo)
+            (repo / "tests" / "test_example.cpp").write_text(
+                "#undef CAMERA_IQ_DOC_EVIDENCE\n"
+                "#define CAMERA_IQ_DOC_EVIDENCE(evidence_id, assertion) "
+                "((void)0)\n"
+                "CAMERA_IQ_DOC_EVIDENCE(example_threshold, check(true));\n",
+                encoding="utf-8",
+            )
+            failures = DOCS.evidence_attribution_failures(
+                repo, self.fixture_contracts()
+            )
+            self.assertTrue(
+                any("must not be redefined" in item for item in failures),
+                failures,
+            )
+
+    def test_directive_text_in_comment_does_not_hide_executable_evidence(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            repo = Path(temp)
+            self.write_valid_fixture(repo)
+            (repo / "tests" / "test_example.cpp").write_text(
+                "/* example only\n"
+                "#if 0\n"
+                "*/\n"
+                "CAMERA_IQ_DOC_EVIDENCE(example_threshold, check(true));\n",
+                encoding="utf-8",
+            )
+            self.assertEqual(
+                [],
+                DOCS.evidence_attribution_failures(
+                    repo, self.fixture_contracts()
+                ),
+            )
+
+    def test_fenced_markdown_marker_is_not_a_claim(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            repo = Path(temp)
+            self.write_valid_fixture(repo)
+            document = repo / "docs" / "implementation" / "example.md"
+            document.write_text(
+                "```markdown\n"
+                "<!-- test-evidence: example_threshold -->\n"
+                "```\n",
+                encoding="utf-8",
+            )
+            failures = DOCS.evidence_attribution_failures(
+                repo, self.fixture_contracts()
+            )
+            self.assertTrue(
+                any("document marker count is 0" in item for item in failures),
+                failures,
+            )
+
+    def test_invalid_fence_close_and_container_marker_are_not_claims(
+        self,
+    ) -> None:
+        for text in (
+            "```markdown\n"
+            "```not-a-close\n"
+            "<!-- test-evidence: example_threshold -->\n"
+            "```\n",
+            "> ```markdown\n"
+            "> <!-- test-evidence: example_threshold -->\n"
+            "> ```\n",
+            "    <!-- test-evidence: example_threshold -->\n",
+        ):
+            with self.subTest(text=text):
+                with tempfile.TemporaryDirectory() as temp:
+                    repo = Path(temp)
+                    self.write_valid_fixture(repo)
+                    (repo / "docs" / "implementation" / "example.md").write_text(
+                        text, encoding="utf-8"
+                    )
+                    failures = DOCS.evidence_attribution_failures(
+                        repo, self.fixture_contracts()
+                    )
+                    self.assertTrue(
+                        any("document marker count is 0" in item
+                            for item in failures),
+                        failures,
+                    )
+
+    def test_unregistered_executable_evidence_is_rejected(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            repo = Path(temp)
+            test = repo / "tests" / "test_example.cpp"
+            test.parent.mkdir(parents=True)
+            test.write_text(
+                "CAMERA_IQ_DOC_EVIDENCE(unregistered_claim, check(true));\n",
+                encoding="utf-8",
+            )
+            failures = DOCS.evidence_attribution_failures(repo, {})
+            self.assertTrue(
+                any("unregistered test evidence marker" in item for item in failures),
+                failures,
+            )
+
+    def test_evidence_macro_definition_is_not_an_assertion(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            repo = Path(temp)
+            header = repo / "tests" / "harness.hpp"
+            header.parent.mkdir(parents=True)
+            header.write_text(
+                "#define CAMERA_IQ_DOC_EVIDENCE(evidence_id, assertion) "
+                "assertion\n",
+                encoding="utf-8",
+            )
+            self.assertEqual(
+                [], DOCS.evidence_attribution_failures(repo, {})
+            )
+
+    def test_comment_marker_is_not_executable_evidence(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            repo = Path(temp)
+            self.write_valid_fixture(repo)
+            (repo / "tests" / "test_example.cpp").write_text(
+                "// DOC-EVIDENCE: example_threshold\ncheck(value == 1);\n",
+                encoding="utf-8",
+            )
+            failures = DOCS.evidence_attribution_failures(
+                repo, self.fixture_contracts()
+            )
+            self.assertTrue(
+                any("executable assertion count is 0" in item for item in failures),
+                failures,
+            )
+
+    def test_contract_requires_every_executable_evidence_assertion(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            repo = Path(temp)
+            document = repo / "docs" / "implementation" / "example.md"
+            document.parent.mkdir(parents=True)
+            document.write_text(
+                "Two boundaries are pinned by "
+                "[`test_example.cpp`](../../tests/test_example.cpp).\n"
+                "<!-- test-evidence: example_threshold -->\n",
+                encoding="utf-8",
+            )
+            test = repo / "tests" / "test_example.cpp"
+            test.parent.mkdir(parents=True)
+            test.write_text(
+                "CAMERA_IQ_DOC_EVIDENCE(example_threshold, check(low));\n"
+                "CAMERA_IQ_DOC_EVIDENCE(example_threshold, check(high));\n",
+                encoding="utf-8",
+            )
+            self.write_evidence_macro(repo)
+            contract = DOCS.EvidenceAttributionContract(
+                document=Path("docs/implementation/example.md"),
+                test=Path("tests/test_example.cpp"),
+                assertion_count=2,
+            )
+            contracts = {"example_threshold": contract}
+            self.assertEqual(
+                [], DOCS.evidence_attribution_failures(repo, contracts)
+            )
+            test.write_text(
+                "CAMERA_IQ_DOC_EVIDENCE(example_threshold, check(low));\n",
+                encoding="utf-8",
+            )
+            failures = DOCS.evidence_attribution_failures(repo, contracts)
+            self.assertTrue(
+                any("executable assertion count is 1" in item for item in failures),
+                failures,
+            )
+
+    def test_contract_requires_its_test_target_to_be_registered(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            repo = Path(temp)
+            document = repo / "docs" / "implementation" / "example.md"
+            document.parent.mkdir(parents=True)
+            document.write_text(
+                "The threshold is pinned by "
+                "[`test_example.cpp`](../../tests/test_example.cpp).\n"
+                "<!-- test-evidence: example_threshold -->\n",
+                encoding="utf-8",
+            )
+            test = repo / "tests" / "test_example.cpp"
+            test.parent.mkdir(parents=True)
+            test.write_text(
+                "CAMERA_IQ_DOC_EVIDENCE(example_threshold, check(value));\n",
+                encoding="utf-8",
+            )
+            self.write_evidence_macro(repo)
+            contract = DOCS.EvidenceAttributionContract(
+                document=Path("docs/implementation/example.md"),
+                test=Path("tests/test_example.cpp"),
+                test_target="test_example",
+            )
+            failures = DOCS.evidence_attribution_failures(
+                repo, {"example_threshold": contract}
+            )
+            self.assertTrue(
+                any("is not registered with CTest" in item for item in failures),
+                failures,
+            )
+            (repo / "CMakeLists.txt").write_text(
+                "camera_iq_add_test(test_example tests/test_example.cpp)\n",
+                encoding="utf-8",
+            )
+            failures = DOCS.evidence_attribution_failures(
+                repo, {"example_threshold": contract}
+            )
+            self.assertTrue(
+                any("does not have active add_executable" in item
+                    for item in failures),
+                failures,
+            )
+            (repo / "CMakeLists.txt").write_text(
+                "function(camera_iq_add_test name source)\n"
+                "  add_executable(${name} tests/other.cpp)\n"
+                "  add_test(NAME ${name} COMMAND ${name})\n"
+                "endfunction()\n"
+                "camera_iq_add_test(test_example tests/test_example.cpp)\n",
+                encoding="utf-8",
+            )
+            failures = DOCS.evidence_attribution_failures(
+                repo, {"example_threshold": contract}
+            )
+            self.assertTrue(
+                any("does not have active add_executable" in item
+                    for item in failures),
+                failures,
+            )
+            self.write_cmake_registration(repo)
+            self.assertEqual(
+                [],
+                DOCS.evidence_attribution_failures(
+                    repo, {"example_threshold": contract}
+                ),
+            )
+
+    def test_commented_or_conditional_ctest_registration_is_rejected(
+        self,
+    ) -> None:
+        for cmake in (
+            "# camera_iq_add_test(test_example tests/test_example.cpp)\n",
+            "if(FALSE)\n"
+            "  camera_iq_add_test(test_example tests/test_example.cpp)\n"
+            "endif()\n",
+            "set(example [[camera_iq_add_test("
+            "test_example tests/test_example.cpp)]])\n",
+        ):
+            with self.subTest(cmake=cmake):
+                with tempfile.TemporaryDirectory() as temp:
+                    repo = Path(temp)
+                    self.write_valid_fixture(repo)
+                    (repo / "CMakeLists.txt").write_text(cmake, encoding="utf-8")
+                    contract = DOCS.EvidenceAttributionContract(
+                        document=Path("docs/implementation/example.md"),
+                        test=Path("tests/test_example.cpp"),
+                        test_target="test_example",
+                    )
+                    failures = DOCS.evidence_attribution_failures(
+                        repo, {"example_threshold": contract}
+                    )
+                    self.assertTrue(
+                        any("is not registered with CTest" in item
+                            for item in failures),
+                        failures,
+                    )
+
+    def test_ctest_helper_body_cannot_be_borrowed_or_redefined(self) -> None:
+        for cmake in (
+            "function(camera_iq_add_test name source)\n"
+            "endfunction()\n"
+            "function(other_helper name source)\n"
+            "  add_executable(${name} ${source})\n"
+            "  add_test(NAME ${name} COMMAND ${name})\n"
+            "endfunction()\n"
+            "camera_iq_add_test(test_example tests/test_example.cpp)\n",
+            "function(camera_iq_add_test name source)\n"
+            "  add_executable(${name} ${source})\n"
+            "  add_test(NAME ${name} COMMAND ${name})\n"
+            "endfunction()\n"
+            "function(camera_iq_add_test name source)\n"
+            "endfunction()\n"
+            "camera_iq_add_test(test_example tests/test_example.cpp)\n",
+        ):
+            with self.subTest(cmake=cmake):
+                with tempfile.TemporaryDirectory() as temp:
+                    repo = Path(temp)
+                    self.write_valid_fixture(repo)
+                    (repo / "CMakeLists.txt").write_text(cmake, encoding="utf-8")
+                    contract = DOCS.EvidenceAttributionContract(
+                        document=Path("docs/implementation/example.md"),
+                        test=Path("tests/test_example.cpp"),
+                        test_target="test_example",
+                    )
+                    failures = DOCS.evidence_attribution_failures(
+                        repo, {"example_threshold": contract}
+                    )
+                    self.assertTrue(
+                        any("does not have active add_executable" in item
+                            for item in failures),
+                        failures,
+                    )
 
     def test_matching_claim_link_and_test_marker_pass(self) -> None:
         with tempfile.TemporaryDirectory() as temp:
@@ -316,6 +798,29 @@ class EvidenceAttributionTests(unittest.TestCase):
                 failures,
             )
 
+    def test_registered_claim_paragraph_cannot_mix_test_files(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            repo = Path(temp)
+            self.write_valid_fixture(repo)
+            other = repo / "tests" / "test_other.cpp"
+            other.write_text("check(true);\n", encoding="utf-8")
+            document = repo / "docs" / "implementation" / "example.md"
+            document.write_text(
+                "One result is in "
+                "[`test_example.cpp`](../../tests/test_example.cpp), while "
+                "another is in "
+                "[`test_other.cpp`](../../tests/test_other.cpp).\n"
+                "<!-- test-evidence: example_threshold -->\n",
+                encoding="utf-8",
+            )
+            failures = DOCS.evidence_attribution_failures(
+                repo, self.fixture_contracts()
+            )
+            self.assertTrue(
+                any("mixes multiple test files" in item for item in failures),
+                failures,
+            )
+
     def test_marker_in_wrong_test_file_is_rejected(self) -> None:
         with tempfile.TemporaryDirectory() as temp:
             repo = Path(temp)
@@ -323,7 +828,7 @@ class EvidenceAttributionTests(unittest.TestCase):
             expected = repo / "tests" / "test_example.cpp"
             expected.write_text("check(value == 1);\n", encoding="utf-8")
             (repo / "tests" / "test_other.cpp").write_text(
-                "// DOC-EVIDENCE: example.threshold\ncheck(true);\n",
+                "CAMERA_IQ_DOC_EVIDENCE(example_threshold, check(true));\n",
                 encoding="utf-8",
             )
             failures = DOCS.evidence_attribution_failures(
@@ -335,104 +840,6 @@ class EvidenceAttributionTests(unittest.TestCase):
                 failures,
             )
 
-    def test_marker_detached_from_its_assertion_is_rejected(self) -> None:
-        # Being in the registered file is not attribution. A refactor that
-        # moves blocks around a marker, or deletes the assertion the marker
-        # described, would otherwise leave it floating at file scope while the
-        # guard stayed green -- the same wrong-but-plausible pointer the
-        # cross-file check exists to prevent, one scope further in.
-        with tempfile.TemporaryDirectory() as temp:
-            repo = Path(temp)
-            self.write_valid_fixture(repo)
-            expected = repo / "tests" / "test_example.cpp"
-            expected.write_text(
-                "// DOC-EVIDENCE: example.threshold\n"
-                + "// padding\n" * 40
-                + "check(value == 1);\n",
-                encoding="utf-8",
-            )
-            failures = DOCS.evidence_attribution_failures(
-                repo, self.fixture_contracts()
-            )
-            self.assertTrue(
-                any("test marker is not beside an assertion" in item
-                    for item in failures),
-                failures,
-            )
-
-    def test_comment_prose_about_checking_does_not_satisfy_the_window(
-        self,
-    ) -> None:
-        # These markers introduce blocks that open with prose explaining what
-        # is being checked, so the window must read code rather than text.
-        # Otherwise deleting the assertions and leaving the explanation behind
-        # -- the realistic shape of this drift -- keeps the guard green.
-        for comment in (
-            "// we check (elsewhere) that the value holds\n",
-            "/* we check (elsewhere)\n   that the value holds */\n",
-        ):
-            with self.subTest(comment=comment):
-                with tempfile.TemporaryDirectory() as temp:
-                    repo = Path(temp)
-                    self.write_valid_fixture(repo)
-                    expected = repo / "tests" / "test_example.cpp"
-                    expected.write_text(
-                        "// DOC-EVIDENCE: example.threshold\n"
-                        + comment
-                        + "// padding\n" * 40
-                        + "check(value == 1);\n",
-                        encoding="utf-8",
-                    )
-                    failures = DOCS.evidence_attribution_failures(
-                        repo, self.fixture_contracts()
-                    )
-                    self.assertTrue(
-                        any("test marker is not beside an assertion" in item
-                            for item in failures),
-                        failures,
-                    )
-
-    def test_assertion_trailing_a_comment_delimiter_still_counts(self) -> None:
-        # Stripping comments must not discard the code before them: an
-        # assertion whose own arguments contain `//` inside a string literal
-        # is still an assertion.
-        with tempfile.TemporaryDirectory() as temp:
-            repo = Path(temp)
-            self.write_valid_fixture(repo)
-            expected = repo / "tests" / "test_example.cpp"
-            expected.write_text(
-                "// DOC-EVIDENCE: example.threshold\n"
-                'check(text == "https://example.invalid/x");  // pinned\n',
-                encoding="utf-8",
-            )
-            self.assertEqual(
-                [],
-                DOCS.evidence_attribution_failures(
-                    repo, self.fixture_contracts()
-                ),
-            )
-
-    def test_marker_within_setup_distance_of_its_assertion_passes(self) -> None:
-        # The registered markers precede their assertion by up to 16 lines,
-        # because a marker introduces a block that sets a fixture up first.
-        # The rule must not force the marker onto the assertion itself.
-        with tempfile.TemporaryDirectory() as temp:
-            repo = Path(temp)
-            self.write_valid_fixture(repo)
-            expected = repo / "tests" / "test_example.cpp"
-            expected.write_text(
-                "// DOC-EVIDENCE: example.threshold\n"
-                + "const double value = build_fixture();\n" * 16
-                + "check(value == 1);\n",
-                encoding="utf-8",
-            )
-            self.assertEqual(
-                [],
-                DOCS.evidence_attribution_failures(
-                    repo, self.fixture_contracts()
-                ),
-            )
-
     def test_duplicate_document_marker_is_rejected(self) -> None:
         with tempfile.TemporaryDirectory() as temp:
             repo = Path(temp)
@@ -440,7 +847,7 @@ class EvidenceAttributionTests(unittest.TestCase):
             document = repo / "docs" / "implementation" / "example.md"
             document.write_text(
                 document.read_text(encoding="utf-8")
-                + "\n<!-- test-evidence: example.threshold -->\n",
+                + "\n<!-- test-evidence: example_threshold -->\n",
                 encoding="utf-8",
             )
             failures = DOCS.evidence_attribution_failures(
@@ -458,7 +865,7 @@ class EvidenceAttributionTests(unittest.TestCase):
             document = repo / "docs" / "implementation" / "example.md"
             document.write_text(
                 document.read_text(encoding="utf-8")
-                + "\n<!-- test-evidence: example.typo -->\n",
+                + "\n<!-- test-evidence: example_typo -->\n",
                 encoding="utf-8",
             )
             failures = DOCS.evidence_attribution_failures(
@@ -471,44 +878,34 @@ class EvidenceAttributionTests(unittest.TestCase):
             )
 
     def test_current_critical_claims_have_machine_checked_attribution(self) -> None:
-        contracts = {
-            "color-characterization.localization-gates":
-                DOCS.EvidenceAttributionContract(
-                    Path("docs/implementation/color-characterization.md"),
-                    Path("tests/test_patches.cpp"),
-                ),
-            "color-characterization.localization-verdict":
-                DOCS.EvidenceAttributionContract(
-                    Path("docs/implementation/color-characterization.md"),
-                    Path("tests/test_patches.cpp"),
-                ),
-            "color-characterization.ccm-provenance":
-                DOCS.EvidenceAttributionContract(
-                    Path("docs/implementation/color-characterization.md"),
-                    Path("tests/test_cmd_ccm_fit.cpp"),
-                ),
-            "flat-field.threshold-boundaries":
-                DOCS.EvidenceAttributionContract(
-                    Path("docs/implementation/flat-field.md"),
-                    Path("tests/test_flat_field_gate.cpp"),
-                ),
-            "sfr.nyquist-accuracy": DOCS.EvidenceAttributionContract(
-                Path("docs/implementation/sfr-mtf.md"),
-                Path("tests/test_sfr.cpp"),
-            ),
-            "spectral-fidelity.luther-scale-invariance":
-                DOCS.EvidenceAttributionContract(
-                    Path("docs/implementation/spectral-fidelity.md"),
-                    Path("tests/test_spectral_quality.cpp"),
-                ),
-            "raw-foundation.black-repeat-periodicity":
-                DOCS.EvidenceAttributionContract(
-                    Path("docs/implementation/raw-foundation.md"),
-                    Path("tests/test_raw_meta.cpp"),
-                ),
-        }
+        contracts = DOCS.EVIDENCE_ATTRIBUTION_CONTRACTS
+        self.assertEqual(
+            {
+                "color_characterization_localization_shifted",
+                "color_characterization_localization_offset",
+                "color_characterization_localization_verdict",
+                "color_characterization_ccm_external_labels",
+                "color_characterization_ccm_provenance",
+                "color_characterization_ccm_refusals",
+                "flat_field_radial_asymmetry",
+                "flat_field_cfa_balanced_roi",
+                "flat_field_threshold_boundaries",
+                "sfr_broad_gaussian_bounds",
+                "sfr_nyquist_accuracy",
+                "spectral_fidelity_luther_scale_invariance",
+                "raw_foundation_row_pitch",
+                "raw_foundation_black_2x2",
+                "raw_foundation_black_repeat_periodicity",
+            },
+            set(contracts),
+        )
+        self.assertTrue(
+            all(contract.test_target for contract in contracts.values())
+        )
+        self.assertTrue(
+            all(contract.assertion_count > 0 for contract in contracts.values())
+        )
         repo_root = SCRIPT.parent.parent
-        self.assertEqual(contracts, DOCS.EVIDENCE_ATTRIBUTION_CONTRACTS)
         self.assertEqual(
             [], DOCS.evidence_attribution_failures(repo_root, contracts)
         )

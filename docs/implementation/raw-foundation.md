@@ -181,15 +181,28 @@ At the library/unit layer, the camera-neutral RAW invariants begin in
 [`test_cfa_stats.cpp`](../../tests/test_cfa_stats.cpp).
 
 The RAW bridge in [`test_raw_meta.cpp`](../../tests/test_raw_meta.cpp) is tested
-at the representation boundaries that can change the meaning of every later
-result. A `12032`-byte row pitch is interpreted as
-`6016` `uint16` samples, while an odd `12033`-byte pitch is refused. Synthetic
-black metadata recovers a four-position `2 × 2` tile of `1024` without reading
-past a short tile buffer. Separate unit fixtures accept a larger repeat only
-when all same-CFA-parity entries agree and reject incomplete, odd-period
-nonconstant, or same-parity-varying repeats at the post-unpack measurement
-gate.
-<!-- test-evidence: raw-foundation.black-repeat-periodicity -->
+at representation boundaries that can change every later result. A
+`12032`-byte row pitch is interpreted as `6016` `uint16` samples, while an odd
+`12033`-byte pitch is refused.
+<!-- test-evidence: raw_foundation_row_pitch -->
+
+Synthetic black-metadata fixtures in
+[`test_raw_meta.cpp`](../../tests/test_raw_meta.cpp) recover a four-position
+`2 × 2` tile of `1024`. A nonuniform tile remains aligned to active-area CFA
+phase, and the post-unpack measurement path accepts the representable repeat.
+<!-- test-evidence: raw_foundation_black_2x2 -->
+
+A separate length-bound fixture in
+[`test_raw_meta.cpp`](../../tests/test_raw_meta.cpp) declares tile dimensions
+whose computed index would exceed the 16-entry buffer and verifies that the
+out-of-range tile term is ignored.
+
+Separate assertions in
+[`test_raw_meta.cpp`](../../tests/test_raw_meta.cpp) accept a larger repeat only
+when all same-CFA-parity entries agree. They reject incomplete, odd-period
+nonconstant, and same-parity-varying repeats, and the post-unpack measurement
+path refuses an unrepresentable spatial repeat.
+<!-- test-evidence: raw_foundation_black_repeat_periodicity -->
 
 Sampling and ceiling behavior is a separate boundary, tested in
 [`test_cfa_stats.cpp`](../../tests/test_cfa_stats.cpp). A strided active-area

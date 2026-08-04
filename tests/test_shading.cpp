@@ -1129,10 +1129,14 @@ void TESTS() {
     // discretization residual that depends on its field, CFA phase, geometry,
     // and median estimator; it is not a universal floor. The bound records this
     // fixture's measured residual and remains well below the 0.05 policy.
-    check(sym_c.asymmetry_valid && sym_c.green_asymmetry < 1e-3,
-          "asymmetry: radial fixture stays below its discretization bound");
-    check(!sym_c.asymmetry_exceeds_policy,
-          "asymmetry: centred field does not trip the policy");
+    CAMERA_IQ_DOC_EVIDENCE(
+        flat_field_radial_asymmetry,
+        check(sym_c.asymmetry_valid && sym_c.green_asymmetry < 1e-3,
+              "asymmetry: radial fixture stays below its discretization bound"));
+    CAMERA_IQ_DOC_EVIDENCE(
+        flat_field_radial_asymmetry,
+        check(!sym_c.asymmetry_exceeds_policy,
+              "asymmetry: centred field does not trip the policy"));
 
     const auto asym = measure_shading_field(tilted.data(), width, height, width,
                                             opts, kHeadroom);

@@ -147,14 +147,34 @@ Do not promote coverage from one layer to another. A library assertion is not a
 command success path, a synthetic exporter corpus is not an archive rerun, and
 an artifact-freshness check is not a new physical measurement.
 
-For consequential quantitative bounds and refusal claims, link attribution is
-machine-checked rather than inferred from a plausible filename. Register the
-claim in `EVIDENCE_ATTRIBUTION_CONTRACTS`, place its
-`<!-- test-evidence: ... -->` marker immediately after the paragraph containing
-the test link, and place the matching `DOC-EVIDENCE` marker beside the
-executable assertions. The documentation guard requires one marker on each
-side and verifies that the paragraph links the registered test file. Ordinary
-source-navigation links do not need this annotation.
+Selected regression-prone quantitative bounds, refusals, and serialized
+contracts receive an additional machine-checked attribution. Register the
+claim in `EVIDENCE_ATTRIBUTION_CONTRACTS`; keep its paragraph limited to one
+test file; and place this marker immediately after that paragraph:
+
+```html
+<!-- test-evidence: identifier -->
+```
+
+In the registered C++ test, wrap every `check()` or `check_near()` assertion
+that constitutes the public claim with
+`CAMERA_IQ_DOC_EVIDENCE(identifier, assertion)`. The harness definition must
+expand the second argument unchanged so the wrapper cannot turn the assertion
+into a no-op.
+
+The guard requires exactly one document marker, the registered number of
+executable assertion wrappers in the registered source, and a matching CTest
+target/source registration through the active `camera_iq_add_test` helper.
+Evidence targets are unconditional: a call inside a CMake conditional does not
+satisfy this contract. The guard ignores wrappers in comments, strings,
+Markdown examples, preprocessor definitions, and conditionally compiled
+regions. This protects registered claims from silent wrapper deletion and ID
+mix-ups; it does not prove that the prose interprets or scopes the assertion
+correctly, detect every meaningful relocation inside the registered source, or
+claim that every documented fact has a dedicated wrapper. Human review must
+still verify the assertion, bound, fixture, and operating conditions. Ordinary
+source-navigation links and generated-artifact checks do not need this
+annotation.
 
 ### 4. Evidence reference: identity and provenance
 
@@ -274,9 +294,9 @@ Before publishing or materially revising a public portfolio document, verify:
 - [ ] Verification prose labels library/unit, command/integration,
       generated-artifact, and archive-backed runtime evidence where those
       layers are present, without promoting one layer's coverage into another.
-- [ ] Consequential quantitative or refusal claims use a registered
-      claim-to-test evidence marker when their test attribution is part of the
-      public explanation.
+- [ ] Selected regression-prone quantitative, refusal, or serialization claims
+      use a registered claim-to-test evidence wrapper; unregistered claims
+      remain subject to direct technical review.
 - [ ] Its verification section links the relevant executable assertion and
       retains a numeric bound/count or exact semantic contract with every
       precondition needed to interpret it.
