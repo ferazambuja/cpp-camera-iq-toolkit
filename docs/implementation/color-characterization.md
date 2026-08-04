@@ -131,13 +131,21 @@ the chart.
 At the library/unit layer, patch fixtures in
 [`test_patches.cpp`](../../tests/test_patches.cpp) pin
 selected `5 × 5`-image ROI means to `1e-12`. Projective
-geometry tests retain all 140 cells in `A1…N10` order and refuse degenerate,
-crossed, or non-finite corner sets in
-[`test_chart_localization.cpp`](../../tests/test_chart_localization.cpp). The
-localization gate is tested against two
-misleading cases: a `6 px` shift fails the declared `5 px` center limit while
-RGB correlation still passes, and a `30 DN` offset fails the `25 DN` absolute
-mean-error limit while correlation again passes.
+geometry tests retain all 140 cells in `A1…N10` order, keep row and column
+indices monotonic across the grid, and refuse degenerate, crossed, or
+non-finite corner sets in
+[`test_chart_localization.cpp`](../../tests/test_chart_localization.cpp).
+
+The localization gate itself is exercised in
+[`test_patches.cpp`](../../tests/test_patches.cpp) against two misleading
+cases, both constructed so that RGB correlation alone would accept them: a
+shifted grid fails the declared `5 px` center limit while the correlation gate
+still passes, and a uniform `30 DN` offset fails the `25 DN` absolute
+mean-error limit while correlation again passes. The serialized `passes`
+verdict is pinned false for the shifted case with
+`correlation_gate_passes` true, because that boolean is the contract a
+downstream reader uses to decide whether the grid replaced the reference
+extraction.
 
 The residual-diagnosis fixtures in
 [`test_localization_diagnosis.cpp`](../../tests/test_localization_diagnosis.cpp)
