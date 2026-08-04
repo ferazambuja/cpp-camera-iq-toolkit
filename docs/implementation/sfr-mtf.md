@@ -115,8 +115,13 @@ On the `160 × 144`, `sigma = 1.25`, `-6°` point-sampled horizontal Gaussian
 fixture and its fixed `120 × 112` ROI, the algorithm must recover angle within
 `0.08°`, both MTF50 and peak-normalized MTF50P within
 `0.018 cycles/pixel` of the analytic value, and a positive Nyquist response
-below `0.01`. On a separate `sigma = 0.5` fixture with the same geometry, the
-measured Nyquist response must agree with its analytic value within `0.03`.
+below `0.01`. That last bound checks suppression, not accuracy: this edge is
+broad enough that its true Nyquist response is nearly zero, so an
+implementation that returned zero — or never computed the value — would satisfy
+it. Nyquist accuracy therefore needs a second fixture whose analytic value sits
+well away from zero. On a separate `sigma = 0.5` fixture with the same
+geometry, the measured Nyquist response must agree with its analytic value
+within `0.03`.
 A separate `-6°` hard edge built with `8 × 8`
 pixel-area supersampling must recover `0.6034 ± 0.03 cycles/pixel`, including
 the expected result above sensor Nyquist. These are fixture-specific bounds for
