@@ -224,6 +224,14 @@ void TESTS() {
   check(run_stepchart({"d800_oecf_fixture", "--config", config.string(),
                        "--oracle-dir", "../outside"}) == 2,
         "oecf-stepchart cmd: --oracle-dir traversal rejected as arg error");
+  const fs::path outside_oracle = root / "outside-oracle";
+  fs::create_directories(outside_oracle);
+  fs::create_directory_symlink(outside_oracle,
+                               dataset / "outside-oracle-link");
+  check(run_stepchart({"d800_oecf_fixture", "--config", config.string(),
+                       "--oracle-dir", "outside-oracle-link"}) == 2,
+        "oecf-stepchart cmd: configured oracle-directory symlink escape "
+        "rejected");
 
   // Nested --out parent directories must be created (house cmd_sfr pattern).
   const fs::path out = root / "nested" / "deep" / "out.json";
@@ -496,6 +504,63 @@ void TESTS() {
           "oecf-stepchart cmd: ring raw-zone failure stays fail-closed");
     check(!fs::exists(failed_out),
           "oecf-stepchart cmd: ring raw-zone failure writes no output JSON");
+  }
+
+  {
+    const fs::path linked_dataset = root / "linked-summary-dataset";
+    const fs::path linked_config = root / "linked-summary-config.json";
+    const fs::path outside_summary = root / "outside-summary.csv";
+    write_dataset(linked_dataset);
+    write_dataset_config(linked_config, linked_dataset);
+    const fs::path summary =
+        linked_dataset / "Results" /
+        "NIKON D800_i100_s1-40_2_comb_10_summary.csv";
+    fs::rename(summary, outside_summary);
+    fs::create_symlink(outside_summary, summary);
+    const auto [code, err] = run_capture(
+        {"d800_oecf_fixture", "--config", linked_config.string(),
+         "--oracle-dir", "Results"});
+    check(code == 1,
+          "oecf-stepchart cmd: symlinked oracle summary is rejected");
+    check(err.find("symlinked oracle summary") != std::string::npos,
+          "oecf-stepchart cmd: summary-symlink failure names the gate");
+  }
+
+  {
+    const fs::path linked_dataset = root / "linked-raw-dataset";
+    const fs::path linked_config = root / "linked-raw-config.json";
+    const fs::path outside_raw = root / "outside-listed.NEF";
+    write_dataset(linked_dataset);
+    write_dataset_config(linked_config, linked_dataset);
+    const fs::path raw = linked_dataset / "NIKON D800_i100_s1-40_2.NEF";
+    fs::rename(raw, outside_raw);
+    fs::create_symlink(outside_raw, raw);
+    const auto [code, err] = run_capture(
+        {"d800_oecf_fixture", "--config", linked_config.string(),
+         "--oracle-dir", "Results"});
+    check(code == 1,
+          "oecf-stepchart cmd: listed RAW symlink escape is rejected");
+    check(err.find("listed NEF resolves outside dataset") !=
+              std::string::npos,
+          "oecf-stepchart cmd: RAW-symlink failure names the gate");
+  }
+
+  {
+    const fs::path directory_raw_dataset = root / "directory-raw-dataset";
+    const fs::path directory_raw_config = root / "directory-raw-config.json";
+    write_dataset(directory_raw_dataset);
+    write_dataset_config(directory_raw_config, directory_raw_dataset);
+    const fs::path raw =
+        directory_raw_dataset / "NIKON D800_i100_s1-40_2.NEF";
+    fs::remove(raw);
+    fs::create_directory(raw);
+    const auto [code, err] = run_capture(
+        {"d800_oecf_fixture", "--config", directory_raw_config.string(),
+         "--oracle-dir", "Results"});
+    check(code == 1,
+          "oecf-stepchart cmd: listed RAW directory is rejected");
+    check(err.find("listed NEF is not a regular file") != std::string::npos,
+          "oecf-stepchart cmd: non-file RAW failure names the gate");
   }
 
   fs::remove_all(root);

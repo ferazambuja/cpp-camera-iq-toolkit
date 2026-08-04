@@ -69,21 +69,19 @@ int cmd_manifest(int argc, char** argv) {
                 << "' is not a directory or dataset id in " << config << "\n";
       return 1;
     }
-    if (!subdir.empty() && !is_safe_dataset_subdir(subdir)) {
+    const auto scan_root = resolve_dataset_scan_root(*resolved, subdir);
+    if (!scan_root) {
       std::cerr << "camera_iq manifest: --subdir requires a relative path inside the dataset root\n";
       return 2;
     }
-    const std::filesystem::path scan_root = subdir.empty()
-        ? resolved->root
-        : (resolved->root / subdir);
     const std::string root_label = dataset_scan_label(*resolved, subdir);
 
-    auto entries = scan_dataset(scan_root);
+    auto entries = scan_dataset(*scan_root);
     std::cerr << "scanned " << entries.size() << " files under " << root_label
               << "\n";
 
     if (exif) {
-      const auto populated = populate_raw_metadata(entries, scan_root);
+      const auto populated = populate_raw_metadata(entries, *scan_root);
       std::size_t raw_total = 0;
       for (const auto& e : entries) {
         if (e.extension == "raf" || e.extension == "nef" ||

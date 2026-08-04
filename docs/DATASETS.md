@@ -40,6 +40,9 @@ Public commands and reports should use dataset IDs:
 The JSON output labels those sources as `dataset:<id>` or
 `dataset:<id>/<relative-path>`. Absolute local paths belong only in the
 gitignored `configs/datasets.local.json`, shell history, or private notes.
+When a command intentionally accepts a side input outside a configured dataset,
+the public result records only an explicit `external:<basename>` label; direct
+single-file inputs use `direct:<basename>`.
 
 ## Reference and Archive Policy
 

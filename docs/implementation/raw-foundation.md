@@ -221,19 +221,24 @@ Manifest and command tests in
 [`test_manifest_json.cpp`](../../tests/test_manifest_json.cpp), and
 [`test_cmd_dataset_labels.cpp`](../../tests/test_cmd_dataset_labels.cpp)
 exclude AppleDouble and `.DS_Store` files, preserve
-relative public paths, serialize unavailable EXIF as `null`, reduce direct-root
-inputs to basename-safe labels, and reject parent traversal. Dataset-child and
-command fixtures also refuse leading or embedded `..` components and an input
-symlink that resolves outside the configured root. Containment is enforced
-wherever a command joins a caller-supplied path to a configured dataset root and
-then labels the result with that dataset id, because an escaping path would
-otherwise publish outside evidence under that id. That covers the RAW-statistics,
-demosaic, shading, patch-extraction, and SFR commands; directory mode, which
-claims no dataset attribution, stays permissive. The shared output tests in
+relative public paths, serialize unavailable EXIF as `null`, reduce direct and
+external inputs to scoped basename-safe labels, and reject parent traversal.
+Dataset-child and command fixtures also refuse leading or embedded `..`
+components and an input symlink that resolves outside the configured root.
+
+Configured scan subdirectories are resolved canonically before the manifest,
+dark-calibration, noise, exposure-response, or OECF-fit scanners run, and the
+manifest excludes symlinked file entries rather than inheriting their targets.
+The Stepchart command applies the same rule to its oracle directory, summary
+files, and listed RAW files. Single-file RAW-statistics, demosaic, shading,
+patch-extraction, and SFR inputs likewise keep dataset attribution only after
+canonical containment succeeds. Direct-directory mode remains available
+without dataset attribution. The shared output tests in
 [`test_output_file.cpp`](../../tests/test_output_file.cpp), plus the
-RAW-statistics and demosaic command fixtures, verify that identical,
-normalized-equivalent, and hard-linked output identities are refused before an
-input can be truncated. Together these tests establish numeric and output
+RAW-statistics, demosaic, patch-extraction, and SFR command fixtures, verify that
+identical, normalized-equivalent, and hard-linked output identities are refused
+before an input can be truncated; the two patch outputs must also remain
+distinct. Together these tests establish numeric, attribution, and output
 contracts. The archive-backed reports, not the fixtures, remain the authority
 for the physical captures and conclusions.
 

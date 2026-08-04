@@ -55,6 +55,13 @@ void TESTS() {
   write_file(dataset / "Images" / "Sphere" /
              "Sphere_f8.0_1:100_ISO200_DSCF0002.RAF");
   write_file(dataset / "shape.csv", "a,b\n1,2\n");
+  const fs::path outside = root / "outside";
+  fs::create_directories(outside);
+  fs::create_directory_symlink(outside, dataset / "escape-link");
+  const fs::path config = root / "datasets.json";
+  write_file(config,
+             "{\"datasets\":{\"fixture\":{\"root\":\"" +
+                 dataset.generic_string() + "\"}}}\n");
 
   {
     const fs::path out = root / "manifest.json";
@@ -74,6 +81,23 @@ void TESTS() {
               2,
           "manifest rejects parent-path subdir traversal");
   }
+
+  const auto check_configured_escape = [&](int (*cmd)(int, char**),
+                                           const std::vector<std::string>& tail,
+                                           const std::string& name) {
+    std::vector<std::string> args{"fixture", "--config", config.string(),
+                                  "--subdir", "escape-link"};
+    args.insert(args.end(), tail.begin(), tail.end());
+    check(run_cmd(cmd, args) == 2,
+          name + ": configured symlinked subdir escape rejected");
+  };
+  check_configured_escape(camera_iq::cmd_manifest, {"--no-exif"}, "manifest");
+  check_configured_escape(camera_iq::cmd_oecf_fit, {}, "oecf-fit");
+  check_configured_escape(camera_iq::cmd_dark_calibration, {},
+                          "dark-calibration");
+  check_configured_escape(camera_iq::cmd_noise, {}, "noise");
+  check_configured_escape(camera_iq::cmd_exposure_response, {},
+                          "exposure-response");
 
   {
     const fs::path out = root / "oecf-fit.json";

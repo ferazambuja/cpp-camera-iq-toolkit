@@ -120,17 +120,15 @@ int cmd_dark_calibration(int argc, char** argv) {
                 << "' is not a directory or dataset id in " << config << "\n";
       return 1;
     }
-    if (!subdir.empty() && !is_safe_dataset_subdir(subdir)) {
+    const auto scan_root = resolve_dataset_scan_root(*resolved, subdir);
+    if (!scan_root) {
       std::cerr
           << "camera_iq dark-calibration: --subdir requires a relative path inside the dataset root\n";
       return 2;
     }
-
-    const std::filesystem::path scan_root =
-        subdir.empty() ? resolved->root : (resolved->root / subdir);
     const std::string root_label = dataset_scan_label(*resolved, subdir);
 
-    const auto scanned = scan_dataset(scan_root);
+    const auto scanned = scan_dataset(*scan_root);
     std::vector<ManifestEntry> entries;
     entries.reserve(scanned.size());
     for (const auto& entry : scanned) {
@@ -144,7 +142,8 @@ int cmd_dark_calibration(int argc, char** argv) {
 
     std::map<std::string, RawCfaReport> reports;
     for (const auto& entry : entries) {
-      const auto report = read_raw_cfa_stats(scan_root / entry.relative_path);
+      const auto report =
+          read_raw_cfa_stats(*scan_root / entry.relative_path);
       if (report) {
         reports.emplace(entry.relative_path, *report);
       } else {

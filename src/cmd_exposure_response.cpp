@@ -97,17 +97,15 @@ int cmd_exposure_response(int argc, char** argv) {
                 << "' is not a directory or dataset id in " << config << "\n";
       return 1;
     }
-    if (!subdir.empty() && !is_safe_dataset_subdir(subdir)) {
+    const auto scan_root = resolve_dataset_scan_root(*resolved, subdir);
+    if (!scan_root) {
       std::cerr
           << "camera_iq exposure-response: --subdir requires a relative path inside the dataset root\n";
       return 2;
     }
-    const std::filesystem::path scan_root = subdir.empty()
-        ? resolved->root
-        : (resolved->root / subdir);
     const std::string root_label = dataset_scan_label(*resolved, subdir);
 
-    auto entries = scan_dataset(scan_root);
+    auto entries = scan_dataset(*scan_root);
     auto series = find_exposure_series(entries, series_min);
     if (series_limit > 0 && series.size() > series_limit) {
       series.resize(series_limit);
@@ -125,10 +123,10 @@ int cmd_exposure_response(int argc, char** argv) {
       for (const auto& rel : s.paths) {
         std::optional<RawCfaReport> report;
         if (roi) {
-          const auto image = read_raw_cfa_image(scan_root / rel);
+          const auto image = read_raw_cfa_image(*scan_root / rel);
           if (image) report = raw_cfa_report_for_roi(*image, *roi);
         } else {
-          report = read_raw_cfa_stats(scan_root / rel);
+          report = read_raw_cfa_stats(*scan_root / rel);
         }
         if (report) {
           reports.emplace(rel, *report);

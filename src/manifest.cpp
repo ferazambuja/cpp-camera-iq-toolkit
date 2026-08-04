@@ -113,6 +113,14 @@ std::vector<ManifestEntry> scan_dataset(const std::filesystem::path& root) {
   std::vector<ManifestEntry> entries;
   for (auto it = std::filesystem::recursive_directory_iterator(root);
        it != std::filesystem::recursive_directory_iterator(); ++it) {
+    // A symlinked file can point outside the scanned tree while retaining an
+    // in-tree relative label. Directory symlinks are not followed by the
+    // iterator, but skip both forms explicitly so manifest membership always
+    // means a real directory entry under the selected root.
+    if (it->is_symlink()) {
+      if (it->is_directory()) it.disable_recursion_pending();
+      continue;
+    }
     if (it->is_directory()) {
       if (is_hidden(it->path())) it.disable_recursion_pending();
       continue;

@@ -53,6 +53,11 @@ struct ResolvedDataset {
   bool from_config = false;
 };
 
+struct ResolvedFileInput {
+  std::filesystem::path actual;
+  std::string label;
+};
+
 std::filesystem::path default_dataset_config_path();
 
 std::map<std::string, DatasetSpec> read_dataset_config(
@@ -65,6 +70,12 @@ std::optional<ResolvedDataset> resolve_dataset_root(
 std::string dataset_root_label(std::string_view dataset_id);
 std::string dataset_file_label(std::string_view dataset_id,
                                const std::filesystem::path& relative_path);
+
+// Publication-safe label for an input that is not attributed to a configured
+// dataset. The scope remains explicit while local directory structure is
+// reduced to the basename.
+std::string public_file_label(const std::filesystem::path& path,
+                              std::string_view scope);
 
 // Display label for evidence JSON that never echoes an absolute path:
 // config-resolved datasets keep the redacted "dataset:<id>" label; direct
@@ -87,5 +98,19 @@ bool is_safe_dataset_subdir(const std::filesystem::path& relative_subdir);
 std::optional<std::filesystem::path> resolve_dataset_child(
     const std::filesystem::path& root,
     const std::filesystem::path& relative_path);
+
+// Resolves a file argument used alongside a configured dataset. Relative
+// paths must remain inside the dataset and retain dataset attribution;
+// absolute paths are explicit external evidence and publish only a scoped
+// basename.
+std::optional<ResolvedFileInput> resolve_dataset_or_external_file(
+    const ResolvedDataset& dataset, const std::filesystem::path& path);
+
+// Resolves an optional scan subdirectory. Configured datasets require
+// canonical containment; direct-directory mode keeps its non-attributed path
+// semantics while retaining the lexical absolute/parent-traversal gate.
+std::optional<std::filesystem::path> resolve_dataset_scan_root(
+    const ResolvedDataset& dataset,
+    const std::filesystem::path& relative_subdir);
 
 }  // namespace camera_iq

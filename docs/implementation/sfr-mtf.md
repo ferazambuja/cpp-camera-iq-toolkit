@@ -154,7 +154,10 @@ tests exercise field-map argument and filename-mismatch refusals. They also pin
 dataset containment: with a configured dataset the RAW and oracle inputs must
 stay inside its root, so absolute paths, parent traversal, and symlinks that
 resolve outside are refused before any read, while directory mode — which
-attributes nothing to a dataset — still accepts an absolute path. The full
+attributes nothing to a dataset — still accepts an absolute path but publishes
+only a `direct:<basename>` input label. Identical, normalized-equivalent, and
+hard-linked output aliases are refused for the RAW, and the oracle and dataset
+configuration cannot be selected as output destinations. The full
 field-map success path still requires LibRaw-backed input and has no committed
 public RAW fixture. Capture and pairing validity remain with the scientific
 report and inventory.

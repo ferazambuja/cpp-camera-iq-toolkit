@@ -355,11 +355,11 @@ void write_report(std::ostream& os, const std::string& dataset_id,
   w.key("timeline_provenance");
   write_timeline_provenance(w, dataset, spec);
   w.key("reference_path");
-  w.value(spec.path.generic_string());
+  w.value(public_file_label(spec.path, "external"));
   w.key("camera_rgb_path");
-  w.value(camera_rgb_path.generic_string());
+  w.value(public_file_label(camera_rgb_path, "external"));
   w.key("illuminant_spd_path");
-  w.value(illuminant_path.generic_string());
+  w.value(public_file_label(illuminant_path, "external"));
   w.key("observer");
   w.value("CIE 1931 2 degree");
   w.key("reference_unit");

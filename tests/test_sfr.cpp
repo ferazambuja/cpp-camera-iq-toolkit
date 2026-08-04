@@ -625,6 +625,26 @@ void TESTS() {
   }
 
   {
+    camera_iq::ResolvedDataset dataset;
+    dataset.root = "/private/archive/SFR";
+    dataset.from_config = false;
+    camera_iq::RawMeta meta;
+    camera_iq::SfrResult rejected;
+    rejected.roi = RoiRect{2, 4, 24, 24};
+    rejected.rejection_reason = "low_contrast";
+    std::ostringstream os;
+    camera_iq::write_sfr_json(os, dataset,
+                              "/private/archive/SFR/example.NEF", meta,
+                              rejected);
+    const std::string json = os.str();
+    test::check(json.find("\"raw\":\"direct:example.NEF\"") !=
+                    std::string::npos,
+                "SFR JSON: direct RAW publishes scoped basename");
+    test::check(json.find("/private/archive/") == std::string::npos,
+                "SFR JSON: direct RAW does not publish absolute path");
+  }
+
+  {
     const auto image = synthetic_green_edge(96, 96, 0.4, 1.0, true);
     const auto result =
         camera_iq::analyze_green_sfr(image, RoiRect{8, 8, 80, 80});

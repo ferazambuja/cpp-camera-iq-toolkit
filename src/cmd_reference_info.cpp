@@ -98,12 +98,12 @@ void write_report(std::ostream& os, const std::string& dataset_id,
   w.value(summary.provenance.numbering_order);
   w.end_object();
   w.key("path");
-  w.value(spec.path.generic_string());
+  w.value(public_file_label(spec.path, "external"));
   w.key("source_xlsx");
   if (spec.source_xlsx.empty()) {
     w.null();
   } else {
-    w.value(spec.source_xlsx.generic_string());
+    w.value(public_file_label(spec.source_xlsx, "external"));
   }
   w.key("source_sheet");
   if (spec.source_sheet.empty()) {
