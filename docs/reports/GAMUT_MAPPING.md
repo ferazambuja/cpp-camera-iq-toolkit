@@ -258,9 +258,22 @@ stays false); an arbitrary angle from floating-point noise is not reported as
 evidence.
 
 An optional LittleCMS test creates sRGB and Display-P3 profiles independently,
-then compares common-gamut Display-P3-to-sRGB conversions against the toolkit.
-This check is enabled in CI with `CAMERA_IQ_ENABLE_LCMS=ON`; LittleCMS remains a
-test-only dependency and is not used by the mapping implementation.
+then compares common-gamut conversions against the toolkit in both directions.
+The Display-P3-to-sRGB direction can only use desaturated colors, because a
+saturated Display-P3 color has no in-gamut sRGB counterpart to compare against.
+Running the conversion the other way removes that restriction: the sRGB
+primaries and secondaries all lie inside Display-P3, so the full-saturation
+corners stay common-gamut and each primary matrix column is exercised
+undiluted rather than only near the neutral axis, where a column error is
+masked by the other two.
+
+Agreement is required to `1e-6` per encoded channel. That bound comes from
+measurement, not convention: the worst disagreement over all samples in both
+directions is `2.8e-8`, set by the float32 pipeline inside LittleCMS, and the
+tolerance keeps a factor of roughly 36 in reserve for library-version and
+platform variation. The check is enabled in CI with
+`CAMERA_IQ_ENABLE_LCMS=ON`; LittleCMS remains a test-only dependency and is not
+used by the mapping implementation.
 
 ## Synthetic study
 
