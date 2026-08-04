@@ -75,6 +75,42 @@ patches under the declared variants and compare their summaries with the printed
 course result. Agreement shows consistency with the retained rounded table; it
 does not recover the missing original tool settings or full-precision input.
 
+## Verification evidence
+
+The published curves are test oracles rather than outputs nobody checked. Both
+brightness relations are pinned at their crossing points to `1e-15`: CAM16's
+square-root relation reaches half normalized brightness at `J = 25`, and the
+proposed linear relation reaches it at `J = 50`. The background factor is pinned
+at the reference condition and at each darker background, and the two endpoints
+of the coupled chroma band — `2.1199` at reference `J₀ = 90` and `2.6866` at
+`J₀ = 10` — are pinned to `1e-12`, which is what establishes that the isolated
+term is neither a floor nor a ceiling. A literal 3-4-5 opponent vector pins the
+corrected Equation 23 coefficient at `43`.
+
+Domain refusals are tested rather than assumed: lightness above `100` or below
+`0`, non-finite lightness, backgrounds outside their range, and a zero
+background all throw. Zero background is refused specifically because it is an
+asymptote of the relation, so returning a finite number there would invent a
+value the equation does not have.
+
+The six published `R²` values are compared with tolerance `0.0` — exact
+equality. They are transcribed from the source paper, so any drift is a
+transcription error rather than numerical noise, and that includes the
+unfavorable `0.81 → 0.71` colorfulness result. Curve lengths, the
+`equation_level_not_perceptual_validation` scope marker, CSV and JSON schemas,
+and CLI argument refusals are covered separately, and the figure is regenerated
+from current command output rather than from a hand-maintained table.
+
+For CIE94, the tests recompute all 24 retained patches under both directional
+conventions and the separately named geometric-mean variant, and reject
+non-finite Lab input.
+
+This evidence establishes that the declared equations are implemented as
+written and that their behavior is reproducible. It does not validate CAM16
+against observers, establish CIE 248:2022 conformance, implement the full
+forward model, or recover the missing tool settings behind the historical CIE94
+table; the scientific report keeps those boundaries explicit.
+
 ## Source and tests
 
 - Equation types and API:

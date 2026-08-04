@@ -373,6 +373,47 @@ class DocumentationLayerTests(unittest.TestCase):
             [], DOCS.implementation_evidence_failures_for_text(relative, text)
         )
 
+    def test_implementation_companion_requires_an_evidence_section(self) -> None:
+        # Evidence stranded in an unrelated section reads as covered while being
+        # one deletion away from gone. A dedicated heading makes its removal
+        # visible in a diff.
+        relative = Path("docs/implementation/example.md")
+        text = (
+            "## Source and tests\n\n"
+            "- Test: [test_example.cpp](../../tests/test_example.cpp)\n\n"
+            "Synthetic tests cover analytic invariants and rejection paths. "
+            "The scientific report remains the authority for physical claims.\n"
+        )
+        failures = DOCS.implementation_evidence_failures_for_text(relative, text)
+        self.assertTrue(
+            any("verification-evidence section" in item for item in failures),
+            failures,
+        )
+
+    def test_evidence_section_heading_wording_is_not_pinned(self) -> None:
+        relative = Path("docs/implementation/example.md")
+        text = (
+            "## What the fixtures establish, and what they do not\n\n"
+            "Synthetic tests cover analytic invariants and rejection paths. "
+            "The scientific report remains the authority for physical claims.\n\n"
+            "- Test: [test_example.cpp](../../tests/test_example.cpp)\n"
+        )
+        self.assertTrue(
+            any(
+                "verification-evidence section" in item
+                for item in DOCS.implementation_evidence_failures_for_text(
+                    relative, text
+                )
+            ),
+        )
+        reworded = text.replace(
+            "What the fixtures establish, and what they do not",
+            "Evidence the fixtures provide, and its limits",
+        )
+        self.assertEqual(
+            [], DOCS.implementation_evidence_failures_for_text(relative, reworded)
+        )
+
     def test_new_implementation_companion_is_covered_without_registration(self) -> None:
         with tempfile.TemporaryDirectory() as temp:
             repo = Path(temp)

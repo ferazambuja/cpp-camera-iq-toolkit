@@ -36,6 +36,9 @@ REQUIRED_PROJECT_DOCUMENTS = (
 IMPLEMENTATION_TEST_LINK_RE = re.compile(
     r"\]\(\.\./\.\./tests/[^)#]+(?:#[^)]+)?\)", re.IGNORECASE
 )
+IMPLEMENTATION_EVIDENCE_SECTION_RE = re.compile(
+    r"^#{2,3} [^\n]*\bevidence\b[^\n]*$", re.IGNORECASE | re.MULTILINE
+)
 IMPLEMENTATION_EVIDENCE_ROLE_RE = re.compile(
     r"\b(?:test(?:s|ed|ing)?|cross-check(?:s|ed|ing)?|fixtures?)\b"
     r".{0,420}"
@@ -456,6 +459,19 @@ def implementation_evidence_failures_for_text(
     failures: list[str] = []
     if not IMPLEMENTATION_TEST_LINK_RE.search(text):
         failures.append(f"implementation companion missing public test link: {relative}")
+
+    # The prose check below is a vocabulary co-occurrence test, so any incidental
+    # sentence mentioning tests satisfies it — including one stranded in an
+    # unrelated section. Requiring a section devoted to evidence is what makes
+    # deleting that evidence detectable, which is the regression this guard
+    # exists to catch. The heading wording stays free; only its presence is
+    # required.
+    if not IMPLEMENTATION_EVIDENCE_SECTION_RE.search(text):
+        failures.append(
+            f"implementation companion missing a verification-evidence section: "
+            f"{relative} — give the evidence its own heading so removing it is "
+            f"visible in review"
+        )
 
     prose_paragraphs = []
     for paragraph in re.split(r"\n\s*\n", text):

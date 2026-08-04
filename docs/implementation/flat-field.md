@@ -108,6 +108,13 @@ Absolute input paths are reduced to dataset-relative labels. Output schemas
 carry the effective thresholds and geometry so an aggregate cannot be detached
 from the policy that produced it.
 
+## Verification evidence
+
+Synthetic tests exercise symmetric and asymmetric fields, CFA independence,
+coverage and clipping gates, zero denominators, dark controls, comparison
+geometry, privacy, and serialization. The scientific report remains the source
+for the archive measurements and capture-system interpretation.
+
 ## Source and tests
 
 - Public types and analysis API: [`shading.hpp`](../../include/camera_iq/shading.hpp)
@@ -120,8 +127,3 @@ from the policy that produced it.
   [`test_cmd_shading.cpp`](../../tests/test_cmd_shading.cpp)
 - Producer-to-consumer contract fixture:
   [`emit_shading_contract.cpp`](../../tests/emit_shading_contract.cpp)
-
-Synthetic tests exercise symmetric and asymmetric fields, CFA independence,
-coverage and clipping gates, zero denominators, dark controls, comparison
-geometry, privacy, and serialization. The scientific report remains the source
-for the archive measurements and capture-system interpretation.

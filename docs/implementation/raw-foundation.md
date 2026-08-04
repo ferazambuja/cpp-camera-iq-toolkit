@@ -164,6 +164,12 @@ conversion gain is available.
 - Spatial standard deviation and temporal variance use different fields and
   names so one cannot silently substitute for the other.
 
+## Verification evidence
+
+The tests cover algorithmic invariants, rejection paths, typed serialization,
+and synthetic numeric cases. Archive-backed reports remain the authority for
+the physical conclusions.
+
 ## Source and tests
 
 - RAW bridge: [`raw_meta.hpp`](../../include/camera_iq/raw_meta.hpp),
@@ -188,7 +194,3 @@ conversion gain is available.
   [`test_stepchart_raw.cpp`](../../tests/test_stepchart_raw.cpp), plus
   [`test_manifest_scan.cpp`](../../tests/test_manifest_scan.cpp) and
   [`test_manifest_json.cpp`](../../tests/test_manifest_json.cpp)
-
-The tests cover algorithmic invariants, rejection paths, typed serialization,
-and synthetic numeric cases. Archive-backed reports remain the authority for
-the physical conclusions.

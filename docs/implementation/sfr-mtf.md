@@ -101,6 +101,13 @@ conclusions cannot be merged accidentally.
 - Advisory-tool values remain separate fields and are not substituted for the
   toolkit measurement.
 
+## Verification evidence
+
+Synthetic tests cover known edge orientations and blur, saturation and contrast
+refusals, coordinate conversion, MTF summaries, and field labels. The archive
+result still depends on the capture and pairing evidence documented in the
+scientific report and inventory.
+
 ## Source and tests
 
 - Public API: [`sfr.hpp`](../../include/camera_iq/sfr.hpp)
@@ -109,8 +116,3 @@ conclusions cannot be merged accidentally.
 - Core numeric tests: [`test_sfr.cpp`](../../tests/test_sfr.cpp)
 - Command and output tests: [`test_cmd_sfr.cpp`](../../tests/test_cmd_sfr.cpp)
 - Aggregate generation: [`generate_portfolio_figures.py`](../../tools/generate_portfolio_figures.py)
-
-Synthetic tests cover known edge orientations and blur, saturation and contrast
-refusals, coordinate conversion, MTF summaries, and field labels. The archive
-result still depends on the capture and pairing evidence documented in the
-scientific report and inventory.
