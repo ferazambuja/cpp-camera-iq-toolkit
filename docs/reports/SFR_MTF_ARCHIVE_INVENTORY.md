@@ -6,7 +6,7 @@ maps those inputs and records the metadata limits that affect interpretation,
 including the missing lens serial and unsynchronized camera clocks. It is a
 measurement-identity reference, not a separate lens or camera result.
 
-Date: 2026-07-07
+Analysis date: 2026-07-07
 Scope: filename-level inventory and measurement contract for the available
 slanted-edge SFR/MTF archive inputs.
 

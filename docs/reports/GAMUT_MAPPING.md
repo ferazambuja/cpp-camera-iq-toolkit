@@ -224,14 +224,14 @@ space alone does not supply either one.
 The soft method remains an experimental baseline rather than a completed
 appearance model.
 
-## Independent transform cross-check
+## Transform-reference boundary
 
-Independently constructed LittleCMS sRGB and Display-P3 profiles agree with the
-toolkit's common-gamut conversions to `1e-6` per encoded channel in both
-directions. The comparison includes primaries, secondaries, neutrals, a sample
-below the transfer-function breakpoint, and a 216-point sRGB cube. This supports
-the RGB/XYZ transform path; LittleCMS is not used by the mapping calculation and
-the comparison does not validate the boundary search or rendering intents.
+An independent color-management library agrees with the toolkit within the
+declared numerical tolerance for the tested common-gamut conversions. This
+supports the RGB/XYZ transform path; it does not validate the boundary search,
+mapping intents, measured-display behavior, or visual preference. The
+[implementation companion](../implementation/gamut-mapping.md) documents the
+optional reference build, sample coverage, and enforced tolerance.
 
 ## Synthetic study
 

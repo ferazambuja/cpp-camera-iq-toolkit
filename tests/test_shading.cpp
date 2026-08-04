@@ -1083,7 +1083,8 @@ void TESTS() {
           "pedestal: INT_MAX inset is rejected before even rounding");
   }
 
-  // Quadrant asymmetry is a diagnostic against a centred radial scalar model.
+  // Corner-field asymmetry is a diagnostic against a centred radial scalar
+  // model.
   // It never decides which capture-system component caused the departure.
   {
     const int width = 256;

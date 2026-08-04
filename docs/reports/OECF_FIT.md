@@ -7,7 +7,7 @@ checks. Four usable points in the selected f/8 sphere region produced per-plane
 maximum nonlinearity of 0.72–1.04%; the result is a bounded linearity check, not
 ISO 14524 conformance or proof of source stability.
 
-Date: 2026-07-04
+Analysis date: 2026-07-04
 Dataset: private local RAW captures used only for validation. Source RAW files
 are not distributed with this repository.
 

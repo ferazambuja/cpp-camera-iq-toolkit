@@ -8,7 +8,7 @@ summaries and preserves the 20-zone chart structure for later RAW comparison.
 Here “oracle” means the retained third-party reference table used for
 comparison; it is not treated as proof that either analysis is correct.
 
-Date: 2026-07-09
+Analysis date: 2026-07-09
 
 Dataset: `d800_oecf_2016`
 

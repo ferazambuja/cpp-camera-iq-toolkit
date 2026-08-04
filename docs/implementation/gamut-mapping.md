@@ -96,6 +96,50 @@ unresolved boundaries, or out-of-gamut final outputs are refused. Final linear
 RGB clamping is limited to tolerance-scale numerical cleanup after membership
 has been established; it is not the mapping algorithm.
 
+## Verification evidence
+
+The test suite challenges broad algorithm contracts, while the artifact check
+separately regenerates the published 125-point JSON, CSV, and SVG outputs from
+the current executable. The first asks whether the methods remain well behaved
+away from the portfolio grid; the second asks whether the committed results are
+current. Neither is observer validation or evidence about a measured display.
+
+A deterministic adversarial set of **3,229 encoded Display-P3 inputs** runs in
+every build: a `9 × 9 × 9` cube of extremal and breakpoint-adjacent components,
+including both representable neighbours of the `0.04045` transfer breakpoint
+and the in-domain predecessor of `1.0`; 2,000 fixed-seed samples from a
+self-contained linear congruential generator, so the sweep needs no external
+RNG and cannot drift between platforms; and 500 near-neutral points where hue
+is ill-conditioned. Every input is mapped by all four methods. Shared checks
+require that:
+
+- no legal input throws, and every mapped output is finite;
+- every output is rechecked against the destination RGB cube;
+- the CIELAB radial and soft methods do not increase Lab chroma, preserve
+  `L*`, and hold Lab-hue change to `2e-7` radians away from the neutral
+  singularity, where hue is undefined rather than merely noisy;
+- the OkLCh radial intent does not increase mapping chroma, preserves OkLab
+  lightness, and holds OkLCh hue to `1e-8` degrees when hue is defined; and
+- all three hard mapping intents leave destination-in-gamut inputs unchanged.
+
+Named fixtures cover what a random sweep is unlikely to reach: the narrow
+leave-and-re-enter ray described above, a Display-P3 red destination boundary
+pinned at `C*=93.86561347147861` to `2e-9`, just-inside and just-outside
+boundary probes, black, white, near-black, near-white, cube corners, and hue
+wrap. Refusal fixtures cover invalid domains, non-finite values, discontinuous
+knee settings, and unconverged boundary searches. The dated Local-MINDE
+Display-P3-yellow output is cross-checked against ColorAide 5.1. When the
+optional LittleCMS build is enabled, independently constructed profiles check
+common-gamut RGB transforms in both directions to `1e-6` per encoded channel;
+the mapping algorithms themselves do not use LittleCMS.
+
+The serialization path is tested as an interface rather than assumed: the
+schema version is pinned, duplicate sample identifiers are rejected, an exact
+CSV header is required, identifiers are RFC-escaped, a SHA-256 digest must be
+hexadecimal, one global coordinate label cannot hide samples in mixed spaces,
+and the recorded input label is a basename so a private dataset path cannot
+reach a published artifact.
+
 ## Source and tests
 
 - Types and public API: [`gamut_mapping.hpp`](../../include/camera_iq/gamut_mapping.hpp)

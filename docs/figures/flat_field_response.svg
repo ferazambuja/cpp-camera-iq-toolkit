@@ -34,7 +34,7 @@
 <rect x="906" y="91" width="252" height="78" rx="10" fill="#f7f9fc" stroke="#d8dee8"/>
 <text x="920" y="117" class="node-title">4 · Interpret</text>
 <text x="920" y="140" class="node-detail">G field · R/G · B/G</text>
-<text x="920" y="158" class="node-detail">G1/G2 and quadrant A</text>
+<text x="920" y="158" class="node-detail">G1/G2 and corner-field A</text>
 <rect x="42" y="192" width="346" height="310" rx="12" fill="#f7f9fc"/>
 <text x="60" y="222" class="panel-title">A · Green relative response</text>
 <text x="60" y="244" class="subtitle">dimensionless · center normalized</text>

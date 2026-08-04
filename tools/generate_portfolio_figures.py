@@ -712,7 +712,7 @@ def generate_shading(data_dir: Path) -> str:
         ("1 · RAW mosaic", "LibRaw active area", "per-position black removal"),
         ("2 · Quality gates", "near-ceiling · negative", "signal · coverage"),
         ("3 · Normalize", "each CFA plane ÷ its", "center-block median"),
-        ("4 · Interpret", "G field · R/G · B/G", "G1/G2 and quadrant A"),
+        ("4 · Interpret", "G field · R/G · B/G", "G1/G2 and corner-field A"),
     ]
     for index, (title, detail1, detail2) in enumerate(steps):
         x = 42 + index * 288

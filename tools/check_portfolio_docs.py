@@ -33,6 +33,23 @@ REQUIRED_PROJECT_DOCUMENTS = (
     Path("docs/case-studies/color-model-equation-audit.md"),
 )
 
+IMPLEMENTATION_TEST_LINK_RE = re.compile(
+    r"\]\(\.\./\.\./tests/[^)#]+(?:#[^)]+)?\)", re.IGNORECASE
+)
+IMPLEMENTATION_EVIDENCE_ROLE_RE = re.compile(
+    r"\b(?:test(?:s|ed|ing)?|cross-check(?:s|ed|ing)?|fixtures?)\b"
+    r".{0,420}"
+    r"\b(?:algorithm(?:ic)?|analytic|numeric|invariants?|contracts?|"
+    r"refusals?|reject(?:s|ed|ion)?|serialization|parser|geometry|synthetic|"
+    r"independent|boundar(?:y|ies)|artifacts?|physical|archive)\w*\b|"
+    r"\b(?:algorithm(?:ic)?|analytic|numeric|invariants?|contracts?|"
+    r"refusals?|reject(?:s|ed|ion)?|serialization|parser|geometry|synthetic|"
+    r"independent|boundar(?:y|ies)|artifacts?|physical|archive)\w*\b"
+    r".{0,420}"
+    r"\b(?:test(?:s|ed|ing)?|cross-check(?:s|ed|ing)?|fixtures?)\b",
+    re.IGNORECASE,
+)
+
 # Every public study and report must route implementation detail to one named
 # companion. Exact links are intentional: a generic implementation index does
 # not establish which architecture realizes a particular measurement.
@@ -430,6 +447,51 @@ def implementation_link_failures(repo_root: Path) -> list[str]:
     return failures
 
 
+def implementation_evidence_failures_for_text(
+    relative: Path, text: str
+) -> list[str]:
+    if relative.parent != Path("docs/implementation") or relative.name == "README.md":
+        return []
+
+    failures: list[str] = []
+    if not IMPLEMENTATION_TEST_LINK_RE.search(text):
+        failures.append(f"implementation companion missing public test link: {relative}")
+
+    prose_paragraphs = []
+    for paragraph in re.split(r"\n\s*\n", text):
+        stripped = paragraph.lstrip()
+        if not stripped or stripped.startswith(("#", "- ", "```")):
+            continue
+        normalized = normalize_markdown(paragraph)
+        if len(normalized.split()) >= 8:
+            prose_paragraphs.append(normalized)
+    if not any(
+        IMPLEMENTATION_EVIDENCE_ROLE_RE.search(paragraph)
+        for paragraph in prose_paragraphs
+    ):
+        failures.append(
+            f"implementation companion missing verification evidence explanation: "
+            f"{relative} — explain what tests or cross-checks establish and what "
+            f"scientific validity still depends on"
+        )
+    return failures
+
+
+def implementation_evidence_failures(repo_root: Path) -> list[str]:
+    failures: list[str] = []
+    implementation_dir = repo_root / "docs" / "implementation"
+    for path in sorted(implementation_dir.glob("*.md")):
+        if path.name == "README.md":
+            continue
+        relative = path.relative_to(repo_root)
+        failures.extend(
+            implementation_evidence_failures_for_text(
+                relative, path.read_text(encoding="utf-8")
+            )
+        )
+    return failures
+
+
 def report_layer_failures_for_text(relative: Path, text: str) -> list[str]:
     if relative.parent != Path("docs/reports"):
         return []
@@ -549,6 +611,7 @@ def main() -> int:
 
     failures.extend(provenance_contract_failures(repo_root))
     failures.extend(implementation_link_failures(repo_root))
+    failures.extend(implementation_evidence_failures(repo_root))
 
     markdown_files = public_markdown(repo_root)
     for path in markdown_files:

@@ -117,8 +117,8 @@ The implementation pins the corrected 22 April 2022 form of Equation 23:
 M = 43 N_c e_t sqrt(a^2 + b^2)
 ```
 
-A literal test uses a 3-4-5 opponent vector and requires the corrected result
-`215` when `N_c = e_t = 1`.
+For a 3-4-5 opponent vector with `N_c = e_t = 1`, direct substitution gives
+`43 × 1 × 1 × sqrt(3^2 + 4^2) = 215`.
 
 The paper reports the following squared correlations. Preserving the
 colorfulness regression is important because the proposed equations do not

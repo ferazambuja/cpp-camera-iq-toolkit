@@ -6,7 +6,7 @@ one clean matched pair after black-level screening, so the report gives a
 bounded DN-space diagnostic—not a camera specification, photon-transfer curve,
 or electron-calibrated read-noise result.
 
-Date: 2026-07-07
+Analysis date: 2026-07-07
 Dataset: private CLRS-589 Fujifilm X-T100 dark-frame captures. Source RAW files
 are not distributed with this repository.
 

@@ -7,7 +7,7 @@ Fujifilm, Canon, and Nikon files. Negative residuals remain visible and headroom
 is measured against the signal range above black, preventing dark and
 near-clipping behavior from being silently distorted.
 
-Date: 2026-07-02
+Analysis date: 2026-07-02
 Dataset: private local RAW captures: CLRS-589 "Project Camera" for the Fuji
 validation run, plus local Canon CR2 and Nikon NEF files for cross-maker regression.
 Source RAW files are not distributed with this repository.

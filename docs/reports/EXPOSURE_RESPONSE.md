@@ -7,7 +7,7 @@ readiness. Its most important result is negative: a bright sphere sequence that
 looks like an exposure ramp is rejected because its samples sit on a near-white
 plateau and cannot reveal response linearity.
 
-Date: 2026-07-03
+Analysis date: 2026-07-03
 Dataset: private local RAW captures used only for validation. Source RAW files
 are not distributed with this repository.
 
@@ -84,8 +84,9 @@ Result summary:
 
 This run is the important negative control: the ladder is reported, but the
 near-white plateau is not promoted as OECF-candidate-ready. The same readiness
-gate also rejects at/below-black points and heavily clipped points, covered by
-synthetic tests.
+gate also excludes at/below-black points and heavily clipped points; the
+[implementation companion](../implementation/raw-foundation.md) documents its
+synthetic boundary checks.
 
 ### Accepted non-uniform f8 response ladder
 
