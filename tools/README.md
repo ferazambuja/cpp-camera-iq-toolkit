@@ -8,13 +8,25 @@
 - [`generate_spectro_report_figure.py`](generate_spectro_report_figure.py)
   regenerates the measurement-group level/chromaticity figure from the
   committed spectroradiometer aggregate; `--check` verifies freshness.
+- [`generate_gamut_portfolio.py`](generate_gamut_portfolio.py) creates the
+  deterministic 125-point Display-P3 input, runs all four `gamut-map` methods,
+  and regenerates the controlled-comparison SVG. `--check` byte-compares the
+  input and figure, and compares result schemas exactly. Finite numerics use
+  `1e-12` relative/absolute tolerance except angular diagnostics, which allow
+  `1e-5` degrees for platform math-library roundoff.
+- [`generate_cam16_equation_audit.py`](generate_cam16_equation_audit.py) runs
+  the compiled `cam16-equation-audit` command and regenerates its JSON, CSV,
+  and SVG. `--check` keeps schemas and non-numeric fields exact, compares
+  finite JSON/CSV numerics within `1e-12`, and byte-compares the SVG so
+  platform-level math-library roundoff cannot create false staleness.
 - [`export_shading_portfolio.py`](export_shading_portfolio.py) converts ignored
   schema-3 `camera_iq shading` JSON results into the committed 52-frame
   screening and 16 × 12 response tables, validating measured per-position
   headroom and finite-coverage evidence before publication.
 - [`check_portfolio_docs.py`](check_portfolio_docs.py) validates the public
-  Markdown link graph, report-index coverage, and project-centered language
-  rules.
+  Markdown link graph, report-index coverage, project-centered language, and
+  the report-layer provenance relationships needed to interpret public case
+  studies without forcing capture dates into their summaries.
 - [`check_public_paths.sh`](check_public_paths.sh) scans tracked public files
   for machine-specific path leakage.
 - [`check_sample_fixtures.sh`](check_sample_fixtures.sh) keeps committed fixtures

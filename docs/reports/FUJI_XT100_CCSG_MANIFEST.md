@@ -63,12 +63,16 @@ within 0.11, ISO exact). Filename-encoded exposure metadata is trustworthy.
 
 ## Dataset caveats found
 
-1. **Camera-clock dates are not trusted.** EXIF timestamps span 2020-03-09 →
-   2020-03-20 for a archived capture, and the camera clock has no provenance
-   value. Prefer `filesystem_mtime` for local file provenance and deterministic
-   file ordering, but do not call it capture date either because copy tools can
-   preserve mtimes. Use EXIF only for camera controls and rough within-session
-   ordering when independently consistent.
+1. **Camera-clock dates are not capture-date authority.** EXIF timestamps span
+   2020-03-09 → 2020-03-20 for the archived set, but the camera clock was not
+   independently controlled. Filesystem mtimes support local file provenance
+   and deterministic ordering, not capture dating; this retained copy carries
+   2026 mtimes from a later archive transfer. Use EXIF for camera controls and
+   rough within-session ordering only when independently consistent.
+
+   The configured capture year comes from the owner-assigned archival label
+   naming the year and course. The camera timestamps are consistent with that
+   label but are not its authority.
 2. **LibRaw black level needed the `cblack` *tile*, not the scalar** (resolved).
    `color.black` and `cblack[0..3]` are all zero on this camera, but the real
    pedestal lives in LibRaw's repeating black tile: `cblack[4]=2, cblack[5]=2`
@@ -181,7 +185,7 @@ locally. The black-level logic is independently proven in CI by `test_raw_meta`
 - The report contains no color accuracy, noise, PTC, or ΔE calculations.
 - Original project outputs remain comparison-only and are not used as
   correctness oracles.
-- The 2023 capture campaign predates this repository; the repository
+- The course-project capture campaign predates this repository; the repository
   reprocesses the archived RAW files.
 
 ## Relationship to implemented analyses

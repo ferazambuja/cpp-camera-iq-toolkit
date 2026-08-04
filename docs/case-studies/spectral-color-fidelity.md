@@ -13,6 +13,14 @@ ranking sensitivity needed to interpret the result.
 [archive map](../reports/SPECTRAL_ARCHIVE_INVENTORY.md) ·
 [aggregate CSV](../data/spectral_color_fidelity.csv)
 
+The archive combines one four-camera monochromator, camSPECS, and target
+laboratory run with a separate Phase One IQ3 camSPECS session on a different
+rig. The four-camera set retains same-session SSF, broadband target,
+illuminant, and chart-reflectance records; the IQ3 session retains the SSF
+capture but no same-session broadband target or chart reflectance. The analysis
+therefore closes only the evidence-complete set and keeps IQ3 in the SSF-only
+comparison instead of filling the missing physical links by assumption.
+
 ![Five-camera spectral color-fidelity comparison](../figures/spectral_color_fidelity.svg)
 
 ## Problem and relevance
@@ -45,15 +53,15 @@ legacy SSFs for the Nikon D810, Sony A7RII, and Sony A7SII. All four cameras
 matched all 140 patches, with minimum channel correlation above **0.992**. A
 24-patch complementary run held minimum correlation above **0.997**.
 
-Toolkit RAW extractions for the other three 2016 cameras reproduced the
-reported Luther ordering at the shown precision, which checks that the ranking
-is not an artifact of choosing the retained legacy CSVs.
+Toolkit RAW extractions for the other three cameras in the shared run
+reproduced the reported Luther ordering at the shown precision, which checks
+that the ranking is not an artifact of choosing the retained legacy CSVs.
 
 ## Results and engineering decision
 
 The endpoint ordering stayed stable across the Luther residual and all three
 SMI test sets: Canon 5D2 was the closest of the five measured sensitivities to a
-color-matching-function subspace, and the 2017 Phase One IQ3 run was the
+color-matching-function subspace, and the separate Phase One IQ3 run was the
 farthest. Sony A7RII was second across the SMI sets and effectively tied with
 D810 under the Luther residual at published precision. The middle A7SII/D810
 ordering moved by a few tenths under test-set or optimization choices, so it is
@@ -78,9 +86,9 @@ The text illuminant SPD carries no header, but its paired native project records
 `PR-655`. No file identifies the monochromator by make or model, leaving its
 bandwidth, wavelength accuracy, and stray-light behavior uncharacterized. See the
 [archive map](../reports/SPECTRAL_ARCHIVE_INVENTORY.md#instrument-identity-as-the-files-record-it).
-The shared 2016 rig improves within-set comparability but does not make relative
-ordering immune to those systematics; the 2017 Phase One IQ3 session is a
-cross-rig comparison.
+The shared four-camera rig improves within-set comparability but does not make
+relative ordering immune to those systematics; the separate Phase One IQ3
+session is a cross-rig comparison.
 
 ## Code and verification
 

@@ -31,14 +31,16 @@ separates archive observations from manufacturer specifications.
 | Focal length / approximate focus distance | 50 mm / 0.84 m | 50 mm / 0.84 m |
 | Focus mode | AF-S | Manual |
 | `FocusPosition` raw code | `0x11` in all files | `0x11` in all files |
-| Capture time | 2016-12-09 17:53–17:54 | 2016-12-09 18:44–18:48 |
+| Camera-clock window | 2016-12-09 17:53–17:54 | 2016-12-09 18:44–18:48 |
 | Optical low-pass filter | absent | present |
 | Lens serial | not recorded | not recorded |
 
 The constant `FocusPosition` byte records the same opaque maker-note value; it
 does not prove unchanged focus or focus accuracy. No lens serial is recorded,
 so the archive establishes the same lens model, not the same physical sample.
-Captures about 50 minutes apart make a single copy plausible but unverified.
+The windows come from different camera bodies, and no clock-synchronization
+record survives. They support ordering within each sweep but do not establish
+elapsed time between sweeps or a shared physical lens.
 
 Nikon specifies the D800 with an enhanced OLPF and the D810 without an OLPF.
 Both are specified at 35.9 x 24.0 mm and 7360 x 4912 pixels, so their nominal
@@ -196,8 +198,9 @@ Load-bearing findings:
   difference cannot be attributed to optical low-pass filtering alone because
   focus mode, capture/alignment state, and focus accuracy also differ. OLPF
   design is a plausible body-side contributor, but its magnitude is not isolated
-  here. A common lens model and a plausible single copy do not authorize ranking
-  the lens, body, and setup contributions.
+  here. A common lens-model label with no recorded lens serial does not establish
+  a shared lens sample or authorize ranking the lens, body, and setup
+  contributions.
 
 ## Validation
 

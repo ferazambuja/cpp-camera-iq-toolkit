@@ -18,9 +18,14 @@ SPEC.loader.exec_module(DOCS)
 
 
 def matched(text: str) -> bool:
-    return any(
+    raw_match = any(
         pattern.search(text)
         for pattern in {**DOCS.STALE_PATTERNS, **DOCS.INTERNAL_PATTERNS}.values()
+    )
+    normalized = DOCS.normalize_markdown(text)
+    return raw_match or any(
+        pattern.search(normalized)
+        for pattern in DOCS.NORMALIZED_STALE_PATTERNS.values()
     )
 
 
@@ -114,6 +119,22 @@ class PublicationLanguageTests(unittest.TestCase):
             "The earlier blocked conclusion was too broad.",
             "Regenerate artifacts before claiming the table is fully migrated.",
             "The projective grid is not yet approved.",
+            (
+                "Captures about 50 minutes apart make a single copy plausible "
+                "but unverified."
+            ),
+            (
+                "The common lens model and close capture times make a\n"
+                "single lens copy plausible."
+            ),
+            (
+                "The captures were about 50\nminutes apart, suggesting a "
+                "shared physical lens."
+            ),
+            (
+                "The sweeps were under an hour apart, making one lens sample "
+                "likely."
+            ),
             "## Implemented and optional extensions",
             "[Finished SFR/MTF report](SFR_MTF.md)",
             "Finished D800/D810 center, aperture, and field analysis.",
@@ -129,10 +150,63 @@ class PublicationLanguageTests(unittest.TestCase):
             "For the core technical path, start with the documentation index.",
             "## Coverage summary",
             "The archive supports this bounded comparison.",
+            (
+                "The timestamps support ordering within each sweep, but not "
+                "elapsed time between sweeps or a shared physical lens."
+            ),
         ]
         for phrase in phrases:
             with self.subTest(phrase=phrase):
                 self.assertFalse(matched(phrase))
+
+
+class ProvenanceContractTests(unittest.TestCase):
+    def test_current_reports_satisfy_contracts(self) -> None:
+        repo_root = SCRIPT.parent.parent
+        self.assertEqual([], DOCS.provenance_contract_failures(repo_root))
+
+    def test_missing_contract_document_is_reported(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            failures = DOCS.provenance_contract_failures(Path(temp))
+        self.assertTrue(
+            any("missing provenance contract document" in item for item in failures)
+        )
+
+    def test_each_contract_detects_its_marker_removal(self) -> None:
+        repo_root = SCRIPT.parent.parent
+        for relative, requirements in DOCS.PROVENANCE_CONTRACTS.items():
+            text = DOCS.normalize_markdown(
+                (repo_root / relative).read_text(encoding="utf-8")
+            )
+            for label, pattern in requirements:
+                with self.subTest(path=relative, label=label):
+                    self.assertIsNotNone(pattern.search(text))
+                    mutated = pattern.sub("", text)
+                    failures = DOCS.provenance_contract_failures_for_text(
+                        relative, mutated
+                    )
+                    self.assertTrue(
+                        any(label in failure for failure in failures), failures
+                    )
+
+    def test_sfr_contract_allows_date_correction(self) -> None:
+        relative = Path("docs/reports/SFR_MTF.md")
+        text = (SCRIPT.parent.parent / relative).read_text(encoding="utf-8")
+        mutated = text.replace("2016-12-09", "2035-01-02")
+        self.assertEqual(
+            [], DOCS.provenance_contract_failures_for_text(relative, mutated)
+        )
+
+    def test_wrapped_clock_boundary_is_detected(self) -> None:
+        relative = Path("docs/reports/SFR_MTF.md")
+        text = (SCRIPT.parent.parent / relative).read_text(encoding="utf-8")
+        wrapped = text.replace(
+            "different camera bodies, and no clock-synchronization record survives",
+            "different camera bodies, and no clock-synchronization\nrecord survives",
+        )
+        self.assertEqual(
+            [], DOCS.provenance_contract_failures_for_text(relative, wrapped)
+        )
 
 
 class HeadingAnchorTests(unittest.TestCase):

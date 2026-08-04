@@ -7,6 +7,14 @@ measurement groups and reports absolute level, normalized spectral shape, and
 recorded-XYZ chromaticity as separate quantities. Thirty-seven groups contain
 two or three measurements; three are singletons.
 
+The retained archive includes spectra, recorded XYZ, `totalRadiance`, CCT, Duv,
+and acquisition fields, but not the complete physical setup, geometry,
+integration time, or instrument configuration. Rather than infer those missing
+conditions, the implementation resolves duplicate aliases by content hash and
+reports level, shape, chromaticity, and numerical closure separately. This
+makes the surviving measurement record useful without assigning a cause that
+the archive cannot support.
+
 [Documentation index](../README.md) ·
 [detailed report](../reports/SPECTRORADIOMETER_INGEST.md) ·
 [aggregate CSV](../data/spectro_group_summary.csv) ·

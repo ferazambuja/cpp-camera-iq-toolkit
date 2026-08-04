@@ -75,12 +75,17 @@ are intentionally omitted from public documentation.
 | Focus mode | AF-S | Manual | EXIF |
 | `FocusPosition` | raw code `0x11` in all files | raw code `0x11` in all files | Opaque 8-bit maker-note value; no physical calibration claimed |
 | ISO | 100 | 100 | EXIF |
-| Capture window | 2016-12-09 17:53:04–17:54:56 | 2016-12-09 18:44:53–18:48:48 | Camera-local timestamps |
+| Camera-clock window | 2016-12-09 17:53:04–17:54:56 | 2016-12-09 18:44:53–18:48:48 | Camera-local timestamps |
 
 The matching focus-position code is retained as a metadata observation only.
 ExifTool documents Nikon `FocusPosition` as an 8-bit field and warns that the
 related `FocusDistance` is approximate and inaccurate for some lenses; neither
 field proves unchanged focus or focus accuracy.
+
+The two sweeps come from different camera bodies, and the archive retains no
+record that their clocks were synchronized. The camera-clock windows support
+ordering within each sweep and are consistent with the session folders; their
+apparent separation does not establish elapsed time between sweeps.
 
 Manufacturer specifications are a separate evidence layer. Nikon describes
 the [D800](https://www.nikonusa.com/press-room/expectations-surpassed-the-36)

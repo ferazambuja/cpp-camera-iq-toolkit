@@ -1,6 +1,6 @@
 # Camera IQ Technical Coverage Map
 
-Last reviewed: 2026-07-31<br>
+Last reviewed: 2026-08-03<br>
 Evidence basis: the implementation, tests, reports, aggregate tables, and
 archive inventories in this repository.
 
@@ -14,6 +14,10 @@ supported by the available image archives:
 - RAW front-end and CFA statistics.
 - Patch extraction, chart reference provenance, CCM fitting, and Delta E color
   accuracy.
+- Ideal Display-P3/sRGB conversion, CIELAB and OkLCh destination-boundary
+  analysis, dated Local MINDE, and an experimental protected-core method.
+- Directional CIE94 plus a separately named historical convention, and a
+  bounded CIECAM02/CAM16 equation audit.
 - Camera spectral sensitivity, physical closure, Luther/SMI color-fidelity
   ranking, and archive provenance.
 - Tone/OECF/linearity from CLRS exposure series and Nikon D800 Stepchart oracle
@@ -41,6 +45,7 @@ Current CLI verbs:
 | Dataset and RAW front-end | `manifest`, `raw-stats`, `demosaic` |
 | Dark/noise/tone | `dark-calibration`, `noise`, `exposure-response`, `oecf-fit`, `oecf-stepchart` |
 | Color chart workflow | `reference-info`, `patches`, `ccm-fit` |
+| Color-space, gamut, and equation audit | `gamut-map`, `cam16-equation-audit` |
 | Spectral workflow | `spectral-response`, `spectral-closure`, `spectral-quality`, `spectral-smi`, `spectro-ingest` |
 | Sharpness and spatial response | `sfr`, `shading` |
 
@@ -58,7 +63,9 @@ locations.
 | ColorChecker-SG reference provenance | Covered | [SG provenance](SG_REFERENCE_PROVENANCE.md) | Spectral reference inventory, X-Rite verification, orientation/layout checks. | Not a measured per-unit CLRS-589 SG reference. |
 | RAW patch extraction | Covered | [Patch extraction](PATCH_EXTRACTION.md) | RawDigger coordinate extraction, flat-field/WB correction, CSV handoff to CCM, orientation checks. | RawDigger-independent replacement remains constrained by localization diagnostics. |
 | RAW chart localization | Partial but bounded | [Localization](RAW_CHART_LOCALIZATION.md) | Projective grid geometry, CLI corner input, residual diagnostics, de-biased detector arbitration. | Final RawDigger replacement stayed unresolved for the centered capture; detector was too unstable to arbitrate. |
-| Color accuracy / CCM / Delta E | Covered | [CCM fit](CCM_FIT.md), [patch extraction](PATCH_EXTRACTION.md) | Linear RGB-to-XYZ CCM, held-out diagnostics, dark-patch exclusion experiments, Delta E 76/2000 handling. | Root-polynomial or more flexible models deferred until held-out improvement is proven. |
+| Color accuracy / CCM / Delta E | Covered | [CCM fit](CCM_FIT.md), [patch extraction](PATCH_EXTRACTION.md), [equation audit](CAM16_EQUATION_AUDIT.md) | Linear RGB-to-XYZ CCM, held-out diagnostics, dark-patch exclusion experiments, Delta E 76/2000, directional CIE94, and a separately named geometric-mean-chroma historical variant. | Root-polynomial or more flexible models deferred until held-out improvement is proven; the historical CIE94 tool and full-precision inputs were not retained. |
+| RGB encoding-gamut mapping | Covered for ideal sRGB and Display-P3 encodings | [Gamut mapping](GAMUT_MAPPING.md) | Typed encoded/linear transforms, W3C sample-code matrices, analytic CIELAB/OkLCh channel-boundary roots, radial clipping, a dated CSS Local-MINDE option, experimental protected-core compression, JSON/CSV output, and deterministic figures. | Not a measured display/printer gamut, spatial image-rendering study, or observer validation; the CSS draft is work in progress; arbitrary ICC profiles remain outside this method. |
+| CAM16 equation behavior | Covered as a bounded numerical audit | [CAM16 equation audit](CAM16_EQUATION_AUDIT.md) | Normalized brightness relation, isolated `N_cb^0.9` factor, fixed-response complete chroma-expression sweep, corrected Hellwig/Fairchild Equation 23 coefficient, published performance tradeoff, CLI output, and deterministic figure. | Not a general CAM16 forward transform, complete Hellwig implementation, CIE 248:2022 conformance test, appearance prediction, or observer validation. |
 | Spectral sensitivity extraction | Covered deeply | [Spectral report](SPECTRAL_SENSITIVITY.md), [archive map](SPECTRAL_ARCHIVE_INVENTORY.md) | C++ RAW extraction from monochromator sweeps, legacy-fidelity comparison, five-camera SSF inventory. | Legacy CSVs are fidelity checks, not correctness oracles. |
 | Spectral physical closure | Covered | [Spectral report](SPECTRAL_SENSITIVITY.md), [archive map](SPECTRAL_ARCHIVE_INVENTORY.md) | SG-140 and CC-24 physical closure for Canon/Nikon/Sony 2016 cameras using measured illuminant and reflectance. | Phase One IQ3 has SSF but no same-session broadband closure target. |
 | Spectral color-fidelity ranking | Covered | [Spectral report](SPECTRAL_SENSITIVITY.md) | Luther residuals and ISO-style SMI over SG-140, CC-24, and CC-18; D55 primary; white-preserving sensitivity bound. | Not claimed bit-exact to paywalled ISO Annex B. |

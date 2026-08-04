@@ -2,14 +2,17 @@
 
 ## Overview
 
-This study applies a green-linear slanted-edge SFR pipeline to two archived
-50 mm aperture sweeps, one with a D800 and one with a D810. Slanted-edge SFR
-measures a whole capture system — lens, aperture,
-focus and alignment state, OLPF, sensor sampling, and processing path — so every
-result below belongs to a capture system, not to a camera body or a lens alone.
-All 299 field ROIs were accepted. The result is not a universal lens rule: the
-D810 system showed a strong f/5.6 peak, while the D800 system retained a
-different aperture trend and off-axis pattern.
+All 299 field ROIs were accepted; the D810 system showed a strong f/5.6 peak,
+while the D800 retained a different aperture trend and off-axis pattern. A
+center-only MTF value can hide field tilt, decentering, corner behavior, or
+capture-specific focus, so the engineering question was two-part: does the
+center response follow a physically plausible aperture trend, and does that
+trend transfer across capture systems and across the image field? This study
+applies a green-linear slanted-edge SFR pipeline to two archived 50 mm aperture
+sweeps, one with a D800 and one with a D810. Slanted-edge SFR measures a whole
+capture system — lens, aperture, focus and alignment state, OLPF, sensor
+sampling, and processing path — so every result below belongs to a capture
+system, not to a camera body or a lens alone.
 
 [Documentation index](../README.md) ·
 [detailed report](../reports/SFR_MTF.md) ·
@@ -17,20 +20,6 @@ different aperture trend and off-axis pattern.
 [aggregate CSV](../data/sfr_aperture_summary.csv)
 
 ![Nikon D800 and D810 SFR aperture and field summary](../figures/sfr_aperture_field.svg)
-
-## Problem and relevance
-
-A center-only MTF value can hide field tilt, decentering, corner behavior, or
-capture-specific focus. The engineering question was therefore two-part:
-
-1. Does the center response follow a physically plausible aperture trend?
-2. Does that trend transfer across capture systems and across the image field?
-
-![Reduced crop showing slanted-edge regions distributed across the SFR target](../images/sfr-field-target.jpg)
-
-*Illustrative crop from the source test capture. The implementation measures
-sensor-linear green samples inside selected edge regions; this reduced image is
-not an analysis input.*
 
 ## Technical approach
 
@@ -57,6 +46,19 @@ per-file result tables. Source captures remain outside Git. Imatest values are
 an advisory fidelity reference because its luma/gamma pipeline differs from the
 toolkit's sensor-linear green path.
 
+The archive retains both RAW sweeps and one matched per-file advisory batch
+generated after capture. It does not retain lens serial identity, controlled
+refocusing, repeat captures, or sagittal/tangential coverage. The study
+therefore treats the advisory values as a cross-check, reports
+capture-system-specific trends, and does not turn the common lens-model label
+into a universal body or lens rule.
+
+![Reduced crop showing slanted-edge regions distributed across the SFR target](../images/sfr-field-target.jpg)
+
+*Illustrative crop from the source test capture. The implementation measures
+sensor-linear green samples inside selected edge regions; this reduced image is
+not an analysis input.*
+
 ### Recorded capture configuration
 
 All 18 aperture-sweep files record the same AF-S Nikkor 50mm f/1.4G lens
@@ -70,15 +72,15 @@ The two sets differ in ways that matter:
 | Files audited | 9/9 | 9/9 |
 | Focus mode | AF-S | Manual |
 | `FocusPosition` raw code | `0x11` in all files | `0x11` in all files |
-| Capture time | 2016-12-09 17:53–17:54 | 2016-12-09 18:44–18:48 |
 | Optical low-pass filter | absent | present |
 
 `FocusPosition` is an opaque maker-note code, and ExifTool identifies the
 related focus distance as approximate. Its constant value documents metadata
 consistency; it does not prove unchanged focus or focus accuracy. The lens
 serial number is absent, so the archive proves the same lens model, not the same
-physical sample. Captures about 50 minutes apart make a single copy plausible
-but unverified.
+physical sample. The timestamps come from different camera clocks with no
+retained synchronization record, so they support ordering within each sweep but
+not elapsed time between sweeps or a shared physical lens.
 
 Nikon specifies the D800 with an enhanced OLPF and the D810 without an OLPF;
 both are specified at 35.9 x 24.0 mm and 7360 x 4912 pixels. Their nominal
@@ -160,9 +162,10 @@ SFR, not rendered-Y equivalence.
 The D800/D810 gap cannot be attributed to one component. Their OLPF designs
 differ, which is a plausible body-side contribution, but this archive does not
 isolate its magnitude. Focus mode, capture/alignment state, and unverified focus
-accuracy also differ. The common lens model and close capture times make a
-single lens copy plausible, not proven, and do not authorize ranking lens,
-body, or setup contributions.
+accuracy also differ. The common lens-model label does not establish a shared
+lens sample, and the unsynchronized camera clocks add no physical-identity
+evidence. The result therefore does not rank lens, body, or setup
+contributions.
 
 ## Code and verification
 

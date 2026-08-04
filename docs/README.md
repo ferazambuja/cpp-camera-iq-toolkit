@@ -44,12 +44,13 @@ needed to interpret the ordering.
 [implementation](../src/spectro_ingest.cpp) ·
 [tests](../tests/test_spectro_ingest.cpp)
 
-The command verifies exact file identities, parses 89 distinct readings, and
-reports absolute level, normalized spectral shape, recorded-XYZ chromaticity,
-and same-record numerical closure without assigning an unsupported physical
-cause to within-group variation. An independent MATLAB R2026a export matched
-all 89 readings, including ledger-bound source-file identities and exact hashes
-for 178 numeric vectors.
+Across the 37 multi-reading groups, spectral-integral CV was `7.17%` median and
+`41.65%` maximum, while normalized-shape and chromaticity variation remained
+separate results. The command verifies exact file identities and parses 89
+distinct readings without assigning an unsupported physical cause to the
+variation. An independent MATLAB R2026a export matched all 89 readings,
+including ledger-bound source-file identities and exact hashes for 178 numeric
+vectors.
 
 ### ColorChecker extraction and CCM validation
 
@@ -80,6 +81,43 @@ model for the measured composite field, while missing source- and
 camera-rotation controls prevented lens-only attribution. The
 [CCM path](reports/CCM_FIT.md) applies the same source-CFA,
 per-position screening to its correction flat.
+
+### Display-P3 to sRGB gamut mapping
+
+[Case study](case-studies/gamut-mapping.md) ·
+[CIELAB-radial data](data/gamut_synthetic_radial.csv) ·
+[OkLCh-radial data](data/gamut_synthetic_oklch_radial.csv) ·
+[CSS Local-MINDE data](data/gamut_synthetic_css_local_minde.csv) ·
+[soft-compression data](data/gamut_synthetic_soft.csv) ·
+[detailed report](reports/GAMUT_MAPPING.md) ·
+[implementation](../src/gamut_mapping.cpp) ·
+[tests](../tests/test_gamut_mapping.cpp)
+
+This study uses deterministic synthetic input rather than camera or display
+measurements. On a 125-point cube, changing only the radial coordinates from
+CIELAB to OkLCh reduced P3-yellow CIEDE2000 from `23.928` to `5.523` and the
+grid maximum from `23.928` to `9.956`, while raising the grid mean from `2.857`
+to `2.947` and moving the worst point to red. Changing only the OkLCh algorithm
+to Local MINDE then reduced the grid mean to `2.323` and the maximum to
+`7.602`. The C++ transform compares CIELAB and OkLCh radial
+mapping, a dated CSS Color 4 Local-MINDE method, and an experimental soft knee.
+
+### Color-model equation audit
+
+[Case study](case-studies/color-model-equation-audit.md) ·
+[data](data/cam16_equation_audit.csv) ·
+[figure](figures/cam16_equation_audit.svg) ·
+[detailed report](reports/CAM16_EQUATION_AUDIT.md) ·
+[implementation](../src/cam16_equation_audit.cpp) ·
+[tests](../tests/test_cam16_equation_audit.cpp)
+
+The audit reproduced half normalized brightness at `J = 25` versus half
+lightness at `J = 50`. At `Y_background = 0.1`, the isolated `N_cb^0.9` factor
+is `2.595`, while the complete chroma expression spans `2.120–2.687` across
+reference `J = 10…90`; the isolated term is not a bound. The audit also retains
+a published colorfulness `R²` decrease from `0.81` to `0.71`, pins the corrected
+2022 Equation 23 coefficient, and makes CIE94 directionality explicit. It is
+not presented as a general appearance-model implementation.
 
 ## Validation decisions
 
@@ -113,6 +151,8 @@ per-position screening to its correction flat.
 | [RAW patch extraction](reports/PATCH_EXTRACTION.md) | 140-patch extraction, flat-field/WB policy, and reference-tool comparison |
 | [RAW chart localization](reports/RAW_CHART_LOCALIZATION.md) | Retained negative result and model-comparison diagnostics |
 | [CCM fit](reports/CCM_FIT.md) | Linear CCM, held-out Delta E, and dark-patch policy |
+| [Display-P3 to sRGB gamut mapping](reports/GAMUT_MAPPING.md) | Typed RGB/XYZ/Lab/OkLab transforms, analytic radial boundaries, dated Local MINDE, and an experimental soft knee |
+| [CAM16 equation audit and CIE94 continuity check](reports/CAM16_EQUATION_AUDIT.md) | Bounded equation behavior, corrected coefficient, published tradeoff, and explicit CIE94 conventions |
 
 ### Spectral characterization
 
@@ -154,6 +194,9 @@ method reports. The aggregate figures can be rebuilt with:
 ```bash
 python3 tools/generate_portfolio_figures.py
 python3 tools/generate_portfolio_figures.py --check
+python3 tools/generate_gamut_portfolio.py --camera-iq build/camera_iq --check
+python3 tools/generate_cam16_equation_audit.py \
+  --camera-iq build/camera_iq --check
 ```
 
 Selected method pages also include

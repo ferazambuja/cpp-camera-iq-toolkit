@@ -64,3 +64,28 @@ jobs:
         env:
           UBSAN_OPTIONS: print_stacktrace=1:halt_on_error=1
         run: ctest --test-dir build-ubsan --output-on-failure
+
+  lcms-reference-cross-check:
+    name: lcms-reference-cross-check (gcc)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Install dependencies
+        run: >-
+          sudo apt-get update &&
+          sudo apt-get install -y g++ libraw-dev liblcms2-dev pkg-config
+
+      - name: Configure with LittleCMS reference checks
+        env:
+          CXX: g++
+        run: >-
+          cmake -S . -B build-lcms
+          -DCMAKE_BUILD_TYPE=Release
+          -DCAMERA_IQ_ENABLE_LCMS=ON
+
+      - name: Build
+        run: cmake --build build-lcms --parallel
+
+      - name: Test
+        run: ctest --test-dir build-lcms --output-on-failure

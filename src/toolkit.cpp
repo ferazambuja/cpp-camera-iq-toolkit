@@ -42,6 +42,10 @@ void print_usage() {
       "              Inspect configured ColorChecker spectral reference metadata\n"
       "  ccm-fit\n"
       "              Fit a linear RGB-to-XYZ CCM against a spectral SG reference\n"
+      "  gamut-map\n"
+      "              Map encoded RGB samples between declared RGB gamuts\n"
+      "  cam16-equation-audit\n"
+      "              Reproduce bounded Hellwig/Fairchild equation diagnostics\n"
       "  spectral-response\n"
       "  spectral-closure\n"
       "  spectral-quality\n"
@@ -110,6 +114,12 @@ int run(int argc, char** argv) {
   }
   if (arg == "ccm-fit") {
     return cmd_ccm_fit(argc - 2, argv + 2);
+  }
+  if (arg == "gamut-map") {
+    return cmd_gamut_map(argc - 2, argv + 2);
+  }
+  if (arg == "cam16-equation-audit") {
+    return cmd_cam16_equation_audit(argc - 2, argv + 2);
   }
   if (arg == "spectral-response") {
     return cmd_spectral_response(argc - 2, argv + 2);

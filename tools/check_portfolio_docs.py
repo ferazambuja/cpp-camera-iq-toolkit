@@ -19,6 +19,8 @@ REQUIRED_PROJECT_DOCUMENTS = (
     Path("docs/case-studies/colorchecker-ccm.md"),
     Path("docs/case-studies/cfa-flat-field-response.md"),
     Path("docs/case-studies/spectroradiometer-ingest.md"),
+    Path("docs/case-studies/gamut-mapping.md"),
+    Path("docs/case-studies/color-model-equation-audit.md"),
 )
 STALE_PATTERNS = {
     "obsolete CTest count": re.compile(r"\b16/16 CTest tests\b"),
@@ -112,6 +114,142 @@ INTERNAL_PATTERNS = {
     "internal DF identifier": re.compile(r"\bDF-\d+\b"),
 }
 
+# Prose-only tripwires are evaluated after whitespace normalization so ordinary
+# Markdown wrapping cannot hide a known semantic regression. Heading, table,
+# and line-structure checks remain in STALE_PATTERNS and are not normalized.
+NORMALIZED_STALE_PATTERNS = {
+    "unsupported cross-camera time-to-lens inference": re.compile(
+        r"(?:"
+        r"\b(?:captures?|sweeps?)\b.{0,80}"
+        r"\b(?:under|within|about|approximately|less than)\b.{0,50}"
+        r"\b(?:hours?|minutes?)\b|"
+        r"\b(?:close|nearby)\s+(?:capture\s+)?"
+        r"(?:times?|timestamps?|windows?)\b"
+        r")"
+        r".{0,100}\b(?:mak(?:e|es|ing)|suggest(?:s|ed|ing)?|"
+        r"support(?:s|ed|ing)?|indicat(?:e|es|ed|ing)|"
+        r"impl(?:y|ies|ied|ying))\b"
+        r".{0,80}\b(?:same|single|shared|one)\s+"
+        r"(?:physical\s+)?(?:lens|copy|sample)\b",
+        re.IGNORECASE,
+    ),
+}
+
+# Public case studies can omit nonessential dates, but their technical reports
+# must retain the evidence relationships needed to interpret the measurements.
+# These checks protect source classification and session identity rather than
+# treating the presence of date-shaped text as proof of provenance.
+PROVENANCE_CONTRACTS = {
+    Path("docs/case-studies/sfr-mtf-aperture-field.md"): (
+        (
+            "case-study cross-body clock boundary",
+            re.compile(
+                r"(?:timestamps|camera clocks).{0,100}"
+                r"(?:no|without).{0,60}synchronization",
+                re.IGNORECASE,
+            ),
+        ),
+        (
+            "case-study elapsed-time and lens-identity boundary",
+            re.compile(
+                r"(?:not|do not|does not|cannot).{0,50}elapsed time.{0,80}"
+                r"(?:shared|same).{0,40}(?:physical\s+)?lens",
+                re.IGNORECASE,
+            ),
+        ),
+    ),
+    Path("docs/reports/SFR_MTF.md"): (
+        (
+            "per-body camera-clock windows",
+            re.compile(
+                r"\|\s*Camera-clock window\s*\|"
+                r"(?=[^|]*\d{1,2}:\d{2})[^|]+\|"
+                r"(?=[^|]*\d{1,2}:\d{2})[^|]+\|",
+                re.IGNORECASE,
+            ),
+        ),
+        (
+            "cross-body clock synchronization boundary",
+            re.compile(
+                r"different camera bodies.{0,100}no clock-synchronization "
+                r"record survives",
+                re.IGNORECASE,
+            ),
+        ),
+        (
+            "capture versus advisory-run date distinction",
+            re.compile(r"run date, not the capture date", re.IGNORECASE),
+        ),
+    ),
+    Path("docs/reports/SFR_MTF_ARCHIVE_INVENTORY.md"): (
+        (
+            "camera-local timestamp classification",
+            re.compile(
+                r"\|\s*Camera-clock window\s*\|[^|]+\|[^|]+\|"
+                r"\s*Camera-local timestamps\s*\|",
+                re.IGNORECASE,
+            ),
+        ),
+        (
+            "archive clock-synchronization boundary",
+            re.compile(
+                r"different camera bodies.{0,120}no record that their clocks "
+                r"were synchronized",
+                re.IGNORECASE,
+            ),
+        ),
+    ),
+    Path("docs/reports/SPECTRAL_ARCHIVE_INVENTORY.md"): (
+        (
+            "canonical four-camera archive identity",
+            re.compile(r"`archive:2016_Monochromator/`"),
+        ),
+        (
+            "separate IQ3 archive identity",
+            re.compile(r"`archive:2017_camspec/`"),
+        ),
+        (
+            "same-session SSF and target pairing",
+            re.compile(r"same-session SSF\+capture pairing", re.IGNORECASE),
+        ),
+        (
+            "separate-rig IQ3 relationship",
+            re.compile(r"distinct rig and timeline", re.IGNORECASE),
+        ),
+    ),
+    Path("docs/reports/CCM_FIT.md"): (
+        (
+            "capture/reference timeline separation",
+            re.compile(r"cross-timeline by design", re.IGNORECASE),
+        ),
+        (
+            "serialized timeline provenance",
+            re.compile(r"`timeline_provenance`"),
+        ),
+        (
+            "compatible-reference scope",
+            re.compile(r"`compatible_sg_spectral_not_exact_per_unit`"),
+        ),
+    ),
+    Path("docs/case-studies/color-model-equation-audit.md"): (
+        (
+            "historical CIE94 role",
+            re.compile(
+                r"CIE94 appears here to preserve and test that prior result",
+                re.IGNORECASE,
+            ),
+        ),
+        (
+            "CIE94 versus CIEDE2000 scale boundary",
+            re.compile(
+                r"two metrics use different scales and are not compared "
+                r"numerically",
+                re.IGNORECASE,
+            ),
+        ),
+    ),
+}
+
 
 def public_markdown(repo_root: Path) -> list[Path]:
     result = subprocess.run(
@@ -130,6 +268,35 @@ def public_markdown(repo_root: Path) -> list[Path]:
     paths.add(repo_root / "README.md")
     paths.update((repo_root / "docs").rglob("*.md"))
     return sorted(paths)
+
+
+def normalize_markdown(text: str) -> str:
+    """Collapse prose wrapping without combining separate documents."""
+    return re.sub(r"\s+", " ", text).strip()
+
+
+def provenance_contract_failures_for_text(relative: Path, text: str) -> list[str]:
+    normalized = normalize_markdown(text)
+    return [
+        f"missing provenance contract ({label}): {relative}"
+        for label, pattern in PROVENANCE_CONTRACTS.get(relative, ())
+        if not pattern.search(normalized)
+    ]
+
+
+def provenance_contract_failures(repo_root: Path) -> list[str]:
+    failures: list[str] = []
+    for relative in PROVENANCE_CONTRACTS:
+        path = repo_root / relative
+        if not path.is_file():
+            failures.append(f"missing provenance contract document: {relative}")
+            continue
+        failures.extend(
+            provenance_contract_failures_for_text(
+                relative, path.read_text(encoding="utf-8")
+            )
+        )
+    return failures
 
 
 def link_target(raw: str) -> str:
@@ -218,6 +385,8 @@ def main() -> int:
                 f"missing required project document: {path.relative_to(repo_root)}"
             )
 
+    failures.extend(provenance_contract_failures(repo_root))
+
     markdown_files = public_markdown(repo_root)
     for path in markdown_files:
         text = path.read_text(encoding="utf-8")
@@ -239,6 +408,10 @@ def main() -> int:
         if path == repo_root / "README.md" or repo_root / "docs" in path.parents:
             for label, pattern in {**STALE_PATTERNS, **INTERNAL_PATTERNS}.items():
                 if pattern.search(text):
+                    failures.append(f"{label}: {path.relative_to(repo_root)}")
+            normalized = normalize_markdown(text)
+            for label, pattern in NORMALIZED_STALE_PATTERNS.items():
+                if pattern.search(normalized):
                     failures.append(f"{label}: {path.relative_to(repo_root)}")
 
     index_path = repo_root / "docs" / "README.md"

@@ -131,6 +131,12 @@ double lab_f(double t) {
   return (kappa * t + 16.0) / 116.0;
 }
 
+double lab_f_inverse(double t) {
+  constexpr double delta = 6.0 / 29.0;
+  if (t > delta) return t * t * t;
+  return 3.0 * delta * delta * (t - 4.0 / 29.0);
+}
+
 double delta_e_76(const Lab& a, const Lab& b) {
   const double dl = a.l - b.l;
   const double da = a.a - b.a;
@@ -407,8 +413,14 @@ RenderedReference render_reference_xyz(const SpectralReference& ref,
 }
 
 Lab xyz_to_lab(const Xyz& xyz, const Xyz& white) {
-  if (white.x <= 0 || white.y <= 0 || white.z <= 0) {
-    throw std::runtime_error("Lab: white XYZ must be positive");
+  if (!std::isfinite(xyz.x) || !std::isfinite(xyz.y) ||
+      !std::isfinite(xyz.z)) {
+    throw std::runtime_error("Lab: XYZ values must be finite");
+  }
+  if (!std::isfinite(white.x) || !std::isfinite(white.y) ||
+      !std::isfinite(white.z) || white.x <= 0 || white.y <= 0 ||
+      white.z <= 0) {
+    throw std::runtime_error("Lab: white XYZ must be finite and positive");
   }
   const double fx = lab_f(xyz.x / white.x);
   const double fy = lab_f(xyz.y / white.y);
@@ -418,6 +430,253 @@ Lab xyz_to_lab(const Xyz& xyz, const Xyz& white) {
   out.a = 500.0 * (fx - fy);
   out.b = 200.0 * (fy - fz);
   return out;
+}
+
+Xyz lab_to_xyz(const Lab& lab, const Xyz& white) {
+  if (!std::isfinite(lab.l) || !std::isfinite(lab.a) ||
+      !std::isfinite(lab.b)) {
+    throw std::runtime_error("Lab inverse: Lab values must be finite");
+  }
+  if (!std::isfinite(white.x) || !std::isfinite(white.y) ||
+      !std::isfinite(white.z) || white.x <= 0 || white.y <= 0 ||
+      white.z <= 0) {
+    throw std::runtime_error("Lab inverse: white XYZ must be finite and positive");
+  }
+
+  const double fy = (lab.l + 16.0) / 116.0;
+  const double fx = fy + lab.a / 500.0;
+  const double fz = fy - lab.b / 200.0;
+  return {white.x * lab_f_inverse(fx), white.y * lab_f_inverse(fy),
+          white.z * lab_f_inverse(fz)};
+}
+
+Ipt xyz_d65_to_ipt(const Xyz& xyz) {
+  if (!std::isfinite(xyz.x) || !std::isfinite(xyz.y) ||
+      !std::isfinite(xyz.z)) {
+    throw std::runtime_error("IPT: XYZ values must be finite");
+  }
+
+  const std::array<double, 3> lms = {
+      0.4002 * xyz.x + 0.7075 * xyz.y - 0.0807 * xyz.z,
+      -0.2280 * xyz.x + 1.1500 * xyz.y + 0.0612 * xyz.z,
+      0.9184 * xyz.z,
+  };
+  if (!std::isfinite(lms[0]) || !std::isfinite(lms[1]) ||
+      !std::isfinite(lms[2])) {
+    throw std::runtime_error("IPT: LMS transform overflow");
+  }
+  std::array<double, 3> response{};
+  for (std::size_t i = 0; i < response.size(); ++i) {
+    response[i] = std::copysign(std::pow(std::abs(lms[i]), 0.43), lms[i]);
+  }
+  const Ipt result{
+      0.4000 * response[0] + 0.4000 * response[1] +
+          0.2000 * response[2],
+      4.4550 * response[0] - 4.8510 * response[1] +
+          0.3960 * response[2],
+      0.8056 * response[0] + 0.3572 * response[1] -
+          1.1628 * response[2],
+  };
+  if (!std::isfinite(result.i) || !std::isfinite(result.p) ||
+      !std::isfinite(result.t)) {
+    throw std::runtime_error("IPT: output overflow");
+  }
+  return result;
+}
+
+Oklab xyz_d65_to_oklab(const Xyz& xyz) {
+  if (!std::isfinite(xyz.x) || !std::isfinite(xyz.y) ||
+      !std::isfinite(xyz.z)) {
+    throw std::runtime_error("OkLab: XYZ must be finite");
+  }
+
+  // W3C CSS Color 4 Candidate Recommendation Draft 2026-07-28,
+  // sample conversion code with matrices recalculated for a consistent D65
+  // reference white and 64-bit precision.
+  const std::array<double, 3> lms = {
+      0.8190224379967030 * xyz.x + 0.3619062600528904 * xyz.y -
+          0.1288737815209879 * xyz.z,
+      0.0329836539323885 * xyz.x + 0.9292868615863434 * xyz.y +
+          0.0361446663506424 * xyz.z,
+      0.0481771893596242 * xyz.x + 0.2642395317527308 * xyz.y +
+          0.6335478284694309 * xyz.z,
+  };
+  if (!std::isfinite(lms[0]) || !std::isfinite(lms[1]) ||
+      !std::isfinite(lms[2])) {
+    throw std::runtime_error("OkLab: XYZ to LMS overflow");
+  }
+  const std::array<double, 3> nonlinear = {
+      std::cbrt(lms[0]), std::cbrt(lms[1]), std::cbrt(lms[2])};
+  const Oklab result{
+      0.2104542683093140 * nonlinear[0] +
+          0.7936177747023054 * nonlinear[1] -
+          0.0040720430116193 * nonlinear[2],
+      1.9779985324311684 * nonlinear[0] -
+          2.4285922420485799 * nonlinear[1] +
+          0.4505937096174110 * nonlinear[2],
+      0.0259040424655478 * nonlinear[0] +
+          0.7827717124575296 * nonlinear[1] -
+          0.8086757549230774 * nonlinear[2],
+  };
+  if (!std::isfinite(result.l) || !std::isfinite(result.a) ||
+      !std::isfinite(result.b)) {
+    throw std::runtime_error("OkLab: output overflow");
+  }
+  return result;
+}
+
+Xyz oklab_to_xyz_d65(const Oklab& oklab) {
+  if (!std::isfinite(oklab.l) || !std::isfinite(oklab.a) ||
+      !std::isfinite(oklab.b)) {
+    throw std::runtime_error("OkLab inverse: components must be finite");
+  }
+  const std::array<double, 3> lms_nonlinear = {
+      oklab.l + 0.3963377773761749 * oklab.a +
+          0.2158037573099136 * oklab.b,
+      oklab.l - 0.1055613458156586 * oklab.a -
+          0.0638541728258133 * oklab.b,
+      oklab.l - 0.0894841775298119 * oklab.a -
+          1.2914855480194092 * oklab.b,
+  };
+  const std::array<double, 3> lms = {
+      lms_nonlinear[0] * lms_nonlinear[0] * lms_nonlinear[0],
+      lms_nonlinear[1] * lms_nonlinear[1] * lms_nonlinear[1],
+      lms_nonlinear[2] * lms_nonlinear[2] * lms_nonlinear[2],
+  };
+  const Xyz result{
+      1.2268798758459243 * lms[0] - 0.5578149944602171 * lms[1] +
+          0.2813910456659647 * lms[2],
+      -0.0405757452148008 * lms[0] + 1.1122868032803170 * lms[1] -
+          0.0717110580655164 * lms[2],
+      -0.0763729366746601 * lms[0] - 0.4214933324022432 * lms[1] +
+          1.5869240198367816 * lms[2],
+  };
+  if (!std::isfinite(result.x) || !std::isfinite(result.y) ||
+      !std::isfinite(result.z)) {
+    throw std::runtime_error("OkLab inverse: output overflow");
+  }
+  return result;
+}
+
+Oklch oklab_to_oklch(const Oklab& oklab) {
+  if (!std::isfinite(oklab.l) || !std::isfinite(oklab.a) ||
+      !std::isfinite(oklab.b)) {
+    throw std::runtime_error("OkLCh: OkLab components must be finite");
+  }
+  constexpr double powerless_chroma = 0.000004;
+  const double chroma = std::hypot(oklab.a, oklab.b);
+  if (!std::isfinite(chroma)) {
+    throw std::runtime_error("OkLCh: chroma overflow");
+  }
+  if (chroma <= powerless_chroma) {
+    return {oklab.l, chroma, 0.0, false};
+  }
+  double hue = radians_to_degrees(std::atan2(oklab.b, oklab.a));
+  if (hue < 0.0) hue += 360.0;
+  return {oklab.l, chroma, hue, true};
+}
+
+Oklab oklch_to_oklab(const Oklch& oklch) {
+  if (!std::isfinite(oklch.l) || !std::isfinite(oklch.c) ||
+      oklch.c < 0.0) {
+    throw std::runtime_error(
+        "OkLCh inverse: L and non-negative chroma must be finite");
+  }
+  // CSS Color 4 treats a missing polar hue as powerless during conversion:
+  // the Cartesian opponent components are both zero.  The forward transform
+  // marks hue missing through C <= 4e-6, so this also makes the public pair
+  // composable with a bounded, explicitly tested near-neutral chroma loss.
+  if (!oklch.hue_defined || oklch.c == 0.0) {
+    return {oklch.l, 0.0, 0.0};
+  }
+  if (!std::isfinite(oklch.h_degrees)) {
+    throw std::runtime_error(
+        "OkLCh inverse: positive chroma requires a finite hue");
+  }
+  const double hue = degrees_to_radians(oklch.h_degrees);
+  const Oklab result{oklch.l, oklch.c * std::cos(hue),
+                     oklch.c * std::sin(hue)};
+  if (!std::isfinite(result.a) || !std::isfinite(result.b)) {
+    throw std::runtime_error("OkLCh inverse: output overflow");
+  }
+  return result;
+}
+
+double delta_e_ok(const Oklab& first, const Oklab& second) {
+  if (!std::isfinite(first.l) || !std::isfinite(first.a) ||
+      !std::isfinite(first.b) || !std::isfinite(second.l) ||
+      !std::isfinite(second.a) || !std::isfinite(second.b)) {
+    throw std::runtime_error("deltaEOK: components must be finite");
+  }
+  return std::hypot(first.l - second.l, first.a - second.a,
+                    first.b - second.b);
+}
+
+namespace {
+
+double delta_e_94_with_weight_chroma(const Lab& first, const Lab& second,
+                                     Cie94Application application,
+                                     double weight_chroma) {
+  if (!std::isfinite(first.l) || !std::isfinite(first.a) ||
+      !std::isfinite(first.b) || !std::isfinite(second.l) ||
+      !std::isfinite(second.a) || !std::isfinite(second.b)) {
+    throw std::runtime_error("CIE94: Lab components must be finite");
+  }
+
+  double k_l = 1.0;
+  double k_1 = 0.045;
+  double k_2 = 0.015;
+  if (application == Cie94Application::Textiles) {
+    k_l = 2.0;
+    k_1 = 0.048;
+    k_2 = 0.014;
+  }
+
+  const double first_chroma = std::hypot(first.a, first.b);
+  const double second_chroma = std::hypot(second.a, second.b);
+  if (!std::isfinite(first_chroma) || !std::isfinite(second_chroma) ||
+      !std::isfinite(weight_chroma) || weight_chroma < 0.0) {
+    throw std::runtime_error("CIE94: chroma overflow");
+  }
+  const double delta_l = first.l - second.l;
+  const double delta_c = first_chroma - second_chroma;
+  const double delta_ab =
+      std::hypot(first.a - second.a, first.b - second.b);
+  if (!std::isfinite(delta_l) || !std::isfinite(delta_c) ||
+      !std::isfinite(delta_ab)) {
+    throw std::runtime_error("CIE94: component difference overflow");
+  }
+  const double chroma_ratio =
+      delta_ab == 0.0 ? 0.0 : std::clamp(std::abs(delta_c) / delta_ab, 0.0, 1.0);
+  const double delta_h =
+      delta_ab * std::sqrt(std::max(0.0, 1.0 - chroma_ratio * chroma_ratio));
+  const double s_c = 1.0 + k_1 * weight_chroma;
+  const double s_h = 1.0 + k_2 * weight_chroma;
+  const double result =
+      std::hypot(delta_l / k_l, delta_c / s_c, delta_h / s_h);
+  if (!std::isfinite(result)) {
+    throw std::runtime_error("CIE94: result overflow");
+  }
+  return result;
+}
+
+}  // namespace
+
+double delta_e_94(const Lab& reference, const Lab& sample,
+                  Cie94Application application) {
+  const double reference_chroma = std::hypot(reference.a, reference.b);
+  return delta_e_94_with_weight_chroma(reference, sample, application,
+                                       reference_chroma);
+}
+
+double delta_e_94_geometric_mean_chroma(const Lab& first, const Lab& second,
+                                        Cie94Application application) {
+  const double first_chroma = std::hypot(first.a, first.b);
+  const double second_chroma = std::hypot(second.a, second.b);
+  const double weight_chroma =
+      std::sqrt(first_chroma) * std::sqrt(second_chroma);
+  return delta_e_94_with_weight_chroma(first, second, application,
+                                       weight_chroma);
 }
 
 double delta_e_2000(const Lab& a, const Lab& b) {

@@ -15,6 +15,8 @@ int cmd_oecf_fit(int argc, char** argv);
 int cmd_oecf_stepchart(int argc, char** argv);
 int cmd_reference_info(int argc, char** argv);
 int cmd_ccm_fit(int argc, char** argv);
+int cmd_gamut_map(int argc, char** argv);
+int cmd_cam16_equation_audit(int argc, char** argv);
 int cmd_spectral_response(int argc, char** argv);
 int cmd_spectral_closure(int argc, char** argv);
 int cmd_spectral_quality(int argc, char** argv);

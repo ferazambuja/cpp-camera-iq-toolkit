@@ -13,6 +13,14 @@ fitting, and explicit dark-patch and reference-provenance diagnostics.
 [reference provenance](../reports/SG_REFERENCE_PROVENANCE.md) ·
 [aggregate CSV](../data/ccm_validation_summary.csv)
 
+The `clrs589_project_camera` archive retains the RAW, flat-field, and dark
+captures but not an exact per-unit spectral measurement of the captured chart.
+The analysis therefore uses a compatible SG spectral
+reference verified against manufacturer nominal values. This preserves a
+physically specified 140-patch target for pipeline and held-out validation
+while bounding the result to compatible-reference, not per-unit, color
+difference.
+
 ![ColorChecker CCM validation summary](../figures/ccm_validation.svg)
 
 ## Problem and relevance

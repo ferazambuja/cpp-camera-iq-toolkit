@@ -4,6 +4,7 @@
 // Each test .cpp defines TESTS() and includes this header, which supplies main().
 
 #include <cmath>
+#include <iomanip>
 #include <iostream>
 #include <string>
 
@@ -24,7 +25,10 @@ inline void check_near(double actual, double expected, double tol,
                        const std::string& name) {
   const bool ok = std::abs(actual - expected) <= tol;
   if (!ok) {
-    std::cout << "       expected " << expected << ", got " << actual << "\n";
+    std::cout << std::setprecision(17) << "       expected " << expected
+              << ", got " << actual << ", |difference| "
+              << std::abs(actual - expected) << ", tolerance " << tol
+              << "\n";
   }
   check(ok, name);
 }

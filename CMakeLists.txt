@@ -23,6 +23,11 @@ add_compile_options(-Wall -Wextra -Wpedantic)
 # both ship a pkg-config file.
 find_package(PkgConfig REQUIRED)
 pkg_check_modules(LIBRAW REQUIRED IMPORTED_TARGET libraw)
+option(CAMERA_IQ_ENABLE_LCMS
+  "Build optional LittleCMS color-transform cross-checks" OFF)
+if(CAMERA_IQ_ENABLE_LCMS)
+  pkg_check_modules(LCMS2 REQUIRED IMPORTED_TARGET lcms2)
+endif()
 # zlib — MATLAB v5 MAT-files store their payload as a deflate stream.
 find_package(ZLIB REQUIRED)
 if(APPLE)
@@ -66,6 +71,9 @@ add_library(camera_iq_core STATIC
   src/stepchart_raw.cpp
   src/color_reference.cpp
   src/colorimetry.cpp
+  src/cam16_equation_audit.cpp
+  src/gamut_mapping.cpp
+  src/gamut_mapping_report.cpp
   src/patches.cpp
   src/chart_localization.cpp
   src/stepchart_localization.cpp
@@ -85,6 +93,8 @@ add_library(camera_iq_core STATIC
   src/cmd_oecf_stepchart.cpp
   src/cmd_reference_info.cpp
   src/cmd_ccm_fit.cpp
+  src/cmd_gamut_map.cpp
+  src/cmd_cam16_equation_audit.cpp
   src/cmd_spectral_response.cpp
   src/cmd_spectral_closure.cpp
   src/cmd_spectral_quality.cpp
@@ -146,6 +156,15 @@ camera_iq_add_test(test_cmd_oecf_stepchart tests/test_cmd_oecf_stepchart.cpp)
 camera_iq_add_test(test_stepchart_raw tests/test_stepchart_raw.cpp)
 camera_iq_add_test(test_color_reference tests/test_color_reference.cpp)
 camera_iq_add_test(test_colorimetry tests/test_colorimetry.cpp)
+camera_iq_add_test(test_gamut_mapping tests/test_gamut_mapping.cpp)
+camera_iq_add_test(test_gamut_mapping_report tests/test_gamut_mapping_report.cpp)
+camera_iq_add_test(test_cmd_gamut_map tests/test_cmd_gamut_map.cpp)
+camera_iq_add_test(test_cam16_equation_audit tests/test_cam16_equation_audit.cpp)
+camera_iq_add_test(test_cmd_cam16_equation_audit tests/test_cmd_cam16_equation_audit.cpp)
+if(CAMERA_IQ_ENABLE_LCMS)
+  camera_iq_add_test(test_gamut_lcms tests/test_gamut_lcms.cpp)
+  target_link_libraries(test_gamut_lcms PRIVATE PkgConfig::LCMS2)
+endif()
 camera_iq_add_test(test_cmd_ccm_fit tests/test_cmd_ccm_fit.cpp)
 camera_iq_add_test(test_patches tests/test_patches.cpp)
 camera_iq_add_test(test_chart_localization tests/test_chart_localization.cpp)
@@ -238,6 +257,16 @@ add_test(NAME test_portfolio_figures
   COMMAND python3 ${CMAKE_SOURCE_DIR}/tools/test_portfolio_figures.py)
 add_test(NAME test_export_shading_portfolio
   COMMAND python3 ${CMAKE_SOURCE_DIR}/tools/test_export_shading_portfolio.py)
+add_test(NAME test_generate_gamut_portfolio
+  COMMAND python3 ${CMAKE_SOURCE_DIR}/tools/test_generate_gamut_portfolio.py)
+add_test(NAME test_generate_cam16_equation_audit
+  COMMAND python3 ${CMAKE_SOURCE_DIR}/tools/test_generate_cam16_equation_audit.py)
+add_test(NAME check_cam16_equation_audit
+  COMMAND python3 ${CMAKE_SOURCE_DIR}/tools/generate_cam16_equation_audit.py
+          --camera-iq $<TARGET_FILE:camera_iq> --check)
+add_test(NAME check_gamut_portfolio
+  COMMAND python3 ${CMAKE_SOURCE_DIR}/tools/generate_gamut_portfolio.py
+          --camera-iq $<TARGET_FILE:camera_iq> --check)
 
 # Several hermetic tests use stable names below the operating-system temporary
 # directory. Give each build configuration its own temporary root so Release,

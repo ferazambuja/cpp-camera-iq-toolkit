@@ -6,13 +6,21 @@
 [implementation](../../src/shading.cpp) ·
 [tests](../../tests/test_shading.cpp)
 
-The `shading` command measures spatial response directly in a black-subtracted
-Bayer mosaic. This study screened 52 integrating-sphere captures from a
-Fujifilm X-T100 and Fujinon XF 14 mm f/2.8 R system and retained three f/8
-frames with usable headroom. The result remains a capture-system
-characterization because the available captures do not separate illumination
-nonuniformity from lens, alignment, mechanical-shading, or sensor-angular
-effects.
+Three of 52 integrating-sphere captures retained usable headroom; the primary
+f/8 frame showed 19.65% green-field quadrant asymmetry, exceeding the declared
+5% criterion and conflicting with a centered radial scalar model for the
+measured composite field. The `shading` command measures that spatial response
+directly in the black-subtracted Bayer mosaic. The result remains a
+capture-system characterization because the available captures do not separate
+illumination nonuniformity from lens, alignment, mechanical-shading, or
+sensor-angular effects.
+
+The `clrs589_project_camera` archive retains the Fujifilm X-T100 and Fujinon XF
+14 mm f/2.8 R sphere and dark captures. The surviving set is sufficient to
+detect and quantify composite-field asymmetry, while isolated attribution
+would require an independent source map and source/camera rotation control. The
+study therefore reports capture-system characterization rather than assigning
+a lens correction.
 
 ![CFA flat-field response summary](../figures/flat_field_response.svg)
 
