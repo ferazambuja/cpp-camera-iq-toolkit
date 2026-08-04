@@ -188,11 +188,16 @@ black metadata recovers a four-position `2 × 2` tile of `1024` without reading
 past a short tile buffer. Separate unit fixtures accept a larger repeat only
 when all same-CFA-parity entries agree and reject incomplete, odd-period
 nonconstant, or same-parity-varying repeats at the post-unpack measurement
-gate. A strided active-area fixture proves that border samples do not enter the
-statistics. With black `1024`, white `16383`, and a
-`0.98` policy level, raw code `16075` is below the first flagged integer and
-`16076` is included; the threshold is recomputed for each CFA position.
+gate.
 <!-- test-evidence: raw-foundation.black-repeat-periodicity -->
+
+Sampling and ceiling behavior is a separate boundary, tested in
+[`test_cfa_stats.cpp`](../../tests/test_cfa_stats.cpp). A strided active-area
+fixture proves that border samples do not enter the statistics. With black
+`1024`, white `16383`, and a `0.98` policy level, raw code `16075` is below the
+first flagged integer and `16076` is included; the threshold is recomputed from
+each plane's own white-minus-black range, so unequal per-position black still
+flags the same boundary sample.
 
 The demosaic assertions in
 [`test_demosaic.cpp`](../../tests/test_demosaic.cpp) use constant fields, a

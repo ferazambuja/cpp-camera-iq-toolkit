@@ -20,6 +20,27 @@ TEST_EVIDENCE_RE = re.compile(
     r"^\s*(?://|#)\s*DOC-EVIDENCE:\s*([a-z0-9][a-z0-9.-]*)\s*$",
     re.MULTILINE,
 )
+# A marker only attributes evidence if an assertion actually follows it. Being
+# somewhere in the right file is not enough: deleting the assertion a marker
+# describes, or moving blocks around it during a refactor, would otherwise
+# leave the marker floating at file scope with the guard still green.
+TEST_ASSERTION_RE = re.compile(
+    r"(?:^|[^A-Za-z0-9_])(?:test::)?check(?:_near)?\s*\(|"
+    r"^\s*(?:self\.)?assert[A-Za-z]*\s*[\(\s]|"
+    r"\bassertRaises\b"
+)
+# Comments must be removed before that pattern runs. These markers introduce
+# blocks that open with prose explaining what is being checked, so a sentence
+# such as "we check (elsewhere) that ..." matches the assertion pattern as
+# readily as executable code. Deleting the assertions and leaving the prose is
+# the realistic form of the drift this window exists to catch, so the window
+# has to look at code only.
+BLOCK_COMMENT_RE = re.compile(r"/\*.*?(?:\*/|\Z)", re.DOTALL)
+LINE_COMMENT_RE = re.compile(r"(?://|#).*$", re.MULTILINE)
+# The registered markers precede their first assertion by 1 to 16 lines, since
+# a marker introduces a block that may set a fixture up first. Thirty lines
+# keeps that headroom while still rejecting a marker parked at file scope.
+TEST_ASSERTION_WINDOW_LINES = 30
 
 
 class EvidenceAttributionContract(NamedTuple):
@@ -653,6 +674,16 @@ def _preceding_paragraph(text: str, marker_start: int) -> str:
     return re.split(r"\n[ \t]*\n", prefix)[-1]
 
 
+def _strip_comments(window: str) -> str:
+    return LINE_COMMENT_RE.sub("", BLOCK_COMMENT_RE.sub("", window))
+
+
+def _marker_precedes_assertion(text: str, marker_end: int) -> bool:
+    following = text[marker_end:].splitlines()[:TEST_ASSERTION_WINDOW_LINES]
+    code = _strip_comments("\n".join(following))
+    return any(TEST_ASSERTION_RE.search(line) for line in code.splitlines())
+
+
 def _paragraph_links_to(document: Path, paragraph: str, expected: Path) -> bool:
     expected = expected.resolve()
     for match in LINK_RE.finditer(paragraph):
@@ -678,7 +709,7 @@ def evidence_attribution_failures(
     contracts = EVIDENCE_ATTRIBUTION_CONTRACTS if contracts is None else contracts
     failures: list[str] = []
     document_markers: dict[str, list[tuple[Path, re.Match[str], str]]] = {}
-    test_markers: dict[str, list[Path]] = {}
+    test_markers: dict[str, list[tuple[Path, re.Match[str], str]]] = {}
 
     document_paths = _text_files(repo_root / "docs", {".md"})
     readme = repo_root / "README.md"
@@ -694,7 +725,9 @@ def evidence_attribution_failures(
     for path in _text_files(repo_root / "tests", {".cpp", ".hpp", ".py"}):
         text = path.read_text(encoding="utf-8")
         for match in TEST_EVIDENCE_RE.finditer(text):
-            test_markers.setdefault(match.group(1), []).append(path)
+            test_markers.setdefault(match.group(1), []).append(
+                (path, match, text)
+            )
 
     for evidence_id in sorted(set(document_markers) - set(contracts)):
         failures.append(
@@ -732,10 +765,17 @@ def evidence_attribution_failures(
                 f"test marker count is {len(test_entries)} for {evidence_id}; "
                 f"expected exactly 1 in {contract.test}"
             )
-        elif test_entries[0].resolve() != expected_test:
+        elif test_entries[0][0].resolve() != expected_test:
             failures.append(
                 f"test marker is not in its registered file: {evidence_id}"
             )
+        else:
+            _, match, text = test_entries[0]
+            if not _marker_precedes_assertion(text, match.end()):
+                failures.append(
+                    f"test marker is not beside an assertion: {evidence_id} "
+                    f"in {contract.test}"
+                )
 
     return failures
 
