@@ -23,6 +23,16 @@ comparison instead of filling the missing physical links by assumption.
 
 ![Five-camera spectral color-fidelity comparison](../figures/spectral_color_fidelity.svg)
 
+*Five cameras scored on three chart sets (SG-140, CC-24, and the CC-18
+chromatic subset). The bars are an ISO 17321-style sensitivity metric where
+higher is better; `QI` beside each camera is the separate Luther-fit quality
+index, which asks how closely that sensor's spectral sensitivities can be
+matched to the human observer by any linear transform. The two answer different
+questions, so they are reported side by side rather than merged. Only the Canon
+row comes from this toolkit's own RAW extraction; the others use measured legacy
+sensitivity functions, which is why the ordering is read at its endpoints rather
+than by small differences in the middle.*
+
 ## Problem and relevance
 
 Camera color is constrained by the relationship between sensor spectral
@@ -30,20 +40,29 @@ sensitivity and the CIE color-matching functions. A plausible curve is not
 enough: file selection, dark subtraction, wavelength normalization, illuminant
 pairing, chart reflectance, and target-capture closure all have to agree.
 
-## Technical approach
+## Method
 
-- RAW sweep discovery and wavelength/file-sidecar validation.
-- Dark-subtracted per-channel response extraction from monochromator captures.
-- Normalized spectral-sensitivity CSV output with saturation and below-dark
-  diagnostics.
-- Physical closure that predicts same-session chart responses from camera SSF,
-  measured illuminant, and measured reflectance using one global exposure
-  scale.
-- Luther-condition fitting against CIE 1931 color-matching functions.
-- An ISO 17321-style SMI approximation over D55 and measured chart sets, plus a
-  white-preserving optimization sensitivity check.
+A monochromator steps a narrow band of light across the visible range while the
+camera photographs each step. Dark-subtracted response per color channel, read
+from the RAW captures, gives that camera's spectral sensitivity functions — how
+strongly each channel answers at every wavelength. Saturated and below-dark
+samples are excluded rather than fitted.
 
-## Validation
+Those sensitivities are then tested three ways:
+
+- **Physical closure.** Using the measured sensitivities, the measured
+  illuminant spectrum, and the measured chart reflectances, predict what the
+  camera should have recorded for every patch, allowing a single global exposure
+  scale. Comparing that prediction to the actual same-session capture tests the
+  sensitivities against independent evidence rather than trusting them.
+- **Luther condition.** Fit a linear transform from the camera's sensitivities
+  to the CIE 1931 color-matching functions. The residual reports how closely
+  the sensitivities approach that colorimetric subspace under the declared
+  unweighted fit; it is not a scene-performance bound.
+- **ISO 17321-style sensitivity metric** over D55 and the measured chart sets,
+  with a white-preserving variant run as a sensitivity check on the ranking.
+
+## Cross-checks
 
 For the retained Canon 5D2 end-to-end extraction, toolkit-vs-legacy normalized
 response correlation was **0.99937 / 0.99979 / 0.99991** for R/G/B.

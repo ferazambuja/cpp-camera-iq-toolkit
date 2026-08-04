@@ -7,6 +7,23 @@
 [implementation](../../src/cam16_equation_audit.cpp) ·
 [tests](../../tests/test_cam16_equation_audit.cpp)
 
+## What this is about
+
+A color appearance model predicts how a color will *look* under stated viewing
+conditions, not merely what it measures. Brightness, lightness, colorfulness,
+and chroma all shift with the surround and background even when the stimulus is
+unchanged, which is why appearance models matter to display rendering and
+cross-condition color work. CAM16 is a CIE-derived model of that kind. This
+study traces a declared subset of published equations and revisions rather
+than treating an inherited formula as self-validating.
+
+Inherited equations carry inherited surprises: coefficients that were corrected
+after publication, terms that behave unexpectedly toward the edges of their
+range, and tradeoffs that a summary can quietly drop. This study turns a small,
+declared set of those equations into inspectable C++ with numeric tests, so the
+behavior can be checked rather than assumed. It audits specific equations; it
+does not implement the full model or validate it against observers.
+
 ## Result
 
 The C++ audit reproduces two numerical consequences discussed by Hellwig and
@@ -57,8 +74,8 @@ limits—rather than a claim that the earlier arithmetic was wrong.
 The equation audit uses the retained rounded table and adds no new capture
 measurement. CIE94 appears here to preserve and test that prior result;
 CIEDE2000 appears in the current CCM and gamut studies under their own declared
-contracts. The two metrics use different scales and are not compared
-numerically across studies.
+contracts. Their formulas and weighting conventions differ, so the values are
+method-specific and are not compared numerically across studies.
 
 ## What this demonstrates
 
@@ -71,6 +88,15 @@ numerically across studies.
   overstating what the retained record proves.
 
 ![CAM16 equation audit](../figures/cam16_equation_audit.svg)
+
+*Left: normalized lightness and brightness plotted against `J`. Lightness is the
+straight line, so half lightness sits at `J = 50`; CAM16 brightness follows the
+square-root curve, so half brightness sits at `J = 25`. The gap between the two
+curves is the disagreement the audit reproduces. Right: how the chroma
+expression responds as the background darkens, with the isolated `N_cb^0.9`
+factor shown against the complete expression evaluated across reference
+lightness — the band crosses the isolated line, which is what makes the isolated
+term neither a floor nor a ceiling.*
 
 The curves are equation-level diagnostics with fixed adapted responses. They do
 not replace a general CAM16 forward model, viewing-condition validation,

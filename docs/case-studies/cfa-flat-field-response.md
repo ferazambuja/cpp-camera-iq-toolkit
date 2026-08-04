@@ -6,6 +6,25 @@
 [implementation](../../src/shading.cpp) ·
 [tests](../../tests/test_shading.cpp)
 
+## What this is about
+
+A flat-field measurement starts from a nominally uniform controlled field and
+asks how the recorded RAW response departs from it. Response commonly falls
+toward the corners and can differ by color channel, which is why cameras use
+lens-shading correction. A centered radial curve is a useful simplified model;
+this study tests whether it describes an archived integrating-sphere capture
+set while working directly on the Bayer mosaic so per-channel behavior remains
+visible.
+
+The integrating-sphere port provided the controlled field, but residual source
+nonuniformity was not independently isolated from the camera/lens response by
+source or camera rotation. The result therefore stays at capture-system scope.
+Most frames were also too bright to use: near clipping, the apparent falloff
+flattens and understates response variation, so each frame was screened for
+headroom before measurement.
+
+## Result
+
 Three of 52 integrating-sphere captures retained usable headroom; the primary
 f/8 frame showed 19.65% green-field quadrant asymmetry, exceeding the declared
 5% criterion and conflicting with a centered radial scalar model for the
@@ -110,11 +129,11 @@ The computation follows four stages:
    `C_G1G2`. JSON retains rejection diagnostics; CSV provides plottable map and
    scalar rows.
 
-Median binning prevents isolated defective pixels from moving large spatial
-bins. Synthetic validation covers CFA separation, transposition,
-near-ceiling discrimination, invalid geometry, missing ratio bins, unequal
-green gains, spatial green mismatch, radial/asymmetric fields, metadata-derived
-ceilings, dark-control verification, and pair comparisons.
+Medians rather than means are used per bin so that isolated defective pixels
+cannot shift a whole spatial cell. Synthetic validation covers CFA separation,
+transposition, near-ceiling discrimination, invalid geometry, missing ratio
+bins, unequal green gains, spatial green mismatch, radial and asymmetric fields,
+metadata-derived ceilings, dark-control verification, and pair comparisons.
 
 ## Measurement boundary
 

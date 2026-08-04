@@ -9,6 +9,27 @@
 [implementation](../../src/gamut_mapping.cpp) ·
 [tests](../../tests/test_gamut_mapping.cpp)
 
+## What this is about
+
+A wide-gamut encoding such as Display-P3 can represent colors that sRGB cannot.
+Whenever such an image is delivered to an sRGB destination, something has to
+decide where those unreachable colors land. Per-channel clipping can shift hue
+and flatten distinctions, while broad compression can unnecessarily change
+colors that were already usable. The decision is an engineering tradeoff.
+
+This study implements that decision in first-party C++ instead of configuring
+it. Four declared methods run over the same input, and the study reports where
+they disagree and what each one costs. The engineering question is how to move a
+color from a wider RGB encoding into a smaller destination gamut without hiding
+numerical failure and without confusing per-channel clipping with a method that
+works in a perceptual space.
+
+The implementation converts Display-P3 through linear RGB and D65 XYZ, applies
+one of four declared methods in CIELAB or OkLCh, converts back to sRGB, and
+verifies the unclipped linear output against the destination cube.
+
+## Headline results
+
 Changing only the radial coordinates from CIELAB to OkLCh retained much more
 P3-yellow chroma (`0.211` versus `0.058`) and reduced that sample's CIEDE2000
 from `23.928` to `5.523`; the grid mean rose from `2.857` to `2.947` and the
@@ -18,32 +39,16 @@ Local MINDE then reduced the complete-grid mean from `2.947` to `2.323` and the
 maximum from `9.956` to `7.602`, while widening the IPT-hue 90th percentile
 from `3.368°` to `4.806°`.
 
-## Engineering question
-
-How should a color in a wider RGB encoding be moved into a smaller destination
-gamut without hiding numerical failure or confusing component clipping with a
-perceptual-space method?
-
 ## Relationship to the earlier color-management work
 
-A prior color-management workflow treated gamut mapping as a configured part
-of a larger color-management system. Its 24-patch comparison labeled the
-reported RGB values as Adobe RGB, recommended sRGB as a web-delivery space,
-and used a separate ProfileMaker print path with `Paper-colored Gray`
-perceptual intent and `LOGO Classic` gamut mapping. That project measured the
-results of third-party rendering choices; it did not implement the mapping
-algorithm.
-
-The current algorithm study uses deterministic synthetic input and no camera or
-display measurements. It addresses the same wide-to-narrow-gamut decision at
-the algorithm level. Display-P3 and sRGB provide a modern, fully specified pair
-that isolates the transform, boundary search, and rendering-intent behavior
-from camera, printer, and proprietary-profile variables. It is a separate
-engineering experiment, not a reconstruction of the prior workflow.
-
-The implementation converts Display-P3 through linear RGB and D65 XYZ, applies
-one of four declared methods in CIELAB or OkLCh, converts back to sRGB, and
-verifies the unclipped linear output against the destination cube.
+An earlier art-reproduction color-management course project measured the output
+of a configured third-party gamut-mapping path inside a larger capture-to-print
+workflow; it did not expose or isolate the mapping algorithm. This study moves
+that same wide-to-narrow-gamut question into first-party C++ using fully
+specified Display-P3 and sRGB encodings. Deterministic synthetic input separates
+the transform, boundary search, coordinates, and mapping rule from camera,
+printer, and proprietary-profile variables. It is a separate engineering
+experiment, not a reconstruction of the course project.
 
 ## Why the boundary search is not a simple bisection
 
@@ -103,18 +108,25 @@ lower color-difference score can accompany a larger hue-diagnostic tail. A
 rendering intent should therefore be evaluated against its application rather
 than selected from one displacement number.
 
-The RGB conversion is also compared with independently constructed LittleCMS
-profiles in an optional CI test, in both directions and to `1e-6` per encoded
-channel. The Display-P3-to-sRGB arm includes the shared blue primary; the
-reverse arm adds all full-code sRGB primaries and secondaries. Single-channel
-sRGB primaries isolate the source forward-matrix columns, while the composed
-comparison independently exercises the destination inverse. LittleCMS is used
-only as a reference for common-gamut conversions; the boundary search and
-mapping intents remain the toolkit's own implementation. Named edge cases are
-supplemented by a 216-point sRGB cube spanning both sides of the transfer-curve
-breakpoint.
+The underlying Display-P3 and sRGB conversions are checked against LittleCMS,
+an established independent color-management library, agreeing to `1e-6` per
+encoded channel in both directions across the primaries, secondaries, and a
+216-point cube spanning both sides of the transfer-curve breakpoint. That
+establishes the color-space transforms are correct; the boundary search and the
+mapping intents are this toolkit's own work and have no external reference to
+check against.
 
 ![Synthetic Display-P3 to sRGB mapping](../figures/gamut_mapping_synthetic.svg)
+
+*Left: the CIELAB `a*b*` plane under the fixed-L\*, Lab-hue radial baseline;
+each segment joins a sample's input chroma to where the method placed it, so
+segment length is how much chroma that color lost. The longest segments are the
+overcompressed high-chroma rays. Upper right: modified-sample CIEDE2000
+displacement for the radial baseline and experimental protected-core method.
+Lower right: all four methods compared by modified-sample count, grid-mean
+CIEDE2000, and IPT hue-difference 90th percentile. The panels keep coordinate
+and algorithm tradeoffs visible instead of presenting one aggregate as a
+uniform improvement.*
 
 ## Scope
 

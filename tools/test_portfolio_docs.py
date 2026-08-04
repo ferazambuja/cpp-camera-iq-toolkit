@@ -208,6 +208,43 @@ class ProvenanceContractTests(unittest.TestCase):
             [], DOCS.provenance_contract_failures_for_text(relative, wrapped)
         )
 
+    def test_metric_contract_allows_substantive_rewording(self) -> None:
+        relative = Path("docs/case-studies/color-model-equation-audit.md")
+        reworded = (
+            "CIE94 is retained to test the historical result; CIEDE2000 is "
+            "used by current studies. Their formulas and weighting rules "
+            "differ, so values are method-specific and are not compared "
+            "numerically across studies."
+        )
+        self.assertEqual(
+            [], DOCS.provenance_contract_failures_for_text(relative, reworded)
+        )
+
+    def test_metric_contract_rejects_term_only_boundary(self) -> None:
+        relative = Path("docs/case-studies/color-model-equation-audit.md")
+        weakened = (
+            "CIE94 is retained to test the historical result. The current "
+            "studies use CIEDE2000."
+        )
+        failures = DOCS.provenance_contract_failures_for_text(relative, weakened)
+        self.assertTrue(
+            any("CIE94 versus CIEDE2000 method boundary" in item for item in failures),
+            failures,
+        )
+
+    def test_metric_contract_rejects_deleted_current_metric(self) -> None:
+        relative = Path("docs/case-studies/color-model-equation-audit.md")
+        weakened = (
+            "CIE94 is retained to test the historical result. Their formulas "
+            "and weighting rules differ, so values are method-specific and are "
+            "not compared numerically across studies."
+        )
+        failures = DOCS.provenance_contract_failures_for_text(relative, weakened)
+        self.assertTrue(
+            any("CIE94 versus CIEDE2000 method boundary" in item for item in failures),
+            failures,
+        )
+
 
 class HeadingAnchorTests(unittest.TestCase):
     """A link to `FILE.md#section` is only checked as far as FILE.md unless the

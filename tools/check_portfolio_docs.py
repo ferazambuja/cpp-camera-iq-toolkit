@@ -235,15 +235,17 @@ PROVENANCE_CONTRACTS = {
         (
             "historical CIE94 role",
             re.compile(
-                r"CIE94 appears here to preserve and test that prior result",
+                r"CIE94.{0,80}(?:preserv|retain).{0,80}"
+                r"(?:prior|historical).{0,40}result",
                 re.IGNORECASE,
             ),
         ),
         (
-            "CIE94 versus CIEDE2000 scale boundary",
+            "CIE94 versus CIEDE2000 method boundary",
             re.compile(
-                r"two metrics use different scales and are not compared "
-                r"numerically",
+                r"\bCIE94\b.{0,240}\bCIEDE2000\b.{0,240}"
+                r"(?:formula|formulas).{0,80}weighting.{0,100}"
+                r"method-specific.{0,80}not compared numerically",
                 re.IGNORECASE,
             ),
         ),
@@ -279,6 +281,8 @@ def provenance_contract_failures_for_text(relative: Path, text: str) -> list[str
     normalized = normalize_markdown(text)
     return [
         f"missing provenance contract ({label}): {relative}"
+        f" — restore the evidence relationship, or change it deliberately in"
+        f" PROVENANCE_CONTRACTS (tools/check_portfolio_docs.py)"
         for label, pattern in PROVENANCE_CONTRACTS.get(relative, ())
         if not pattern.search(normalized)
     ]

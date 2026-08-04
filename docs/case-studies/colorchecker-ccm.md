@@ -1,5 +1,15 @@
 # ColorChecker extraction and CCM validation
 
+## What this is about
+
+A camera's RAW RGB values are not colorimetry. Two cameras photographing the
+same chart under the same light record different numbers, and neither set
+matches CIE XYZ, because each sensor's spectral sensitivities differ from the
+human observer's. This study fits a linear 3×3 color-correction matrix from one
+camera's RGB to XYZ for a declared capture condition. It reports held-out error
+because evaluation on patches excluded from fitting reduces training-only
+optimism; it does not by itself prove performance on every scene or illuminant.
+
 ## Overview
 
 The corrected 140-patch RAW ColorChecker-SG workflow reached 4.134 mean held-out
@@ -36,20 +46,26 @@ not a single optimized Delta E number.
 rectangular regions after RAW unpack, black handling, and bilinear demosaic;
 this reduced image is not a calibration reference.*
 
-## Technical approach
+## Method
 
-- RAW rectangle extraction through the toolkit's LibRaw, black handling, and
-  bilinear demosaic.
-- Optional image-domain flat-field correction with a near-ceiling rejection
-  guard and recorded clamped-sample count.
-- Explicit white-balance gains or a flat-field-derived green-anchor policy.
-- ColorChecker-SG orientation controls and a comparison path against exported
-  reference-tool rectangles.
-- Spectral-reference rendering under a supplied illuminant.
-- Linear 3×3 RGB-to-XYZ least-squares fitting, Delta E 76/CIEDE2000, five-fold
-  held-out diagnostics, and labeled dark-patch selection.
+Each of the 140 chart patches is sampled as a rectangle in the RAW frame after
+black subtraction and demosaic. Before any color fit, two corrections are
+applied and both are measured rather than assumed: the available flat
+compensates its measured capture-system field, and white balance sets the
+neutral axis. The flat cannot separate sphere, lens, and sensor contributions,
+so this is same-aperture correction rather than a component calibration. A flat
+frame that is itself near sensor clipping would silently distort the correction,
+so candidate flats are screened and rejected on that basis.
 
-## Validation
+The reference side comes from the chart's spectral reflectances rendered under
+the supplied illuminant, which yields the XYZ each patch should produce. Fitting
+a linear 3×3 matrix by least squares from camera RGB to those XYZ values gives
+the color-correction matrix. Error is reported as CIEDE2000, and the fit is
+repeated over five deterministic patch partitions so the quoted error comes from
+patches the matrix never saw. Dark patches are labeled separately, because flare
+in a bright-surround capture lands there first.
+
+## Cross-checks
 
 Uncorrected patch extraction matched the reference-tool averages with
 correlations above **0.99999998** and direct RMSE of **0.352 / 0.041 / 0.381

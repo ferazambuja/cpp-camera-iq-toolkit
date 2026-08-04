@@ -21,23 +21,27 @@ system, not to a camera body or a lens alone.
 
 ![Nikon D800 and D810 SFR aperture and field summary](../figures/sfr_aperture_field.svg)
 
-## Technical approach
+## Method
 
-The `sfr` command:
+Slanted-edge SFR recovers a system's response to fine detail from a photograph
+of a single edge. The edge is deliberately tilted a few degrees from vertical so
+that successive scan lines each sample it at a slightly different sub-pixel
+offset; combining those lines reconstructs the edge profile far more finely than
+the pixel pitch alone would allow.
 
-- reads LibRaw active-area, black-subtracted Bayer samples;
-- extracts the green CFA positions without demosaic, luma conversion, or gamma;
-- fits the slanted edge from scan-line centroids;
-- bins a 0.25 px ESF, differentiates to an LSF, applies a Hamming window and
-  in-repo DFT, and corrects adjacent-difference attenuation;
-- reports MTF50, MTF50P, MTF at Nyquist, R1090, edge angle, saturation, and
-  rejection diagnostics;
-- parses one coherent `_Y_multi.csv` batch for advisory comparison and 23-ROI
-  field mapping.
+The measurement runs on sensor-linear green samples taken straight from the
+black-subtracted Bayer mosaic — no demosaic, no luma conversion, no gamma —
+because every one of those steps is itself a spatial filter and would be
+measured as part of the capture-system response.
 
-Input validation rejects non-finite or out-of-range options, bounds ESF
-interpolation and allocation, checks oracle geometry and duplicate rows, and
-preserves diagnostic values for rejected measurements.
+From there: fit the edge from per-scan-line centroids, accumulate the
+oversampled edge-spread function in 0.25 px bins, differentiate it to the
+line-spread function, window it, and transform to get modulation against spatial
+frequency. Differentiating a binned signal attenuates high frequencies by a known
+amount, so that attenuation is corrected rather than left in the result. Reported
+quantities are MTF50, MTF50P, MTF at Nyquist, 10–90% rise distance, and the
+measured edge angle, with saturated or otherwise unusable regions rejected and
+their diagnostics retained.
 
 ## Data and validation model
 
