@@ -335,6 +335,52 @@ class EvidenceAttributionTests(unittest.TestCase):
                 failures,
             )
 
+    def test_marker_detached_from_its_assertion_is_rejected(self) -> None:
+        # Being in the registered file is not attribution. A refactor that
+        # moves blocks around a marker, or deletes the assertion the marker
+        # described, would otherwise leave it floating at file scope while the
+        # guard stayed green -- the same wrong-but-plausible pointer the
+        # cross-file check exists to prevent, one scope further in.
+        with tempfile.TemporaryDirectory() as temp:
+            repo = Path(temp)
+            self.write_valid_fixture(repo)
+            expected = repo / "tests" / "test_example.cpp"
+            expected.write_text(
+                "// DOC-EVIDENCE: example.threshold\n"
+                + "// padding\n" * 40
+                + "check(value == 1);\n",
+                encoding="utf-8",
+            )
+            failures = DOCS.evidence_attribution_failures(
+                repo, self.fixture_contracts()
+            )
+            self.assertTrue(
+                any("test marker is not beside an assertion" in item
+                    for item in failures),
+                failures,
+            )
+
+    def test_marker_within_setup_distance_of_its_assertion_passes(self) -> None:
+        # The registered markers precede their assertion by up to 16 lines,
+        # because a marker introduces a block that sets a fixture up first.
+        # The rule must not force the marker onto the assertion itself.
+        with tempfile.TemporaryDirectory() as temp:
+            repo = Path(temp)
+            self.write_valid_fixture(repo)
+            expected = repo / "tests" / "test_example.cpp"
+            expected.write_text(
+                "// DOC-EVIDENCE: example.threshold\n"
+                + "const double value = build_fixture();\n" * 16
+                + "check(value == 1);\n",
+                encoding="utf-8",
+            )
+            self.assertEqual(
+                [],
+                DOCS.evidence_attribution_failures(
+                    repo, self.fixture_contracts()
+                ),
+            )
+
     def test_duplicate_document_marker_is_rejected(self) -> None:
         with tempfile.TemporaryDirectory() as temp:
             repo = Path(temp)
