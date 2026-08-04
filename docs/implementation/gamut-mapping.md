@@ -116,8 +116,12 @@ require that:
 - no legal input throws, and every mapped output is finite;
 - every output is rechecked against the destination RGB cube;
 - the CIELAB radial and soft methods do not increase Lab chroma, preserve
-  `L*`, and hold Lab-hue change to `2e-7` radians away from the neutral
-  singularity, where hue is undefined rather than merely noisy;
+  `L*`, and hold Lab-hue change to `2e-7` radians. The hue bound is asserted
+  only where the input and the mapped output both keep chroma above `1e-6`,
+  which excludes more than near-neutral inputs: a strongly chromatic ray that
+  the method compresses almost onto the neutral axis also leaves the bound's
+  scope, because an angle around a point of vanishing radius is not a
+  meaningful quantity to hold fixed;
 - the OkLCh radial intent does not increase mapping chroma, preserves OkLab
   lightness, and holds OkLCh hue to `1e-8` degrees when hue is defined; and
 - all three hard mapping intents leave destination-in-gamut inputs unchanged.
@@ -132,6 +136,14 @@ Display-P3-yellow output is cross-checked against ColorAide 5.1. When the
 optional LittleCMS build is enabled, independently constructed profiles check
 common-gamut RGB transforms in both directions to `1e-6` per encoded channel;
 the mapping algorithms themselves do not use LittleCMS.
+
+That `1e-6` is a measured bound rather than a chosen convention. The worst
+disagreement across every sample in both directions is `4.056e-8`, set by the
+float32 pipeline inside LittleCMS, so the assertion keeps roughly a factor of
+25 in reserve for library-version and platform variation. The figure is worth
+stating because the tolerance is load-bearing: an earlier `3e-5` bound passed
+while a primary-matrix entry was wrong by about `5e-5` relative, which is large
+enough to move a published CIEDE2000 result.
 
 The serialization path is tested as an interface rather than assumed: the
 schema version is pinned, duplicate sample identifiers are rejected, an exact
