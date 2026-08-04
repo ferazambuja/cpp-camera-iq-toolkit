@@ -37,6 +37,23 @@ std::string check_name(const ReferenceSample& sample, const char* quantity) {
          quantity;
 }
 
+// Several samples below sit exactly on a gamut boundary, so a regression in any
+// primary matrix can push them outside the declared source gamut and make the
+// mapping throw rather than return a comparable value. Letting that escape
+// would end the executable at the first such sample and silently skip every
+// later check, which is the opposite of what a cross-check is for. Report the
+// throw as the failure it is and keep going.
+bool try_map(const EncodedRgb& input, const GamutMapOptions& options,
+             const std::string& name, camera_iq::GamutMappingResult& result) {
+  try {
+    result = map_encoded_rgb_to_gamut(input, options);
+    return true;
+  } catch (const std::runtime_error& error) {
+    check(false, name + " threw: " + error.what());
+    return false;
+  }
+}
+
 struct ProfileCloser {
   void operator()(void* profile) const {
     if (profile) cmsCloseProfile(static_cast<cmsHPROFILE>(profile));
@@ -114,7 +131,10 @@ void TESTS() {
       {"srgb-blue-encoded-in-p3", kSrgbBlueEncodedInP3},
   }};
   for (const auto& sample : common_gamut) {
-    const auto ours = map_encoded_rgb_to_gamut(sample.input, options);
+    camera_iq::GamutMappingResult ours;
+    if (!try_map(sample.input, options, check_name(sample, "mapping"), ours)) {
+      continue;
+    }
     check(ours.input_in_destination,
           check_name(sample, "selected color is common-gamut"));
     const auto reference = lcms_convert(sample.input, true);
@@ -129,13 +149,16 @@ void TESTS() {
   // Display-P3 and sRGB share the blue-primary chromaticity. This independent
   // point isolates the Display-P3 source blue column and should land on the
   // full-code sRGB blue primary.
-  const auto blue = map_encoded_rgb_to_gamut(kSrgbBlueEncodedInP3, options);
-  check_near(blue.output_encoded.r, 0.0, kReferenceTolerance,
-             "LittleCMS cross-check [shared-blue-primary]: encoded red");
-  check_near(blue.output_encoded.g, 0.0, kReferenceTolerance,
-             "LittleCMS cross-check [shared-blue-primary]: encoded green");
-  check_near(blue.output_encoded.b, 1.0, kReferenceTolerance,
-             "LittleCMS cross-check [shared-blue-primary]: encoded blue");
+  camera_iq::GamutMappingResult blue;
+  if (try_map(kSrgbBlueEncodedInP3, options,
+              "LittleCMS cross-check [shared-blue-primary]: mapping", blue)) {
+    check_near(blue.output_encoded.r, 0.0, kReferenceTolerance,
+               "LittleCMS cross-check [shared-blue-primary]: encoded red");
+    check_near(blue.output_encoded.g, 0.0, kReferenceTolerance,
+               "LittleCMS cross-check [shared-blue-primary]: encoded green");
+    check_near(blue.output_encoded.b, 1.0, kReferenceTolerance,
+               "LittleCMS cross-check [shared-blue-primary]: encoded blue");
+  }
 
   // Saturated Display-P3 red, green, yellow, cyan, and magenta are outside
   // sRGB, so the forward arm cannot compare those full-code source corners.
@@ -160,7 +183,10 @@ void TESTS() {
       {"linear-segment-red", {0.02, 0.0, 0.0}},
   }};
   for (const auto& sample : srgb_samples) {
-    const auto ours = map_encoded_rgb_to_gamut(sample.input, into_p3);
+    camera_iq::GamutMappingResult ours;
+    if (!try_map(sample.input, into_p3, check_name(sample, "mapping"), ours)) {
+      continue;
+    }
     check(ours.input_in_destination,
           check_name(sample, "sRGB sample is inside Display-P3"));
     check(!ours.modified,
@@ -188,7 +214,13 @@ void TESTS() {
     for (double g : kSweepLevels) {
       for (double b : kSweepLevels) {
         const EncodedRgb input{r, g, b};
-        const auto ours = map_encoded_rgb_to_gamut(input, into_p3);
+        camera_iq::GamutMappingResult ours;
+        if (!try_map(input, into_p3,
+                     "LittleCMS cross-check [216-point sRGB cube]: mapping",
+                     ours)) {
+          every_input_in_destination = false;
+          continue;
+        }
         const auto reference = lcms_convert(input, false);
         every_input_in_destination &= ours.input_in_destination;
         every_input_preserved &= !ours.modified;
