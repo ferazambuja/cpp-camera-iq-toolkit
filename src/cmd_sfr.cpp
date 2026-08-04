@@ -60,9 +60,18 @@ std::optional<double> parse_fraction(std::string_view text) {
   return value;
 }
 
-std::filesystem::path resolve_child(const std::filesystem::path& root,
-                                    const std::filesystem::path& child) {
-  return child.is_absolute() ? child : (root / child);
+// A configured dataset stamps its id onto every emitted label, so an input that
+// resolves outside the root would be published as that dataset's evidence. In
+// that mode the path must stay inside the root. When the caller named a
+// directory outright there is no dataset attribution to falsify, so the path is
+// used as given.
+std::optional<std::filesystem::path> resolve_child(
+    const ResolvedDataset& dataset, const std::filesystem::path& child) {
+  if (!dataset.from_config) {
+    return child.is_absolute() ? child : (dataset.root / child);
+  }
+  if (child.is_absolute()) return std::nullopt;
+  return resolve_dataset_child(dataset.root, child);
 }
 
 void write_roi(JsonWriter& json, const RoiRect& roi) {
@@ -574,12 +583,16 @@ int cmd_sfr(int argc, char** argv) {
     std::optional<ImatestYMultiOracle> oracle;
     std::optional<ImatestYMultiFile> field_oracle;
     if (!args.oracle_y_multi_rel.empty()) {
-      const auto oracle_path =
-          resolve_child(dataset->root, args.oracle_y_multi_rel);
+      const auto oracle_path = resolve_child(*dataset, args.oracle_y_multi_rel);
+      if (!oracle_path) {
+        std::cerr << "camera_iq sfr: oracle path resolves outside dataset '"
+                  << dataset->id << "'\n";
+        return 2;
+      }
       if (args.field_map) {
-        field_oracle = read_imatest_y_multi_file(oracle_path);
+        field_oracle = read_imatest_y_multi_file(*oracle_path);
       } else {
-        oracle = read_imatest_y_multi(oracle_path);
+        oracle = read_imatest_y_multi(*oracle_path);
       }
       if ((args.field_map && !field_oracle) ||
           (!args.field_map && !oracle)) {
@@ -599,8 +612,13 @@ int cmd_sfr(int argc, char** argv) {
       }
     }
 
-    const auto raw_path = resolve_child(dataset->root, args.raw_rel);
-    const auto image = read_raw_cfa_image(raw_path);
+    const auto raw_path = resolve_child(*dataset, args.raw_rel);
+    if (!raw_path) {
+      std::cerr << "camera_iq sfr: RAW path resolves outside dataset '"
+                << dataset->id << "'\n";
+      return 2;
+    }
+    const auto image = read_raw_cfa_image(*raw_path);
     if (!image) {
       std::cerr << "camera_iq sfr: cannot read/unpack RAW " << args.raw_rel
                 << "\n";

@@ -394,7 +394,17 @@ int cmd_patches(int argc, char** argv) {
         std::cerr << "camera_iq patches: --dataset requires a relative raw file\n";
         return 2;
       }
-      actual_raw = dataset->root / args.raw_file;
+      // The label below attributes this capture to the dataset, so a path that
+      // traverses or symlinks out of the root would publish outside evidence
+      // under the dataset id.
+      const auto dataset_raw =
+          resolve_dataset_child(dataset->root, args.raw_file);
+      if (!dataset_raw) {
+        std::cerr << "camera_iq patches: raw file resolves outside dataset '"
+                  << args.dataset_id << "'\n";
+        return 2;
+      }
+      actual_raw = *dataset_raw;
       file_label = dataset_file_label(args.dataset_id, args.raw_file);
       if (!args.coords.empty()) {
         const auto resolved_coords =

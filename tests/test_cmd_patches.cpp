@@ -1,5 +1,7 @@
 #include "camera_iq/commands.hpp"
 
+#include <filesystem>
+#include <fstream>
 #include <string>
 #include <vector>
 
@@ -46,4 +48,41 @@ void TESTS() {
         "patches command: malformed sg-corners rejected before RAW I/O");
   check(run_patches({"missing.RAF", "--sg-corners"}) == 2,
         "patches command: sg-corners requires a value");
+
+  {
+    // The emitted label attributes the capture to the dataset, so an input that
+    // traverses or symlinks out of the root would publish outside evidence
+    // under that id.
+    namespace fs = std::filesystem;
+    const auto base = fs::temp_directory_path() / "camera_iq_patches_contained";
+    fs::remove_all(base);
+    fs::create_directories(base / "root" / "Images");
+    fs::create_directories(base / "outside");
+    {
+      std::ofstream os(base / "outside" / "secret.RAF");
+      os << "outside evidence";
+    }
+    fs::create_symlink(base / "outside" / "secret.RAF",
+                       base / "root" / "link.RAF");
+    const auto config = base / "datasets.json";
+    {
+      std::ofstream os(config);
+      os << "{\"datasets\":{\"fixture\":{\"root\":\""
+         << (base / "root").generic_string() << "\"}}}\n";
+    }
+
+    const std::string cfg = config.string();
+    check(run_patches({"Images/../../outside/secret.RAF", "--sg-corners",
+                       valid_corners, "--dataset", "fixture", "--config",
+                       cfg}) == 2,
+          "patches command: dataset raw cannot traverse above root");
+    check(run_patches({"link.RAF", "--sg-corners", valid_corners, "--dataset",
+                       "fixture", "--config", cfg}) == 2,
+          "patches command: dataset raw cannot symlink outside root");
+    // A contained relative input passes containment and fails later, at I/O.
+    check(run_patches({"Images/edge.RAF", "--sg-corners", valid_corners,
+                       "--dataset", "fixture", "--config", cfg}) == 1,
+          "patches command: contained relative raw reaches I/O");
+    fs::remove_all(base);
+  }
 }

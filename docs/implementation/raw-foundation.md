@@ -224,7 +224,12 @@ exclude AppleDouble and `.DS_Store` files, preserve
 relative public paths, serialize unavailable EXIF as `null`, reduce direct-root
 inputs to basename-safe labels, and reject parent traversal. Dataset-child and
 command fixtures also refuse leading or embedded `..` components and an input
-symlink that resolves outside the configured root. The shared output tests in
+symlink that resolves outside the configured root. Containment is enforced
+wherever a command joins a caller-supplied path to a configured dataset root and
+then labels the result with that dataset id, because an escaping path would
+otherwise publish outside evidence under that id. That covers the RAW-statistics,
+demosaic, shading, patch-extraction, and SFR commands; directory mode, which
+claims no dataset attribution, stays permissive. The shared output tests in
 [`test_output_file.cpp`](../../tests/test_output_file.cpp), plus the
 RAW-statistics and demosaic command fixtures, verify that identical,
 normalized-equivalent, and hard-linked output identities are refused before an

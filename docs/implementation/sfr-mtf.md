@@ -150,7 +150,11 @@ verdicts use exact assertions. The tests do not inspect the retained archive,
 rerun RAW measurements, or identify the physical cause of a trend. The figure
 test in [`test_portfolio_figures.py`](../../tools/test_portfolio_figures.py)
 only verifies the committed aggregate CSV-to-SVG transformation. The command
-tests exercise field-map argument and filename-mismatch refusals; the full
+tests exercise field-map argument and filename-mismatch refusals. They also pin
+dataset containment: with a configured dataset the RAW and oracle inputs must
+stay inside its root, so absolute paths, parent traversal, and symlinks that
+resolve outside are refused before any read, while directory mode — which
+attributes nothing to a dataset — still accepts an absolute path. The full
 field-map success path still requires LibRaw-backed input and has no committed
 public RAW fixture. Capture and pairing validity remain with the scientific
 report and inventory.
