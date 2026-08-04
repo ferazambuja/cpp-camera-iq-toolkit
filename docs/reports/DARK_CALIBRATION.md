@@ -1,5 +1,11 @@
 # Dark Calibration Reconciliation
 
+RAW code values include a black pedestal even when no light reaches the sensor.
+Subtracting the wrong pedestal biases shadows and contaminates every later noise
+or color calculation. This report compares the post-unpack LibRaw black level
+with 21 dark captures: 20 support the recovered 1024 DN pedestal, while one
+outlier is retained and rejected rather than allowed to move the consensus.
+
 Date: 2026-07-03
 Tool: `camera_iq dark-calibration` (this repository, v0.1.0)
 Dataset: private local RAW captures used only for validation. Source RAW files
@@ -107,7 +113,7 @@ Targeted checks:
   automatically classified as a bad capture. The result is scoped to the
   CLRS-589 Fujifilm X-T100 dark-frame set.
 
-## Implementation and tests
+## Reproducibility
 
 - [`src/dark_calibration.cpp`](../../src/dark_calibration.cpp)
 - [`src/cmd_dark_calibration.cpp`](../../src/cmd_dark_calibration.cpp)

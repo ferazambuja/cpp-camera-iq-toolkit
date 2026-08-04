@@ -1,5 +1,12 @@
 # Spectroradiometer ingest and measurement-group analysis
 
+Repeated spectra can differ in total light level, spectral shape, or
+chromaticity, and those differences do not necessarily peak in the same
+measurement group. This report recovers 89 distinct archived readings, groups
+them by retained measurement identity rather than filename similarity, and
+reports the three forms of variation separately. Missing setup and instrument
+conditions prevent assigning the observed variation to a physical cause.
+
 ## Measurement objective
 
 The archive stores spectroradiometer readings in MATLAB v5 files. The project
@@ -192,7 +199,7 @@ provide an independent reference for instrument accuracy.
   hermetic fixtures, the identity ledger, aggregate results, and deterministic
   figures.
 
-## Implementation and verification
+## Reproducibility
 
 - [`src/mat_file.cpp`](../../src/mat_file.cpp)
 - [`src/spectro_ingest.cpp`](../../src/spectro_ingest.cpp)

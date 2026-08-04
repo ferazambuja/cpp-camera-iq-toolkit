@@ -1,5 +1,12 @@
 # Exposure Response Readiness
 
+Before fitting an opto-electronic conversion function, an exposure series must
+contain multiple unclipped measurements of a sufficiently uniform target under
+stable settings. This report tests archived shutter ladders for that minimum
+readiness. Its most important result is negative: a bright sphere sequence that
+looks like an exposure ramp is rejected because its samples sit on a near-white
+plateau and cannot reveal response linearity.
+
 Date: 2026-07-03
 Tool: `camera_iq exposure-response` (this repository, v0.1.0)
 Dataset: private local RAW captures used only for validation. Source RAW files
@@ -200,7 +207,7 @@ Archive-backed outputs remain outside the public repository.
   different matched captures and calibration.
 - Chart detection and color-reference pairing are separate measurement paths.
 
-## Implementation and tests
+## Reproducibility
 
 - [`src/exposure_response.cpp`](../../src/exposure_response.cpp)
 - [`src/cmd_exposure_response.cpp`](../../src/cmd_exposure_response.cpp)

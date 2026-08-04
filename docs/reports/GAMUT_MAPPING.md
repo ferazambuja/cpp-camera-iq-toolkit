@@ -11,12 +11,17 @@
 
 ## Overview
 
-The `gamut-map` command converts encoded Display-P3 or sRGB samples through
-linear RGB and relative D65 XYZ before applying a declared destination-gamut
-method in either CIELAB or OkLCh. The implementation separates encoded and
-linear RGB types, rejects non-finite or out-of-domain input, tests the
-destination in linear RGB, and verifies every accepted output against the
-destination cube.
+Display-P3 can encode colors that an sRGB destination cannot reproduce. A gamut
+mapper must move those colors somewhere, balancing color difference, hue
+behavior, preserved distinctions, and unnecessary changes to colors that
+already fit. This report compares four fully specified methods on the same
+deterministic input, changing coordinates and mapping rules separately so their
+effects can be interpreted rather than blended together.
+
+The numerical path converts encoded Display-P3 or sRGB samples through linear
+RGB and relative D65 XYZ before applying a declared method in CIELAB or OkLCh.
+It rejects non-finite or out-of-domain input, tests destination membership in
+linear RGB, and verifies every accepted output against the destination cube.
 
 Four methods form two controlled comparisons:
 

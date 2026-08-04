@@ -1,5 +1,13 @@
 # RAW Patch Extraction
 
+A color-correction matrix is only as trustworthy as the RGB values extracted
+from its chart. This report checks the full path from RAW samples to 140
+ColorChecker-SG patch means, including black subtraction, field correction,
+white balance, chart orientation, and patch placement. A corner-generated grid
+retained high RGB correlation but missed checked patch centers by as much as
+16.449 px, so the reported CCM continues to use the retained RawDigger
+rectangles rather than promoting the inaccurate shortcut.
+
 Date: 2026-07-04
 Dataset: `clrs589_project_camera`
 Command: `camera_iq patches`
@@ -334,7 +342,7 @@ cross-aperture approximation, not a measured same-aperture correction.
   models would require held-out evidence before they could be treated as an
   improvement.
 
-## Code and verification
+## Reproducibility
 
 - [`src/patches.cpp`](../../src/patches.cpp)
 - [`src/cmd_patches.cpp`](../../src/cmd_patches.cpp)

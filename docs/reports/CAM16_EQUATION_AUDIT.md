@@ -10,10 +10,13 @@
 
 ## Overview
 
-The `cam16-equation-audit` command reproduces two bounded numerical consequences
-of the CIECAM02/CAM16 equations discussed by Hellwig and Fairchild (2022). It
-also pins the paper's corrected colorfulness coefficient and retains the
-published performance tradeoff instead of reporting only the improvements.
+A color appearance model predicts perceived attributes such as brightness and
+colorfulness under stated viewing conditions. This report audits a small subset
+of the published CIECAM02/CAM16 equations by varying their inputs and comparing
+isolated terms with the complete expressions they enter. It reproduces two
+bounded numerical consequences discussed by Hellwig and Fairchild, pins a
+corrected colorfulness coefficient, and retains an unfavorable published
+tradeoff instead of reporting only improvements.
 
 This is an equation-level audit, not an implementation of full CAM16, a test of
 CIE 248:2022 conformance, or observer validation. That narrower scope makes the

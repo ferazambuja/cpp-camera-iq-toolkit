@@ -1,5 +1,10 @@
 # Camera IQ Technical Coverage Map
 
+This is the navigation map for the measurement work, not a standalone camera
+test. It shows which image-quality questions the toolkit can currently answer,
+where the supporting reports and data live, and which conclusions remain
+blocked by missing captures or calibration evidence.
+
 Last reviewed: 2026-08-03<br>
 Evidence basis: the implementation, tests, reports, aggregate tables, and
 archive inventories in this repository.
@@ -68,7 +73,7 @@ locations.
 | CAM16 equation behavior | Covered as a bounded numerical audit | [CAM16 equation audit](CAM16_EQUATION_AUDIT.md) | Normalized brightness relation, isolated `N_cb^0.9` factor, fixed-response complete chroma-expression sweep, corrected Hellwig/Fairchild Equation 23 coefficient, published performance tradeoff, CLI output, and deterministic figure. | Not a general CAM16 forward transform, complete Hellwig implementation, CIE 248:2022 conformance test, appearance prediction, or observer validation. |
 | Spectral sensitivity extraction | Covered deeply | [Spectral report](SPECTRAL_SENSITIVITY.md), [archive map](SPECTRAL_ARCHIVE_INVENTORY.md) | C++ RAW extraction from monochromator sweeps, legacy-fidelity comparison, five-camera SSF inventory. | Legacy CSVs are fidelity checks, not correctness oracles. |
 | Spectral physical closure | Covered | [Spectral report](SPECTRAL_SENSITIVITY.md), [archive map](SPECTRAL_ARCHIVE_INVENTORY.md) | SG-140 and CC-24 physical closure for Canon/Nikon/Sony 2016 cameras using measured illuminant and reflectance. | Phase One IQ3 has SSF but no same-session broadband closure target. |
-| Spectral color-fidelity ranking | Covered | [Spectral report](SPECTRAL_SENSITIVITY.md) | Luther residuals and ISO-style SMI over SG-140, CC-24, and CC-18; D55 primary; white-preserving sensitivity bound. | Not claimed bit-exact to paywalled ISO Annex B. |
+| Spectral color-fidelity ranking | Covered | [Spectral report](SPECTRAL_SENSITIVITY.md) | Luther residuals and ISO-style SMI over SG-140, CC-24, and CC-18; D55 primary; white-preserving sensitivity bound. | Not claimed bit-exact to ISO 17321 Annex B. |
 | Spectroradiometer archive ingest | Covered as record characterization | [Spectroradiometer ingest](SPECTRORADIOMETER_INGEST.md), [SG provenance](SG_REFERENCE_PROVENANCE.md) | Runtime SHA-256 binding, bounded MAT v5 parsing, 40 measurement groups, absolute/normalized spectra, recorded-XYZ chromaticity, and same-record closure. | Source files do not record enough physical controls to assign within-group variation to source, geometry, settings, or instrument repeatability. |
 | Exposure response readiness | Covered | [Exposure response](EXPOSURE_RESPONSE.md) | Exposure-series grouping and black-subtracted CFA response summaries. | Readiness/response summary, not final ISO OECF/PTC. |
 | Relative OECF / linearity | Covered | [OECF fit](OECF_FIT.md) | Relative-exposure linearity over usable OECF points. | Assumes constant illumination; not ISO 14524. |
@@ -129,7 +134,7 @@ OECF, noise, and MTF are implemented within the stated measurement limits.
 The remaining gaps require additional calibration evidence or new
 target-specific captures rather than additional file parsing alone.
 
-## Implementation and verification
+## Reproducibility
 
 - [`CMakeLists.txt`](../../CMakeLists.txt)
 - [CI workflow](../../.github/workflows/ci.yml)

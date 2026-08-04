@@ -1,5 +1,13 @@
 # ColorChecker-SG Reference Provenance (dataset: clrs589_project_camera)
 
+A chart-based color fit needs to know what each photographed patch should have
+measured under the test illuminant. The exact per-unit spectral measurement of
+this ColorChecker-SG did not survive, so the workflow uses a compatible
+140-patch workbook verified against manufacturer nominal values at mean CIE76
+color difference 1.34, where lower means closer agreement. This report
+establishes that reference and keeps the resulting color difference scoped to a
+compatible chart, not the exact physical unit.
+
 Date: 2026-07-04
 Purpose: establish the colorimetric ground truth used by the SG white-balance,
 CCM, and Delta E workflow. All source data is private and gitignored. Heavy image
@@ -223,7 +231,7 @@ chart identity or a new measurement of that chart. The current comparison
 supports a neutral local measurement anchor, a compatible colored spectral SG
 reference, and an optional manufacturer-nominal comparison.
 
-## Implementation and tests
+## Reproducibility
 
 - [`src/color_reference.cpp`](../../src/color_reference.cpp)
 - [`src/cmd_reference_info.cpp`](../../src/cmd_reference_info.cpp)

@@ -1,5 +1,12 @@
 # Raw CFA Statistics
 
+Every later RAW measurement depends on reading the visible Bayer mosaic with
+the correct active-area crop, row stride, color phase, black pedestal, and white
+level. This report defines that common sensor-linear baseline and checks it on
+Fujifilm, Canon, and Nikon files. Negative residuals remain visible and headroom
+is measured against the signal range above black, preventing dark and
+near-clipping behavior from being silently distorted.
+
 Date: 2026-07-02
 Tool: `camera_iq raw-stats` (this repository, v0.1.0)
 Dataset: private local RAW captures: CLRS-589 "Project Camera" for the Fuji
@@ -281,7 +288,7 @@ finalize black level or pitch during `unpack()`, such as the Canon CR2
 regression above, its `black_level` can be an open-stage placeholder; use
 `raw-stats` for pixel-correct black subtraction.
 
-## Implementation and tests
+## Reproducibility
 
 - [`src/raw_meta.cpp`](../../src/raw_meta.cpp)
 - [`src/cmd_raw_stats.cpp`](../../src/cmd_raw_stats.cpp)

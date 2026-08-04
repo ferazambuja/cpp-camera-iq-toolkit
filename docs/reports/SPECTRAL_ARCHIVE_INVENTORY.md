@@ -1,5 +1,13 @@
 # Spectral Sensitivity Archive Inventory
 
+A spectral-sensitivity curve can only predict a chart capture when the camera,
+illuminant, reflectance data, and capture session are paired correctly. This
+appendix maps the evidence-complete four-camera laboratory run and keeps the
+separate Phase One IQ3 session in a spectral-sensitivity-only comparison because
+its matching broadband target and chart reflectance are absent. It is the
+file-selection contract behind the spectral study, not a camera ranking by
+itself.
+
 Date: 2026-07-07
 Scope: the camera monochromator / camSPECS archive feeding the `spectral-response`,
 `spectral-closure`, `spectral-quality`, and `spectral-smi` methods.
@@ -179,7 +187,7 @@ alongside the 2016 cameras is valid; a closure comparison would not be.
 - Quantify day-to-day SSF stability across each camera's 11-18 through 11-21
   monochromator runs.
 
-## Implementation and tests
+## Reproducibility
 
 - [`src/spectral_response.cpp`](../../src/spectral_response.cpp)
 - [`src/spectral_closure.cpp`](../../src/spectral_closure.cpp)

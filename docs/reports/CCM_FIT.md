@@ -1,5 +1,14 @@
 # CCM fitting: method and validation
 
+A camera's RAW RGB values depend on its own spectral sensitivities; they are not
+standard color coordinates. This report follows a 140-patch ColorChecker-SG
+capture through field correction, white balance, and a linear 3×3 RGB-to-XYZ
+fit, then measures color difference on patches withheld from that fit. The
+principal held-out result is **4.134 mean CIEDE2000**, a perceptual
+color-difference metric in which lower is better, against a compatible spectral
+chart reference. It is not an exact per-unit measurement of the photographed
+chart.
+
 Date: 2026-07-04
 Dataset: `clrs589_project_camera`
 Command: `camera_iq ccm-fit`
@@ -9,12 +18,9 @@ Command: `camera_iq ccm-fit`
 
 ## Scope
 
-The principal result follows a corrected 140-patch RAW ColorChecker-SG capture
-through flat-field screening, white-balance handling, spectral-reference
-rendering, and a linear 3x3 camera-RGB-to-XYZ fit. The corrected path reached
-**4.134 mean held-out CIEDE2000** against a compatible spectral reference while
-retaining dark-patch and reference-provenance diagnostics. It is not an exact
-per-unit chart characterization.
+The principal result retains dark-patch and reference-provenance diagnostics so
+that a lower aggregate cannot hide where the fit fails. The study also keeps the
+compatible-reference limitation attached to every color-difference result.
 
 The command renders the configured ColorChecker-SG spectral reflectance under
 an explicit illuminant SPD, then fits the color-correction matrix.
@@ -295,7 +301,7 @@ which also records the rejected measured case.
 - Corrected RAW-patch CCM evidence covers the f/8 CCSG series only;
   f/9 lacks a usable same-aperture flat in the local dataset cache.
 
-## Code and verification
+## Reproducibility
 
 - [`src/colorimetry.cpp`](../../src/colorimetry.cpp)
 - [`src/cmd_ccm_fit.cpp`](../../src/cmd_ccm_fit.cpp)

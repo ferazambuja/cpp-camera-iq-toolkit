@@ -150,6 +150,11 @@ cannot be read as a bound on the complete chroma expression.
 
 ## Technical reports
 
+These are the deeper method, result, and measurement-identity appendices behind
+the featured studies. Each opens with the scientific purpose and the conclusion
+it supports; later sections retain equations, input selection, and reproduction
+details for readers who need to audit the work.
+
 ### Camera measurement methods
 
 | Report | Status and purpose |

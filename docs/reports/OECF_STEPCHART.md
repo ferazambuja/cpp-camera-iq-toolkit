@@ -1,5 +1,13 @@
 # OECF Stepchart Oracle
 
+A Stepchart relates known printed density zones to the signal recorded by a
+camera. The retained Nikon archive is a chart sequence across ISO settings, not
+a fixed-ISO shutter ladder, so treating it as an ordinary exposure series would
+erase the physical reference axis. This report recovers eight matched Imatest
+summaries and preserves the 20-zone chart structure for later RAW comparison.
+Here “oracle” means the retained third-party reference table used for
+comparison; it is not treated as proof that either analysis is correct.
+
 Date: 2026-07-09
 
 Dataset: `d800_oecf_2016`
@@ -219,7 +227,7 @@ The strip-seed failure is intentional and must remain fail-closed; the ring
 seed is the accepted raw-DN path. The test suite tracks the Stepchart hardening,
 raw-zone gate, ring-contract, and ring-implementation commits.
 
-## Implementation and tests
+## Reproducibility
 
 - [`src/imatest_stepchart.cpp`](../../src/imatest_stepchart.cpp)
 - [`src/stepchart_localization.cpp`](../../src/stepchart_localization.cpp)

@@ -1,5 +1,11 @@
 # Dark-Frame Noise Diagnostics
 
+Two dark frames made under matched settings can separate frame-to-frame noise
+from spatial pattern that stays fixed on the sensor. This archive contains only
+one clean matched pair after black-level screening, so the report gives a
+bounded DN-space diagnostic—not a camera specification, photon-transfer curve,
+or electron-calibrated read-noise result.
+
 Date: 2026-07-07
 Tool: `camera_iq noise` (this repository, v0.1.0)
 Dataset: private CLRS-589 Fujifilm X-T100 dark-frame captures. Source RAW files
@@ -139,7 +145,7 @@ bash tools/check_public_paths.sh
 - Only one clean matched dark pair survives calibration, without an independent
   pair cross-check.
 
-## Implementation and tests
+## Reproducibility
 
 - [`src/noise.cpp`](../../src/noise.cpp)
 - [`src/cmd_noise.cpp`](../../src/cmd_noise.cpp)

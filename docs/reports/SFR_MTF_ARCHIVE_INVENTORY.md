@@ -1,5 +1,11 @@
 # SFR / MTF Archive Inventory
 
+The sharpness comparison is meaningful only if each RAW capture is paired with
+the correct aperture, chart region, and advisory Imatest result. This appendix
+maps those inputs and records the metadata limits that affect interpretation,
+including the missing lens serial and unsynchronized camera clocks. It is a
+measurement-identity reference, not a separate lens or camera result.
+
 Date: 2026-07-07
 Scope: filename-level inventory and measurement contract for the available
 slanted-edge SFR/MTF archive inputs.
@@ -230,7 +236,7 @@ D800-specific contract notes (all verified on the real files, 2026-07-08):
 Possible extensions are a multi-aperture summary command or an advisory
 rendered-luma comparison path with demosaic/OECF handling.
 
-## Implementation and tests
+## Reproducibility
 
 - [`src/sfr.cpp`](../../src/sfr.cpp)
 - [`src/cmd_sfr.cpp`](../../src/cmd_sfr.cpp)

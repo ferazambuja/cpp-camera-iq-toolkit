@@ -1,5 +1,12 @@
 # Relative CFA Flat-Field Response
 
+A nominally uniform field reveals how much recorded signal changes across the
+image and whether the individual color-filter-array (CFA) samples fall off
+together. This report tests whether a centered radial model describes the
+retained sphere captures. It does not: the primary accepted frame shows 19.65%
+green-field quadrant asymmetry, while the available controls cannot isolate the
+source, lens, alignment, or sensor contribution.
+
 Dataset: `clrs589_project_camera` Fujifilm X-T100 sphere and dark captures  
 Command: `camera_iq shading`  
 Result type: capture-system field characterization in black-subtracted DN
@@ -12,8 +19,7 @@ Result type: capture-system field characterization in black-subtracted DN
 
 ## Purpose and conclusion
 
-This command measures how a uniform-field RAW capture changes across the
-sensor. It retains the four CFA positions independently, applies explicit
+The measurement retains the four CFA positions independently, applies explicit
 quality gates, normalizes each plane to a central block, and derives chromatic
 ratios from the normalized maps.
 

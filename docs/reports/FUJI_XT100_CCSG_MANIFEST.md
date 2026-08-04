@@ -1,5 +1,11 @@
 # Fujifilm X-T100 ColorChecker-SG Dataset Manifest
 
+Before color or image-quality results can be trusted, the archive has to answer
+basic questions: which files belong to the study, what camera state they record,
+and which dates or filenames are reliable enough to organize them. This report
+establishes that dataset boundary. It inventories the retained material and its
+caveats; it does not calculate a color, noise, or sharpness result.
+
 Date: 2026-07-02
 Tool: `camera_iq manifest` (this repository, v0.1.0)
 Dataset: private local copy of an archived Fujifilm X-T100 ColorChecker-SG
@@ -8,10 +14,8 @@ repository; paths below are relative to the dataset root.
 
 ## Scope
 
-This report records the machine-readable dataset manifest and the file,
-metadata, exposure-series, and provenance checks performed by the manifest
-command. It does not calculate color correction, noise, or image-quality
-metrics.
+The machine-readable manifest records file, metadata, exposure-series, and
+provenance checks while keeping source paths private.
 
 ## Method
 
@@ -197,7 +201,7 @@ analyses from the remaining calibration gaps: electron gain/read noise, full
 well, engineering dynamic range, exact ISO conformance, and blind chart
 localization.
 
-## Implementation and tests
+## Reproducibility
 
 - [`src/manifest.cpp`](../../src/manifest.cpp)
 - [`src/cmd_manifest.cpp`](../../src/cmd_manifest.cpp)

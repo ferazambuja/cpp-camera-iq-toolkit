@@ -1,5 +1,11 @@
 # Bilinear demosaic: method and validation
 
+A Bayer sensor records only one color value at each pixel; demosaicing estimates
+the two missing color components. This report documents a deliberately simple
+bilinear baseline so later image-quality measurements can distinguish sensor
+data from interpolation behavior. The goal is transparency and cross-camera
+correctness, not production rendering quality.
+
 Date: 2026-07-02
 Tool: `camera_iq demosaic` (this repository, v0.1.0)
 Dataset: private local RAW captures used only for validation. Source RAW files
@@ -180,7 +186,7 @@ sample-fixture, documentation, and figure-freshness checks.
   dark-frame reconciliation. Camera-by-camera dark-current/noise modeling still
   requires matched calibration captures.
 
-## Implementation and tests
+## Reproducibility
 
 - [`src/demosaic.cpp`](../../src/demosaic.cpp)
 - [`src/cmd_demosaic.cpp`](../../src/cmd_demosaic.cpp)

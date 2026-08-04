@@ -1,14 +1,23 @@
 # Spectral Sensitivity and Camera Color Fidelity
 
+The shapes of a camera's red, green, and blue spectral sensitivities constrain
+how closely a linear transform can reproduce standard human-observer color
+coordinates. This report measures and checks those spectral-sensitivity
+functions (SSFs) before comparing five cameras. Four evidence-complete
+camera/chart sets reached minimum channel correlation above 0.992 in
+same-session physical closure; the Canon 5D2 and Phase One IQ3 form the stable
+endpoints of the separate colorimetric-fit comparison, while the middle ordering
+remains method-sensitive.
+
 Date: 2026-07-06
 Tool: `camera_iq manifest` (this repository, v0.1.0)
 Dataset: `spectral_sensitivity_2016_2017`
 
 ## Result summary
 
-This report documents the completed path from monochromator data to a
-RAW-extracted camera spectral-sensitivity function, same-session physical
-closure, Luther-condition residuals, and an ISO 17321-style SMI approximation.
+The completed path runs from monochromator data to a RAW-extracted camera
+spectral-sensitivity function, same-session physical closure, Luther-condition
+residuals, and an ISO 17321-style SMI approximation.
 
 [Case study](../case-studies/spectral-color-fidelity.md) ·
 [aggregate results CSV](../data/spectral_color_fidelity.csv) ·
@@ -591,8 +600,8 @@ SMI limitations:
   ISO DSC/SMI default (D55). The metric uses `SMI = 100 - 5.5*dE*ab` after a 3x3
   RGB->XYZ fit. The command also emits a white-preserving constrained-fit
   sensitivity check, but the remaining gaps to a citable absolute ISO SMI are
-  still the exact slope constant and the paywalled Annex B optimizer /
-  normalization details. The command exposes `--smi-slope`; slope changes the
+  still the exact slope constant and Annex B optimizer/normalization details.
+  The command exposes `--smi-slope`; slope changes the
   absolute SMI scale but not the ranking (a positive affine map).
 - **Reproducibility.** The `spectral-smi` command and its unit tests are fully
   reproducible from the committed repo (synthetic fixtures + committed D50/D55).
@@ -644,10 +653,10 @@ remain outside the reported analysis until their session pairing is verified.
    ColorChecker patches, the full CC-24, and the SG-140 — see the SMI ranking
    section above (Canon best, IQ3 worst on all three; A7RII second; A7SII slightly
    ahead of D810 in the D55 run). The command also reports a white-preserving
-   constrained-fit sensitivity check to bound one plausible normalization variant.
-   The remaining gaps to a *bit-exact* citable SMI are the `5.5` slope (paywalled
-   ISO constant) and the exact Annex B optimizer / normalization convention;
-   slope does not change the ranking.
+   constrained-fit sensitivity check to bound one plausible normalization
+   variant. The remaining gaps to a *bit-exact* citable SMI are the `5.5` slope
+   and the exact Annex B optimizer/normalization convention; slope does not
+   change the ranking.
 
 ## Interpretation limits
 
@@ -659,7 +668,7 @@ remain outside the reported analysis until their session pairing is verified.
 - Closure residuals do not rank camera color quality; that question is handled
   separately by the SSF-vs-CMF metrics.
 
-## Implementation and tests
+## Reproducibility
 
 - [`src/spectral_response.cpp`](../../src/spectral_response.cpp)
 - [`src/spectral_closure.cpp`](../../src/spectral_closure.cpp)

@@ -1,14 +1,18 @@
 # Nikon D800/D810 + 50 mm f/1.4G slanted-edge SFR and field analysis
 
+Slanted-edge spatial frequency response measures how much contrast a complete
+capture system preserves as image detail becomes finer. This report examines
+both aperture and position in the frame, because a center-only sharpness number
+can hide field asymmetry. The D810 system peaks at f/5.6 in the center; the D800
+system follows a different aperture trend and moves its strongest response away
+from center at several apertures.
+
 Evidence runs: 2026-07-08<br>
 Implementation validation refreshed: 2026-07-28
 
-**Result:** the C++ green-linear SFR path accepted all 299 field ROIs in the
-published D800/D810 sweeps. The D810 center response peaked at f/5.6 and showed
-positive center-to-corner margin from f/5.6 through f/11. The same trend did not
-transfer to the D800; that capture system retained a different center curve and
-field maximum. Slanted-edge SFR measures lens, aperture, focus and alignment
-state, OLPF, sampling, and processing together, so every value below is a
+The sensor-linear green analysis accepted all 299 measured chart regions. SFR
+includes lens, aperture, focus and alignment state, optical low-pass filtering,
+sensor sampling, and processing together, so every value below is a
 capture-system result rather than a camera-body or lens property.
 
 [Case study](../case-studies/sfr-mtf-aperture-field.md) ·
@@ -232,7 +236,7 @@ without changing acceptance, aperture ordering, or the interpretations above.
 - This is a system SFR study, not a lens characterization. Lens-sample identity,
   controlled refocusing, and repeat captures are all absent from the archive.
 
-## Implementation and tests
+## Reproducibility
 
 - [`include/camera_iq/sfr.hpp`](../../include/camera_iq/sfr.hpp)
 - [`src/sfr.cpp`](../../src/sfr.cpp)

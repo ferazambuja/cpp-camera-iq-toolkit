@@ -1,5 +1,12 @@
 # Relative OECF Fit
 
+An opto-electronic conversion function asks how recorded camera signal changes
+as exposure changes. This report fits a relative linear response only after
+black subtraction, headroom, saturation, EXIF-consistency, and target-uniformity
+checks. Four usable points in the selected f/8 sphere region produced per-plane
+maximum nonlinearity of 0.72–1.04%; the result is a bounded linearity check, not
+ISO 14524 conformance or proof of source stability.
+
 Date: 2026-07-04
 Tool: `camera_iq oecf-fit` (this repository, v0.1.0)
 Dataset: private local RAW captures used only for validation. Source RAW files
@@ -7,8 +14,7 @@ are not distributed with this repository.
 
 ## Scope
 
-The command fits sensor linearity over the existing
-exposure-response chain:
+The fit reuses the existing exposure-response chain:
 
 - Reuse exposure-series grouping, post-`unpack()` black subtraction, active-area
   ROI handling, ROI uniformity, lower-bound signal, near-white, saturation, and
@@ -113,7 +119,7 @@ Targeted checks:
 - Chart/reflectance pairing and colorimetric or perceptual quality are separate
   analyses.
 
-## Implementation and tests
+## Reproducibility
 
 - [`src/oecf_fit.cpp`](../../src/oecf_fit.cpp)
 - [`src/cmd_oecf_fit.cpp`](../../src/cmd_oecf_fit.cpp)

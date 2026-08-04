@@ -1,5 +1,13 @@
 # RAW Chart Localization
 
+Automating chart placement would remove a manual step from color analysis, but
+a misplaced grid can preserve the chart's overall tonal ordering and still
+sample the wrong pixels. This report therefore judges localization by geometry
+and absolute patch values as well as correlation. The tested corner-seeded grid
+missed the checked patch centers by up to 16.449 px, failing the declared 5 px
+limit even though its per-channel correlations exceeded 0.999; it was rejected
+for the reported CCM result.
+
 Date: 2026-07-06
 Dataset: `clrs589_project_camera`
 Command: `camera_iq patches --sg-corners --rawdigger-oracle-csv`
@@ -268,7 +276,7 @@ Any threshold change should first diagnose that systematic interior bow:
   is unusable on this capture because the seedings disagree and repeatability is
   poor.
 
-## Implementation and tests
+## Reproducibility
 
 - [`src/chart_localization.cpp`](../../src/chart_localization.cpp)
 - [`src/localization_diagnosis.cpp`](../../src/localization_diagnosis.cpp)
