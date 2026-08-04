@@ -37,12 +37,13 @@ std::string check_name(const ReferenceSample& sample, const char* quantity) {
          quantity;
 }
 
-// Several samples below sit exactly on a gamut boundary, so a regression in any
-// primary matrix can push them outside the declared source gamut and make the
-// mapping throw rather than return a comparable value. Letting that escape
-// would end the executable at the first such sample and silently skip every
-// later check, which is the opposite of what a cross-check is for. Report the
-// throw as the failure it is and keep going.
+// Several samples below sit exactly on a gamut boundary, so an inconsistency
+// between the declared source's forward and inverse matrices can push them
+// outside the source-gamut check and make the mapping throw rather than return
+// a comparable value. Letting that escape would end the executable at the first
+// such sample and silently skip every later check. Report the throw as the
+// failure it is and keep going; destination-matrix errors remain covered by the
+// comparison and gamut assertions.
 bool try_map(const EncodedRgb& input, const GamutMapOptions& options,
              const std::string& name, camera_iq::GamutMappingResult& result) {
   try {
@@ -52,6 +53,13 @@ bool try_map(const EncodedRgb& input, const GamutMapOptions& options,
     check(false, name + " threw: " + error.what());
     return false;
   }
+}
+
+std::string input_name(const EncodedRgb& input) {
+  std::ostringstream name;
+  name.precision(6);
+  name << "r=" << input.r << ",g=" << input.g << ",b=" << input.b;
+  return name.str();
 }
 
 struct ProfileCloser {
@@ -210,17 +218,19 @@ void TESTS() {
   const char* worst_channel = "none";
   bool every_input_in_destination = true;
   bool every_input_preserved = true;
+  std::size_t successful_comparisons = 0;
   for (double r : kSweepLevels) {
     for (double g : kSweepLevels) {
       for (double b : kSweepLevels) {
         const EncodedRgb input{r, g, b};
         camera_iq::GamutMappingResult ours;
         if (!try_map(input, into_p3,
-                     "LittleCMS cross-check [216-point sRGB cube]: mapping",
+                     "LittleCMS cross-check [216-point sRGB cube; " +
+                         input_name(input) + "]: mapping",
                      ours)) {
-          every_input_in_destination = false;
           continue;
         }
+        ++successful_comparisons;
         const auto reference = lcms_convert(input, false);
         every_input_in_destination &= ours.input_in_destination;
         every_input_preserved &= !ours.modified;
@@ -241,17 +251,28 @@ void TESTS() {
       }
     }
   }
-  check(every_input_in_destination,
-        "LittleCMS cross-check [216-point sRGB cube]: every input is inside "
-        "Display-P3");
-  check(every_input_preserved,
-        "LittleCMS cross-check [216-point sRGB cube]: every input remains "
-        "colorimetrically unchanged");
-  std::ostringstream sweep_result;
-  sweep_result.precision(3);
-  sweep_result << "LittleCMS cross-check [216-point sRGB cube]: worst "
-               << worst_channel << " error " << std::scientific << worst_error
-               << " at (" << worst_input.r << ", " << worst_input.g << ", "
-               << worst_input.b << ") is within the declared tolerance";
-  check(worst_error <= kReferenceTolerance, sweep_result.str());
+  constexpr std::size_t kExpectedComparisons =
+      kSweepLevels.size() * kSweepLevels.size() * kSweepLevels.size();
+  std::ostringstream completion;
+  completion << "LittleCMS cross-check [216-point sRGB cube]: completed "
+             << successful_comparisons << "/" << kExpectedComparisons
+             << " comparisons";
+  const bool sweep_complete = successful_comparisons == kExpectedComparisons;
+  check(sweep_complete, completion.str());
+  if (sweep_complete) {
+    check(every_input_in_destination,
+          "LittleCMS cross-check [216-point sRGB cube]: every input is inside "
+          "Display-P3");
+    check(every_input_preserved,
+          "LittleCMS cross-check [216-point sRGB cube]: every input remains "
+          "colorimetrically unchanged");
+    std::ostringstream sweep_result;
+    sweep_result.precision(3);
+    sweep_result << "LittleCMS cross-check [216-point sRGB cube]: worst "
+                 << worst_channel << " error " << std::scientific
+                 << worst_error << " at (" << worst_input.r << ", "
+                 << worst_input.g << ", " << worst_input.b
+                 << ") is within the declared tolerance";
+    check(worst_error <= kReferenceTolerance, sweep_result.str());
+  }
 }

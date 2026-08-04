@@ -123,6 +123,7 @@ function(camera_iq_add_test name source)
 endfunction()
 
 camera_iq_add_test(camera_iq_tests tests/test_cli_basic.cpp)
+camera_iq_add_test(test_harness tests/test_harness.cpp)
 camera_iq_add_test(test_filename_meta tests/test_filename_meta.cpp)
 camera_iq_add_test(test_dataset_config tests/test_dataset_config.cpp)
 camera_iq_add_test(test_json_writer tests/test_json_writer.cpp)

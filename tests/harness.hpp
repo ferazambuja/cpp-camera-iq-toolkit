@@ -34,22 +34,26 @@ inline void check_near(double actual, double expected, double tol,
   check(ok, name);
 }
 
+template <typename TestBody>
+int run(TestBody body) {
+  failures = 0;
+  try {
+    body();
+  } catch (const std::exception& error) {
+    check(false, std::string("uncaught exception: ") + error.what());
+  } catch (...) {
+    check(false, "uncaught non-standard exception");
+  }
+  std::cout << (failures == 0 ? "all tests passed\n" : "TESTS FAILED\n");
+  return failures == 0 ? 0 : 1;
+}
+
 }  // namespace test
 
 void TESTS();
 
+#ifndef CAMERA_IQ_TEST_HARNESS_NO_MAIN
 int main() {
-  // An escaping exception would otherwise reach std::terminate, which aborts
-  // without the summary line and without the accumulated failures, so a
-  // regression that throws would be reported only as a signal. Catching it
-  // keeps the diagnosis in the log and the exit status meaningful.
-  try {
-    TESTS();
-  } catch (const std::exception& error) {
-    test::check(false, std::string("uncaught exception: ") + error.what());
-  } catch (...) {
-    test::check(false, "uncaught non-standard exception");
-  }
-  std::cout << (test::failures == 0 ? "all tests passed\n" : "TESTS FAILED\n");
-  return test::failures == 0 ? 0 : 1;
+  return test::run([] { TESTS(); });
 }
+#endif
