@@ -155,6 +155,8 @@ the positive factors `1e-6`, `1e3`, and `7` preserves the combined residual to
 `1e-12`. These fixtures pin invariance of this normalized subspace metric under
 those rescalings; they do not make extracted SSF amplitudes or physical closure
 scale-invariant.
+<!-- test-evidence: spectral-fidelity.luther-scale-invariance -->
+
 The ideal fixture in
 [`test_spectral_smi.cpp`](../../tests/test_spectral_smi.cpp) retains six colors,
 produces mean Delta E 76 near zero and both scores near `100` under their

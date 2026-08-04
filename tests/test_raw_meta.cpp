@@ -184,6 +184,7 @@ void TESTS() {
               measurement_meta->black_per_channel == meta.black_per_channel,
           "black: post-unpack measurement metadata accepts a 2x2 repeat");
   }
+  // DOC-EVIDENCE: raw-foundation.black-repeat-periodicity
   // A larger repeat can be represented by four CFA-position values only when
   // every same-parity entry agrees. Otherwise the RAW path must reject rather
   // than subtract the top-left 2x2 across the entire image.

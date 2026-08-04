@@ -141,11 +141,15 @@ The localization gate itself is exercised in
 cases, both constructed so that RGB correlation alone would accept them: a
 shifted grid fails the declared `5 px` center limit while the correlation gate
 still passes, and a uniform `30 DN` offset fails the `25 DN` absolute
-mean-error limit while correlation again passes. The serialized `passes`
-verdict is pinned false for the shifted case with
-`correlation_gate_passes` true, because that boolean is the contract a
-downstream reader uses to decide whether the grid replaced the reference
-extraction.
+mean-error limit while correlation again passes.
+<!-- test-evidence: color-characterization.localization-gates -->
+
+The serialized `passes` verdict is pinned false for the shifted case with
+`correlation_gate_passes` true in
+[`test_patches.cpp`](../../tests/test_patches.cpp), because that boolean is the
+contract a downstream reader uses to decide whether the grid replaced the
+reference extraction.
+<!-- test-evidence: color-characterization.localization-verdict -->
 
 The residual-diagnosis fixtures in
 [`test_localization_diagnosis.cpp`](../../tests/test_localization_diagnosis.cpp)
@@ -172,12 +176,14 @@ camera rows by patch ID because those rows do not carry IDs. Tested refusal
 cases cover singular fits, invalid spectral-reference inputs, flat-field gate
 failures, and missing required provenance fields. At the command/integration
 layer, a role or physical identity outside the supported `ccm-fit` provenance
-contract is refused. The command test pins the accepted role,
+contract is refused. The command assertions in
+[`test_cmd_ccm_fit.cpp`](../../tests/test_cmd_ccm_fit.cpp) pin the accepted role,
 `compatible_sg_spectral_not_exact_per_unit` scope, and compatible physical
 identity as one serialized contract. Refusals name the accepted provenance and
 the requirement for an explicit contract before another interpretation is
 accepted. Reference, camera-RGB, and illuminant paths reduce to explicit
 `external:<basename>` labels.
+<!-- test-evidence: color-characterization.ccm-provenance -->
 
 The shared path-resolution fixtures in
 [`test_dataset_config.cpp`](../../tests/test_dataset_config.cpp), together with

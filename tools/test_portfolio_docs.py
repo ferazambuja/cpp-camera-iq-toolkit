@@ -256,6 +256,166 @@ class ProvenanceContractTests(unittest.TestCase):
         )
 
 
+class EvidenceAttributionTests(unittest.TestCase):
+    def fixture_contracts(self):
+        return {
+            "example.threshold": DOCS.EvidenceAttributionContract(
+                document=Path("docs/implementation/example.md"),
+                test=Path("tests/test_example.cpp"),
+            )
+        }
+
+    def write_valid_fixture(self, repo: Path) -> None:
+        document = repo / "docs" / "implementation" / "example.md"
+        document.parent.mkdir(parents=True)
+        document.write_text(
+            "The threshold is pinned by "
+            "[`test_example.cpp`](../../tests/test_example.cpp).\n"
+            "<!-- test-evidence: example.threshold -->\n",
+            encoding="utf-8",
+        )
+        test = repo / "tests" / "test_example.cpp"
+        test.parent.mkdir(parents=True)
+        test.write_text(
+            "// DOC-EVIDENCE: example.threshold\n"
+            "check(value == 1);\n",
+            encoding="utf-8",
+        )
+
+    def test_matching_claim_link_and_test_marker_pass(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            repo = Path(temp)
+            self.write_valid_fixture(repo)
+            self.assertEqual(
+                [],
+                DOCS.evidence_attribution_failures(
+                    repo, self.fixture_contracts()
+                ),
+            )
+
+    def test_wrong_but_existing_test_link_is_rejected(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            repo = Path(temp)
+            self.write_valid_fixture(repo)
+            other = repo / "tests" / "test_other.cpp"
+            other.write_text("check(true);\n", encoding="utf-8")
+            document = repo / "docs" / "implementation" / "example.md"
+            document.write_text(
+                document.read_text(encoding="utf-8").replace(
+                    "../../tests/test_example.cpp",
+                    "../../tests/test_other.cpp",
+                ),
+                encoding="utf-8",
+            )
+            failures = DOCS.evidence_attribution_failures(
+                repo, self.fixture_contracts()
+            )
+            self.assertTrue(
+                any("claim paragraph does not link its registered test" in item
+                    for item in failures),
+                failures,
+            )
+
+    def test_marker_in_wrong_test_file_is_rejected(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            repo = Path(temp)
+            self.write_valid_fixture(repo)
+            expected = repo / "tests" / "test_example.cpp"
+            expected.write_text("check(value == 1);\n", encoding="utf-8")
+            (repo / "tests" / "test_other.cpp").write_text(
+                "// DOC-EVIDENCE: example.threshold\ncheck(true);\n",
+                encoding="utf-8",
+            )
+            failures = DOCS.evidence_attribution_failures(
+                repo, self.fixture_contracts()
+            )
+            self.assertTrue(
+                any("test marker is not in its registered file" in item
+                    for item in failures),
+                failures,
+            )
+
+    def test_duplicate_document_marker_is_rejected(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            repo = Path(temp)
+            self.write_valid_fixture(repo)
+            document = repo / "docs" / "implementation" / "example.md"
+            document.write_text(
+                document.read_text(encoding="utf-8")
+                + "\n<!-- test-evidence: example.threshold -->\n",
+                encoding="utf-8",
+            )
+            failures = DOCS.evidence_attribution_failures(
+                repo, self.fixture_contracts()
+            )
+            self.assertTrue(
+                any("document marker count is 2" in item for item in failures),
+                failures,
+            )
+
+    def test_unregistered_marker_is_rejected(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            repo = Path(temp)
+            self.write_valid_fixture(repo)
+            document = repo / "docs" / "implementation" / "example.md"
+            document.write_text(
+                document.read_text(encoding="utf-8")
+                + "\n<!-- test-evidence: example.typo -->\n",
+                encoding="utf-8",
+            )
+            failures = DOCS.evidence_attribution_failures(
+                repo, self.fixture_contracts()
+            )
+            self.assertTrue(
+                any("unregistered document evidence marker" in item
+                    for item in failures),
+                failures,
+            )
+
+    def test_current_critical_claims_have_machine_checked_attribution(self) -> None:
+        contracts = {
+            "color-characterization.localization-gates":
+                DOCS.EvidenceAttributionContract(
+                    Path("docs/implementation/color-characterization.md"),
+                    Path("tests/test_patches.cpp"),
+                ),
+            "color-characterization.localization-verdict":
+                DOCS.EvidenceAttributionContract(
+                    Path("docs/implementation/color-characterization.md"),
+                    Path("tests/test_patches.cpp"),
+                ),
+            "color-characterization.ccm-provenance":
+                DOCS.EvidenceAttributionContract(
+                    Path("docs/implementation/color-characterization.md"),
+                    Path("tests/test_cmd_ccm_fit.cpp"),
+                ),
+            "flat-field.threshold-boundaries":
+                DOCS.EvidenceAttributionContract(
+                    Path("docs/implementation/flat-field.md"),
+                    Path("tests/test_flat_field_gate.cpp"),
+                ),
+            "sfr.nyquist-accuracy": DOCS.EvidenceAttributionContract(
+                Path("docs/implementation/sfr-mtf.md"),
+                Path("tests/test_sfr.cpp"),
+            ),
+            "spectral-fidelity.luther-scale-invariance":
+                DOCS.EvidenceAttributionContract(
+                    Path("docs/implementation/spectral-fidelity.md"),
+                    Path("tests/test_spectral_quality.cpp"),
+                ),
+            "raw-foundation.black-repeat-periodicity":
+                DOCS.EvidenceAttributionContract(
+                    Path("docs/implementation/raw-foundation.md"),
+                    Path("tests/test_raw_meta.cpp"),
+                ),
+        }
+        repo_root = SCRIPT.parent.parent
+        self.assertEqual(contracts, DOCS.EVIDENCE_ATTRIBUTION_CONTRACTS)
+        self.assertEqual(
+            [], DOCS.evidence_attribution_failures(repo_root, contracts)
+        )
+
+
 class DocumentationLayerTests(unittest.TestCase):
     def test_current_studies_and_reports_link_to_companions(self) -> None:
         repo_root = SCRIPT.parent.parent

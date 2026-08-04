@@ -207,6 +207,7 @@ void TESTS() {
     }
   }
 
+  // DOC-EVIDENCE: flat-field.threshold-boundaries
   {
     // Measure the declared inclusive threshold rather than injecting a ratio.
     // A 20x20 mosaic has exactly 100 samples per CFA position.

@@ -158,6 +158,7 @@ void TESTS() {
         "ccm-fit JSON: capture project emitted");
   check(json.find("\"reference_year\":\"2025\"") != std::string::npos,
         "ccm-fit JSON: reference year emitted");
+  // DOC-EVIDENCE: color-characterization.ccm-provenance
   check(json.find("\"physical_chart_identity\":"
                   "\"compatible_reference_not_proven_same_physical_chart\"") !=
             std::string::npos,

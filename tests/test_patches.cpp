@@ -246,6 +246,7 @@ void TESTS() {
             wide.center_residuals[14].column == 0,
         "localization validation: index 14 crosses to row 1 column 0 (A2)");
 
+  // DOC-EVIDENCE: color-characterization.localization-gates
   std::vector<PatchMean> shifted = localized;
   for (auto& patch : shifted) {
     patch.source_coord.x += 6.0;
@@ -475,6 +476,7 @@ void TESTS() {
   check(localization_doc.find("\"max_abs_mean_error_dn\":25") !=
             std::string::npos,
         "localization report: predeclared DN gate emitted");
+  // DOC-EVIDENCE: color-characterization.localization-verdict
   // Pin the machine-readable verdict for a FAILING run. The `passes` boolean is
   // the downstream contract an audit/thesis script reads to decide whether the
   // grid replaced RawDigger; a serialization regression flipping it to true on a

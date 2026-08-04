@@ -8,10 +8,55 @@ import re
 import subprocess
 import sys
 from pathlib import Path
+from typing import NamedTuple
 from urllib.parse import unquote
 
 
 LINK_RE = re.compile(r"!?\[[^\]]*\]\(([^)]+)\)")
+DOCUMENT_EVIDENCE_RE = re.compile(
+    r"<!--\s*test-evidence:\s*([a-z0-9][a-z0-9.-]*)\s*-->"
+)
+TEST_EVIDENCE_RE = re.compile(
+    r"^\s*(?://|#)\s*DOC-EVIDENCE:\s*([a-z0-9][a-z0-9.-]*)\s*$",
+    re.MULTILINE,
+)
+
+
+class EvidenceAttributionContract(NamedTuple):
+    document: Path
+    test: Path
+
+
+EVIDENCE_ATTRIBUTION_CONTRACTS: dict[str, EvidenceAttributionContract] = {
+    "color-characterization.localization-gates": EvidenceAttributionContract(
+        Path("docs/implementation/color-characterization.md"),
+        Path("tests/test_patches.cpp"),
+    ),
+    "color-characterization.localization-verdict": EvidenceAttributionContract(
+        Path("docs/implementation/color-characterization.md"),
+        Path("tests/test_patches.cpp"),
+    ),
+    "color-characterization.ccm-provenance": EvidenceAttributionContract(
+        Path("docs/implementation/color-characterization.md"),
+        Path("tests/test_cmd_ccm_fit.cpp"),
+    ),
+    "flat-field.threshold-boundaries": EvidenceAttributionContract(
+        Path("docs/implementation/flat-field.md"),
+        Path("tests/test_flat_field_gate.cpp"),
+    ),
+    "sfr.nyquist-accuracy": EvidenceAttributionContract(
+        Path("docs/implementation/sfr-mtf.md"),
+        Path("tests/test_sfr.cpp"),
+    ),
+    "spectral-fidelity.luther-scale-invariance": EvidenceAttributionContract(
+        Path("docs/implementation/spectral-fidelity.md"),
+        Path("tests/test_spectral_quality.cpp"),
+    ),
+    "raw-foundation.black-repeat-periodicity": EvidenceAttributionContract(
+        Path("docs/implementation/raw-foundation.md"),
+        Path("tests/test_raw_meta.cpp"),
+    ),
+}
 REQUIRED_PROJECT_DOCUMENTS = (
     Path("docs/README.md"),
     Path("docs/PUBLIC_DOCUMENTATION_STANDARD.md"),
@@ -594,6 +639,107 @@ def implementation_evidence_failures(repo_root: Path) -> list[str]:
     return failures
 
 
+def _text_files(root: Path, suffixes: set[str]) -> list[Path]:
+    if not root.is_dir():
+        return []
+    return sorted(
+        path for path in root.rglob("*")
+        if path.is_file() and path.suffix in suffixes
+    )
+
+
+def _preceding_paragraph(text: str, marker_start: int) -> str:
+    prefix = text[:marker_start].rstrip()
+    return re.split(r"\n[ \t]*\n", prefix)[-1]
+
+
+def _paragraph_links_to(document: Path, paragraph: str, expected: Path) -> bool:
+    expected = expected.resolve()
+    for match in LINK_RE.finditer(paragraph):
+        target = link_target(match.group(1))
+        if not target or target.startswith(("#", "http://", "https://", "mailto:")):
+            continue
+        target_path = unquote(target.split("#", 1)[0])
+        if (document.parent / target_path).resolve() == expected:
+            return True
+    return False
+
+
+def evidence_attribution_failures(
+    repo_root: Path,
+    contracts: dict[str, EvidenceAttributionContract] | None = None,
+) -> list[str]:
+    """Bind selected documentation claims to markers beside executable tests.
+
+    A regular Markdown link proves only that a test file exists. These opt-in
+    contracts additionally require one stable identifier in the claim's
+    paragraph and one beside the assertions in the registered test file.
+    """
+    contracts = EVIDENCE_ATTRIBUTION_CONTRACTS if contracts is None else contracts
+    failures: list[str] = []
+    document_markers: dict[str, list[tuple[Path, re.Match[str], str]]] = {}
+    test_markers: dict[str, list[Path]] = {}
+
+    document_paths = _text_files(repo_root / "docs", {".md"})
+    readme = repo_root / "README.md"
+    if readme.is_file():
+        document_paths.append(readme)
+    for path in document_paths:
+        text = path.read_text(encoding="utf-8")
+        for match in DOCUMENT_EVIDENCE_RE.finditer(text):
+            document_markers.setdefault(match.group(1), []).append(
+                (path, match, text)
+            )
+
+    for path in _text_files(repo_root / "tests", {".cpp", ".hpp", ".py"}):
+        text = path.read_text(encoding="utf-8")
+        for match in TEST_EVIDENCE_RE.finditer(text):
+            test_markers.setdefault(match.group(1), []).append(path)
+
+    for evidence_id in sorted(set(document_markers) - set(contracts)):
+        failures.append(
+            f"unregistered document evidence marker: {evidence_id}"
+        )
+    for evidence_id in sorted(set(test_markers) - set(contracts)):
+        failures.append(f"unregistered test evidence marker: {evidence_id}")
+
+    for evidence_id, contract in contracts.items():
+        expected_document = (repo_root / contract.document).resolve()
+        expected_test = (repo_root / contract.test).resolve()
+        document_entries = document_markers.get(evidence_id, [])
+        test_entries = test_markers.get(evidence_id, [])
+
+        if len(document_entries) != 1:
+            failures.append(
+                f"document marker count is {len(document_entries)} for "
+                f"{evidence_id}; expected exactly 1 in {contract.document}"
+            )
+        elif document_entries[0][0].resolve() != expected_document:
+            failures.append(
+                f"document marker is not in its registered file: {evidence_id}"
+            )
+        else:
+            path, match, text = document_entries[0]
+            paragraph = _preceding_paragraph(text, match.start())
+            if not _paragraph_links_to(path, paragraph, expected_test):
+                failures.append(
+                    f"claim paragraph does not link its registered test: "
+                    f"{evidence_id} -> {contract.test}"
+                )
+
+        if len(test_entries) != 1:
+            failures.append(
+                f"test marker count is {len(test_entries)} for {evidence_id}; "
+                f"expected exactly 1 in {contract.test}"
+            )
+        elif test_entries[0].resolve() != expected_test:
+            failures.append(
+                f"test marker is not in its registered file: {evidence_id}"
+            )
+
+    return failures
+
+
 def report_layer_failures_for_text(relative: Path, text: str) -> list[str]:
     if relative.parent != Path("docs/reports"):
         return []
@@ -714,6 +860,7 @@ def main() -> int:
     failures.extend(provenance_contract_failures(repo_root))
     failures.extend(implementation_link_failures(repo_root))
     failures.extend(implementation_evidence_failures(repo_root))
+    failures.extend(evidence_attribution_failures(repo_root))
 
     markdown_files = public_markdown(repo_root)
     for path in markdown_files:

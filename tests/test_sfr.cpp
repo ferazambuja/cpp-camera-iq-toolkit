@@ -412,6 +412,7 @@ void TESTS() {
                      "synthetic vertical edge angle recovered");
   }
 
+  // DOC-EVIDENCE: sfr.nyquist-accuracy
   {
     // Use a narrower Gaussian for Nyquist: its analytic value is far enough
     // from zero that a zero/default result cannot pass the tolerance.

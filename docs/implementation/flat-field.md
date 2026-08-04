@@ -139,6 +139,7 @@ exactly `1%` near-ceiling samples and exactly `90%` finite coverage pass, while
 values beyond either inclusive boundary fail per CFA position. Other fixtures
 cover zero chromatic denominators, odd-mosaic refusal, dark metadata and
 pedestal controls, and matched comparison geometry.
+<!-- test-evidence: flat-field.threshold-boundaries -->
 
 At the command/serialization layer,
 [`test_cmd_shading.cpp`](../../tests/test_cmd_shading.cpp) checks

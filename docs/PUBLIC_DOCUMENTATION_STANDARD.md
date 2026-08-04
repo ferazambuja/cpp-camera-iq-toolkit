@@ -147,6 +147,15 @@ Do not promote coverage from one layer to another. A library assertion is not a
 command success path, a synthetic exporter corpus is not an archive rerun, and
 an artifact-freshness check is not a new physical measurement.
 
+For consequential quantitative bounds and refusal claims, link attribution is
+machine-checked rather than inferred from a plausible filename. Register the
+claim in `EVIDENCE_ATTRIBUTION_CONTRACTS`, place its
+`<!-- test-evidence: ... -->` marker immediately after the paragraph containing
+the test link, and place the matching `DOC-EVIDENCE` marker beside the
+executable assertions. The documentation guard requires one marker on each
+side and verifies that the paragraph links the registered test file. Ordinary
+source-navigation links do not need this annotation.
+
 ### 4. Evidence reference: identity and provenance
 
 Inventories, manifests, reference-data notes, and dataset pages establish which
@@ -265,6 +274,9 @@ Before publishing or materially revising a public portfolio document, verify:
 - [ ] Verification prose labels library/unit, command/integration,
       generated-artifact, and archive-backed runtime evidence where those
       layers are present, without promoting one layer's coverage into another.
+- [ ] Consequential quantitative or refusal claims use a registered
+      claim-to-test evidence marker when their test attribution is part of the
+      public explanation.
 - [ ] Its verification section links the relevant executable assertion and
       retains a numeric bound/count or exact semantic contract with every
       precondition needed to interpret it.

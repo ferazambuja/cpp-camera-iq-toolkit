@@ -24,7 +24,8 @@
   screening and 16 × 12 response tables, validating measured per-position
   headroom and finite-coverage evidence before publication.
 - [`check_portfolio_docs.py`](check_portfolio_docs.py) validates the public
-  Markdown link graph, report-index coverage, project-centered language, and
+  Markdown link graph, claim-to-test evidence attribution, report-index
+  coverage, project-centered language, and
   the report-layer provenance relationships needed to interpret public case
   studies without forcing capture dates into their summaries.
 - [`check_public_paths.sh`](check_public_paths.sh) scans tracked public files

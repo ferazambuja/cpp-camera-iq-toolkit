@@ -180,8 +180,9 @@ At the library/unit layer, the camera-neutral RAW invariants begin in
 [`test_raw_meta.cpp`](../../tests/test_raw_meta.cpp) and
 [`test_cfa_stats.cpp`](../../tests/test_cfa_stats.cpp).
 
-The RAW bridge is tested at the representation boundaries that can change the
-meaning of every later result. A `12032`-byte row pitch is interpreted as
+The RAW bridge in [`test_raw_meta.cpp`](../../tests/test_raw_meta.cpp) is tested
+at the representation boundaries that can change the meaning of every later
+result. A `12032`-byte row pitch is interpreted as
 `6016` `uint16` samples, while an odd `12033`-byte pitch is refused. Synthetic
 black metadata recovers a four-position `2 × 2` tile of `1024` without reading
 past a short tile buffer. Separate unit fixtures accept a larger repeat only
@@ -191,6 +192,7 @@ gate. A strided active-area fixture proves that border samples do not enter the
 statistics. With black `1024`, white `16383`, and a
 `0.98` policy level, raw code `16075` is below the first flagged integer and
 `16076` is included; the threshold is recomputed for each CFA position.
+<!-- test-evidence: raw-foundation.black-repeat-periodicity -->
 
 The demosaic assertions in
 [`test_demosaic.cpp`](../../tests/test_demosaic.cpp) use constant fields, a

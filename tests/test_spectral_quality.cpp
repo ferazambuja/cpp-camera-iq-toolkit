@@ -44,6 +44,7 @@ void TESTS() {
   check_near(res.quality_index, 1.0 - std::sqrt(1.0 / 3.0), 1e-9,
              "quality: index is 1 minus the combined residual");
 
+  // DOC-EVIDENCE: spectral-fidelity.luther-scale-invariance
   // The Luther residual depends on the subspace spanned by the three SSFs,
   // not on their arbitrary amplitude normalization. A small common scale used
   // to trip the absolute Gram-matrix threshold even though the basis remained
