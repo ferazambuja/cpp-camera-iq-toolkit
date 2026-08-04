@@ -2,21 +2,27 @@
 
 ## What this is about
 
-All 299 field ROIs were accepted; the D810 system showed a strong f/5.6 peak,
-while the D800 retained a different aperture trend and off-axis pattern. A
-center-only MTF value can hide field tilt, decentering, corner behavior, or
-capture-specific focus, so the engineering question was two-part: does the
-center response follow a physically plausible aperture trend, and does that
-trend transfer across capture systems and across the image field? This study
-applies a green-linear slanted-edge SFR pipeline to two archived 50 mm aperture
-sweeps, one with a D800 and one with a D810. Slanted-edge SFR measures a whole
-capture system — lens, aperture, focus and alignment state, OLPF, sensor
-sampling, and processing path — so every result below belongs to a capture
-system, not to a camera body or a lens alone.
+Lens sharpness changes with aperture. Wide open, optical aberrations can soften
+detail; stopped down far enough, diffraction does. Reviews often summarize the
+balance with one number measured at the image center, but that number can hide
+field tilt, decentering, weak corners, or a capture-specific focus error.
+
+This study therefore asks two questions: where does center sharpness peak, and
+does the same behavior hold across the rest of the image? Slanted-edge spatial
+frequency response (SFR) measures how much contrast the complete capture system
+preserves as detail becomes finer. Its most familiar summary, MTF50, is the
+spatial frequency where contrast has fallen to half its low-frequency value.
+
+Across 299 measured chart regions, the D810 capture system showed a clear f/5.6
+center peak. The D800 system followed a different aperture trend and became
+sharper away from the center at several apertures. Because SFR includes the
+lens, aperture, focus and alignment, optical low-pass filter, sensor sampling,
+and processing path, these are capture-system findings—not a body or lens
+ranking.
 
 [Documentation index](../README.md) ·
 [detailed report](../reports/SFR_MTF.md) ·
-[archive/oracle notes](../reports/SFR_MTF_ARCHIVE_INVENTORY.md) ·
+[capture inventory](../reports/SFR_MTF_ARCHIVE_INVENTORY.md) ·
 [aggregate CSV](../data/sfr_aperture_summary.csv) ·
 [implementation](../../src/sfr.cpp) ·
 [tests](../../tests/test_sfr.cpp)
@@ -57,7 +63,7 @@ quantities are MTF50, MTF50P, MTF at Nyquist, 10–90% rise distance, and the
 measured edge angle, with saturated or otherwise unusable regions rejected and
 their diagnostics retained.
 
-## Data and validation model
+## Study material and comparison
 
 The study uses archived D800 and D810 slanted-edge RAW captures plus matching
 per-file result tables. Source captures remain outside Git. Imatest values are
@@ -73,9 +79,9 @@ into a universal body or lens rule.
 
 ![Reduced crop showing slanted-edge regions distributed across the SFR target](../images/sfr-field-target.jpg)
 
-*Illustrative crop from the source test capture. The implementation measures
-sensor-linear green samples inside selected edge regions; this reduced image is
-not an analysis input.*
+*Illustrative crop from the source test capture. Numerical analysis uses
+sensor-linear green samples inside the selected edge regions; this reduced image
+is not an analysis input.*
 
 ### Recorded capture configuration
 
@@ -106,16 +112,15 @@ sampling pitch therefore matches, so the cycles/pixel comparison is not
 confounded by a nominal pixel-pitch difference. The matching scale does not
 remove the other capture-system differences.
 
-### Validation
+The complete sweeps contribute 92 D810 regions and 207 D800 regions. Synthetic
+edges with known responses check the numerical method, while the matched
+Imatest tables provide an advisory comparison on the same captures. Because
+Imatest uses a different rendered-luma and gamma path, agreement is judged in
+trends and plausible scale rather than exact equality.
 
-Validation combines:
+## Findings
 
-- synthetic edge, orientation, clipping, ESF-gap, and rejection tests;
-- filename/EXIF and ROI-geometry checks;
-- coherent single-batch advisory comparisons;
-- full archive sweeps: 92 D810 ROIs and 207 D800 ROIs.
-
-## Results and engineering decision
+The two sweeps do not support one universal aperture conclusion:
 
 - The D810 capture system peaked at **0.2714 cycles/pixel at f/5.6** in center
   MTF50. That location is consistent with the usual balance between residual
@@ -123,8 +128,8 @@ Validation combines:
   property of this system and setup, not of the camera or the lens alone.
 - D810 center exceeded the strongest physical corner at f/5.6, f/8, and f/11;
   f/4 was a near tie/slight corner win.
-- D800 did **not** satisfy the D810 aperture-trend gate. Both toolkit and
-  advisory results keep f/4 below f/16 at center.
+- D800 did **not** reproduce the D810 aperture trend. Both this analysis and
+  the advisory results keep f/4 below f/16 at center.
 - The D800 field maximum moved away from center through the mid apertures; the
   toolkit and advisory source agreed on the dominant location at f/4 through
   f/11. At f/4 the toolkit's strongest physical corner exceeds its center by
@@ -133,44 +138,44 @@ Validation combines:
   most-peripheral ROI, +19% over center. The mid-aperture maximum sits at grid
   point N=12, a top-center edge 1414 px above center, and +60% over center in
   the advisory path.
-- **Near-mirrored ROI pairs provide strong, not conclusive, symmetry evidence.**
-  Every edge in this archive is fixed-axis and near-vertical, so for an exactly
-  vertical edge the sagittal/tangential mixture is set by `|x| / r`. An exact
-  reflection through the horizontal axis would preserve radius and mixture
-  together, requiring the same MTF50 from any centered rotationally symmetric
-  system — astigmatic ones included. The grid offers three near-reflections, not
-  exact partners:
+### Why the field asymmetry is credible
 
-  | Pair | Δ radius | Δ mixture | MTF50 upper | MTF50 lower |
-  |---|---:|---:|---:|---:|
-  | N=14 / N=16 (f/4) | 0.54% | 0.80% | 0.1403 | 0.1054 |
-  | N=2 / N=4 | 0.76% | 1.24% | 0.1647 | 0.0945 |
-  | N=18 / N=20 | 4.06% | 3.78% | 0.1878 | 0.1055 |
+The chart did not contain exact mirror-image regions, but it did contain three
+close pairs reflected across the horizontal axis. For an exactly vertical edge,
+such a reflection preserves both distance from center and the mixture of radial
+and tangential response. A centered, rotationally symmetric system should
+therefore give nearly equal MTF50 at the two sites, even if it is astigmatic.
 
-  All three favor the upper field, across three radii and two apertures, and in
-  every pair the upper site sits at the *larger* radius — the opposite ordering
-  from what a centered profile falling with radius would predict. At the tightest
-  pair MTF50 changes by 33% while radius and mixture differ by 0.54% and 0.80%.
-- **The result is bounded as capture-system asymmetry.** The evidence above is
-  strong against centered rotational symmetry but short of a formal exclusion,
-  since only near-vertical edges are recorded and a centered
-  radius-plus-orientation response could distribute the difference across both
-  variables. Closing that alternative needs controlled radial/tangential
-  orientations. The responsible component is likewise unresolved: tilt,
-  decentering and alignment all produce an upper/lower imbalance, and aperture
-  behavior does not separate them, because stopping down reduces several
-  geometric aberrations as well as widening depth-of-field tolerance.
-- Center agreement stayed within ±0.015 cycles/pixel on D800, while off-axis
-  differences were larger—consistent with comparing green-linear CFA SFR to a
-  rendered-luma reference path. The center agreement makes a toolkit-only gross
-  numerical artifact less likely, but both paths use the same captures and do
-  not independently identify the physical cause.
+| Pair | Difference in radius | Difference in orientation mixture | MTF50 upper | MTF50 lower |
+|---|---:|---:|---:|---:|
+| N=14 / N=16 (f/4) | 0.54% | 0.80% | 0.1403 | 0.1054 |
+| N=2 / N=4 | 0.76% | 1.24% | 0.1647 | 0.0945 |
+| N=18 / N=20 | 4.06% | 3.78% | 0.1878 | 0.1055 |
 
-Acceptance criteria are therefore defined per capture system. A single threshold
-wide enough to pass both bodies would report agreement where the measurement
-shows two different field behaviors.
+All three pairs favor the upper field, across three radii and two apertures. In
+every pair, the stronger upper site is also slightly farther from center—the
+opposite ordering from a centered response that simply falls with radius. In
+the closest pair, MTF50 changes by 33% while radius and orientation mixture
+differ by only 0.54% and 0.80%.
 
-## Interpretation limits
+This is strong evidence against centered rotational symmetry, but not a formal
+exclusion. Every archived edge is near-vertical, so a response that depends on
+both radius and edge orientation remains possible. Controlled radial and
+tangential targets would close that alternative. The responsible component is
+also unresolved: tilt, decentering, and alignment can all produce an upper/lower
+imbalance, and stopping down can reduce several of those effects at once.
+
+Center agreement with the advisory analysis stayed within ±0.015 cycles/pixel
+on D800, while off-axis differences were larger—consistent with comparing a
+sensor-linear green measurement to a rendered-luma path. The center agreement
+makes a large numerical error in this analysis less likely, but both paths use
+the same captures and cannot independently identify the physical cause.
+
+The practical conclusion is that the two capture systems need separate field
+criteria. A single threshold wide enough to pass both would hide the different
+behaviors that the measurement revealed.
+
+## What the result does not establish
 
 This is a system SFR study, not a standalone lens characterization: it lacks
 verified lens-sample identity, controlled refocusing, repeat captures, lp/mm

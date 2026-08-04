@@ -17,27 +17,23 @@ decide where those unreachable colors land. Per-channel clipping can shift hue
 and flatten distinctions, while broad compression can unnecessarily change
 colors that were already usable. The decision is an engineering tradeoff.
 
-This study implements that decision in first-party C++ instead of configuring
-it. Four declared methods run over the same input, and the study reports where
-they disagree and what each one costs. The engineering question is how to move a
-color from a wider RGB encoding into a smaller destination gamut without hiding
-numerical failure and without confusing per-channel clipping with a method that
-works in a perceptual space.
-
-The implementation converts Display-P3 through linear RGB and D65 XYZ, applies
-one of four declared methods in CIELAB or OkLCh, converts back to sRGB, and
-verifies the unclipped linear output against the destination cube.
+This study makes that normally hidden decision inspectable. Four declared
+methods run over the same colors, changing one design choice at a time, so the
+effect of the coordinate system can be separated from the effect of the mapping
+rule. The question is how to move a color from a wider encoding into a smaller
+destination without shifting hue unnecessarily, crushing distinctions, or
+changing colors that already fit.
 
 ## Headline results
 
 Changing only the radial coordinates from CIELAB to OkLCh retained much more
 P3-yellow chroma (`0.211` versus `0.058`) and reduced that sample's CIEDE2000
-from `23.928` to `5.523`; the grid mean rose from `2.857` to `2.947` and the
-worst point moved from yellow to red, so the coordinate change is a targeted
-trade rather than a universal improvement. Changing only the OkLCh algorithm to
-Local MINDE then reduced the complete-grid mean from `2.947` to `2.323` and the
-maximum from `9.956` to `7.602`, while widening the IPT-hue 90th percentile
-from `3.368°` to `4.806°`.
+color difference from `23.928` to `5.523`, where lower is better. The grid mean
+rose from `2.857` to `2.947` and the worst point moved from yellow to red, so
+the coordinate change is a targeted trade rather than a universal improvement.
+Changing only the OkLCh algorithm to Local MINDE then reduced the complete-grid
+mean from `2.947` to `2.323` and the maximum from `9.956` to `7.602`, while
+widening the IPT-hue 90th percentile from `3.368°` to `4.806°`.
 
 ## Relationship to the earlier color-management work
 
@@ -46,11 +42,20 @@ of a configured third-party gamut-mapping path inside a larger capture-to-print
 workflow. ProfileMaker exposed `Papercolored Gray` intent and `LOGO Classic`
 gamut mapping as configured choices: the project could measure their output but
 could not inspect or isolate the underlying algorithm. This study moves that
-same wide-to-narrow-gamut question into first-party C++ using fully specified
+same wide-to-narrow-gamut question into a fully specified implementation using
 Display-P3 and sRGB encodings. Deterministic synthetic input separates the
 transform, boundary search, coordinates, and mapping rule from camera, printer,
 and proprietary-profile variables. It is a separate engineering experiment,
 not a reconstruction of the course project.
+
+![Ansel Adams Moonrise print from the earlier art-reproduction workflow](../images/art-reproduction-proof.jpg)
+
+*An Ansel Adams “Moonrise” print photographed during the earlier class workflow
+under dual 45° illumination. Working with a recognizable fine-art print made
+the practical concerns — neutrality, tonal separation, and reproduction across
+screen and paper — concrete. The current gamut experiment uses deterministic
+synthetic colors; this reduced, metadata-stripped JPEG provides context and is
+not an analysis input.*
 
 ## Why the boundary search is not a simple bisection
 
@@ -61,7 +66,11 @@ a piecewise cubic function of chroma, enumerates its `0` and `1` surface
 crossings, and refines the first in-to-out transition. This turns a visual
 assumption about gamut shape into a tested numerical contract.
 
-## Controlled mapping comparison
+## Method: a controlled mapping comparison
+
+Each method converts Display-P3 through linear RGB and D65 XYZ, performs the
+mapping in CIELAB or OkLCh, converts the result to sRGB, and verifies the
+unclipped linear output against the destination cube.
 
 The fixed-L\*, Lab-hue radial clip is the reference method. It preserves every
 destination-in-gamut color and clips only out-of-gamut chroma to the first
@@ -78,7 +87,7 @@ changes part of the in-gamut shoulder and reports its unused boundary headroom.
 The method holds the CIELAB hue angle numerically; it does not assume that this
 guarantees constant perceived hue.
 
-## Result
+## Findings
 
 On a deterministic 125-point encoded Display-P3 cube, 94 points lay outside
 sRGB. All three relative-colorimetric methods changed exactly those 94 points;
@@ -128,7 +137,7 @@ CIEDE2000, and IPT hue-difference 90th percentile. The panels keep coordinate
 and algorithm tradeoffs visible instead of presenting one aggregate as a
 uniform improvement.*
 
-## Scope
+## What the result does not establish
 
 The result characterizes ideal Display-P3 and sRGB encoding gamuts. It is not a
 measured display-gamut result, an ICC printer proof, or an appearance match.

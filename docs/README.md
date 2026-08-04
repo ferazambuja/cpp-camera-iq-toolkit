@@ -15,11 +15,14 @@ and principal results.
 [implementation](../src/sfr.cpp) ·
 [tests](../tests/test_sfr.cpp)
 
-The toolkit accepted 299 field ROIs across 13 aperture conditions. It captured a
-clear f/5.6 peak on the D810 capture system; the D800 showed a different
-aperture trend and asymmetric off-axis behavior. Both sweeps record the same 50 mm
-f/1.4G lens model, so the findings describe capture systems, not camera bodies
-alone; physical lens-sample identity remains unverified.
+Sharpness typically changes with aperture: residual aberrations often dominate
+wide open, while diffraction becomes important when the lens is stopped down.
+Reviews usually summarize that balance with one measurement at the center of
+the frame. This study asks whether one center number describes a camera and lens
+at all. Across 299 regions on two systems using the same 50 mm lens model, the
+D810 system peaked cleanly at f/5.6, while the D800 system followed a different
+trend and was sharper off-center at some apertures. The two systems needed
+separate conclusions.
 
 ### Spectral sensitivity and camera color fidelity
 
@@ -29,28 +32,33 @@ alone; physical lens-sample identity remains unverified.
 [implementation](../src/spectral_response.cpp) ·
 [tests](../tests/test_spectral_response.cpp)
 
-Four same-session camera/chart datasets reached minimum channel correlation
-above 0.992. A five-camera comparison then evaluated Luther-condition residuals
-and ISO 17321-style fidelity metrics while retaining the mixed SSF provenance
-needed to interpret the ordering.
+How faithfully a camera can reproduce color is constrained before any
+processing, by how its red, green, and blue channels respond to each wavelength
+of light. Measuring those response curves with a monochromator makes that limit
+visible: the closer a sensor comes to a linear transform of the human observer's
+sensitivities, the better its theoretical colorimetric fit. Five cameras were
+compared this way. Where the archive retained enough evidence, the response
+curves were first checked against separate chart captures from the same lab run.
+The Canon 5D2 and Phase One IQ3 formed the stable endpoints of the comparison;
+small differences among the middle cameras were treated as method-sensitive.
 
-### Spectroradiometer archive ingest and measurement-group analysis
+### Recovering and analyzing archived spectroradiometer measurements
 
 [Case study](case-studies/spectroradiometer-ingest.md) ·
 [aggregate data](data/spectro_group_summary.csv) ·
-[result receipt](data/spectro_result_receipt.json) ·
-[MATLAB cross-check receipt](data/spectro_matlab_crosscheck_receipt.json) ·
 [detailed report](reports/SPECTRORADIOMETER_INGEST.md) ·
 [implementation](../src/spectro_ingest.cpp) ·
 [tests](../tests/test_spectro_ingest.cpp)
 
-Across the 37 multi-reading groups, spectral-integral CV was `7.17%` median and
-`41.65%` maximum, while normalized-shape and chromaticity variation remained
-separate results. The command verifies exact file identities and parses 89
-distinct readings without assigning an unsupported physical cause to the
-variation. An independent MATLAB R2026a export matched all 89 readings,
-including ledger-bound source-file identities and exact hashes for 178 numeric
-vectors.
+Repeat measurements of the same light source rarely agree exactly, and the
+interesting question is what changed: the amount of light, the shape of its
+spectrum, or its color. This study recovers 89 archived spectroradiometer
+readings — stored under filenames that numbered acquisitions rather than
+describing what was measured — and reports those three quantities separately for
+each group of repeats. They disagree by different amounts in different groups,
+which is why collapsing them into a single stability figure would be
+misleading. Typical within-group level variation was 7.17%; the most variable
+group reached 41.65%, without establishing why the source or measurement changed.
 
 ### ColorChecker extraction and CCM validation
 
@@ -61,9 +69,15 @@ vectors.
 [implementation](../src/colorimetry.cpp) ·
 [tests](../tests/test_colorimetry.cpp)
 
-The 140-patch workflow matched an independent extraction above 0.99999998
-correlation with sub-0.4 DN RMSE, rejected a 16.449 px localization error, and
-reached 4.134 mean held-out CIEDE2000 on the corrected RAW-to-CCM path.
+A camera's raw values are not colorimetry: each sensor responds to light
+differently from the human eye, so its RGB values must be transformed before
+they can estimate standard color coordinates. This study builds that transform
+— a color-correction matrix — from a photographed 140-patch chart, then grades
+it on patches deliberately withheld from the fit so training error cannot
+masquerade as generalization. A chart-locating shortcut that looked accurate by
+correlation was rejected after it missed patch centers by 16 px.
+The corrected workflow reached a five-fold held-out mean CIEDE2000 of 4.134
+against a compatible spectral chart reference.
 
 ### CFA flat-field response
 
@@ -74,13 +88,13 @@ reached 4.134 mean held-out CIEDE2000 on the corrected RAW-to-CCM path.
 [implementation](../src/shading.cpp) ·
 [tests](../tests/test_shading.cpp)
 
-The study retained three usable frames from 52 Fujifilm X-T100 and Fujinon XF
-14 mm f/2.8 R sphere captures. A 19.65% green-field quadrant asymmetry exceeded
-the declared 5% criterion and was inconsistent with a centered radial scalar
-model for the measured composite field, while missing source- and
-camera-rotation controls prevented lens-only attribution. The
-[CCM path](reports/CCM_FIT.md) applies the same source-CFA,
-per-position screening to its correction flat.
+Even under nominally uniform illumination, a camera can record less signal at
+the edges than at the center, with different falloff in each color channel.
+Correcting that field often starts from the assumption that it is symmetric
+about the image center. In this integrating-sphere capture set, it was not:
+opposite quadrants differed by 19.65% where the project allowed 5%, so a simple
+centered radial model does not describe the measured field. The missing rotation
+controls prevent assigning the asymmetry to the source, lens, or camera alone.
 
 ### Display-P3 to sRGB gamut mapping
 
@@ -93,14 +107,15 @@ per-position screening to its correction flat.
 [implementation](../src/gamut_mapping.cpp) ·
 [tests](../tests/test_gamut_mapping.cpp)
 
-This study uses deterministic synthetic input rather than camera or display
-measurements. On a 125-point cube, changing only the radial coordinates from
-CIELAB to OkLCh reduced P3-yellow CIEDE2000 from `23.928` to `5.523` and the
-grid maximum from `23.928` to `9.956`, while raising the grid mean from `2.857`
-to `2.947` and moving the worst point to red. Changing only the OkLCh algorithm
-to Local MINDE then reduced the grid mean to `2.323` and the maximum to
-`7.602`. The C++ transform compares CIELAB and OkLCh radial
-mapping, a dated CSS Color 4 Local-MINDE method, and an experimental soft knee.
+A wide-gamut image holds colors an ordinary sRGB screen cannot show, and
+something has to decide where those colors land instead — often an ICC profile
+or rendering engine whose mapping is not exposed to the user. This study makes
+that decision inspectable in four different ways and changes one variable at a
+time to find out what each choice
+costs. Switching the coordinate space alone rescued a badly overcompressed
+saturated yellow, cutting its error from 23.9 to 5.5, while very slightly
+worsening the average across the rest — a targeted trade, not a free
+improvement.
 
 ### Color-model equation audit
 
@@ -111,13 +126,16 @@ mapping, a dated CSS Color 4 Local-MINDE method, and an experimental soft knee.
 [implementation](../src/cam16_equation_audit.cpp) ·
 [tests](../tests/test_cam16_equation_audit.cpp)
 
-The audit reproduced half normalized brightness at `J = 25` versus half
-lightness at `J = 50`. At `Y_background = 0.1`, the isolated `N_cb^0.9` factor
-is `2.595`, while the complete chroma expression spans `2.120–2.687` across
-reference `J = 10…90`; the isolated term is not a bound. The audit also retains
-a published colorfulness `R²` decrease from `0.81` to `0.71`, pins the corrected
-2022 Equation 23 coefficient, and makes CIE94 directionality explicit. It is
-not presented as a general appearance-model implementation.
+Color appearance models predict how a color will look rather than only what its
+colorimetric coordinates measure. Implementing one means translating equations
+from published work, including any later corrections and known tradeoffs. Those
+equations can carry surprises:
+coefficients corrected after publication, terms that behave strangely at the
+edges of their range, and tradeoffs that summaries quietly drop. This study
+turns a small set of those equations into tested code to see how they actually
+behave — including a published change that improved two attributes while making
+a third measurably worse. The audit also shows why an isolated background term
+cannot be read as a bound on the complete chroma expression.
 
 ## Validation decisions
 

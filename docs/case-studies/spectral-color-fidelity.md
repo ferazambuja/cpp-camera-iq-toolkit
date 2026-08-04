@@ -2,15 +2,29 @@
 
 ## What this is about
 
-Four same-session camera/chart datasets reached minimum channel correlation
-above 0.992 after RAW monochromator extraction and physical target closure. A
-five-camera comparison then evaluated Luther-condition residuals and an ISO
-17321-style SMI approximation while preserving the mixed-source provenance and
-ranking sensitivity needed to interpret the result.
+Camera color begins with the sensor itself. Each red, green, and blue channel
+responds differently across the visible spectrum, and no later matrix can make
+those three curves behave exactly like the human observer if their shapes are
+fundamentally mismatched. A monochromator reveals those spectral sensitivity
+curves by presenting one narrow wavelength band at a time.
+
+This study asks two related questions. First, do the measured sensitivities
+predict separately retained chart captures from the same lab run? Second, how
+closely can each camera's three sensitivities be transformed into the CIE 1931
+standard observer—the theoretical condition for colorimetric camera response?
+The distinction matters: the first checks a measurement chain, while the second
+compares a sensor's colorimetric potential.
+
+Four evidence-complete camera/chart sets reached minimum channel correlation
+above **0.992** in the physical closure check. Across the five available
+spectral-sensitivity sets, the Canon 5D2 was closest to the human-observer
+subspace under the declared fit and the Phase One IQ3 was farthest; small
+differences among the middle cameras changed with analysis choices and are not
+presented as a firm ranking.
 
 [Documentation index](../README.md) ·
 [detailed report](../reports/SPECTRAL_SENSITIVITY.md) ·
-[archive map](../reports/SPECTRAL_ARCHIVE_INVENTORY.md) ·
+[measurement inventory](../reports/SPECTRAL_ARCHIVE_INVENTORY.md) ·
 [aggregate CSV](../data/spectral_color_fidelity.csv) ·
 [SSF implementation](../../src/spectral_response.cpp) ·
 [closure implementation](../../src/spectral_closure.cpp) ·
@@ -35,13 +49,6 @@ questions, so they are reported side by side rather than merged. Only the Canon
 row comes from this toolkit's own RAW extraction; the others use measured legacy
 sensitivity functions, which is why the ordering is read at its endpoints rather
 than by small differences in the middle.*
-
-## Problem and relevance
-
-Camera color is constrained by the relationship between sensor spectral
-sensitivity and the CIE color-matching functions. A plausible curve is not
-enough: file selection, dark subtraction, wavelength normalization, illuminant
-pairing, chart reflectance, and target-capture closure all have to agree.
 
 ## Method
 
@@ -80,7 +87,7 @@ Toolkit RAW extractions for the other three cameras in the shared run
 reproduced the reported Luther ordering at the shown precision, which checks
 that the ranking is not an artifact of choosing the retained legacy CSVs.
 
-## Results and engineering decision
+## Findings
 
 The endpoint ordering stayed stable across the Luther residual and all three
 SMI test sets: Canon 5D2 was the closest of the five measured sensitivities to a
@@ -94,11 +101,12 @@ The chart-closure residual is not used to rank camera quality. Closure contains
 session, lens, chart, sidecar, illuminant, and SSF effects; the separate
 SSF-vs-CMF metrics answer the color-fidelity question.
 
-## Interpretation limits
+## What the result does not establish
 
-The SMI calculation is **ISO 17321-style**, not claimed bit-exact to the
-paywalled Annex-B optimizer and normalization. Canon uses a toolkit RAW-derived
-SSF in the retained aggregate; the other plotted rows use measured legacy SSFs.
+The SMI calculation is **ISO 17321-style**, not claimed as a bit-exact
+implementation of the standard's Annex-B optimizer and normalization. Canon
+uses a toolkit RAW-derived SSF in the retained aggregate; the other plotted rows
+use measured legacy SSFs.
 The Phase One session lacks a same-session broadband target and chart
 reflectance, so it is valid for an SSF-only comparison but not physical closure.
 

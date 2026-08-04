@@ -5,36 +5,37 @@
 A camera's RAW RGB values are not colorimetry. Two cameras photographing the
 same chart under the same light record different numbers, and neither set
 matches CIE XYZ, because each sensor's spectral sensitivities differ from the
-human observer's. Closing that gap is what a color-correction matrix does: a
-linear 3×3 fit from one camera's RGB into XYZ for a declared capture condition.
+human observer's. This study closes part of that gap with a color-correction
+matrix: a linear 3×3 fit from one camera's RGB into XYZ for a declared capture
+condition.
 
-The difficulty is that such a matrix is easy to make look good. Fit it on the
-same patches used to judge it and the error drops for reasons that have nothing
-to do with color accuracy — and a chart-order mistake, a mislocated patch grid,
-a flat frame near clipping, or flare in the dark patches will each quietly
-flatter the result. This study therefore builds an inspectable chain and reports
-error on patches excluded from the fit, rather than optimizing a single
-Delta E number.
+The difficulty is that such a matrix is easy to make look good. Judging it only
+on the patches used for fitting can hide poor generalization, while a chart-order
+mistake, a mislocated patch grid, a flat frame near clipping, or flare in the
+dark patches can each distort the result. This study therefore reports error on
+patches excluded from the fit, rather than optimizing a single color-difference
+number.
 
 On this corrected 140-patch workflow, five-fold held-out mean CIEDE2000 was
-**4.134** against a compatible spectral reference. That result demonstrates the
-pipeline and its validation controls; it is not a per-unit chart calibration or
-a claim about every scene and illuminant.
+**4.134** against a compatible spectral reference. CIEDE2000 is a perceptual
+color-difference measure in which lower values indicate a closer match. The
+result demonstrates the workflow and its validation controls; it is not a
+per-unit chart calibration or a claim about every scene and illuminant.
 
 [Documentation index](../README.md) ·
 [CCM report](../reports/CCM_FIT.md) ·
 [patch report](../reports/PATCH_EXTRACTION.md) ·
-[reference provenance](../reports/SG_REFERENCE_PROVENANCE.md) ·
+[reference notes](../reports/SG_REFERENCE_PROVENANCE.md) ·
 [aggregate CSV](../data/ccm_validation_summary.csv) ·
 [patch implementation](../../src/patches.cpp) ·
 [CCM implementation](../../src/colorimetry.cpp) ·
 [tests](../../tests/test_colorimetry.cpp)
 
-The `clrs589_project_camera` archive retains the RAW, flat-field, and dark
-captures but not an exact per-unit spectral measurement of the captured chart.
-The analysis therefore uses a compatible SG spectral
+The retained study material includes the RAW, flat-field, and dark captures but
+not an exact per-unit spectral measurement of the photographed chart. The
+analysis therefore uses a compatible SG spectral
 reference verified against manufacturer nominal values. This preserves a
-physically specified 140-patch target for pipeline and held-out validation
+physically specified 140-patch target for the fit and held-out validation
 while bounding the result to compatible-reference, not per-unit, color
 difference.
 
@@ -42,16 +43,17 @@ difference.
 
 *Lower CIEDE2000 is better. The first two groups compare fit/evaluation mean
 with five-fold held-out mean for all 140 patches and for the 112-patch
-`L* >= 25` kept set. The last two bars evaluate that kept-set fit on all 140
-patches and on the 28 excluded dark patches. Keeping those evaluations visible
+`L* >= 25` kept set, where `L*` is perceptual lightness. The last two bars
+evaluate that kept-set fit on all 140 patches and on the 28 excluded dark
+patches. Keeping those evaluations visible
 is why the lower kept-set number is reported as a flare-handling decision, not
 as a better camera model.*
 
 ![Reduced crop of the ColorChecker-SG patch grid used for the physical capture](../images/colorchecker-sg-patch-grid.jpg)
 
-*Illustrative crop from the source test capture. The implementation samples
-rectangular regions after RAW unpack, black handling, and bilinear demosaic;
-this reduced image is not a calibration reference.*
+*Illustrative crop from the source test capture. Numerical analysis samples
+rectangular patch interiors after RAW unpacking, black subtraction, and bilinear
+demosaic; this reduced image is not a calibration reference.*
 
 ## Method
 
@@ -79,11 +81,11 @@ correlations above **0.99999998** and direct RMSE of **0.352 / 0.041 / 0.381
 DN** for R/G/B. The direct-vs-flipped orientation controls separated clearly.
 
 The corner-seeded grid was not used for the reported CCM result: although RGB
-correlations remained above 0.999, generated centers missed the oracle by up to
-16.449 px. RawDigger rectangles therefore remain the coordinate source for the
-reported CCM result.
+correlations remained above 0.999, generated centers missed the manually checked
+reference positions by up to 16.449 px. RawDigger rectangles therefore remain
+the coordinate source for the reported CCM result.
 
-## Results and engineering decision
+## Findings
 
 The corrected 140-patch RAW path produced:
 
@@ -93,13 +95,13 @@ The corrected 140-patch RAW path produced:
 
 An explicit `L* >= 25` kept-set fit lowered held-out mean CIEDE2000 to 3.221,
 but all patches under that fit remained 4.126 and the excluded subset remained
-7.952. The reduction is therefore reported as a flare-handling policy, not
+7.952. The reduction is therefore reported as a flare-handling choice, not
 evidence that discarding difficult patches created a better camera model.
 
 ## What the correction flat contributes
 
-The flat used to correct these patches, `Sphere_f8.0_1:1000_DSCF0387.RAF`, is
-the same frame characterized in the
+The flat used to correct these patches is the accepted f/8, 1/1000 s frame
+characterized in the
 [CFA flat-field case study](cfa-flat-field-response.md), so it is measured
 rather than assumed: green falls to 0.4816 of center, `C_BG` reaches 1.0447,
 `C_RG` falls to 0.9773, and it is 0% near ceiling in both the whole frame and
@@ -108,14 +110,13 @@ and a smaller chromatic one across the chart area. What it cannot do is separate
 sphere nonuniformity from camera response, so this path is
 same-aperture-corrected, not shading-calibrated.
 
-Flat-field admission uses the same source-CFA, per-position limits as
-`shading`, including separate full-frame and centered-region measurements.
-This rejects a frame whose bright center is near ceiling even when its
-whole-frame fraction is below the limit. The selected 1/1000 s flat remains
-accepted; its full-frame valid-sample mean supplies the correction
-normalization.
+Flat-field admission uses the same per-sensor-position limits as the dedicated
+flat-field analysis, including separate whole-frame and bright-center
+measurements. This rejects a frame whose center is near the sensor ceiling even
+when the whole-frame statistic looks safe. The selected 1/1000 s flat passes
+both tests; its mean valid signal supplies the correction normalization.
 
-## Interpretation limits
+## What the result does not establish
 
 The spectral reference is a compatible SG reference verified against
 manufacturer nominal values; it is not proven to be the exact per-unit chart

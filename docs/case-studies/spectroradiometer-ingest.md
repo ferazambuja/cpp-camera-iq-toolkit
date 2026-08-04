@@ -1,4 +1,4 @@
-# Spectroradiometer archive ingest and measurement-group analysis
+# Recovering and analyzing archived spectroradiometer measurements
 
 ## What this is about
 
@@ -17,24 +17,23 @@ light there was, what shape the spectrum had, and where the color landed. A
 group can vary in one without varying in the others, and lumping them together
 would invent a cause the archive cannot support.
 
-The archive kept the spectra, the recorded XYZ, `totalRadiance`, CCT, Duv, and
-acquisition fields — but not the physical setup, geometry, integration time, or
-instrument configuration. Those missing conditions are exactly what would let
-someone attribute a difference between repeat readings to a cause. Since they
-are gone, this study measures the differences precisely and stops there, rather
-than naming a cause the record cannot support.
+The archive kept the spectra, recorded XYZ, radiance, and acquisition fields —
+but not the physical setup, geometry, integration time, or instrument
+configuration. Those missing conditions are exactly what would let someone
+attribute a difference between repeat readings to a cause. Since they are gone,
+this study measures the differences precisely and stops there, rather than
+naming a cause the record cannot support.
 
-The pipeline resolves 89 distinct readings plus 45 byte-identical aliases into
-40 declared groups. Across the 37 multi-reading groups, level CV was **7.17%
-median / 41.65% maximum**, normalized-shape residual was **0.518% / 1.076%**,
-and maximum-pair Δu′v′ was **0.000703 / 0.002852**. The maxima belong to
-different groups, so they are not collapsed into one quality score.
+The analysis resolves 89 distinct readings plus 45 byte-identical aliases into
+40 declared groups. Among groups with repeated measurements, the typical
+variation in total light level was **7.17%**, while the most variable group
+reached **41.65%**. Spectral shape and chromaticity varied on different groups
+and by different amounts, so no single “stability” score can describe the
+archive honestly.
 
 [Documentation index](../README.md) ·
 [detailed report](../reports/SPECTRORADIOMETER_INGEST.md) ·
 [aggregate CSV](../data/spectro_group_summary.csv) ·
-[result receipt](../data/spectro_result_receipt.json) ·
-[MATLAB cross-check receipt](../data/spectro_matlab_crosscheck_receipt.json) ·
 [implementation](../../src/spectro_ingest.cpp) ·
 [tests](../../tests/test_spectro_ingest.cpp)
 
@@ -52,10 +51,10 @@ not the group that varied most in color.*
 ## Method
 
 Byte identity and spectrum content distinguish the 89 retained readings from 45
-descriptive aliases without treating the aliases as new measurements. Declared
-archive provenance then groups distinct readings of the same target; the target
-identity is not inferred from spectral similarity. That yields 40 measurement
-groups — 37 holding two or three readings, and three singletons. Each
+descriptive aliases without treating the aliases as new measurements. The
+retained grouping record then identifies distinct readings of the same target;
+target identity is not inferred from spectral similarity. That yields 40
+measurement groups — 37 holding two or three readings, and three singletons. Each
 multi-reading group is characterized on three independent axes:
 
 - **Level** — the coefficient of variation of the equal-weight spectral
@@ -71,11 +70,10 @@ the CIE observer should reproduce the XYZ the instrument recorded in the same
 file. Agreement there means the spectral and colorimetric fields describe the
 same measurement.
 
-An independent MATLAB R2026a export matched all 89 readings: both numeric
-vectors matched exactly by hash, and all 623 numeric-field comparisons met a
-declared `1e-12` absolute-or-relative tolerance. That confirms the variation
-reported below is in the parsed measurements rather than a disagreement between
-the two file readers; it is not a test of instrument accuracy.
+An independent MATLAB reading reproduced all 89 spectra and their retained
+numeric fields within the declared numerical tolerance. That confirms the
+variation reported below is in the archived measurements rather than a
+disagreement between two file readers; it is not a test of instrument accuracy.
 
 ## Result
 
@@ -93,7 +91,7 @@ maximum relative residual is below `2e-13%`. This is numerical closure between
 fields in the same files, not an independent instrument-accuracy test and not
 evidence that the scale is a standard luminous-efficacy constant.
 
-## Interpretation
+## What the result does not establish
 
 The measurements support a narrow conclusion: absolute level, normalized
 shape, and recorded-XYZ-derived chromaticity values differ within groups under
