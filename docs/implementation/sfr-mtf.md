@@ -128,6 +128,11 @@ bins remain accepted within `0.02 cycles/pixel` of the default MTF50, while
 `invalid_esf_grid` before allocation. Rejected JSON is checked for `null`
 MTF50, MTF50P, Nyquist MTF, and R10–90 fields.
 
+The field-coordinate fixture subtracts full-frame margins, rounds the result
+inward to a `24 × 24` CFA-balanced active-area ROI, and refuses a region wholly
+outside the active area. This pins the coordinate conversion independently of
+the archive-backed field-map command.
+
 A separate `64 × 64`, `sigma = 12`, `6°` fixture with the minimum `24 × 24`
 ROI pins both MTF50 and peak-normalized MTF50P crossings between DC and the
 first non-DC DFT bin; this prevents broad edges from being rejected merely
@@ -143,8 +148,12 @@ D810 trend rule intentionally fails on the D800 values. Selected parsed MTF50,
 field-summary, and trend values are pinned to `1e-12`; row counts, labels, and
 verdicts use exact assertions. The tests do not inspect the retained archive,
 rerun RAW measurements, or identify the physical cause of a trend. The figure
-check only verifies the committed aggregate CSV-to-SVG transformation. Capture
-and pairing validity remain with the scientific report and inventory.
+test in [`test_portfolio_figures.py`](../../tools/test_portfolio_figures.py)
+only verifies the committed aggregate CSV-to-SVG transformation. The command
+tests exercise field-map argument and filename-mismatch refusals; the full
+field-map success path still requires LibRaw-backed input and has no committed
+public RAW fixture. Capture and pairing validity remain with the scientific
+report and inventory.
 
 ## Source and tests
 
@@ -154,3 +163,4 @@ and pairing validity remain with the scientific report and inventory.
 - Core numeric tests: [`test_sfr.cpp`](../../tests/test_sfr.cpp)
 - Command and output tests: [`test_cmd_sfr.cpp`](../../tests/test_cmd_sfr.cpp)
 - Aggregate generation: [`generate_portfolio_figures.py`](../../tools/generate_portfolio_figures.py)
+  and [`test_portfolio_figures.py`](../../tools/test_portfolio_figures.py)

@@ -102,6 +102,10 @@ void TESTS() {
   const std::string json = read_file(out);
   check(json.find("\"camera_model\":\"Luther Reference\"") != std::string::npos,
         "spectral-smi JSON: camera model emitted");
+  check(json.find("\"method\":"
+                  "\"iso17321_style_smi_optimal_3x3_then_mean_cielab_de\"") !=
+            std::string::npos,
+        "spectral-smi JSON: stage method emitted");
   check(json.find("\"smi\":") != std::string::npos,
         "spectral-smi JSON: smi score emitted");
   check(json.find("\"mean_delta_e_76\":") != std::string::npos,

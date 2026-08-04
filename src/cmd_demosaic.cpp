@@ -158,8 +158,18 @@ int cmd_demosaic(int argc, char** argv) {
       std::cerr << "camera_iq demosaic: --dataset requires a relative file\n";
       return 2;
     }
-    actual_file = resolved->root / file;
+    const auto dataset_file = resolve_dataset_child(resolved->root, file);
+    if (!dataset_file) {
+      std::cerr << "camera_iq demosaic: dataset input resolves outside its root\n";
+      return 2;
+    }
+    actual_file = *dataset_file;
     file_label = dataset_file_label(dataset_id, file);
+  }
+
+  if (output_path_aliases_input(out, actual_file)) {
+    std::cerr << "camera_iq demosaic: output path must not alias the input\n";
+    return 2;
   }
 
   const auto cfa = read_raw_cfa_image(actual_file);

@@ -350,4 +350,30 @@ bool is_safe_dataset_subdir(const std::filesystem::path& relative_subdir) {
   return true;
 }
 
+std::optional<std::filesystem::path> resolve_dataset_child(
+    const std::filesystem::path& root,
+    const std::filesystem::path& relative_path) {
+  if (root.empty() || !is_safe_dataset_subdir(relative_path)) {
+    return std::nullopt;
+  }
+
+  std::error_code error;
+  const auto canonical_root = std::filesystem::weakly_canonical(root, error);
+  if (error) return std::nullopt;
+  const auto candidate = (root / relative_path).lexically_normal();
+  const auto canonical_candidate =
+      std::filesystem::weakly_canonical(candidate, error);
+  if (error) return std::nullopt;
+
+  auto root_part = canonical_root.begin();
+  auto candidate_part = canonical_candidate.begin();
+  for (; root_part != canonical_root.end(); ++root_part, ++candidate_part) {
+    if (candidate_part == canonical_candidate.end() ||
+        *root_part != *candidate_part) {
+      return std::nullopt;
+    }
+  }
+  return candidate;
+}
+
 }  // namespace camera_iq

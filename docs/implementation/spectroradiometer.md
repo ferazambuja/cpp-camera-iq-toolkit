@@ -121,29 +121,43 @@ bounded cumulative inflation. Malformed headers, versions, dimensions, lossy
 integer widening, complex values, duplicate fields, character arrays, nested
 structs, and excessive depth are refused.
 
-Ledger tests preserve declared repeat-index order rather than filename order
-and refuse duplicate canonical paths, duplicate content digests, ambiguous
-aliases, traversal, malformed hashes, gaps, and silent regrouping. Ingest tests
-bind canonical bytes to SHA-256, distinguish readings from aliases, refuse
-symlinks and byte-limit violations, and verify alias bytes when requested.
+Ledger tests in [`test_spectro_ledger.cpp`](../../tests/test_spectro_ledger.cpp)
+preserve declared repeat-index order rather than filename order and refuse
+duplicate canonical paths, duplicate content digests, ambiguous aliases,
+traversal, malformed hashes, gaps, and silent regrouping. Ingest tests in
+[`test_spectro_ingest.cpp`](../../tests/test_spectro_ingest.cpp) bind canonical
+bytes to SHA-256, distinguish readings from aliases, refuse symlinks and
+byte-limit violations, and verify alias bytes when requested.
 
-A two-reading analysis fixture pins spectral integral `8`, mean level `12`, and
+A two-reading fixture in
+[`test_spectro_analysis.cpp`](../../tests/test_spectro_analysis.cpp) pins
+spectral integral `8`, mean level `12`, and
 coefficient of variation `sqrt(32) / 12`, each to `1e-12`; a pure scale change
 must produce zero normalized-shape and chromaticity separation. The closure
-fixture recovers one global scale `10` and zero maximum relative residual to
+fixture in
+[`test_spectro_colorimetry.cpp`](../../tests/test_spectro_colorimetry.cpp)
+recovers one global scale `10` and zero maximum relative residual to
 `1e-12`. High-range, cancellation, subnormal, and overflow-refusal cases keep
-those numerical paths explicit. Command tests cover JSON plus three CSV
+those numerical paths explicit. Command tests in
+[`test_cmd_spectro_ingest.cpp`](../../tests/test_cmd_spectro_ingest.cpp) cover
+JSON plus three CSV
 outputs, privacy-safe labels, CSV quoting, vector hashes, source identities,
 output collisions, and the ban on writing output inside the source root.
 
-The retained runtime receipt records a MATLAB R2026a/C++ comparison over 89
-private readings: two binary64 vector hashes per reading give 178 exact hash
-comparisons, and seven numeric fields per reading give 623 comparisons at
-`1e-12` absolute-or-relative tolerance. Public checks recompute the
+The retained runtime receipt and its public checker—
+[`spectro_matlab_crosscheck_receipt.json`](../data/spectro_matlab_crosscheck_receipt.json)
+and
+[`check_spectro_matlab_crosscheck_receipt.py`](../../tools/check_spectro_matlab_crosscheck_receipt.py)—
+record a MATLAB R2026a/C++ comparison over 89
+private readings: 89 source-file SHA-256 comparisons bind identity, two
+binary64 vector hashes per reading give 178 exact vector comparisons, and seven
+numeric fields per reading give 623 comparisons at `1e-12`
+absolute-or-relative tolerance. Public checks recompute the
 `2 × reading_count` and `7 × reading_count` relationships, bind the receipt to
 the 89-row ledger and public artifacts, and reject changed identities, hashes,
-counts, or tolerance outcomes. They do not rerun the private 89-reading export
-unless those CSVs are supplied.
+counts, or tolerance outcomes. Public checks cannot rerun the private export or
+the MATLAB/C++ comparison. When both retained CSVs are supplied, the receipt
+checker additionally verifies their hashes.
 
 This evidence supports parser and calculation agreement on the retained
 archive. It does not prove physical scene stability, instrument accuracy, or

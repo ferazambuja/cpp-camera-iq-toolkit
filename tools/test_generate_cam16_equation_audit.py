@@ -58,6 +58,12 @@ class Cam16EquationAuditGeneratorTests(unittest.TestCase):
                 encoding="utf-8",
             )
             self.assertFalse(AUDIT.artifacts_equivalent(actual_csv, expected_csv))
+            actual_csv.write_text(
+                "series,x,reference_j,value,comparison_value\n"
+                "normalized_brightness,5,,0.5000000000005,0.25,extra\n",
+                encoding="utf-8",
+            )
+            self.assertFalse(AUDIT.artifacts_equivalent(actual_csv, expected_csv))
 
     def test_svg_states_scope_and_published_tradeoff(self) -> None:
         with tempfile.TemporaryDirectory() as temp:
@@ -182,6 +188,21 @@ class Cam16EquationAuditGeneratorTests(unittest.TestCase):
             csv_path.write_bytes(source_csv.read_bytes())
             json_path.write_text(json.dumps(document), encoding="utf-8")
             with self.assertRaises(ValueError):
+                AUDIT.render_svg(csv_path, json_path)
+
+    def test_reader_rejects_extra_csv_row_field(self) -> None:
+        repo_root = SCRIPT.parents[1]
+        source_csv = repo_root / "docs/data/cam16_equation_audit.csv"
+        source_json = repo_root / "docs/data/cam16_equation_audit.json"
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            csv_path = root / "audit.csv"
+            json_path = root / "audit.json"
+            rows = source_csv.read_text(encoding="utf-8").splitlines()
+            rows[1] += ",extra"
+            csv_path.write_text("\n".join(rows) + "\n", encoding="utf-8")
+            json_path.write_bytes(source_json.read_bytes())
+            with self.assertRaisesRegex(ValueError, "unexpected .* row width"):
                 AUDIT.render_svg(csv_path, json_path)
 
     def test_reader_rejects_out_of_range_published_performance(self) -> None:

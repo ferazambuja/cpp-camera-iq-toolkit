@@ -130,6 +130,10 @@ void TESTS() {
   check(json.find("\"reference_numbering_order\":"
                   "\"synthetic_reference_order\"") != std::string::npos,
         "ccm-fit JSON: numbering order emitted");
+  check(json.find("\"reference_scope\":"
+                  "\"compatible_sg_spectral_not_exact_per_unit\"") !=
+            std::string::npos,
+        "ccm-fit JSON: compatible-reference scope emitted");
   check(json.find("\"lightness_exclusion\":{\"enabled\":true") !=
             std::string::npos,
         "ccm-fit JSON: lightness exclusion enabled");
@@ -181,6 +185,20 @@ void TESTS() {
                    "--illuminant-spd", illuminant.string(), "--out",
                    (root / "stale.json").string()});
   check(stale_rc == 1, "ccm-fit command: stale provenance config rejected");
+
+  const fs::path unsupported_role_config = root / "unsupported-role.local.json";
+  std::string unsupported_role = good_config(root, reference, camera_rgb);
+  const std::string compatible_role = "\"role\": \"compatible_sg_spectral\"";
+  const auto role_at = unsupported_role.find(compatible_role);
+  check(role_at != std::string::npos,
+        "ccm-fit fixture: compatible role marker exists");
+  unsupported_role.replace(role_at, compatible_role.size(),
+                           "\"role\": \"representative_measured_sg\"");
+  write_file(unsupported_role_config, unsupported_role);
+  check(run_ccm_fit({"fixture", "--config", unsupported_role_config.string(),
+                     "--illuminant-spd", illuminant.string(), "--out",
+                     (root / "unsupported-role.json").string()}) == 1,
+        "ccm-fit command: unsupported reference role rejected");
 
   fs::remove_all(root);
 }

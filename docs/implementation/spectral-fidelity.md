@@ -128,28 +128,43 @@ nonpositive SPD. A synthetic RAW sweep recovers normalized R/G/B of
 `0.5/1.0/0.25` to `1e-12`, preserves basename-only provenance, and refuses a
 fully clipped CFA channel. Partial clipping has a different, explicit contract:
 one clipped red sample out of four is excluded, recorded as
-`0.25 ± 1e-12`, and extraction continues.
+`0.25 ± 1e-12`, its affected normalized red response remains `11/96` to
+`1e-12`, and extraction continues. A red sample exactly at the measured dark
+residual is separately classified as nonpositive signal, flagged at fraction
+`1.0`, clamped to zero, and included in the one-sample diagnostic rollup.
 
-The closure fixture uses measured RGB exactly ten times the predicted RGB. It
+The closure fixtures in
+[`test_spectral_closure.cpp`](../../tests/test_spectral_closure.cpp) and
+[`test_cmd_spectral_closure.cpp`](../../tests/test_cmd_spectral_closure.cpp)
+use measured RGB exactly ten times the predicted RGB. They
 must recover one global `k = 10`, zero white-ratio error, and zero per-channel
 relative RMS to `1e-9`. A white mismatch fails before patch emission, and a
 doubled red channel remains visible rather than being hidden by per-channel
 scales. Command tests also pin that saturation is evaluated before dark
 subtraction and that invalid inputs produce no output.
 
-For the Luther calculation, an overdetermined basis produces residuals
+For the Luther calculation,
+[`test_spectral_quality.cpp`](../../tests/test_spectral_quality.cpp) gives an
+overdetermined basis that produces residuals
 `0, 1, 0` and combined residual `sqrt(1/3)` to `1e-9`; a rank-deficient basis
-is refused. The ideal SMI-style fixture retains six colors, produces mean Delta
-E 76 near zero and both scores near `100` under their declared tolerances, while
-a wavelength-shifted metameric fixture must score below `100`. The equation
+is refused. The ideal fixture in
+[`test_spectral_smi.cpp`](../../tests/test_spectral_smi.cpp) retains six colors,
+produces mean Delta E 76 near zero and both scores near `100` under their
+declared tolerances, while a wavelength-shifted metameric fixture must score
+below `100`. The equation
 `100 - 5.5 × mean Delta E 76` is pinned to `1e-9`, and the separate
 white-preserving fit must keep white error at zero to `1e-9`.
 
-The registered CIE table guard pins official and derived hashes, the 360–830 nm
+The registered CIE table guard and its mutation test—
+[`check_cie_cmf_1nm.py`](../../tools/check_cie_cmf_1nm.py) and
+[`test_check_cie_cmf_1nm.py`](../../tools/test_check_cie_cmf_1nm.py)—pin all
+seven official and derived hashes, the 360–830 nm
 observer extent, the `ȳ` peak of `1.0` at 555 nm to `1e-9`, and declared
-observer/illuminant subset tolerances; mutation tests alter each table and
-require failure. Command tests verify that the four typed stages and their
-limitations survive serialization.
+observer/illuminant subset tolerances; each registered table is mutated in turn
+and required to fail. Command tests exercise all four typed stages and pin their
+stage identities and selected output fields. The SMI command additionally pins its
+arbitrary-test-set, Annex-B, and white-preserving limitations; equivalent
+interpretive text is not claimed as serialized by the other three commands.
 
 This verifies the numerical stages and their separation. It does not establish
 that an archived sensitivity curve is physically correct, that two archive

@@ -58,6 +58,8 @@ def _csv_equivalent(left: Path, right: Path) -> bool:
     if left_fields != right_fields or left_fields is None or len(left_rows) != len(right_rows):
         return False
     for left_row, right_row in zip(left_rows, right_rows):
+        if None in left_row or None in right_row:
+            return False
         for field in left_fields:
             left_value = left_row[field]
             right_value = right_row[field]
@@ -111,6 +113,8 @@ def _load(
         background: list[dict[str, float]] = []
         coupled: list[dict[str, float]] = []
         for row in reader:
+            if None in row:
+                raise ValueError("unexpected CAM16 equation-audit CSV row width")
             try:
                 item = {
                     "x": float(row["x"]),

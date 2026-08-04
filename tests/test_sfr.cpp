@@ -453,6 +453,25 @@ void TESTS() {
   }
 
   {
+    camera_iq::RawMeta meta;
+    meta.left_margin = 10;
+    meta.top_margin = 20;
+    meta.visible_width = 100;
+    meta.visible_height = 80;
+    const auto active = camera_iq::full_frame_roi_to_active_area(
+        RoiRect{13, 25, 25, 25}, meta);
+    test::check(active.has_value(),
+                "field ROI: full-frame coordinates convert to active area");
+    test::check(active->x == 4 && active->y == 6 && active->width == 24 &&
+                    active->height == 24,
+                "field ROI: conversion clips inward to CFA-balanced geometry");
+    test::check(!camera_iq::full_frame_roi_to_active_area(
+                     RoiRect{0, 0, 5, 5}, meta)
+                     .has_value(),
+                "field ROI: region outside active area is refused");
+  }
+
+  {
     camera_iq::ResolvedDataset dataset;
     dataset.id = "fixture";
     dataset.label = "fixture";

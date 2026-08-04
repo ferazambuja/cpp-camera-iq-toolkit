@@ -14,6 +14,7 @@ using camera_iq::is_safe_dataset_subdir;
 using camera_iq::dataset_root_label;
 using camera_iq::dataset_scan_label;
 using camera_iq::read_dataset_config;
+using camera_iq::resolve_dataset_child;
 using camera_iq::resolve_dataset_root;
 using test::check;
 
@@ -202,6 +203,22 @@ void TESTS() {
         "safe subdir: leading parent component rejected");
   check(!is_safe_dataset_subdir(fs::path("Images/../../escape")),
         "safe subdir: embedded parent component rejected");
+
+  const auto safe_child =
+      resolve_dataset_child(root / "clrs", fs::path("Images/file.RAF"));
+  check(safe_child == root / "clrs" / "Images/file.RAF",
+        "dataset child: nested relative input stays under root");
+  check(!resolve_dataset_child(root / "clrs", fs::path("../outside.RAF")),
+        "dataset child: leading parent traversal rejected");
+  check(!resolve_dataset_child(root / "clrs",
+                               fs::path("Images/../../outside.RAF")),
+        "dataset child: embedded parent traversal rejected");
+  const fs::path outside = root / "outside.RAF";
+  write_file(outside, "outside evidence");
+  const fs::path escaped_link = root / "clrs" / "escaped-link.RAF";
+  fs::create_symlink(outside, escaped_link);
+  check(!resolve_dataset_child(root / "clrs", fs::path("escaped-link.RAF")),
+        "dataset child: symlink escape rejected");
 
   fs::remove_all(root);
 }

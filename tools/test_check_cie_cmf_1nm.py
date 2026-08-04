@@ -62,6 +62,21 @@ def main() -> int:
         expect_error(root, "official observer copy SHA-256")
 
         root = staged(Path(raw))
+        official_d50 = root / "data/third_party/CIE_std_illum_D50.csv"
+        replace_once(official_d50, "300,0.019", "300,0.018")
+        expect_error(root, "official D50 copy SHA-256")
+
+        root = staged(Path(raw))
+        official_d55 = root / "data/third_party/CIE_illum_D55.csv"
+        replace_once(official_d55, "300,0.024", "300,0.023")
+        expect_error(root, "official D55 copy SHA-256")
+
+        root = staged(Path(raw))
+        fine = root / "data/cie1931_2deg_cmf_1nm.csv"
+        replace_once(fine, "360,0.0001299", "360,0.0001298")
+        expect_error(root, "1 nm observer SHA-256")
+
+        root = staged(Path(raw))
         coarse = root / "data/cie1931_2deg_cmf.csv"
         replace_once(coarse, "380,0.001368", "380,0.001369")
         expect_error(root, "10 nm observer")

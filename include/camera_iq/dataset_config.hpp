@@ -81,4 +81,11 @@ std::string dataset_scan_label(const ResolvedDataset& dataset,
 // still labels the evidence under the dataset — provenance misattribution.
 bool is_safe_dataset_subdir(const std::filesystem::path& relative_subdir);
 
+// Resolves a dataset-relative input only when its canonical location remains
+// within the configured root. Absolute paths, parent traversal, and symlink
+// escapes are refused.
+std::optional<std::filesystem::path> resolve_dataset_child(
+    const std::filesystem::path& root,
+    const std::filesystem::path& relative_path);
+
 }  // namespace camera_iq

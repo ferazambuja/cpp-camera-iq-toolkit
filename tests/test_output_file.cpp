@@ -79,6 +79,22 @@ void TESTS() {
   }
 
   {
+    const auto input = root / "same-input.raw";
+    {
+      std::ofstream seed(input, std::ios::binary);
+      seed << "source evidence";
+    }
+    test::check(output_path_aliases_input(input, input),
+                "output alias check catches identical input path");
+    test::check(output_path_aliases_input(input.parent_path() / "." /
+                                              input.filename(),
+                                          input),
+                "output alias check catches normalized equivalent path");
+    test::check(!output_path_aliases_input(root / "different.json", input),
+                "output alias check permits distinct path");
+  }
+
+  {
     const auto source = root / "source.mat";
     const auto output = root / "hard-linked-output.json";
     {
@@ -86,6 +102,8 @@ void TESTS() {
       seed << "source evidence";
     }
     std::filesystem::create_hard_link(source, output);
+    test::check(output_path_aliases_input(output, source),
+                "output alias check catches hard-linked input identity");
     std::ostringstream err;
     const bool ok = write_output_file_checked(
         output, "fixture", [](std::ostream& os) { os << "replacement"; },

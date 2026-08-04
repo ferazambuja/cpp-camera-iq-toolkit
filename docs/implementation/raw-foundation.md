@@ -43,8 +43,9 @@ and writes a privacy-safe dataset summary. The scientific reports consume that
 identity layer; they do not infer capture roles from filenames on their own.
 
 The dataset layer keeps absolute roots out of generated public labels. Input
-files are resolved below the configured root and output/input aliasing is
-refused by command layers.
+files are resolved below the configured root. The direct `raw-stats` and
+`demosaic` commands also refuse an output that resolves to their input before
+opening the destination, so a report request cannot truncate the RAW it reads.
 
 ## Effective black subtraction
 
@@ -114,8 +115,11 @@ DSNU_variance = variance(pair_mean) - temporal_noise^2 / 2
 The robust companion replaces ordinary pair-mean spread with a MAD-derived
 spread but subtracts the same temporal floor. A negative remainder becomes an
 absent estimate with an explicit reason; it is never converted into a physical
-zero. Pairing refuses mismatched dimensions, CFA phase, camera controls, or
-measurement geometry before differencing.
+zero. Pair selection uses filename-derived aperture and shutter plus effective
+ISO; only ISO is reconciled with RAW metadata. Before differencing, the typed
+pair check refuses mismatched dimensions, stride, CFA phase, or sample count.
+That keeps incompatible arrays apart without implying that the archive proves
+camera identity, physical setup, or synchronized exposure controls.
 
 ## Exposure response and relative OECF
 
@@ -166,8 +170,9 @@ conversion gain is available.
 
 ## Verification evidence
 
-The cross-camera RAW invariants begin in
-[`test_raw_meta.cpp`](../../tests/test_raw_meta.cpp).
+The camera-neutral RAW invariants begin in
+[`test_raw_meta.cpp`](../../tests/test_raw_meta.cpp) and
+[`test_cfa_stats.cpp`](../../tests/test_cfa_stats.cpp).
 
 The RAW bridge is tested at the representation boundaries that can change the
 meaning of every later result. A `12032`-byte row pitch is interpreted as
@@ -178,14 +183,17 @@ samples do not enter the statistics. With black `1024`, white `16383`, and a
 `0.98` policy level, raw code `16075` is below the first flagged integer and
 `16076` is included; the threshold is recomputed for each CFA position.
 
-The demosaic tests use constant fields, a hand-computed `5 × 5` RGGB mosaic,
+The demosaic assertions in
+[`test_demosaic.cpp`](../../tests/test_demosaic.cpp) use constant fields, a
+hand-computed `5 × 5` RGGB mosaic,
 edge-only `3 × 3` neighborhoods, and a BGGR phase fixture. The selected
 interpolated values are pinned to `1e-9`, and a missing RAW argument is verified
 to return usage status `2`. These checks establish the stated local averaging
 and phase behavior; they are not a claim of bit-exact agreement with every
 LibRaw interpolation path.
 
-Dark/noise fixtures pin the equations as well as their failure states. An
+Dark/noise fixtures in [`test_noise.cpp`](../../tests/test_noise.cpp) pin the
+equations as well as their failure states. An
 eight-sample pair with difference standard deviation `4 DN` must produce
 temporal noise `2 sqrt(2) DN` to `1e-12`; the corresponding moment-DSNU result
 is `sqrt(1.25) DN` to `1e-12`. When the temporal floor exceeds the spatial
@@ -194,7 +202,11 @@ spread, both DSNU estimates are absent with reason
 refused before differencing, and serialized DN-space results keep gain, PTC,
 and dynamic-range support false.
 
-Exposure and tone-response tests keep acceptance and fitting separate. A
+The exposure and tone-response fixtures in
+[`test_exposure_response.cpp`](../../tests/test_exposure_response.cpp),
+[`test_oecf_fit.cpp`](../../tests/test_oecf_fit.cpp), and
+[`test_stepchart_raw.cpp`](../../tests/test_stepchart_raw.cpp) keep acceptance
+and fitting separate. A
 four-frame fixture with three distinct shutters groups the duplicate exposure,
 while missing reports, changed ISO, below-black signal, heavy clipping, and a
 nonuniform ROI each exercise a different refusal. The exact linear OECF fixture
@@ -204,11 +216,21 @@ Stepchart tests distinguish strip and ring geometry, require 20 ordered zones,
 pin the green-ladder correlation floor at `0.98`, and keep a DN-space PTC fit
 separate from unsupported electron gain or dynamic range.
 
-Manifest and command tests exclude AppleDouble and `.DS_Store` files, preserve
+Manifest and command tests in
+[`test_manifest_scan.cpp`](../../tests/test_manifest_scan.cpp),
+[`test_manifest_json.cpp`](../../tests/test_manifest_json.cpp), and
+[`test_cmd_dataset_labels.cpp`](../../tests/test_cmd_dataset_labels.cpp)
+exclude AppleDouble and `.DS_Store` files, preserve
 relative public paths, serialize unavailable EXIF as `null`, reduce direct-root
-inputs to basename-safe labels, and reject parent traversal. Together these
-tests establish numeric and output contracts. The archive-backed reports, not
-the fixtures, remain the authority for the physical captures and conclusions.
+inputs to basename-safe labels, and reject parent traversal. Dataset-child and
+command fixtures also refuse leading or embedded `..` components and an input
+symlink that resolves outside the configured root. The shared output tests in
+[`test_output_file.cpp`](../../tests/test_output_file.cpp), plus the
+RAW-statistics and demosaic command fixtures, verify that identical,
+normalized-equivalent, and hard-linked output identities are refused before an
+input can be truncated. Together these tests establish numeric and output
+contracts. The archive-backed reports, not the fixtures, remain the authority
+for the physical captures and conclusions.
 
 ## Source and tests
 
@@ -225,6 +247,14 @@ the fixtures, remain the authority for the physical captures and conclusions.
 - Manifest enumeration and serialization:
   [`manifest.cpp`](../../src/manifest.cpp),
   [`cmd_manifest.cpp`](../../src/cmd_manifest.cpp)
+- Shared ROI, dataset, filename, and output-path contracts:
+  [`output_file.hpp`](../../include/camera_iq/output_file.hpp),
+  [`output_file.cpp`](../../src/output_file.cpp),
+  [`test_roi.cpp`](../../tests/test_roi.cpp),
+  [`test_exposure_series.cpp`](../../tests/test_exposure_series.cpp),
+  [`test_filename_meta.cpp`](../../tests/test_filename_meta.cpp),
+  [`test_dataset_config.cpp`](../../tests/test_dataset_config.cpp), and
+  [`test_output_file.cpp`](../../tests/test_output_file.cpp)
 - Focused tests: [`test_raw_meta.cpp`](../../tests/test_raw_meta.cpp),
   [`test_cfa_stats.cpp`](../../tests/test_cfa_stats.cpp),
   [`test_demosaic.cpp`](../../tests/test_demosaic.cpp),

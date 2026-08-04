@@ -78,6 +78,11 @@ void validate_ccm_provenance(const DatasetSpec& dataset,
   require_non_empty(spec.physical_chart_identity,
                     "color_reference.physical_chart_identity");
   require_non_empty(spec.numbering_order, "color_reference.numbering_order");
+  require_non_empty(spec.role, "color_reference.role");
+  if (spec.role != "compatible_sg_spectral") {
+    throw std::runtime_error(
+        "ccm fit: unsupported color reference role " + spec.role);
+  }
 }
 
 SpectralReferenceProvenance provenance_from_spec(
