@@ -2,7 +2,10 @@
 
 #include <filesystem>
 #include <fstream>
+#include <iostream>
+#include <sstream>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "harness.hpp"
@@ -33,6 +36,15 @@ int run_ccm_fit(const std::vector<std::string>& args) {
     argv.push_back(const_cast<char*>(arg.c_str()));
   }
   return cmd_ccm_fit(static_cast<int>(argv.size()), argv.data());
+}
+
+std::pair<int, std::string> run_ccm_fit_with_stderr(
+    const std::vector<std::string>& args) {
+  std::ostringstream captured;
+  auto* original = std::cerr.rdbuf(captured.rdbuf());
+  const int result = run_ccm_fit(args);
+  std::cerr.rdbuf(original);
+  return {result, captured.str()};
 }
 
 std::string good_config(const fs::path& root, const fs::path& reference,
@@ -78,6 +90,20 @@ std::string good_config(const fs::path& root, const fs::path& reference,
 }  // namespace
 
 void TESTS() {
+  const auto [help_rc, help_text] = run_ccm_fit_with_stderr({"--help"});
+  check(help_rc == 0, "ccm-fit command: help succeeds");
+  check(help_text.find(
+            "Supported reference role: 'compatible_sg_spectral' -> "
+            "reference_scope "
+            "'compatible_sg_spectral_not_exact_per_unit'") !=
+            std::string::npos,
+        "ccm-fit command: help publishes the accepted role/scope contract");
+  check(help_text.find(
+            "Required physical_chart_identity: "
+            "'compatible_reference_not_proven_same_physical_chart'") !=
+            std::string::npos,
+        "ccm-fit command: help publishes the accepted physical identity");
+
   const fs::path root = fs::temp_directory_path() / "camera_iq_cmd_ccm_fit";
   fs::remove_all(root);
   fs::create_directories(root);
@@ -143,6 +169,11 @@ void TESTS() {
                   "\"compatible_sg_spectral_not_exact_per_unit\"") !=
             std::string::npos,
         "ccm-fit JSON: compatible-reference scope emitted");
+  check(json.find("\"reference_role\":\"compatible_sg_spectral\","
+                  "\"reference_scope\":"
+                  "\"compatible_sg_spectral_not_exact_per_unit\"") !=
+            std::string::npos,
+        "ccm-fit JSON: accepted role and scientific scope stay paired");
   check(json.find("\"lightness_exclusion\":{\"enabled\":true") !=
             std::string::npos,
         "ccm-fit JSON: lightness exclusion enabled");
@@ -204,10 +235,55 @@ void TESTS() {
   unsupported_role.replace(role_at, compatible_role.size(),
                            "\"role\": \"representative_measured_sg\"");
   write_file(unsupported_role_config, unsupported_role);
-  check(run_ccm_fit({"fixture", "--config", unsupported_role_config.string(),
-                     "--illuminant-spd", illuminant.string(), "--out",
-                     (root / "unsupported-role.json").string()}) == 1,
+  const auto [unsupported_rc, unsupported_error] = run_ccm_fit_with_stderr(
+      {"fixture", "--config", unsupported_role_config.string(),
+       "--illuminant-spd", illuminant.string(), "--out",
+       (root / "unsupported-role.json").string()});
+  check(unsupported_rc == 1,
         "ccm-fit command: unsupported reference role rejected");
+  check(unsupported_error.find(
+            "supported role is 'compatible_sg_spectral' with "
+            "reference_scope "
+            "'compatible_sg_spectral_not_exact_per_unit'") !=
+            std::string::npos,
+        "ccm-fit command: unsupported role names the accepted role and scope");
+  check(unsupported_error.find(
+            "adding another role requires an explicit "
+            "role/scope/identity contract") !=
+            std::string::npos,
+        "ccm-fit command: unsupported role explains the extension contract");
+
+  const fs::path contradictory_identity_config =
+      root / "contradictory-identity.local.json";
+  std::string contradictory_identity = good_config(root, reference, camera_rgb);
+  const std::string compatible_identity =
+      "\"physical_chart_identity\": "
+      "\"compatible_reference_not_proven_same_physical_chart\"";
+  const auto identity_at = contradictory_identity.find(compatible_identity);
+  check(identity_at != std::string::npos,
+        "ccm-fit fixture: compatible physical identity marker exists");
+  contradictory_identity.replace(
+      identity_at, compatible_identity.size(),
+      "\"physical_chart_identity\": \"exact_per_unit_measured_sg\"");
+  write_file(contradictory_identity_config, contradictory_identity);
+  const auto [contradictory_rc, contradictory_error] =
+      run_ccm_fit_with_stderr(
+          {"fixture", "--config", contradictory_identity_config.string(),
+           "--illuminant-spd", illuminant.string(), "--out",
+           (root / "contradictory-identity.json").string()});
+  check(contradictory_rc == 1,
+        "ccm-fit command: contradictory physical identity rejected");
+  check(contradictory_error.find(
+            "role 'compatible_sg_spectral' requires "
+            "physical_chart_identity "
+            "'compatible_reference_not_proven_same_physical_chart'") !=
+            std::string::npos,
+        "ccm-fit command: physical-identity error names the accepted contract");
+  check(contradictory_error.find(
+            "adding another identity interpretation requires an explicit "
+            "role/scope/identity contract") != std::string::npos,
+        "ccm-fit command: physical-identity error explains the extension "
+        "contract");
 
   fs::remove_all(root);
 }

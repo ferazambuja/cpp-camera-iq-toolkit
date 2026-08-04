@@ -62,6 +62,24 @@ General rules:
 - Use `reference-info` to validate configured ColorChecker references before a
   later CCM/DeltaE step consumes them.
 
+### Color-reference roles
+
+Reference roles are declarative provenance metadata. They do not select a
+different matrix calculation. A command may report a configured role without
+interpreting it, but a command that attaches a role-dependent scientific scope
+must explicitly accept that role and its compatible identity fields.
+
+| Role | Produced or consumed by | Meaning and boundary |
+|---|---|---|
+| `compatible_sg_spectral` | Configured `reference-info`; the only role currently accepted by `ccm-fit` | A manufacturer-consistent SG spectral reference whose exact per-unit identity is not established. `ccm-fit` requires `physical_chart_identity: compatible_reference_not_proven_same_physical_chart` and pairs it with `reference_scope: compatible_sg_spectral_not_exact_per_unit`. |
+| `direct_spectral_reference` | Synthesized by `reference-info` for an explicitly named file | Direct-file mode identifies an ad-hoc inspection. `ccm-fit` refuses this role rather than attaching the compatible-reference scope. |
+
+Supporting another `ccm-fit` interpretation requires a deliberately defined
+output `reference_scope`, compatible physical-identity semantics, tests for the
+complete provenance contract, and updated documentation. The tool refuses
+unrecognized or contradictory fitting provenance instead of attaching the
+existing compatible-reference caveat to evidence for which it may be false.
+
 Typical private-data command shape:
 
 ```bash

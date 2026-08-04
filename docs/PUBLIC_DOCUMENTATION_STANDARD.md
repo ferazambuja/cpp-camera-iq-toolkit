@@ -131,6 +131,22 @@ general contract unless it is pinned by a committed generated artifact or by an
 executable assertion. Prefer the enforced tolerance or invariant and identify
 optional reference builds as optional.
 
+Name the evidence layer rather than blending unlike checks into one claim:
+
+- **Library or unit fixtures** establish equations, numerical behavior, typed
+  invariants, and local refusal paths.
+- **Command or integration tests** establish orchestration, path handling,
+  cross-component wiring, serialization, and command-level refusals.
+- **Generated-artifact guards** establish freshness and internal consistency of
+  committed tables, figures, or receipts; they do not rerun private inputs.
+- **Archive-backed runtime evidence** establishes the identity and conditions
+  of physical inputs and measured conclusions, subject to the report's stated
+  provenance and controls.
+
+Do not promote coverage from one layer to another. A library assertion is not a
+command success path, a synthetic exporter corpus is not an archive rerun, and
+an artifact-freshness check is not a new physical measurement.
+
 ### 4. Evidence reference: identity and provenance
 
 Inventories, manifests, reference-data notes, and dataset pages establish which
@@ -246,6 +262,9 @@ Before publishing or materially revising a public portfolio document, verify:
 - [ ] The implementation companion explains what its tests or independent
       cross-checks establish, links public tests, and separates software
       correctness from scientific validity.
+- [ ] Verification prose labels library/unit, command/integration,
+      generated-artifact, and archive-backed runtime evidence where those
+      layers are present, without promoting one layer's coverage into another.
 - [ ] Its verification section links the relevant executable assertion and
       retains a numeric bound/count or exact semantic contract with every
       precondition needed to interpret it.

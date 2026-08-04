@@ -66,6 +66,12 @@ signed_sample(r,c) = unpacked_RAW(r,c) - effective_black(r,c)
 active-area coordinates. `read_raw_metadata()` is sufficient for identity, but
 scientific sample work uses `read_raw_cfa_image()` or `read_raw_cfa_stats()`
 after `unpack()`, because some makers finalize black metadata during unpack.
+Measurement paths accept a repeating black tile larger than `2 × 2` only when
+every entry with the same CFA parity has the same value over the complete
+repeat. Otherwise the four-position representation would lose spatial pedestal
+structure, so post-unpack measurement metadata is refused. Metadata-only
+inventory may still expose preliminary values without making that measurement
+claim.
 
 Core types and mapping:
 
@@ -170,7 +176,7 @@ conversion gain is available.
 
 ## Verification evidence
 
-The camera-neutral RAW invariants begin in
+At the library/unit layer, the camera-neutral RAW invariants begin in
 [`test_raw_meta.cpp`](../../tests/test_raw_meta.cpp) and
 [`test_cfa_stats.cpp`](../../tests/test_cfa_stats.cpp).
 
@@ -178,8 +184,11 @@ The RAW bridge is tested at the representation boundaries that can change the
 meaning of every later result. A `12032`-byte row pitch is interpreted as
 `6016` `uint16` samples, while an odd `12033`-byte pitch is refused. Synthetic
 black metadata recovers a four-position `2 × 2` tile of `1024` without reading
-past a short tile buffer, and a strided active-area fixture proves that border
-samples do not enter the statistics. With black `1024`, white `16383`, and a
+past a short tile buffer. Separate unit fixtures accept a larger repeat only
+when all same-CFA-parity entries agree and reject incomplete, odd-period
+nonconstant, or same-parity-varying repeats at the post-unpack measurement
+gate. A strided active-area fixture proves that border samples do not enter the
+statistics. With black `1024`, white `16383`, and a
 `0.98` policy level, raw code `16075` is below the first flagged integer and
 `16076` is included; the threshold is recomputed for each CFA position.
 
@@ -216,15 +225,16 @@ Stepchart tests distinguish strip and ring geometry, require 20 ordered zones,
 pin the green-ladder correlation floor at `0.98`, and keep a DN-space PTC fit
 separate from unsupported electron gain or dynamic range.
 
-Manifest and command tests in
-[`test_manifest_scan.cpp`](../../tests/test_manifest_scan.cpp),
-[`test_manifest_json.cpp`](../../tests/test_manifest_json.cpp), and
+At the library and serialization layer,
+[`test_manifest_scan.cpp`](../../tests/test_manifest_scan.cpp) and
+[`test_manifest_json.cpp`](../../tests/test_manifest_json.cpp) exclude
+AppleDouble and `.DS_Store` files, preserve relative public paths, and
+serialize unavailable EXIF as `null`. At the command/integration layer,
 [`test_cmd_dataset_labels.cpp`](../../tests/test_cmd_dataset_labels.cpp)
-exclude AppleDouble and `.DS_Store` files, preserve
-relative public paths, serialize unavailable EXIF as `null`, reduce direct and
-external inputs to scoped basename-safe labels, and reject parent traversal.
-Dataset-child and command fixtures also refuse leading or embedded `..`
-components and an input symlink that resolves outside the configured root.
+reduces direct dataset roots and their selected subdirectories to sanitized
+`dataset-root:<basename[/subdir]>` labels. Its command fixtures reject absolute
+subdirectory arguments, leading or embedded `..` components, and a configured
+subdirectory symlink that resolves outside the dataset root.
 
 Configured scan subdirectories are resolved canonically before the manifest,
 dark-calibration, noise, exposure-response, or OECF-fit scanners run, and the

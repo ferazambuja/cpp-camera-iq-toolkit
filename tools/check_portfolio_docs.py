@@ -382,6 +382,12 @@ PROVENANCE_CONTRACTS = {
             "serialized compatible-reference scope",
             re.compile(r"`compatible_sg_spectral_not_exact_per_unit`"),
         ),
+        (
+            "serialized compatible physical-chart identity",
+            re.compile(
+                r"`compatible_reference_not_proven_same_physical_chart`"
+            ),
+        ),
     ),
     Path("docs/case-studies/color-model-equation-audit.md"): (
         (

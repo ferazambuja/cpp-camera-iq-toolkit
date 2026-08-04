@@ -112,16 +112,24 @@ the chart.
   rejected rather than serialized.
 - Reference provenance and capture/reference timeline fields remain attached to
   output.
-- The command accepts the `compatible_sg_spectral` reference role, records the
-  cross-project relationship in `timeline_provenance`, and sets
-  `reference_scope` to
-  `compatible_sg_spectral_not_exact_per_unit`; the compatible-reference scope
-  is not inferred from surrounding prose.
+- Reference roles are declarative metadata, not a selector for different matrix
+  mathematics. A command may report them as provenance, but scientific
+  interpretation is command-specific. The CCM command currently has one
+  explicit role/scope/identity contract: it accepts
+  `compatible_sg_spectral`, records the cross-project relationship in
+  `timeline_provenance`, and serializes
+  `compatible_sg_spectral_not_exact_per_unit` as `reference_scope`. That role
+  requires `compatible_reference_not_proven_same_physical_chart` as the
+  physical-chart identity. Adding a fit interpretation requires corresponding
+  scope and identity semantics in code and tests;
+  `reference-info` separately uses `direct_spectral_reference` for an
+  explicitly named spectral file.
 - A localization candidate must pass geometric error, not only RGB correlation.
 
 ## Verification evidence
 
-Patch fixtures in [`test_patches.cpp`](../../tests/test_patches.cpp) pin
+At the library/unit layer, patch fixtures in
+[`test_patches.cpp`](../../tests/test_patches.cpp) pin
 selected `5 × 5`-image ROI means to `1e-12`. Projective
 geometry tests retain all 140 cells in `A1…N10` order and refuse degenerate,
 crossed, or non-finite corner sets in
@@ -154,10 +162,13 @@ The order-pairing fixture in
 distinguishes an aligned reference from a shifted order; it does not match
 camera rows by patch ID because those rows do not carry IDs. Tested refusal
 cases cover singular fits, invalid spectral-reference inputs, flat-field gate
-failures, missing required provenance fields, and a non-compatible reference
-role. The command test also pins the exact
-`compatible_sg_spectral_not_exact_per_unit` reference scope in the serialized
-result and reduces reference, camera-RGB, and illuminant paths to explicit
+failures, and missing required provenance fields. At the command/integration
+layer, a role or physical identity outside the supported `ccm-fit` provenance
+contract is refused. The command test pins the accepted role,
+`compatible_sg_spectral_not_exact_per_unit` scope, and compatible physical
+identity as one serialized contract. Refusals name the accepted provenance and
+the requirement for an explicit contract before another interpretation is
+accepted. Reference, camera-RGB, and illuminant paths reduce to explicit
 `external:<basename>` labels.
 
 The shared path-resolution fixtures in
@@ -172,7 +183,8 @@ fixtures refuse identical,
 normalized-equivalent, and hard-linked output aliases and prevent the CSV and
 JSON outputs from replacing one another.
 
-The public corrected-patch guard and its mutation tests—
+At the generated-artifact layer, the public corrected-patch guard and its
+mutation tests—
 [`check_patch_baseline.py`](../../tools/check_patch_baseline.py) and
 [`test_check_patch_baseline.py`](../../tools/test_check_patch_baseline.py)—
 separately pin the canonical-LF SHA-256,
@@ -183,10 +195,14 @@ layout, non-finite data, or a stale published digest. This preserves the
 committed table; it does not rerun the private RAW extraction or prove
 producer-to-baseline equality.
 
-These tests establish the extraction, fitting, evaluation, and failure
-contracts. They do not turn the compatible spectral chart reference into a
-per-unit measurement of the photographed chart; that scientific boundary comes
-from the reference-provenance report and remains serialized in every CCM result.
+The library tests establish extraction, fitting, evaluation, and local failure
+contracts; command tests establish orchestration and serialized provenance; the
+artifact guard establishes the committed corrected-patch table's integrity.
+The archive-backed reports remain the authority for the physical capture and
+reference relationship. None of these checks turns the compatible spectral
+chart reference into a per-unit measurement of the photographed chart; that
+scientific boundary comes from the reference-provenance report and remains
+serialized in every CCM result.
 
 ## Source and tests
 

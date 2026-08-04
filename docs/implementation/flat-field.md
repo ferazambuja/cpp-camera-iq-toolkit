@@ -43,6 +43,13 @@ This gate is shared by flat-field correction used in patch extraction. The
 shared helper ensures the same source mosaic, CFA-balanced geometry, and
 per-position rule are used by both consumers.
 
+The library accepts the caller's screening rectangle only when it is exactly
+equal to `cfa_balanced_roi(gate, width, height)`. Because that helper clips to
+the image and rounds inward to complete CFA blocks, equality proves both
+in-frame containment and CFA balance; there is no separate containment path.
+The exporter's later center-block-inside-gate check is a distinct document-
+geometry contract and does not rerun this source-image proof.
+
 ## Field calculation
 
 `measure_shading_field()` divides the active area into a declared Cartesian
@@ -117,7 +124,7 @@ outputs so an aggregate cannot be detached from the policy that produced it.
 
 ## Verification evidence
 
-The primary scalar and geometry assertions are in
+At the library/unit layer, the primary scalar and geometry assertions are in
 [`test_shading.cpp`](../../tests/test_shading.cpp).
 
 Synthetic fields in [`test_shading.cpp`](../../tests/test_shading.cpp)
@@ -125,29 +132,41 @@ distinguish a centered radial response from a four-corner
 asymmetry and keep R, G1, G2, and B independent. For the sampled centered-radial
 fixture and its declared CFA/block geometry, green asymmetry must remain below
 `1e-3`; that is a fixture-specific discretization bound, not a universal
-sampling floor. Gate fixtures verify that
+sampling floor. Gate fixtures in
+[`test_flat_field_gate.cpp`](../../tests/test_flat_field_gate.cpp) require the
+declared rectangle to equal its clipped, CFA-balanced form and verify that
 exactly `1%` near-ceiling samples and exactly `90%` finite coverage pass, while
 values beyond either inclusive boundary fail per CFA position. Other fixtures
 cover zero chromatic denominators, odd-mosaic refusal, dark metadata and
-pedestal controls, matched comparison geometry, publication-safe labels, and
-the JSON/CSV rejection states described above.
+pedestal controls, and matched comparison geometry.
 
-The live producer-to-consumer check in
+At the command/serialization layer,
+[`test_cmd_shading.cpp`](../../tests/test_cmd_shading.cpp) checks
+publication-safe labels, output collisions, pedestal fields, and the JSON/CSV
+rejection states described above. Those checks exercise the adapter and output
+contract; they do not rerun an archive capture.
+
+At the producer-to-consumer integration layer, the live check in
 [`emit_shading_contract.cpp`](../../tests/emit_shading_contract.cpp) and
 [`test_export_shading_portfolio.py`](../../tools/test_export_shading_portfolio.py)
 executes the compiled C++ serializer and feeds its output to the Python
 exporter. The exporter independently requires measured gates, even
 CFA-balanced rectangles, a center contained in the gate, positive center
-medians, four finite corner rows, complete chromatic maps for detailed accepted
-results, and verified pedestal evidence. Portfolio fixtures pin 52 unique
-inventory rows, the `18/21/13` aperture census, three accepted frames, one
-measured capture pair, and one complete `16 × 12` response grid for each
-accepted file.
+medians, four finite corner rows, and complete chromatic maps for every accepted
+document. Detailed and response exports additionally require verified pedestal
+evidence; screening inventory entries may defer that control to their matching
+detailed evidence. The synthetic exporter corpus pins 52 unique inventory rows,
+the `18/21/13` aperture census, three accepted frames, a comparison record that
+must declare measured evidence, and one complete `16 × 12` response grid for
+each accepted file. The archive-backed report establishes that the retained
+comparison actually came from measured captures.
 Mutation tests break the contract when producer or consumer semantics drift.
 
-These checks establish gate, schema, join, and calculation behavior. They do
-not remeasure the private RAW archive, prove the integrating sphere was uniform,
-or isolate a physical cause for the measured field.
+These library, command, and integration checks establish gate, schema,
+join, and calculation behavior at their respective layers. The archive-backed
+report supplies the physical-input evidence; none of these fixtures remeasure
+the private RAW archive, prove the integrating sphere was uniform, or isolate a
+physical cause for the measured field.
 
 ## Source and tests
 

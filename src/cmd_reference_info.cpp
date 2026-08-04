@@ -24,7 +24,9 @@ struct Args {
 void usage() {
   std::cerr << "Usage: camera_iq reference-info <dataset-id|spectral-csv>"
                " [--config FILE] [--camera-rgb FILE] [--out FILE]\n"
-               "Supported formats: camera_iq_spectral_csv, cgats_spectral\n";
+               "Supported formats: camera_iq_spectral_csv, cgats_spectral\n"
+            << "Direct files are reported with role '"
+            << color_reference_roles::kDirectSpectralReference << "'.\n";
 }
 
 SpectralReferenceProvenance provenance_from_spec(
@@ -212,7 +214,7 @@ int cmd_reference_info(int argc, char** argv) {
     const std::filesystem::path direct{args.target};
     if (std::filesystem::is_regular_file(direct)) {
       spec.id = "direct";
-      spec.role = "direct_spectral_reference";
+      spec.role = color_reference_roles::kDirectSpectralReference;
       spec.format = "camera_iq_spectral_csv";
       spec.path = direct;
       spec.selection_basis = "explicit_file";

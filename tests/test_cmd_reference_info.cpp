@@ -2,7 +2,10 @@
 
 #include <filesystem>
 #include <fstream>
+#include <iostream>
+#include <sstream>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "harness.hpp"
@@ -31,9 +34,26 @@ int run_reference_info(const std::vector<std::string>& args) {
                                        argv.data());
 }
 
+std::pair<int, std::string> run_reference_info_with_stderr(
+    const std::vector<std::string>& args) {
+  std::ostringstream captured;
+  auto* original = std::cerr.rdbuf(captured.rdbuf());
+  const int result = run_reference_info(args);
+  std::cerr.rdbuf(original);
+  return {result, captured.str()};
+}
+
 }  // namespace
 
 void TESTS() {
+  const auto [help_rc, help_text] =
+      run_reference_info_with_stderr({"--help"});
+  test::check(help_rc == 0, "reference-info command: help succeeds");
+  test::check(help_text.find(
+                  "Direct files are reported with role "
+                  "'direct_spectral_reference'") != std::string::npos,
+              "reference-info command: help explains the direct-file role");
+
   const fs::path root =
       fs::temp_directory_path() / "camera_iq_cmd_reference_info";
   fs::remove_all(root);
