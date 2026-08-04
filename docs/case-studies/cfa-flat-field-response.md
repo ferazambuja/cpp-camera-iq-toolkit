@@ -93,16 +93,16 @@ but the pair difference is not a general repeatability figure.
 The f/8, 1/500 s frame is a useful negative case. Its worst green plane was
 11.6319% near ceiling inside the central gate but only 0.4964% near ceiling
 over the whole frame. A whole-frame 1% test would accept it even though the
-bright central region was already near ceiling. The command rejects it before
-any relative response map is emitted.
+bright central region was already near ceiling. The frame is rejected before
+any response map is produced, rather than corrected for afterwards.
 
 The same frame is also a negative case for ColorChecker flat-field admission.
 `patches` measures the source CFA before demosaic with the same 20% centered
 geometry, 98% level, 1% limit, and per-position decision rule as `shading`. On the
 `1:500` frame it therefore reports the same four-position values: frame
 `[0, 0.3664%, 0.4964%, 0]` and gate `[0, 8.6908%, 11.6319%, 0]`, rejecting G2.
-Rejected runs retain those arrays, the effective rectangles, and the failing
-position in JSON. The CCM path accepts its 1/1000 s flat because every CFA
+The failing position and its measured values are retained for the rejected
+frame rather than discarded. The CCM path accepts its 1/1000 s flat because every CFA
 position measures 0% in both regions. The available evidence does not quantify
 the correction error that the rejected 1/500 s flat would introduce, so no
 magnitude is claimed.
@@ -115,25 +115,25 @@ magnitude is claimed.
 its visible asymmetry. It is a rendered guide only. Numerical measurements use
 the source RAF's active Bayer mosaic, not this preview.*
 
-The computation follows four stages:
+The measurement proceeds in four stages:
 
-1. LibRaw unpacks the active 2 × 2 Bayer mosaic and applies the effective
-   per-position black metadata once.
-2. The command derives each signal ceiling as `white_level − black[p]` and
-   evaluates near-ceiling, low-signal, negative-residual, finite-sample, and
-   bin-coverage checks.
-3. Per-CFA medians are computed over a 16 × 12 grid. A separate 400 × 400 px
-   center block supplies the normalizer, while four inset blocks supply corner
-   and asymmetry statistics.
-4. Independently normalized R, G1, G2, and B maps produce `C_RG`, `C_BG`, and
-   `C_G1G2`. JSON retains rejection diagnostics; CSV provides plottable map and
-   scalar rows.
+1. The active 2 × 2 Bayer mosaic is read and the sensor's per-position black
+   pedestal is subtracted once, so every later value is signal above black
+   rather than raw code.
+2. Each position's usable signal range is its white level minus that pedestal.
+   Measuring headroom against this range, rather than against the raw code
+   ceiling, is what makes the near-ceiling screening meaningful.
+3. Median response is computed per color position over a 16 × 12 spatial grid.
+   A 400 × 400 px center block sets the normalizer so the maps read as response
+   relative to center; four inset corner blocks supply the asymmetry statistics.
+4. Normalizing R, G1, G2, and B independently and then taking their ratios
+   separates chromatic falloff from the much larger overall falloff — otherwise
+   the two are indistinguishable in a single luminance map.
 
 Medians rather than means are used per bin so that isolated defective pixels
-cannot shift a whole spatial cell. Synthetic validation covers CFA separation,
-transposition, near-ceiling discrimination, invalid geometry, missing ratio
-bins, unequal green gains, spatial green mismatch, radial and asymmetric fields,
-metadata-derived ceilings, dark-control verification, and pair comparisons.
+cannot shift a whole spatial cell. Synthetic fields with known shapes — radial,
+asymmetric, and channel-mismatched — confirm the measurement recovers the field
+it is given.
 
 ## Measurement boundary
 

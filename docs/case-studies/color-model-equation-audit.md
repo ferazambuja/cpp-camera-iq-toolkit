@@ -24,6 +24,12 @@ declared set of those equations into inspectable C++ with numeric tests, so the
 behavior can be checked rather than assumed. It audits specific equations; it
 does not implement the full model or validate it against observers.
 
+## Engineering question
+
+Can published color-appearance equations be turned into small, inspectable
+tests that expose their behavior without overstating equation agreement as
+perceptual validation?
+
 ## Result
 
 The C++ audit reproduces two numerical consequences discussed by Hellwig and
@@ -45,12 +51,6 @@ paper's unfavorable result: its proposed colorfulness relation reduced the
 reported LUTCHI `R²` from `0.81` to `0.71`, even while brightness and Munsell
 chroma improved. This makes the comparison useful as engineering evidence
 rather than a one-sided summary.
-
-## Engineering question
-
-Can published color-appearance equations be turned into small, inspectable
-tests that expose their behavior without overstating equation agreement as
-perceptual validation?
 
 ## Connection to earlier work
 

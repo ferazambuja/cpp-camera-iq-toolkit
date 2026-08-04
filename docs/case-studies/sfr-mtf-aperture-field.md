@@ -1,6 +1,6 @@
 # Nikon D800/D810 + 50 mm f/1.4G slanted-edge SFR: aperture and field behavior
 
-## Overview
+## What this is about
 
 All 299 field ROIs were accepted; the D810 system showed a strong f/5.6 peak,
 while the D800 retained a different aperture trend and off-axis pattern. A
@@ -17,9 +17,23 @@ system, not to a camera body or a lens alone.
 [Documentation index](../README.md) ·
 [detailed report](../reports/SFR_MTF.md) ·
 [archive/oracle notes](../reports/SFR_MTF_ARCHIVE_INVENTORY.md) ·
-[aggregate CSV](../data/sfr_aperture_summary.csv)
+[aggregate CSV](../data/sfr_aperture_summary.csv) ·
+[implementation](../../src/sfr.cpp) ·
+[tests](../../tests/test_sfr.cpp)
 
 ![Nikon D800 and D810 SFR aperture and field summary](../figures/sfr_aperture_field.svg)
+
+*Panel A: center sharpness (MTF50, in cycles per pixel — higher resolves finer
+detail) against aperture for both capture systems. Solid lines are this
+toolkit's sensor-linear green measurement; dashed lines are the advisory Imatest
+values, which run a different luma and gamma path and so are read as a
+consistency check rather than as agreement. The D810 curve peaks at f/5.6, the
+location expected from the usual balance between residual aberrations and
+diffraction, but this archive does not isolate that cause; the D800 curve does
+not follow it. Panel B: center minus corner at each aperture, so a positive
+value means the center outresolves the corner. Where that margin goes negative,
+the corner is sharper than the center — which is why a center-only number cannot
+describe either system.*
 
 ## Method
 
@@ -170,14 +184,3 @@ accuracy also differ. The common lens-model label does not establish a shared
 lens sample, and the unsynchronized camera clocks add no physical-identity
 evidence. The result therefore does not rank lens, body, or setup
 contributions.
-
-## Code and verification
-
-- Core: [`src/sfr.cpp`](../../src/sfr.cpp) and
-  [`include/camera_iq/sfr.hpp`](../../include/camera_iq/sfr.hpp)
-- CLI/JSON: [`src/cmd_sfr.cpp`](../../src/cmd_sfr.cpp)
-- Algorithm tests: [`tests/test_sfr.cpp`](../../tests/test_sfr.cpp)
-- CLI and serialization tests:
-  [`tests/test_cmd_sfr.cpp`](../../tests/test_cmd_sfr.cpp)
-- Figure generator:
-  [`tools/generate_portfolio_figures.py`](../../tools/generate_portfolio_figures.py)

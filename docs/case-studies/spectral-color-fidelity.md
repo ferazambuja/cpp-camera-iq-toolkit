@@ -1,6 +1,6 @@
 # Spectral sensitivity and camera color fidelity
 
-## Overview
+## What this is about
 
 Four same-session camera/chart datasets reached minimum channel correlation
 above 0.992 after RAW monochromator extraction and physical target closure. A
@@ -11,7 +11,10 @@ ranking sensitivity needed to interpret the result.
 [Documentation index](../README.md) ·
 [detailed report](../reports/SPECTRAL_SENSITIVITY.md) ·
 [archive map](../reports/SPECTRAL_ARCHIVE_INVENTORY.md) ·
-[aggregate CSV](../data/spectral_color_fidelity.csv)
+[aggregate CSV](../data/spectral_color_fidelity.csv) ·
+[SSF implementation](../../src/spectral_response.cpp) ·
+[closure implementation](../../src/spectral_closure.cpp) ·
+[tests](../../tests/test_spectral_closure.cpp)
 
 The archive combines one four-camera monochromator, camSPECS, and target
 laboratory run with a separate Phase One IQ3 camSPECS session on a different
@@ -53,8 +56,9 @@ Those sensitivities are then tested three ways:
 - **Physical closure.** Using the measured sensitivities, the measured
   illuminant spectrum, and the measured chart reflectances, predict what the
   camera should have recorded for every patch, allowing a single global exposure
-  scale. Comparing that prediction to the actual same-session capture tests the
-  sensitivities against independent evidence rather than trusting them.
+  scale. Comparing that prediction to a separately retained same-session target
+  capture tests the sensitivities against physical evidence beyond the
+  monochromator sweep, without pretending the shared rig is independent.
 - **Luther condition.** Fit a linear transform from the camera's sensitivities
   to the CIE 1931 color-matching functions. The residual reports how closely
   the sensitivities approach that colorimetric subspace under the declared
@@ -108,20 +112,3 @@ bandwidth, wavelength accuracy, and stray-light behavior uncharacterized. See th
 The shared four-camera rig improves within-set comparability but does not make
 relative ordering immune to those systematics; the separate Phase One IQ3
 session is a cross-rig comparison.
-
-## Code and verification
-
-- RAW extraction:
-  [`src/spectral_response.cpp`](../../src/spectral_response.cpp) and
-  [`tests/test_spectral_response.cpp`](../../tests/test_spectral_response.cpp)
-- Physical closure:
-  [`src/spectral_closure.cpp`](../../src/spectral_closure.cpp) and
-  [`tests/test_spectral_closure.cpp`](../../tests/test_spectral_closure.cpp)
-- Luther metric:
-  [`src/spectral_quality.cpp`](../../src/spectral_quality.cpp) and
-  [`tests/test_spectral_quality.cpp`](../../tests/test_spectral_quality.cpp)
-- SMI-style metric:
-  [`src/spectral_smi.cpp`](../../src/spectral_smi.cpp) and
-  [`tests/test_spectral_smi.cpp`](../../tests/test_spectral_smi.cpp)
-- Figure generator:
-  [`tools/generate_portfolio_figures.py`](../../tools/generate_portfolio_figures.py)

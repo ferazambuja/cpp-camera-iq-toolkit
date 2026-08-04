@@ -17,20 +17,18 @@ light there was, what shape the spectrum had, and where the color landed. A
 group can vary in one without varying in the others, and lumping them together
 would invent a cause the archive cannot support.
 
-## Overview
+The archive kept the spectra, the recorded XYZ, `totalRadiance`, CCT, Duv, and
+acquisition fields — but not the physical setup, geometry, integration time, or
+instrument configuration. Those missing conditions are exactly what would let
+someone attribute a difference between repeat readings to a cause. Since they
+are gone, this study measures the differences precisely and stops there, rather
+than naming a cause the record cannot support.
 
-This study resolves 89 distinct spectroradiometer readings into 40 declared
-measurement groups and reports absolute level, normalized spectral shape, and
-recorded-XYZ chromaticity as separate quantities. Thirty-seven groups contain
-two or three measurements; three are singletons.
-
-The retained archive includes spectra, recorded XYZ, `totalRadiance`, CCT, Duv,
-and acquisition fields, but not the complete physical setup, geometry,
-integration time, or instrument configuration. Rather than infer those missing
-conditions, the implementation resolves duplicate aliases by content hash and
-reports level, shape, chromaticity, and numerical closure separately. This
-makes the surviving measurement record useful without assigning a cause that
-the archive cannot support.
+The pipeline resolves 89 distinct readings plus 45 byte-identical aliases into
+40 declared groups. Across the 37 multi-reading groups, level CV was **7.17%
+median / 41.65% maximum**, normalized-shape residual was **0.518% / 1.076%**,
+and maximum-pair Δu′v′ was **0.000703 / 0.002852**. The maxima belong to
+different groups, so they are not collapsed into one quality score.
 
 [Documentation index](../README.md) ·
 [detailed report](../reports/SPECTRORADIOMETER_INGEST.md) ·
@@ -56,8 +54,9 @@ not the group that varied most in color.*
 Byte identity and spectrum content distinguish the 89 retained readings from 45
 descriptive aliases without treating the aliases as new measurements. Declared
 archive provenance then groups distinct readings of the same target; the target
-identity is not inferred from spectral similarity. Each group is characterized
-on three independent axes:
+identity is not inferred from spectral similarity. That yields 40 measurement
+groups — 37 holding two or three readings, and three singletons. Each
+multi-reading group is characterized on three independent axes:
 
 - **Level** — the coefficient of variation of the equal-weight spectral
   integral, that is, how much total radiance differed between repeats.

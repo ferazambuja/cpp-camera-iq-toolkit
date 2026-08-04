@@ -43,12 +43,14 @@ from `3.368°` to `4.806°`.
 
 An earlier art-reproduction color-management course project measured the output
 of a configured third-party gamut-mapping path inside a larger capture-to-print
-workflow; it did not expose or isolate the mapping algorithm. This study moves
-that same wide-to-narrow-gamut question into first-party C++ using fully
-specified Display-P3 and sRGB encodings. Deterministic synthetic input separates
-the transform, boundary search, coordinates, and mapping rule from camera,
-printer, and proprietary-profile variables. It is a separate engineering
-experiment, not a reconstruction of the course project.
+workflow. ProfileMaker exposed `Papercolored Gray` intent and `LOGO Classic`
+gamut mapping as configured choices: the project could measure their output but
+could not inspect or isolate the underlying algorithm. This study moves that
+same wide-to-narrow-gamut question into first-party C++ using fully specified
+Display-P3 and sRGB encodings. Deterministic synthetic input separates the
+transform, boundary search, coordinates, and mapping rule from camera, printer,
+and proprietary-profile variables. It is a separate engineering experiment,
+not a reconstruction of the course project.
 
 ## Why the boundary search is not a simple bisection
 
@@ -108,13 +110,11 @@ lower color-difference score can accompany a larger hue-diagnostic tail. A
 rendering intent should therefore be evaluated against its application rather
 than selected from one displacement number.
 
-The underlying Display-P3 and sRGB conversions are checked against LittleCMS,
-an established independent color-management library, agreeing to `1e-6` per
-encoded channel in both directions across the primaries, secondaries, and a
-216-point cube spanning both sides of the transfer-curve breakpoint. That
-establishes the color-space transforms are correct; the boundary search and the
-mapping intents are this toolkit's own work and have no external reference to
-check against.
+The underlying Display-P3 and sRGB conversions agree with independently
+constructed LittleCMS profiles to `1e-6` per encoded channel on the tested
+common-gamut samples in both directions. This cross-check supports the
+color-space transforms; it does not validate the toolkit's boundary search or
+mapping intents.
 
 ![Synthetic Display-P3 to sRGB mapping](../figures/gamut_mapping_synthetic.svg)
 

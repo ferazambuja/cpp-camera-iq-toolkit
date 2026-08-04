@@ -5,23 +5,30 @@
 A camera's RAW RGB values are not colorimetry. Two cameras photographing the
 same chart under the same light record different numbers, and neither set
 matches CIE XYZ, because each sensor's spectral sensitivities differ from the
-human observer's. This study fits a linear 3×3 color-correction matrix from one
-camera's RGB to XYZ for a declared capture condition. It reports held-out error
-because evaluation on patches excluded from fitting reduces training-only
-optimism; it does not by itself prove performance on every scene or illuminant.
+human observer's. Closing that gap is what a color-correction matrix does: a
+linear 3×3 fit from one camera's RGB into XYZ for a declared capture condition.
 
-## Overview
+The difficulty is that such a matrix is easy to make look good. Fit it on the
+same patches used to judge it and the error drops for reasons that have nothing
+to do with color accuracy — and a chart-order mistake, a mislocated patch grid,
+a flat frame near clipping, or flare in the dark patches will each quietly
+flatter the result. This study therefore builds an inspectable chain and reports
+error on patches excluded from the fit, rather than optimizing a single
+Delta E number.
 
-The corrected 140-patch RAW ColorChecker-SG workflow reached 4.134 mean held-out
-CIEDE2000 against a compatible spectral reference. The result integrates
-extraction checks, flat-field and white-balance policies, RGB-to-XYZ CCM
-fitting, and explicit dark-patch and reference-provenance diagnostics.
+On this corrected 140-patch workflow, five-fold held-out mean CIEDE2000 was
+**4.134** against a compatible spectral reference. That result demonstrates the
+pipeline and its validation controls; it is not a per-unit chart calibration or
+a claim about every scene and illuminant.
 
 [Documentation index](../README.md) ·
 [CCM report](../reports/CCM_FIT.md) ·
 [patch report](../reports/PATCH_EXTRACTION.md) ·
 [reference provenance](../reports/SG_REFERENCE_PROVENANCE.md) ·
-[aggregate CSV](../data/ccm_validation_summary.csv)
+[aggregate CSV](../data/ccm_validation_summary.csv) ·
+[patch implementation](../../src/patches.cpp) ·
+[CCM implementation](../../src/colorimetry.cpp) ·
+[tests](../../tests/test_colorimetry.cpp)
 
 The `clrs589_project_camera` archive retains the RAW, flat-field, and dark
 captures but not an exact per-unit spectral measurement of the captured chart.
@@ -33,12 +40,12 @@ difference.
 
 ![ColorChecker CCM validation summary](../figures/ccm_validation.svg)
 
-## Problem and relevance
-
-A color-correction matrix can look good on its training patches while hiding
-coordinate errors, chart-order mistakes, near-ceiling flat fields, dark-patch flare,
-or reference mismatch. The goal was therefore an inspectable measurement chain,
-not a single optimized Delta E number.
+*Lower CIEDE2000 is better. The first two groups compare fit/evaluation mean
+with five-fold held-out mean for all 140 patches and for the 112-patch
+`L* >= 25` kept set. The last two bars evaluate that kept-set fit on all 140
+patches and on the 28 excluded dark patches. Keeping those evaluations visible
+is why the lower kept-set number is reported as a flare-handling decision, not
+as a better camera model.*
 
 ![Reduced crop of the ColorChecker-SG patch grid used for the physical capture](../images/colorchecker-sg-patch-grid.jpg)
 
@@ -116,20 +123,3 @@ used for the capture. Held-out folds are deterministic patch partitions, not a
 second physical chart session. The corrected evidence is scoped to the f/8
 capture because the available f/9 same-aperture sphere flats were too close to
 sensor ceiling.
-
-## Code and verification
-
-- Patch extraction:
-  [`src/patches.cpp`](../../src/patches.cpp) and
-  [`tests/test_patches.cpp`](../../tests/test_patches.cpp)
-- Chart geometry:
-  [`src/chart_localization.cpp`](../../src/chart_localization.cpp) and
-  [`tests/test_chart_localization.cpp`](../../tests/test_chart_localization.cpp)
-- Colorimetry and CCM:
-  [`src/colorimetry.cpp`](../../src/colorimetry.cpp) and
-  [`tests/test_colorimetry.cpp`](../../tests/test_colorimetry.cpp)
-- CLI/serialization:
-  [`src/cmd_ccm_fit.cpp`](../../src/cmd_ccm_fit.cpp) and
-  [`tests/test_cmd_ccm_fit.cpp`](../../tests/test_cmd_ccm_fit.cpp)
-- Figure generator:
-  [`tools/generate_portfolio_figures.py`](../../tools/generate_portfolio_figures.py)
