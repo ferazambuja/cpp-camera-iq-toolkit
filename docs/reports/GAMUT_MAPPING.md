@@ -259,19 +259,22 @@ evidence.
 
 An optional LittleCMS test creates sRGB and Display-P3 profiles independently,
 then compares common-gamut conversions against the toolkit in both directions.
-The Display-P3-to-sRGB direction can only use desaturated colors, because a
-saturated Display-P3 color has no in-gamut sRGB counterpart to compare against.
-Running the conversion the other way removes that restriction: the sRGB
-primaries and secondaries all lie inside Display-P3, so the full-saturation
-corners stay common-gamut and each primary matrix column is exercised
-undiluted rather than only near the neutral axis, where a column error is
-masked by the other two.
+The Display-P3-to-sRGB direction includes a shared-blue-primary check, but most
+full-code Display-P3 corners are outside sRGB. Running the conversion the other
+way adds all full-code sRGB primaries and secondaries because they lie inside
+Display-P3. The single-channel primaries isolate the source sRGB-to-XYZ matrix
+columns, while the composed comparison also exercises the independent
+XYZ-to-Display-P3 inverse. Neutral samples alone could hide compensating matrix
+errors because all three source columns contribute to their result.
 
-Agreement is required to `1e-6` per encoded channel. That bound comes from
-measurement, not convention: the worst disagreement over all samples in both
-directions is `2.8e-8`, set by the float32 pipeline inside LittleCMS, and the
-tolerance keeps a factor of roughly 36 in reserve for library-version and
-platform variation. The check is enabled in CI with
+Agreement is required to `1e-6` per encoded channel. LittleCMS evaluates the
+transform through a float path, so machine-epsilon agreement with the toolkit's
+double-precision path is not expected. The declared bound is enforced on named
+primaries, secondaries, neutrals, a sub-breakpoint transfer sample, and a
+216-point sRGB cube that straddles the transfer-function breakpoint. The test
+reports the worst cube error on each platform and remains tight enough to catch
+small matrix-coefficient errors; it does not claim identical rounding across
+LittleCMS versions. The check is enabled in CI with
 `CAMERA_IQ_ENABLE_LCMS=ON`; LittleCMS remains a test-only dependency and is not
 used by the mapping implementation.
 

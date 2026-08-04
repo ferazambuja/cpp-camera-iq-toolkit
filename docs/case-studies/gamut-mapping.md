@@ -105,12 +105,14 @@ than selected from one displacement number.
 
 The RGB conversion is also compared with independently constructed LittleCMS
 profiles in an optional CI test, in both directions and to `1e-6` per encoded
-channel. Running sRGB into Display-P3 as well as the reverse is what lets the
-fully saturated primaries and secondaries take part: they are out of gamut one
-way round and in gamut the other, and they are where a primary-matrix error
-shows up undiluted. LittleCMS is used only as a reference for common-gamut
-conversions; the boundary search and mapping intents remain the toolkit's own
-implementation.
+channel. The Display-P3-to-sRGB arm includes the shared blue primary; the
+reverse arm adds all full-code sRGB primaries and secondaries. Single-channel
+sRGB primaries isolate the source forward-matrix columns, while the composed
+comparison independently exercises the destination inverse. LittleCMS is used
+only as a reference for common-gamut conversions; the boundary search and
+mapping intents remain the toolkit's own implementation. Named edge cases are
+supplemented by a 216-point sRGB cube spanning both sides of the transfer-curve
+breakpoint.
 
 ![Synthetic Display-P3 to sRGB mapping](../figures/gamut_mapping_synthetic.svg)
 

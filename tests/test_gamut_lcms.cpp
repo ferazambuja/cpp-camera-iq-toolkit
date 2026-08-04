@@ -1,8 +1,11 @@
 #include "camera_iq/gamut_mapping.hpp"
 
 #include <array>
+#include <cmath>
 #include <memory>
+#include <sstream>
 #include <stdexcept>
+#include <string>
 
 #include <lcms2.h>
 
@@ -18,14 +21,21 @@ using test::check_near;
 
 namespace {
 
-// LittleCMS carries this transform through a float32 pipeline, so exact
-// agreement is not available and the tolerance has to be set from the observed
-// disagreement rather than from machine epsilon. Measured worst case over every
-// sample below, both directions, is 2.8e-8; 1e-6 keeps roughly a factor of 36
-// in reserve for library-version and platform variation. The looser 3e-5 this
-// replaces admitted a primary-matrix error of about 5e-5 relative without
-// failing, which is large enough to move a published CIEDE2000 figure.
+// LittleCMS evaluates the transform through a float path, so exact agreement
+// with the toolkit's double-precision path is not expected. This is the
+// inter-implementation contract enforced on every CI platform; it is not a
+// claim that different LittleCMS versions produce identical rounding.
 constexpr double kReferenceTolerance = 1e-6;
+
+struct ReferenceSample {
+  const char* name;
+  EncodedRgb input;
+};
+
+std::string check_name(const ReferenceSample& sample, const char* quantity) {
+  return "LittleCMS cross-check [" + std::string(sample.name) + "]: " +
+         quantity;
+}
 
 struct ProfileCloser {
   void operator()(void* profile) const {
@@ -92,62 +102,124 @@ void TESTS() {
   options.destination = RgbColorSpace::Srgb;
   options.intent = GamutMapIntent::BoundaryProjection;
 
-  const std::array<EncodedRgb, 4> common_gamut = {{
-      {0.5, 0.5, 0.5},
-      {0.35, 0.40, 0.45},
-      {0.60, 0.50, 0.40},
-      {0.91748755732516563, 0.20028680774084706,
-       0.13856059121111408},
+  constexpr EncodedRgb kSrgbBlueEncodedInP3{0.0, 0.0,
+                                             0.9595880266758096};
+  const std::array<ReferenceSample, 5> common_gamut = {{
+      {"neutral-50", {0.5, 0.5, 0.5}},
+      {"cool-neutral", {0.35, 0.40, 0.45}},
+      {"warm-neutral", {0.60, 0.50, 0.40}},
+      {"srgb-red-encoded-in-p3",
+       {0.91748755732516563, 0.20028680774084706,
+        0.13856059121111408}},
+      {"srgb-blue-encoded-in-p3", kSrgbBlueEncodedInP3},
   }};
-  for (const auto& input : common_gamut) {
-    const auto ours = map_encoded_rgb_to_gamut(input, options);
+  for (const auto& sample : common_gamut) {
+    const auto ours = map_encoded_rgb_to_gamut(sample.input, options);
     check(ours.input_in_destination,
-          "LittleCMS cross-check: selected color is common-gamut");
-    const auto reference = lcms_convert(input, true);
+          check_name(sample, "selected color is common-gamut"));
+    const auto reference = lcms_convert(sample.input, true);
     check_near(ours.output_encoded.r, reference.r, kReferenceTolerance,
-               "LittleCMS cross-check: encoded red");
+               check_name(sample, "encoded red"));
     check_near(ours.output_encoded.g, reference.g, kReferenceTolerance,
-               "LittleCMS cross-check: encoded green");
+               check_name(sample, "encoded green"));
     check_near(ours.output_encoded.b, reference.b, kReferenceTolerance,
-               "LittleCMS cross-check: encoded blue");
+               check_name(sample, "encoded blue"));
   }
 
-  // The Display-P3 arm above can only use common-gamut colors, so every one of
-  // its samples is desaturated: the saturated P3 corners that produce the
-  // published CIEDE2000 maxima are out of sRGB and have no reference to compare
-  // against. Running the conversion the other way fixes that. The sRGB
-  // primaries and secondaries all lie inside Display-P3, so the full-saturation
-  // corners stay common-gamut and the primary matrices are exercised at the
-  // extremes where a transposed row or a swapped primary would show up, rather
-  // than only near the neutral axis where every plausible matrix agrees.
+  // Display-P3 and sRGB share the blue-primary chromaticity. This independent
+  // point isolates the Display-P3 source blue column and should land on the
+  // full-code sRGB blue primary.
+  const auto blue = map_encoded_rgb_to_gamut(kSrgbBlueEncodedInP3, options);
+  check_near(blue.output_encoded.r, 0.0, kReferenceTolerance,
+             "LittleCMS cross-check [shared-blue-primary]: encoded red");
+  check_near(blue.output_encoded.g, 0.0, kReferenceTolerance,
+             "LittleCMS cross-check [shared-blue-primary]: encoded green");
+  check_near(blue.output_encoded.b, 1.0, kReferenceTolerance,
+             "LittleCMS cross-check [shared-blue-primary]: encoded blue");
+
+  // Saturated Display-P3 red, green, yellow, cyan, and magenta are outside
+  // sRGB, so the forward arm cannot compare those full-code source corners.
+  // Reversing direction adds every full-code sRGB primary and secondary while
+  // remaining in the common gamut. The primaries isolate the sRGB-to-XYZ
+  // source-matrix columns; the composed comparison also checks the independent
+  // XYZ-to-Display-P3 inverse against LittleCMS.
   GamutMapOptions into_p3;
   into_p3.source = RgbColorSpace::Srgb;
   into_p3.destination = RgbColorSpace::DisplayP3;
   into_p3.intent = GamutMapIntent::BoundaryProjection;
 
-  const std::array<EncodedRgb, 9> srgb_corners = {{
-      {1.0, 0.0, 0.0},
-      {0.0, 1.0, 0.0},
-      {0.0, 0.0, 1.0},
-      {1.0, 1.0, 0.0},
-      {0.0, 1.0, 1.0},
-      {1.0, 0.0, 1.0},
-      {1.0, 1.0, 1.0},
-      {0.0, 0.0, 0.0},
-      {0.02, 0.0, 0.0},
+  const std::array<ReferenceSample, 9> srgb_samples = {{
+      {"red", {1.0, 0.0, 0.0}},
+      {"green", {0.0, 1.0, 0.0}},
+      {"blue", {0.0, 0.0, 1.0}},
+      {"yellow", {1.0, 1.0, 0.0}},
+      {"cyan", {0.0, 1.0, 1.0}},
+      {"magenta", {1.0, 0.0, 1.0}},
+      {"white", {1.0, 1.0, 1.0}},
+      {"black", {0.0, 0.0, 0.0}},
+      {"linear-segment-red", {0.02, 0.0, 0.0}},
   }};
-  for (const auto& input : srgb_corners) {
-    const auto ours = map_encoded_rgb_to_gamut(input, into_p3);
+  for (const auto& sample : srgb_samples) {
+    const auto ours = map_encoded_rgb_to_gamut(sample.input, into_p3);
     check(ours.input_in_destination,
-          "LittleCMS cross-check: sRGB corner is inside Display-P3");
+          check_name(sample, "sRGB sample is inside Display-P3"));
     check(!ours.modified,
-          "LittleCMS cross-check: in-gamut corner is a colorimetric identity");
-    const auto reference = lcms_convert(input, false);
+          check_name(sample, "in-gamut sample is a colorimetric identity"));
+    const auto reference = lcms_convert(sample.input, false);
     check_near(ours.output_encoded.r, reference.r, kReferenceTolerance,
-               "LittleCMS cross-check: sRGB-to-P3 encoded red");
+               check_name(sample, "sRGB-to-P3 encoded red"));
     check_near(ours.output_encoded.g, reference.g, kReferenceTolerance,
-               "LittleCMS cross-check: sRGB-to-P3 encoded green");
+               check_name(sample, "sRGB-to-P3 encoded green"));
     check_near(ours.output_encoded.b, reference.b, kReferenceTolerance,
-               "LittleCMS cross-check: sRGB-to-P3 encoded blue");
+               check_name(sample, "sRGB-to-P3 encoded blue"));
   }
+
+  // A compact cube supplements the named edge cases so the tolerance is not
+  // justified by primaries and a few hand-picked points alone. Adjacent values
+  // around the sRGB transfer breakpoint exercise both curve branches.
+  constexpr std::array<double, 6> kSweepLevels = {
+      0.0, 0.02, 0.04045, 0.04046, 0.5, 1.0};
+  double worst_error = 0.0;
+  EncodedRgb worst_input{};
+  const char* worst_channel = "none";
+  bool every_input_in_destination = true;
+  bool every_input_preserved = true;
+  for (double r : kSweepLevels) {
+    for (double g : kSweepLevels) {
+      for (double b : kSweepLevels) {
+        const EncodedRgb input{r, g, b};
+        const auto ours = map_encoded_rgb_to_gamut(input, into_p3);
+        const auto reference = lcms_convert(input, false);
+        every_input_in_destination &= ours.input_in_destination;
+        every_input_preserved &= !ours.modified;
+        const std::array<double, 3> errors = {
+            std::abs(ours.output_encoded.r - reference.r),
+            std::abs(ours.output_encoded.g - reference.g),
+            std::abs(ours.output_encoded.b - reference.b),
+        };
+        constexpr std::array<const char*, 3> kChannels = {"red", "green",
+                                                           "blue"};
+        for (std::size_t channel = 0; channel < errors.size(); ++channel) {
+          if (errors[channel] > worst_error) {
+            worst_error = errors[channel];
+            worst_input = input;
+            worst_channel = kChannels[channel];
+          }
+        }
+      }
+    }
+  }
+  check(every_input_in_destination,
+        "LittleCMS cross-check [216-point sRGB cube]: every input is inside "
+        "Display-P3");
+  check(every_input_preserved,
+        "LittleCMS cross-check [216-point sRGB cube]: every input remains "
+        "colorimetrically unchanged");
+  std::ostringstream sweep_result;
+  sweep_result.precision(3);
+  sweep_result << "LittleCMS cross-check [216-point sRGB cube]: worst "
+               << worst_channel << " error " << std::scientific << worst_error
+               << " at (" << worst_input.r << ", " << worst_input.g << ", "
+               << worst_input.b << ") is within the declared tolerance";
+  check(worst_error <= kReferenceTolerance, sweep_result.str());
 }
