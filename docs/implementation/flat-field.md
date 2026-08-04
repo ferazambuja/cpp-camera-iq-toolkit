@@ -24,7 +24,8 @@ dataset ID + flat RAW + options
   -> block-grid measurement for R, G1, G2, B
   -> per-plane center normalization
   -> relative response and chromatic-ratio maps
-  -> radial, corner, quadrant, row, and column summaries
+  -> center-block and four corner-block scalars
+  -> green corner-field asymmetry A
   -> optional dark-control and second-field comparison
   -> ShadingAnalysis / ShadingComparison
   -> JSON and long-form CSV
@@ -68,9 +69,25 @@ guarantee that every chromatic ratio has a nonzero denominator.
 
 ## Asymmetry and dark controls
 
-The typed summary calculates center/corner loss, mirrored-bin differences,
-quadrant medians, row/column orientation, and maximum asymmetry. This preserves
-directional structure that a radial average would erase.
+`ShadingBlocks` holds one median per CFA position for the center block and for
+each of the four corner blocks, plus each corner's center-normalized value. The
+corner blocks are `corner_block_px` squares inset by `corner_inset_px`; they are
+deliberately not the grid's corner bins, which a 16x12 grid centers at 1/32 of
+the frame width and which therefore never reach the corner.
+
+`ShadingChromatic::green_asymmetry` reduces those four corner values to the
+single scalar the scientific report defines, using the mean of the two green
+planes at each corner. Keeping four named corners rather than a radial average
+is what makes the statistic informative: the four blocks sit at equal radius, so
+a centered radially symmetric field drives the spread to zero analytically, and
+a nonzero value is a departure that a radial average would have erased.
+
+Equal radius is a geometric precondition, so the code enforces it rather than
+assuming it. Odd block and inset requests round inward to even values, and the
+effective rectangles travel with the result in `ShadingGeometry`. An odd active
+width or height is refused outright: mirrored corners cannot be exact on an odd
+mosaic, and refusing is preferable to publishing an equal-radius claim the
+geometry does not support.
 
 Optional dark controls verify camera and exposure compatibility, finite
 coverage, global pedestal residual, and center/corner residual before a dark

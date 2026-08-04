@@ -8,7 +8,7 @@ missed the checked patch centers by up to 16.449 px, failing the declared 5 px
 limit even though its per-channel correlations exceeded 0.999; it was rejected
 for the reported CCM result.
 
-Date: 2026-07-06
+Analysis date: 2026-07-06
 Dataset: `clrs589_project_camera`
 
 [Color-characterization implementation companion](../implementation/color-characterization.md)

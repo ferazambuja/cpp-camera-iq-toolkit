@@ -92,7 +92,7 @@ The imbalance keeps its orientation. In all three accepted frames the minimum
 green bin is the same bottom-left grid cell and the top-right bin is the
 brightest corner, so the gradient is fixed in the capture geometry rather than
 frame-specific. That constrains it without attributing it. The third accepted
-frame is less asymmetric: at 1/1600 s the quadrant statistic measures 16.09%,
+frame is less asymmetric: at 1/1600 s the corner-field statistic measures 16.09%,
 compared with 19.65% and 20.00% for the 1/1000 s pair. That spread is roughly
 ten times the difference within the pair. All three exceed the 5% policy, so the
 model verdict holds, but the pair difference is not a general repeatability

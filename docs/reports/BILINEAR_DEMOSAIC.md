@@ -6,7 +6,7 @@ bilinear baseline so later image-quality measurements can distinguish sensor
 data from interpolation behavior. The goal is transparency and cross-camera
 correctness, not production rendering quality.
 
-Date: 2026-07-02
+Analysis date: 2026-07-02
 Dataset: private local RAW captures used only for validation. Source RAW files
 are not distributed with this repository.
 ## Scope

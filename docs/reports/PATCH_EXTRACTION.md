@@ -8,7 +8,7 @@ retained high RGB correlation but missed checked patch centers by as much as
 16.449 px, so the reported CCM continues to use the retained RawDigger
 rectangles rather than promoting the inaccurate shortcut.
 
-Date: 2026-07-04
+Analysis date: 2026-07-04
 Dataset: `clrs589_project_camera`
 
 [Case study](../case-studies/colorchecker-ccm.md) ·

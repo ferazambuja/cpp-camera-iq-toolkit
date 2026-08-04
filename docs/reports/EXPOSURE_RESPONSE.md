@@ -7,7 +7,7 @@ readiness. Its most important result is negative: a bright sphere sequence that
 looks like an exposure ramp is rejected because its samples sit on a near-white
 plateau and cannot reveal response linearity.
 
-Date: 2026-07-03
+Analysis date: 2026-07-03
 Dataset: private local RAW captures used only for validation. Source RAW files
 are not distributed with this repository.
 

@@ -8,7 +8,7 @@ color difference 1.34, where lower means closer agreement. This report
 establishes that reference and keeps the resulting color difference scoped to a
 compatible chart, not the exact physical unit.
 
-Date: 2026-07-04
+Analysis date: 2026-07-04
 Purpose: establish the colorimetric ground truth used by the SG white-balance,
 CCM, and Delta E workflow. All source data is private and gitignored. Heavy image
 captures are read through the configured private dataset root; small

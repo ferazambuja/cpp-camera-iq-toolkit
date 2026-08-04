@@ -98,7 +98,7 @@ struct ShadingGates {
 // empty, mirroring how the SFR command preserves diagnostics on a rejected
 // center.
 
-// Corner/center block scalars and the quadrant-asymmetry statistic.
+// Corner/center block scalars and the corner-field asymmetry statistic.
 //
 // Corners are indexed TL, TR, BL, BR and are `corner_block_px` blocks inset by
 // `corner_inset_px`. They are deliberately not the grid's corner bins: a 16x12
@@ -200,7 +200,7 @@ struct ShadingChromatic {
   std::vector<double> c_rg;
   std::vector<double> c_bg;
   std::vector<double> c_g1g2;
-  // Quadrant asymmetry of the green relative response over the four corner
+  // Corner-field asymmetry of the green relative response over the four corner
   // blocks. See ShadingBlocks for the definition and what it does and does not
   // license. Lives here rather than on ShadingField because "green" is a CFA
   // fact: greens sit on the anti-diagonal for RGGB but not for GRBG.

@@ -8,7 +8,7 @@ its matching broadband target and chart reflectance are absent. It is the
 file-selection contract behind the spectral study, not a camera ranking by
 itself.
 
-Date: 2026-07-07
+Analysis date: 2026-07-07
 Scope: the camera monochromator and camSPECS archive feeding spectral-response
 recovery, physical closure, Luther-condition analysis, and the ISO 17321-style
 color-fidelity comparison.

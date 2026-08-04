@@ -9,7 +9,7 @@ same-session physical closure; the Canon 5D2 and Phase One IQ3 form the stable
 endpoints of the separate colorimetric-fit comparison, while the middle ordering
 remains method-sensitive.
 
-Date: 2026-07-06
+Analysis date: 2026-07-06
 Dataset: `spectral_sensitivity_2016_2017`
 
 ## Result summary

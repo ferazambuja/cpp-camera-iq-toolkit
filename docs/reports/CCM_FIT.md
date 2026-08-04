@@ -9,7 +9,7 @@ color-difference metric in which lower is better, against a compatible spectral
 chart reference. It is not an exact per-unit measurement of the photographed
 chart.
 
-Date: 2026-07-04
+Analysis date: 2026-07-04
 Dataset: `clrs589_project_camera`
 
 [Case study](../case-studies/colorchecker-ccm.md) ·
