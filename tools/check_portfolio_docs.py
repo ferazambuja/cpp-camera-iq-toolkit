@@ -29,6 +29,14 @@ TEST_ASSERTION_RE = re.compile(
     r"^\s*(?:self\.)?assert[A-Za-z]*\s*[\(\s]|"
     r"\bassertRaises\b"
 )
+# Comments must be removed before that pattern runs. These markers introduce
+# blocks that open with prose explaining what is being checked, so a sentence
+# such as "we check (elsewhere) that ..." matches the assertion pattern as
+# readily as executable code. Deleting the assertions and leaving the prose is
+# the realistic form of the drift this window exists to catch, so the window
+# has to look at code only.
+BLOCK_COMMENT_RE = re.compile(r"/\*.*?(?:\*/|\Z)", re.DOTALL)
+LINE_COMMENT_RE = re.compile(r"(?://|#).*$", re.MULTILINE)
 # The registered markers precede their first assertion by 1 to 16 lines, since
 # a marker introduces a block that may set a fixture up first. Thirty lines
 # keeps that headroom while still rejecting a marker parked at file scope.
@@ -666,9 +674,14 @@ def _preceding_paragraph(text: str, marker_start: int) -> str:
     return re.split(r"\n[ \t]*\n", prefix)[-1]
 
 
+def _strip_comments(window: str) -> str:
+    return LINE_COMMENT_RE.sub("", BLOCK_COMMENT_RE.sub("", window))
+
+
 def _marker_precedes_assertion(text: str, marker_end: int) -> bool:
     following = text[marker_end:].splitlines()[:TEST_ASSERTION_WINDOW_LINES]
-    return any(TEST_ASSERTION_RE.search(line) for line in following)
+    code = _strip_comments("\n".join(following))
+    return any(TEST_ASSERTION_RE.search(line) for line in code.splitlines())
 
 
 def _paragraph_links_to(document: Path, paragraph: str, expected: Path) -> bool:

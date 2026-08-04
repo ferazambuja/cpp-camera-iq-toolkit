@@ -360,6 +360,58 @@ class EvidenceAttributionTests(unittest.TestCase):
                 failures,
             )
 
+    def test_comment_prose_about_checking_does_not_satisfy_the_window(
+        self,
+    ) -> None:
+        # These markers introduce blocks that open with prose explaining what
+        # is being checked, so the window must read code rather than text.
+        # Otherwise deleting the assertions and leaving the explanation behind
+        # -- the realistic shape of this drift -- keeps the guard green.
+        for comment in (
+            "// we check (elsewhere) that the value holds\n",
+            "/* we check (elsewhere)\n   that the value holds */\n",
+        ):
+            with self.subTest(comment=comment):
+                with tempfile.TemporaryDirectory() as temp:
+                    repo = Path(temp)
+                    self.write_valid_fixture(repo)
+                    expected = repo / "tests" / "test_example.cpp"
+                    expected.write_text(
+                        "// DOC-EVIDENCE: example.threshold\n"
+                        + comment
+                        + "// padding\n" * 40
+                        + "check(value == 1);\n",
+                        encoding="utf-8",
+                    )
+                    failures = DOCS.evidence_attribution_failures(
+                        repo, self.fixture_contracts()
+                    )
+                    self.assertTrue(
+                        any("test marker is not beside an assertion" in item
+                            for item in failures),
+                        failures,
+                    )
+
+    def test_assertion_trailing_a_comment_delimiter_still_counts(self) -> None:
+        # Stripping comments must not discard the code before them: an
+        # assertion whose own arguments contain `//` inside a string literal
+        # is still an assertion.
+        with tempfile.TemporaryDirectory() as temp:
+            repo = Path(temp)
+            self.write_valid_fixture(repo)
+            expected = repo / "tests" / "test_example.cpp"
+            expected.write_text(
+                "// DOC-EVIDENCE: example.threshold\n"
+                'check(text == "https://example.invalid/x");  // pinned\n',
+                encoding="utf-8",
+            )
+            self.assertEqual(
+                [],
+                DOCS.evidence_attribution_failures(
+                    repo, self.fixture_contracts()
+                ),
+            )
+
     def test_marker_within_setup_distance_of_its_assertion_passes(self) -> None:
         # The registered markers precede their assertion by up to 16 lines,
         # because a marker introduces a block that sets a fixture up first.
