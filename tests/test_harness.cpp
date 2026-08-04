@@ -34,10 +34,10 @@ int main() {
     throw std::runtime_error("sentinel exception");
   });
   const RunResult non_standard = run_and_capture([] { throw 17; });
-  // Run a clean body last, after two failing ones. Every other test executable
-  // depends on this path reporting success, and placing it here also pins the
-  // per-run failure reset: without it the earlier failures would leak forward
-  // and this body would report a failure it never had.
+  // Run a clean body last, after two failing ones. Other executables that use
+  // this harness depend on this path reporting success, and placing it here
+  // also pins the per-run failure reset: without it the earlier failures would
+  // leak forward and this body would report a failure it never had.
   const RunResult clean = run_and_capture([] {
     test::check(true, "passing check");
   });
