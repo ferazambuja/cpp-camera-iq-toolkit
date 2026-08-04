@@ -34,6 +34,13 @@ int main() {
     throw std::runtime_error("sentinel exception");
   });
   const RunResult non_standard = run_and_capture([] { throw 17; });
+  // Run a clean body last, after two failing ones. Every other test executable
+  // depends on this path reporting success, and placing it here also pins the
+  // per-run failure reset: without it the earlier failures would leak forward
+  // and this body would report a failure it never had.
+  const RunResult clean = run_and_capture([] {
+    test::check(true, "passing check");
+  });
   int failures = 0;
   const auto require = [&](bool condition, const char* name) {
     if (!condition) {
@@ -57,6 +64,12 @@ int main() {
           "harness: identifies a non-standard exception");
   require(contains(non_standard.output, "TESTS FAILED"),
           "harness: summarizes a non-standard exception");
+  require(clean.exit_code == 0,
+          "harness: a clean body returns success after earlier failed runs");
+  require(contains(clean.output, "all tests passed"),
+          "harness: emits the success summary");
+  require(!contains(clean.output, "TESTS FAILED"),
+          "harness: does not carry an earlier run's failures forward");
 
   return failures == 0 ? 0 : 1;
 }
