@@ -137,14 +137,6 @@ optional LittleCMS build is enabled, independently constructed profiles check
 common-gamut RGB transforms in both directions to `1e-6` per encoded channel;
 the mapping algorithms themselves do not use LittleCMS.
 
-That `1e-6` is a measured bound rather than a chosen convention. The worst
-disagreement across every sample in both directions is `4.056e-8`, set by the
-float32 pipeline inside LittleCMS, so the assertion keeps roughly a factor of
-25 in reserve for library-version and platform variation. The figure is worth
-stating because the tolerance is load-bearing: an earlier `3e-5` bound passed
-while a primary-matrix entry was wrong by about `5e-5` relative, which is large
-enough to move a published CIEDE2000 result.
-
 The serialization path is tested as an interface rather than assumed: the
 schema version is pinned, duplicate sample identifiers are rejected, an exact
 CSV header is required, identifiers are RFC-escaped, a SHA-256 digest must be

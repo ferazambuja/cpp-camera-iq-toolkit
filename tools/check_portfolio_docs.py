@@ -37,17 +37,22 @@ IMPLEMENTATION_TEST_LINK_RE = re.compile(
     r"\]\(\.\./\.\./tests/[^)#]+(?:#[^)]+)?\)", re.IGNORECASE
 )
 IMPLEMENTATION_EVIDENCE_SECTION_RE = re.compile(
-    r"^#{2,3} [^\n]*\bevidence\b[^\n]*$", re.IGNORECASE | re.MULTILINE
+    r"^#{2,3} [^\n]*(?:\bevidence\b|\bverification\b|"
+    r"\b(?:tests?|fixtures?|cross-checks?)\b[^\n]{0,80}"
+    r"\b(?:establish|verify|demonstrate)\b)[^\n]*$",
+    re.IGNORECASE | re.MULTILINE,
 )
 IMPLEMENTATION_EVIDENCE_ROLE_RE = re.compile(
     r"\b(?:test(?:s|ed|ing)?|cross-check(?:s|ed|ing)?|fixtures?)\b"
     r".{0,420}"
     r"\b(?:algorithm(?:ic)?|analytic|numeric|invariants?|contracts?|"
     r"refusals?|reject(?:s|ed|ion)?|serialization|parser|geometry|synthetic|"
-    r"independent|boundar(?:y|ies)|artifacts?|physical|archive)\w*\b|"
+    r"independent|boundar(?:y|ies)|domains?|equations?|behavio(?:u)?r|"
+    r"artifacts?|physical|archive)\w*\b|"
     r"\b(?:algorithm(?:ic)?|analytic|numeric|invariants?|contracts?|"
     r"refusals?|reject(?:s|ed|ion)?|serialization|parser|geometry|synthetic|"
-    r"independent|boundar(?:y|ies)|artifacts?|physical|archive)\w*\b"
+    r"independent|boundar(?:y|ies)|domains?|equations?|behavio(?:u)?r|"
+    r"artifacts?|physical|archive)\w*\b"
     r".{0,420}"
     r"\b(?:test(?:s|ed|ing)?|cross-check(?:s|ed|ing)?|fixtures?)\b",
     re.IGNORECASE,
@@ -460,27 +465,41 @@ def implementation_evidence_failures_for_text(
     if not IMPLEMENTATION_TEST_LINK_RE.search(text):
         failures.append(f"implementation companion missing public test link: {relative}")
 
-    # The prose check below is a vocabulary co-occurrence test, so any incidental
-    # sentence mentioning tests satisfies it — including one stranded in an
-    # unrelated section. Requiring a section devoted to evidence is what makes
-    # deleting that evidence detectable, which is the regression this guard
-    # exists to catch. The heading wording stays free; only its presence is
-    # required.
-    if not IMPLEMENTATION_EVIDENCE_SECTION_RE.search(text):
+    # The heading can say evidence, verification, or what the tests/fixtures
+    # establish; it is not pinned to one exact title. The explanatory prose must
+    # live inside that section. Otherwise an empty heading plus a stray mention
+    # of tests elsewhere would satisfy the guard while the evidence itself was
+    # still missing.
+    evidence_headings = list(IMPLEMENTATION_EVIDENCE_SECTION_RE.finditer(text))
+    if not evidence_headings:
         failures.append(
             f"implementation companion missing a verification-evidence section: "
             f"{relative} — give the evidence its own heading so removing it is "
             f"visible in review"
         )
 
+    evidence_sections = []
+    for evidence_heading in evidence_headings:
+        heading_level = len(evidence_heading.group(0)) - len(
+            evidence_heading.group(0).lstrip("#")
+        )
+        tail = text[evidence_heading.end():]
+        next_peer_or_parent = re.search(
+            rf"^#{{1,{heading_level}}}\s+", tail, re.MULTILINE
+        )
+        evidence_sections.append(
+            tail[: next_peer_or_parent.start()] if next_peer_or_parent else tail
+        )
+
     prose_paragraphs = []
-    for paragraph in re.split(r"\n\s*\n", text):
-        stripped = paragraph.lstrip()
-        if not stripped or stripped.startswith(("#", "- ", "```")):
-            continue
-        normalized = normalize_markdown(paragraph)
-        if len(normalized.split()) >= 8:
-            prose_paragraphs.append(normalized)
+    for evidence_text in evidence_sections:
+        for paragraph in re.split(r"\n\s*\n", evidence_text):
+            stripped = paragraph.lstrip()
+            if not stripped or stripped.startswith(("#", "- ", "```")):
+                continue
+            normalized = normalize_markdown(paragraph)
+            if len(normalized.split()) >= 8:
+                prose_paragraphs.append(normalized)
     if not any(
         IMPLEMENTATION_EVIDENCE_ROLE_RE.search(paragraph)
         for paragraph in prose_paragraphs

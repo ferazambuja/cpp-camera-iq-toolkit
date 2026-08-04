@@ -111,10 +111,11 @@ scientific design, controls, references, and evidence.
 
 Every implementation companion must also explain its verification evidence in
 prose, under its own heading rather than as a stray paragraph beside the
-source-and-test map. The heading wording is free; a dedicated section is what
-makes removing the evidence visible in review instead of leaving a link list
-that still looks complete. That explanation identifies representative numeric
-fixtures, invariants,
+source-and-test map. The heading may name evidence or verification, or state
+what the tests or fixtures establish; it is not pinned to one title. A
+dedicated section makes removing the evidence visible in review instead of
+leaving a link list that still looks complete. That explanation identifies
+representative numeric fixtures, invariants,
 refusal paths, serialization checks, artifact-freshness checks, or independent
 comparisons, as applicable. It also states which physical, perceptual, or
 archive-validity question those checks do **not** answer. At least one public

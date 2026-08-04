@@ -59,6 +59,7 @@ keeps missing or invalid bins absent rather than filling them with zero.
 Chromatic maps are derived only after spatial normalization:
 
 ```text
+response_G(x,y) = (response_G1(x,y) + response_G2(x,y)) / 2
 C_RG(x,y)   = response_R(x,y)  / response_G(x,y)
 C_BG(x,y)   = response_B(x,y)  / response_G(x,y)
 C_G1G2(x,y) = response_G1(x,y) / response_G2(x,y)
@@ -98,32 +99,54 @@ a cause from the difference.
 ## Serialization and refusal behavior
 
 `ShadingAnalysis` separates geometry, gates, response blocks, chromatic blocks,
-dark evidence, and interpretation scope. The serializers preserve three states:
+dark evidence, and interpretation scope. JSON preserves undefined measured
+values as `null` and carries the effective rectangles. The long-form CSV uses
+blank diagnostic fields when a pre-measurement gate was not reached, omits
+undefined map-bin rows, and emits no response or chromatic rows for a rejected
+frame. It carries effective options and gate diagnostics, but not the JSON
+geometry object.
 
-- a measurement that exists and is finite;
-- a scientifically undefined value, written as JSON `null` or blank CSV; and
-- a stage not reached because an earlier gate failed.
-
-Absolute input paths are reduced to dataset-relative labels. Output schemas
-carry the effective thresholds and geometry so an aggregate cannot be detached
-from the policy that produced it.
+Existing relative labels pass through; absolute primary and dark inputs are
+reduced to basename-only publication labels. Effective thresholds remain in the
+outputs so an aggregate cannot be detached from the policy that produced it.
 
 ## Verification evidence
 
-Synthetic tests exercise symmetric and asymmetric fields, CFA independence,
-coverage and clipping gates, zero denominators, dark controls, comparison
-geometry, privacy, and serialization. The scientific report remains the source
-for the archive measurements and capture-system interpretation.
+Synthetic fields distinguish a centered radial response from a four-corner
+asymmetry and keep R, G1, G2, and B independent. Gate fixtures verify that
+exactly `1%` near-ceiling samples and exactly `90%` finite coverage pass, while
+values beyond either inclusive boundary fail per CFA position. Other fixtures
+cover zero chromatic denominators, odd-mosaic refusal, dark metadata and
+pedestal controls, matched comparison geometry, publication-safe labels, and
+the JSON/CSV rejection states described above.
+
+The live producer-to-consumer check executes the compiled C++ serializer and
+feeds its output to the Python exporter. The exporter independently requires
+measured gates, CFA-balanced contained rectangles, positive center medians,
+four finite corner rows, complete chromatic maps for detailed accepted results,
+and verified pedestal evidence. Portfolio fixtures pin 52 unique inventory
+rows, the `18/21/13` aperture census, three accepted frames, one measured
+capture pair, and one complete `16 × 12` response grid for each accepted file.
+Mutation tests break the contract when producer or consumer semantics drift.
+
+These checks establish gate, schema, join, and calculation behavior. They do
+not remeasure the private RAW archive, prove the integrating sphere was uniform,
+or isolate a physical cause for the measured field.
 
 ## Source and tests
 
 - Public types and analysis API: [`shading.hpp`](../../include/camera_iq/shading.hpp)
 - Shared source-frame gate: [`flat_field_gate.hpp`](../../include/camera_iq/flat_field_gate.hpp),
   [`flat_field_gate.cpp`](../../src/flat_field_gate.cpp)
-- Field analysis and serializers: [`shading.cpp`](../../src/shading.cpp)
-- Command orchestration: [`cmd_shading.cpp`](../../src/cmd_shading.cpp)
+- Field analysis: [`shading.cpp`](../../src/shading.cpp)
+- Command orchestration and serializers:
+  [`cmd_shading.cpp`](../../src/cmd_shading.cpp)
 - Core and command tests: [`test_shading.cpp`](../../tests/test_shading.cpp),
   [`test_flat_field_gate.cpp`](../../tests/test_flat_field_gate.cpp),
   [`test_cmd_shading.cpp`](../../tests/test_cmd_shading.cpp)
-- Producer-to-consumer contract fixture:
-  [`emit_shading_contract.cpp`](../../tests/emit_shading_contract.cpp)
+- Producer, exporter, and live contract checks:
+  [`emit_shading_contract.cpp`](../../tests/emit_shading_contract.cpp),
+  [`export_shading_portfolio.py`](../../tools/export_shading_portfolio.py),
+  [`check_schema_contract.py`](../../tools/check_schema_contract.py),
+  [`test_check_schema_contract.py`](../../tools/test_check_schema_contract.py), and
+  [`test_export_shading_portfolio.py`](../../tools/test_export_shading_portfolio.py)

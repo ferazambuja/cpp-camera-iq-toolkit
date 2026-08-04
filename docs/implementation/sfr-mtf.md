@@ -96,17 +96,43 @@ conclusions cannot be merged accidentally.
 - The algorithm refuses unsupported or malformed RAW buffers before sampling.
 - Orientation is derived from the stronger gradient direction, then checked
   against the angle contract.
-- Missing crossings do not become plausible-looking frequencies.
 - Full-frame and active-area coordinate systems are converted explicitly.
 - Advisory-tool values remain separate fields and are not substituted for the
   toolkit measurement.
 
 ## Verification evidence
 
-Synthetic tests cover known edge orientations and blur, saturation and contrast
-refusals, coordinate conversion, MTF summaries, and field labels. The archive
-result still depends on the capture and pairing evidence documented in the
-scientific report and inventory.
+The numerical core is checked against analytic fixtures. A delta LSF produces
+three nonredundant DFT bins of `1.0` to `1e-12`; a 32-sample cosine concentrates
+energy in bin 3 while other non-DC bins stay below `1e-10`. The
+adjacent-difference response is pinned at `0.25`, `0.5`, and `1.0`
+cycles/pixel to `1e-6`.
+
+On the `160 × 144`, `sigma = 1.25`, `-6°` point-sampled horizontal Gaussian
+fixture and its fixed `120 × 112` ROI, the algorithm must recover angle within
+`0.08°`, MTF50 within `0.018 cycles/pixel` of the analytic value, and Nyquist
+response within `0.08`. A separate `-6°` hard edge built with `8 × 8`
+pixel-area supersampling must recover `0.6034 ± 0.03 cycles/pixel`, including
+the expected result above sensor Nyquist. These are fixture-specific bounds for
+two different sampling models, not interchangeable general guarantees.
+
+Refusal fixtures cover flat/low-contrast input, a `0.4°` edge against the
+default `2°` minimum, saturation, non-finite options and samples, insufficient
+edge centroids, and bounded ESF interpolation. Reusing that same
+`160 × 144`, `sigma = 1.25`, `-6°` point-sampled fixture and ROI, `0.02 px`
+bins remain accepted within `0.02 cycles/pixel` of the default MTF50, while
+`0.015 px` refuses as `underfilled_esf` and `0.01 px` refuses as
+`invalid_esf_grid` before allocation. Rejected JSON is checked for `null`
+MTF50, MTF50P, Nyquist MTF, and R10–90 fields.
+
+Archive-shaped D800 and D810 fixtures serve a different role: they verify the
+advisory parser, physical-corner labels, field summaries, and the fact that the
+D810 trend rule intentionally fails on the D800 values. Selected parsed MTF50,
+field-summary, and trend values are pinned to `1e-12`; row counts, labels, and
+verdicts use exact assertions. The tests do not inspect the retained archive,
+rerun RAW measurements, or identify the physical cause of a trend. The figure
+check only verifies the committed aggregate CSV-to-SVG transformation. Capture
+and pairing validity remain with the scientific report and inventory.
 
 ## Source and tests
 

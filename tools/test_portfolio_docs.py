@@ -390,6 +390,21 @@ class DocumentationLayerTests(unittest.TestCase):
             failures,
         )
 
+    def test_empty_evidence_section_cannot_borrow_prose_from_elsewhere(self) -> None:
+        relative = Path("docs/implementation/example.md")
+        text = (
+            "## Verification evidence\n\n"
+            "## Source and tests\n\n"
+            "- Test: [test_example.cpp](../../tests/test_example.cpp)\n\n"
+            "Synthetic tests cover analytic invariants and rejection paths. "
+            "The scientific report remains the authority for physical claims.\n"
+        )
+        failures = DOCS.implementation_evidence_failures_for_text(relative, text)
+        self.assertTrue(
+            any("verification evidence explanation" in item for item in failures),
+            failures,
+        )
+
     def test_evidence_section_heading_wording_is_not_pinned(self) -> None:
         relative = Path("docs/implementation/example.md")
         text = (
@@ -398,17 +413,12 @@ class DocumentationLayerTests(unittest.TestCase):
             "The scientific report remains the authority for physical claims.\n\n"
             "- Test: [test_example.cpp](../../tests/test_example.cpp)\n"
         )
-        self.assertTrue(
-            any(
-                "verification-evidence section" in item
-                for item in DOCS.implementation_evidence_failures_for_text(
-                    relative, text
-                )
-            ),
+        self.assertEqual(
+            [], DOCS.implementation_evidence_failures_for_text(relative, text)
         )
         reworded = text.replace(
             "What the fixtures establish, and what they do not",
-            "Evidence the fixtures provide, and its limits",
+            "How the tests verify the boundary",
         )
         self.assertEqual(
             [], DOCS.implementation_evidence_failures_for_text(relative, reworded)
