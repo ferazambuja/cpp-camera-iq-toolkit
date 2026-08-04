@@ -13,12 +13,6 @@ bool same_rect(const RoiRect& a, const RoiRect& b) {
          a.height == b.height;
 }
 
-bool contains(const RoiRect& outer, const RoiRect& inner) {
-  return inner.x >= outer.x && inner.y >= outer.y &&
-         inner.x + inner.width <= outer.x + outer.width &&
-         inner.y + inner.height <= outer.y + outer.height;
-}
-
 }  // namespace
 
 std::optional<CfaNearCeilingMeasurement> measure_cfa_near_ceiling(
@@ -43,8 +37,9 @@ std::optional<CfaNearCeilingMeasurement> measure_cfa_near_ceiling(
   const auto frame =
       cfa_balanced_roi(RoiRect{0, 0, width, height}, width, height);
   const auto balanced_gate = cfa_balanced_roi(gate, width, height);
-  if (!frame || !balanced_gate || !same_rect(*balanced_gate, gate) ||
-      !contains(*frame, gate)) {
+  // cfa_balanced_roi() clips to the frame. Equality therefore proves both
+  // containment and CFA balance; a second containment branch is unreachable.
+  if (!frame || !balanced_gate || !same_rect(*balanced_gate, gate)) {
     return std::nullopt;
   }
 

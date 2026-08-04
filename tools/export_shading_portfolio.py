@@ -153,6 +153,11 @@ def cfa_positions(item: dict[str, Any], label: str) -> dict[str, int]:
     positions = item.get("cfa_positions")
     if not isinstance(positions, dict) or set(positions) != {"r", "g1", "g2", "b"}:
         raise ValueError(f"{label}: missing CFA-position provenance")
+    if any(
+        isinstance(value, bool) or not isinstance(value, int)
+        for value in positions.values()
+    ):
+        raise ValueError(f"{label}: CFA positions must be integers")
     mapped = {key: int(value) for key, value in positions.items()}
     if set(mapped.values()) != {0, 1, 2, 3}:
         raise ValueError(f"{label}: CFA positions are not a four-plane mapping")
@@ -166,8 +171,13 @@ def validated_rect(value: Any, label: str) -> dict[str, int]:
     if any(isinstance(value[key], bool) or not isinstance(value[key], int) for key in keys):
         raise ValueError(f"{label}: geometry values must be integers")
     rect = {key: int(value[key]) for key in keys}
-    if rect["x"] < 0 or rect["y"] < 0 or rect["width"] <= 0 or rect["height"] <= 0:
-        raise ValueError(f"{label}: geometry must be positive and in bounds")
+    if (
+        rect["x"] < 0
+        or rect["y"] < 0
+        or rect["width"] <= 0
+        or rect["height"] <= 0
+    ):
+        raise ValueError(f"{label}: geometry needs nonnegative origin and positive size")
     if any(rect[key] % 2 != 0 for key in keys):
         raise ValueError(f"{label}: geometry is not CFA-balanced")
     return rect
@@ -360,9 +370,12 @@ def validated_chromatic_maps(
         if not isinstance(values, list) or len(values) != bins:
             raise ValueError(f"{label}: {key} map size disagrees with grid")
         chroma[key] = [finite(value, f"{label} {key}") for value in values]
-    if item.get("chromatic_complete") is not True or item.get(
-        "missing_chromatic_bin_count"
-    ) != 0:
+    missing_count = item.get("missing_chromatic_bin_count")
+    if isinstance(missing_count, bool) or not isinstance(missing_count, int):
+        raise ValueError(
+            f"{label}: missing chromatic-bin count must be integer zero"
+        )
+    if item.get("chromatic_complete") is not True or missing_count != 0:
         raise ValueError(f"{label}: accepted chromatic maps must be complete")
     for index in range(bins):
         red = maps[positions["r"]][index]

@@ -6,6 +6,7 @@
 #include <cstddef>
 #include <cstdio>
 #include <ctime>
+#include <numeric>
 #include <vector>
 
 namespace camera_iq {
@@ -33,7 +34,8 @@ std::array<double, 4> effective_black_levels(
     const std::array<int, 4>& color_at_position) {
   // Tile dimensions live in cblack[4] (rows) and cblack[5] (cols); the tile
   // values start at cblack[6]. LibRaw applies this pattern in visible-image
-  // coordinates after margins are cropped, so origin is always active-area (0,0).
+  // coordinates after margins are cropped, so origin is always active-area
+  // (0,0).
   static constexpr int kRow[4] = {0, 0, 1, 1};
   static constexpr int kCol[4] = {0, 1, 0, 1};
   const unsigned bh = cblack_len > 4 ? cblack[4] : 0;
@@ -47,14 +49,41 @@ std::array<double, 4> effective_black_levels(
       eff += static_cast<double>(cblack[static_cast<size_t>(ch)]);
     }
     if (bh > 0 && bw > 0) {
-      const std::size_t idx = 6u +
-          (static_cast<unsigned>(kRow[p]) % bh) * bw +
-          (static_cast<unsigned>(kCol[p]) % bw);
+      const std::size_t idx = 6u + (static_cast<unsigned>(kRow[p]) % bh) * bw +
+                              (static_cast<unsigned>(kCol[p]) % bw);
       if (idx < cblack_len) eff += static_cast<double>(cblack[idx]);
     }
     out[static_cast<size_t>(p)] = eff;
   }
   return out;
+}
+
+bool black_repeat_is_cfa_periodic(const unsigned* cblack,
+                                  std::size_t cblack_len) {
+  if (cblack == nullptr) return cblack_len == 0;
+  if (cblack_len < 6) return true;
+  const std::size_t rows = cblack[4];
+  const std::size_t cols = cblack[5];
+  if (rows == 0 || cols == 0) return rows == 0 && cols == 0;
+  if (rows > (cblack_len - 6) / cols) return false;
+  const std::size_t values = rows * cols;
+  if (values > cblack_len - 6) return false;
+
+  std::array<std::optional<unsigned>, 4> by_cfa_position;
+  const std::size_t row_period = std::lcm(rows, std::size_t{2});
+  const std::size_t col_period = std::lcm(cols, std::size_t{2});
+  for (std::size_t row = 0; row < row_period; ++row) {
+    for (std::size_t col = 0; col < col_period; ++col) {
+      const unsigned value = cblack[6 + (row % rows) * cols + (col % cols)];
+      const std::size_t position = (row % 2) * 2 + (col % 2);
+      if (!by_cfa_position[position]) {
+        by_cfa_position[position] = value;
+      } else if (*by_cfa_position[position] != value) {
+        return false;
+      }
+    }
+  }
+  return true;
 }
 
 bool is_supported_bayer_filter(unsigned filters) {
@@ -98,21 +127,24 @@ RawMeta raw_meta_from_processor(LibRaw& processor) {
   const int effective_stride =
       effective_raw_stride_pixels(sizes.raw_pitch, sizes.raw_width);
   meta.raw_pitch_bytes =
-      effective_stride > 0 ? effective_stride * static_cast<int>(sizeof(std::uint16_t))
-                           : static_cast<int>(sizes.raw_pitch);
+      effective_stride > 0
+          ? effective_stride * static_cast<int>(sizeof(std::uint16_t))
+          : static_cast<int>(sizes.raw_pitch);
 
-  // COLOR() index of each top-left 2x2 position (accounts for crop margins);
-  // reused for both the CFA string and the effective black computation.
+  // COLOR() indices requested in visible-image coordinates; reused for both
+  // the CFA string and effective black computation.
   const std::array<int, 4> color_at_position = {
-      processor.COLOR(0, 0), processor.COLOR(0, 1),
-      processor.COLOR(1, 0), processor.COLOR(1, 1)};
+      processor.COLOR(0, 0), processor.COLOR(0, 1), processor.COLOR(1, 0),
+      processor.COLOR(1, 1)};
 
   // Effective black must combine the scalar `black`, per-channel cblack[0..3],
   // and the cblack[6..] tile — the X-T100 stores its ~1024 DN pedestal in the
   // tile and leaves the scalar at 0, so reading `color.black` alone yields 0.
   meta.black_per_channel = effective_black_levels(
-      color.black, color.cblack,
-      sizeof(color.cblack) / sizeof(color.cblack[0]), color_at_position);
+      color.black, color.cblack, sizeof(color.cblack) / sizeof(color.cblack[0]),
+      color_at_position);
+  meta.black_repeat_is_cfa_periodic = black_repeat_is_cfa_periodic(
+      color.cblack, sizeof(color.cblack) / sizeof(color.cblack[0]));
   meta.black_level = (meta.black_per_channel[0] + meta.black_per_channel[1] +
                       meta.black_per_channel[2] + meta.black_per_channel[3]) /
                      4.0;
@@ -128,10 +160,15 @@ RawMeta raw_meta_from_processor(LibRaw& processor) {
     }
   }
 
-  // CFA pattern of the visible-area top-left 2x2, from the COLOR() indices
-  // computed above (which already account for the sensor crop margins).
+  // CFA pattern of the visible-area top-left 2x2 from the indices above.
   meta.cfa_pattern = cfa_pattern_string(idata.cdesc, color_at_position);
 
+  return meta;
+}
+
+std::optional<RawMeta> measurement_raw_meta_from_processor(LibRaw& processor) {
+  RawMeta meta = raw_meta_from_processor(processor);
+  if (!meta.black_repeat_is_cfa_periodic) return std::nullopt;
   return meta;
 }
 
@@ -158,7 +195,11 @@ std::optional<RawCfaReport> read_raw_cfa_stats(
   if (processor.unpack() != LIBRAW_SUCCESS) {
     return std::nullopt;
   }
-  report.meta = raw_meta_from_processor(processor);
+  const auto measurement_meta = measurement_raw_meta_from_processor(processor);
+  if (!measurement_meta) {
+    return std::nullopt;
+  }
+  report.meta = *measurement_meta;
 
   const std::uint16_t* image = processor.imgdata.rawdata.raw_image;
   if (image == nullptr) {
@@ -180,15 +221,16 @@ std::optional<RawCfaReport> read_raw_cfa_stats(
     return std::nullopt;
   }
   const std::array<int, 4> color_at_position = {
-      processor.COLOR(0, 0), processor.COLOR(0, 1),
-      processor.COLOR(1, 0), processor.COLOR(1, 1)};
+      processor.COLOR(0, 0), processor.COLOR(0, 1), processor.COLOR(1, 0),
+      processor.COLOR(1, 1)};
 
   // Statistics over the visible active area. raw_image is full-sensor data with
   // masked frame pixels still present, so stride through raw_pitch and start at
   // top_margin/left_margin.
   const std::uint16_t* active =
-      image + static_cast<std::size_t>(sizes.top_margin) *
-                  static_cast<std::size_t>(raw_stride_pixels) +
+      image +
+      static_cast<std::size_t>(sizes.top_margin) *
+          static_cast<std::size_t>(raw_stride_pixels) +
       static_cast<std::size_t>(sizes.left_margin);
   report.planes = cfa_plane_stats_strided(
       active, sizes.width, sizes.height, raw_stride_pixels, color_at_position,
@@ -197,7 +239,8 @@ std::optional<RawCfaReport> read_raw_cfa_stats(
   return report;
 }
 
-std::optional<RawCfaImage> read_raw_cfa_image(const std::filesystem::path& raw) {
+std::optional<RawCfaImage> read_raw_cfa_image(
+    const std::filesystem::path& raw) {
   LibRaw processor;
   if (processor.open_file(raw.string().c_str()) != LIBRAW_SUCCESS) {
     return std::nullopt;
@@ -229,7 +272,11 @@ std::optional<RawCfaImage> read_raw_cfa_image(const std::filesystem::path& raw) 
   }
 
   RawCfaImage out;
-  out.meta = raw_meta_from_processor(processor);
+  const auto measurement_meta = measurement_raw_meta_from_processor(processor);
+  if (!measurement_meta) {
+    return std::nullopt;
+  }
+  out.meta = *measurement_meta;
   out.width = sizes.width;
   out.height = sizes.height;
   out.row_stride_pixels = sizes.width;
@@ -240,8 +287,9 @@ std::optional<RawCfaImage> read_raw_cfa_image(const std::filesystem::path& raw) 
                      static_cast<std::size_t>(out.height));
 
   const std::uint16_t* active =
-      image + static_cast<std::size_t>(sizes.top_margin) *
-                  static_cast<std::size_t>(raw_stride_pixels) +
+      image +
+      static_cast<std::size_t>(sizes.top_margin) *
+          static_cast<std::size_t>(raw_stride_pixels) +
       static_cast<std::size_t>(sizes.left_margin);
   for (int r = 0; r < out.height; ++r) {
     const std::size_t src_row = static_cast<std::size_t>(r) *

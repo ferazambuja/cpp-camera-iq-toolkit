@@ -6,6 +6,7 @@ from __future__ import annotations
 import copy
 import csv
 import json
+import math
 import tempfile
 from pathlib import Path
 from types import ModuleType
@@ -209,6 +210,150 @@ def main() -> None:
             undefined_coverage, "undefined coverage fixture"
         ),
         "expected a finite number",
+    )
+
+    valid_label = (
+        "dataset:fixture/Images/Sphere/"
+        "Sphere_f8.0_1:1000_DSCF0001.RAF"
+    )
+    exact_policy = document(valid_label, True)
+    exact_policy["gates"]["near_ceiling_fraction_gate"] = [0.01] * 4
+    exact_policy["gates"]["near_ceiling_fraction_frame"] = [0.01] * 4
+    exact_policy["gates"]["finite_fraction_gate"] = [0.90] * 4
+    exact_policy["gates"]["finite_fraction_frame"] = [0.90] * 4
+    EXPORT.validate_inventory_document(
+        exact_policy, "exact-boundary fixture", require_verified_pedestal=True
+    )
+
+    just_over_near_ceiling = document(valid_label, True)
+    just_over_near_ceiling["gates"]["near_ceiling_fraction_gate"][0] = (
+        math.nextafter(0.01, math.inf)
+    )
+    expect_error(
+        lambda: EXPORT.validated_gates(
+            just_over_near_ceiling, "just-over near-ceiling fixture"
+        ),
+        "near_ceiling_ok disagrees with measured fractions",
+    )
+
+    just_below_coverage = document(valid_label, True)
+    just_below_coverage["gates"]["finite_fraction_frame"][0] = math.nextafter(
+        0.90, 0.0
+    )
+    expect_error(
+        lambda: EXPORT.validated_gates(
+            just_below_coverage, "just-below coverage fixture"
+        ),
+        "screening_coverage_ok disagrees with measured fractions",
+    )
+
+    nonpositive_center = document(valid_label, True)
+    nonpositive_center["center_block_median"][0] = 0.0
+    expect_error(
+        lambda: EXPORT.validate_inventory_document(
+            nonpositive_center,
+            "nonpositive center fixture",
+            require_verified_pedestal=True,
+        ),
+        "center medians must be positive",
+    )
+
+    negative_center = document(valid_label, True)
+    negative_center["center_block_median"][2] = -1.0
+    expect_error(
+        lambda: EXPORT.validate_inventory_document(
+            negative_center,
+            "negative center fixture",
+            require_verified_pedestal=True,
+        ),
+        "center medians must be positive",
+    )
+
+    outside_center = document(valid_label, True)
+    outside_center["geometry"]["center"]["x"] = 800
+    expect_error(
+        lambda: EXPORT.validate_inventory_document(
+            outside_center,
+            "outside center fixture",
+            require_verified_pedestal=True,
+        ),
+        "center geometry is outside the screening gate",
+    )
+
+    incomplete_chromatic = document(valid_label, True)
+    incomplete_chromatic["chromatic_complete"] = False
+    incomplete_chromatic["missing_chromatic_bin_count"] = 1
+    expect_error(
+        lambda: EXPORT.validate_inventory_document(
+            incomplete_chromatic,
+            "incomplete chromatic fixture",
+            require_verified_pedestal=True,
+        ),
+        "accepted chromatic maps must be complete",
+    )
+
+    noninteger_missing_count = document(valid_label, True)
+    noninteger_missing_count["missing_chromatic_bin_count"] = False
+    expect_error(
+        lambda: EXPORT.validate_inventory_document(
+            noninteger_missing_count,
+            "noninteger chromatic count fixture",
+            require_verified_pedestal=True,
+        ),
+        "missing chromatic-bin count must be integer zero",
+    )
+    floating_missing_count = document(valid_label, True)
+    floating_missing_count["missing_chromatic_bin_count"] = 0.0
+    expect_error(
+        lambda: EXPORT.validate_inventory_document(
+            floating_missing_count,
+            "floating chromatic count fixture",
+            require_verified_pedestal=True,
+        ),
+        "missing chromatic-bin count must be integer zero",
+    )
+
+    noninteger_positions = document(valid_label, True)
+    noninteger_positions["cfa_positions"] = {
+        "r": False,
+        "g1": True,
+        "g2": 2,
+        "b": 3,
+    }
+    expect_error(
+        lambda: EXPORT.validate_inventory_document(
+            noninteger_positions,
+            "noninteger positions fixture",
+            require_verified_pedestal=True,
+        ),
+        "CFA positions must be integers",
+    )
+    string_positions = document(valid_label, True)
+    string_positions["cfa_positions"] = {
+        "r": "0",
+        "g1": "1",
+        "g2": "2",
+        "b": "3",
+    }
+    expect_error(
+        lambda: EXPORT.validate_inventory_document(
+            string_positions,
+            "string positions fixture",
+            require_verified_pedestal=True,
+        ),
+        "CFA positions must be integers",
+    )
+
+    unverified_detail = document(valid_label, True)
+    unverified_detail["pedestal"]["verified"] = False
+    unverified_detail["pedestal"]["pedestal_unverified"] = True
+    expect_error(
+        lambda: EXPORT.validate_inventory_document(
+            unverified_detail,
+            "unverified detailed fixture",
+            require_verified_pedestal=True,
+        ),
+        "accepted result lacks verified dark controls",
     )
 
     with tempfile.TemporaryDirectory() as temp:

@@ -28,7 +28,8 @@ struct SpectralQualityResult {
 
 // Fits each CMF channel as a least-squares linear combination of the three SSF
 // channels over the grid and reports the relative residual per CMF plus a
-// combined figure. Throws on grid/size mismatch or a degenerate SSF basis.
+// combined figure. Throws on grid/size mismatch, non-finite samples, zero-norm
+// channels, or a degenerate SSF basis.
 SpectralQualityResult compute_spectral_quality(const SpectralQualityInputs& in);
 
 }  // namespace camera_iq

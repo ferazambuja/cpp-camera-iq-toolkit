@@ -1,10 +1,9 @@
-#include "camera_iq/flat_field_gate.hpp"
-
 #include <array>
 #include <cmath>
 #include <limits>
 #include <vector>
 
+#include "camera_iq/flat_field_gate.hpp"
 #include "harness.hpp"
 
 using camera_iq::flat_field_near_ceiling_passes;
@@ -32,7 +31,7 @@ std::vector<double> flat_frame(double value) {
   return std::vector<double>(static_cast<std::size_t>(kWidth) * kHeight, value);
 }
 
-} // namespace
+}  // namespace
 
 void TESTS() {
   // Even origin and size, so every CFA position contributes the same sample
@@ -164,8 +163,7 @@ void TESTS() {
               kFlatFieldMaxNearCeilingFraction, kFlatFieldMinFiniteCoverage),
           "gate: an unmeasurable plane cannot masquerade as a clean flat");
     for (std::size_t p = 0; p < 4; ++p) {
-      if (p == target)
-        continue;
+      if (p == target) continue;
       check_near(measurement->fraction_frame[p], 0.0, 1e-12,
                  "gate: one missing plane does not disturb the others");
     }
@@ -210,6 +208,52 @@ void TESTS() {
   }
 
   {
+    // Measure the declared inclusive threshold rather than injecting a ratio.
+    // A 20x20 mosaic has exactly 100 samples per CFA position.
+    constexpr int width = 20;
+    constexpr int height = 20;
+    const RoiRect full{0, 0, width, height};
+    std::vector<double> frame(static_cast<std::size_t>(width) * height, 50.0);
+    for (int y = 0; y < 2; ++y) {
+      for (int x = 0; x < 2; ++x) {
+        frame[static_cast<std::size_t>(y) * width + x] = 99.0;
+      }
+    }
+    auto measurement =
+        measure_cfa_near_ceiling(frame.data(), width, height, width, full,
+                                 kCeilings, kFlatFieldNearCeilingLevel);
+    check(measurement.has_value(), "gate: exact one-percent fixture measures");
+    for (std::size_t p = 0; p < 4; ++p) {
+      check_near(measurement->fraction_frame[p], 0.01, 1e-12,
+                 "gate: one of 100 samples measures exactly one percent");
+      check(flat_field_near_ceiling_passes(
+                measurement->fraction_frame[p], measurement->fraction_gate[p],
+                measurement->finite_fraction_frame[p],
+                measurement->finite_fraction_gate[p], 0.01, 0.9),
+            "gate: measured one-percent plane is accepted inclusively");
+    }
+
+    for (int y = 2; y < 4; ++y) {
+      for (int x = 0; x < 2; ++x) {
+        frame[static_cast<std::size_t>(y) * width + x] = 99.0;
+      }
+    }
+    measurement =
+        measure_cfa_near_ceiling(frame.data(), width, height, width, full,
+                                 kCeilings, kFlatFieldNearCeilingLevel);
+    check(measurement.has_value(), "gate: two-percent fixture measures");
+    for (std::size_t p = 0; p < 4; ++p) {
+      check_near(measurement->fraction_frame[p], 0.02, 1e-12,
+                 "gate: two of 100 samples measures exactly two percent");
+      check(!flat_field_near_ceiling_passes(
+                measurement->fraction_frame[p], measurement->fraction_gate[p],
+                measurement->finite_fraction_frame[p],
+                measurement->finite_fraction_gate[p], 0.01, 0.9),
+            "gate: measured two-percent plane is rejected");
+    }
+  }
+
+  {
     // An invalid policy is not a licence to accept. Every argument runs through
     // the same finite/range validation as the measured fractions.
     const double nan = std::numeric_limits<double>::quiet_NaN();
@@ -221,6 +265,12 @@ void TESTS() {
           "gate: a negative fraction rejects");
     check(flat_field_near_ceiling_passes(0.01, 0.01, 1.0, 1.0, 0.01, 0.9),
           "gate: exactly at policy is not a rejection");
+    check(!flat_field_near_ceiling_passes(std::nextafter(0.01, 1.0), 0.01, 1.0,
+                                          1.0, 0.01, 0.9),
+          "gate: frame fraction immediately above policy is rejected");
+    check(!flat_field_near_ceiling_passes(0.01, std::nextafter(0.01, 1.0), 1.0,
+                                          1.0, 0.01, 0.9),
+          "gate: center fraction immediately above policy is rejected");
     check(flat_field_near_ceiling_passes(0.0, 0.0, 0.9, 0.9, 0.01, 0.9),
           "gate: coverage exactly at policy is accepted");
     check(!flat_field_near_ceiling_passes(0.0, 0.0, std::nextafter(0.9, 0.0),

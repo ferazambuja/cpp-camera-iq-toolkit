@@ -678,6 +678,8 @@ void TESTS() {
     opts.grid_rows = 2;
     opts.corner_block_px = 16;
     opts.corner_inset_px = 0;
+    opts.min_center_signal = 0.0;
+    opts.gate_center_frac = 0.5;
     const auto field =
         measure_shading_field(mosaic.data(), width, height, width, opts, kCeiling);
 
@@ -686,8 +688,8 @@ void TESTS() {
       check(field.relative[p].empty(),
             "zero normalizer: rejected maps are absent");
     }
-    check(!field.rejection_reason.empty(),
-          "zero normalizer: denominator failure is diagnostic");
+    check(field.rejection_reason == "center-block normalizer is not positive",
+          "zero normalizer: explicit denominator guard rejects");
   }
 
   // A constant field must report each plane's own constant and a relative

@@ -29,16 +29,17 @@ struct RawMeta {
   double shutter_s = 0;
   double aperture = 0;
   double focal_length_mm = 0;
-  std::string timestamp;    // "YYYY-MM-DD HH:MM:SS" local camera-clock time
-  std::string cfa_pattern;  // top-left 2x2, e.g. "RGGB" — derived, never hardcoded
+  std::string timestamp;  // "YYYY-MM-DD HH:MM:SS" local camera-clock time
+  std::string
+      cfa_pattern;  // top-left 2x2, e.g. "RGGB" — derived, never hardcoded
   int raw_width = 0;
   int raw_height = 0;
   int visible_width = 0;   // LibRaw sizes.width: active/meaningful image area
   int visible_height = 0;  // LibRaw sizes.height: active/meaningful image area
-  int top_margin = 0;     // active-area origin inside the raw frame
+  int top_margin = 0;      // active-area origin inside the raw frame
   int left_margin = 0;
   int raw_pitch_bytes = 0;  // row stride for rawdata.raw_image, in bytes
-  double black_level = 0;  // mean effective black across the four positions
+  double black_level = 0;   // mean effective black across the four positions
   // Effective black for the top-left 2x2 mosaic positions (0,0)(0,1)(1,0)(1,1),
   // aligned with `cfa_pattern`. Combines LibRaw's scalar `black`, per-channel
   // `cblack[0..3]`, and the repeating `cblack[6..]` tile. Many sensors (the
@@ -46,6 +47,11 @@ struct RawMeta {
   // scalar `black` and cblack[0..3] at 0 — so reading the scalar alone yields
   // a silent 0. See effective_black_levels().
   std::array<double, 4> black_per_channel{0, 0, 0, 0};
+  // True when LibRaw's repeating black tile can be represented without loss
+  // by the four CFA-position values above. RAW measurement paths reject a
+  // larger nonuniform repeat instead of silently applying its top-left 2x2 to
+  // the whole image.
+  bool black_repeat_is_cfa_periodic = true;
   double white_level = 0;  // sensor saturation ("maximum" in LibRaw terms)
 };
 
@@ -66,6 +72,11 @@ std::string body_serial_string(const char* data, std::size_t capacity);
 // exact maker-note field transfer without requiring a private RAW fixture.
 RawMeta raw_meta_from_processor(LibRaw& processor);
 
+// Post-unpack metadata gate shared by the measurement readers. Returns no
+// value when LibRaw's complete black repeat cannot be represented by the four
+// CFA-position black levels used by the current measurement pipeline.
+std::optional<RawMeta> measurement_raw_meta_from_processor(LibRaw& processor);
+
 // Computes the effective black level for the four active-area top-left mosaic
 // positions (0,0)(0,1)(1,0)(1,1) from LibRaw's additive black representation:
 //   effective = black + cblack[color] +
@@ -82,24 +93,31 @@ std::array<double, 4> effective_black_levels(
     unsigned black, const unsigned* cblack, std::size_t cblack_len,
     const std::array<int, 4>& color_at_position);
 
-// True only for ordinary 2x2 Bayer masks represented by LibRaw's filters bitmask.
-// Special values below 1000 include full-color/monochrome, Leaf 16x16 and Fuji
-// X-Trans; The raw-stats command intentionally rejects those layouts.
+// Returns true when the complete repeating cblack tile is equivalent to a
+// 2x2 CFA-position pattern over its infinite repetition. A missing/empty tile
+// passes; an incomplete declared tile or a spatially richer tile fails.
+bool black_repeat_is_cfa_periodic(const unsigned* cblack,
+                                  std::size_t cblack_len);
+
+// True only for ordinary 2x2 Bayer masks represented by LibRaw's filters
+// bitmask. Special values below 1000 include full-color/monochrome, Leaf 16x16
+// and Fuji X-Trans; The raw-stats command intentionally rejects those layouts.
 bool is_supported_bayer_filter(unsigned filters);
 
 // Converts LibRaw raw_pitch bytes to uint16 pixel stride. Some unpackers leave
-// raw_pitch unset; for tightly packed Bayer raw_image buffers, raw_width is then
-// the effective stride. Returns 0 for invalid odd byte pitches.
+// raw_pitch unset; for tightly packed Bayer raw_image buffers, raw_width is
+// then the effective stride. Returns 0 for invalid odd byte pitches.
 int effective_raw_stride_pixels(unsigned raw_pitch_bytes, unsigned raw_width);
 
-// Reads metadata available after LibRaw open_file(). Returns std::nullopt if the
-// file does not exist or LibRaw cannot parse it. Never throws.
+// Reads metadata available after LibRaw open_file(). Returns std::nullopt if
+// the file does not exist or LibRaw cannot parse it. Never throws.
 //
 // Note: some makers finalize black level / pitch during unpack(); use
 // read_raw_cfa_stats() when scientifically correct black subtraction is needed.
 std::optional<RawMeta> read_raw_metadata(const std::filesystem::path& raw);
 
-// RAW metadata plus per-CFA-channel statistics over the black-subtracted mosaic.
+// RAW metadata plus per-CFA-channel statistics over the black-subtracted
+// mosaic.
 struct RawCfaReport {
   RawMeta meta;
   // Effective raw-stats headroom policy for every plane in this report.
@@ -131,15 +149,18 @@ struct RawCfaImage {
 // the file cannot be opened/unpacked, is not an ordinary 2x2 Bayer layout, or
 // has no Bayer `raw_image` (X-Trans, Foveon, monochrome/full-color and
 // already-demosaiced formats are unsupported). Never throws.
-std::optional<RawCfaReport> read_raw_cfa_stats(const std::filesystem::path& raw);
+std::optional<RawCfaReport> read_raw_cfa_stats(
+    const std::filesystem::path& raw);
 
 // Unpacks a RAW file and returns the active Bayer mosaic as signed
-// black-subtracted samples. Same unsupported-format rules as read_raw_cfa_stats().
+// black-subtracted samples. Same unsupported-format rules as
+// read_raw_cfa_stats().
 std::optional<RawCfaImage> read_raw_cfa_image(const std::filesystem::path& raw);
 
 // Computes a RawCfaReport over a CFA-balanced ROI from an already unpacked
 // signed residual mosaic. The requested ROI is clipped and rounded inward by
-// cfa_balanced_roi(); the actual ROI is stored in RawCfaReport::measurement_roi.
+// cfa_balanced_roi(); the actual ROI is stored in
+// RawCfaReport::measurement_roi.
 std::optional<RawCfaReport> raw_cfa_report_for_roi(const RawCfaImage& image,
                                                    const RoiRect& requested);
 

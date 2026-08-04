@@ -1,6 +1,3 @@
-#include "camera_iq/raw_meta.hpp"
-#include "camera_iq/commands.hpp"
-
 #include <libraw/libraw.h>
 
 #include <cstdio>
@@ -11,18 +8,22 @@
 #include <string>
 #include <vector>
 
+#include "camera_iq/commands.hpp"
+#include "camera_iq/raw_meta.hpp"
 #include "harness.hpp"
 
 namespace fs = std::filesystem;
+using camera_iq::black_repeat_is_cfa_periodic;
+using camera_iq::body_serial_string;
 using camera_iq::cfa_pattern_string;
 using camera_iq::cmd_raw_stats;
-using camera_iq::body_serial_string;
 using camera_iq::effective_black_levels;
 using camera_iq::effective_raw_stride_pixels;
 using camera_iq::is_supported_bayer_filter;
+using camera_iq::measurement_raw_meta_from_processor;
+using camera_iq::raw_meta_from_processor;
 using camera_iq::read_raw_cfa_image;
 using camera_iq::read_raw_metadata;
-using camera_iq::raw_meta_from_processor;
 using camera_iq::write_raw_stats_json;
 using test::check;
 
@@ -87,12 +88,14 @@ void TESTS() {
   }
 
   // LibRaw uses filters >= 1000 for ordinary Bayer masks. Special values below
-  // 1000 include 0 (full color/monochrome), 1 (16x16 Leaf), and 9 (Fuji X-Trans),
-  // none of which the 2x2 CFA stats path supports.
+  // 1000 include 0 (full color/monochrome), 1 (16x16 Leaf), and 9 (Fuji
+  // X-Trans), none of which the 2x2 CFA stats path supports.
   check(is_supported_bayer_filter(0x94949494u), "filters: Bayer mask accepted");
-  check(!is_supported_bayer_filter(0u), "filters: full-color/monochrome rejected");
+  check(!is_supported_bayer_filter(0u),
+        "filters: full-color/monochrome rejected");
   check(!is_supported_bayer_filter(9u), "filters: X-Trans rejected");
-  check(!is_supported_bayer_filter(1u), "filters: non-2x2 special mask rejected");
+  check(!is_supported_bayer_filter(1u),
+        "filters: non-2x2 special mask rejected");
 
   check(effective_raw_stride_pixels(0, 6016) == 6016,
         "stride: missing raw_pitch falls back to raw_width");
@@ -111,14 +114,14 @@ void TESTS() {
     write_raw_stats_json(json, "fixture.RAF", report);
     check(json.str().find("\"near_ceiling_level\":0.9") != std::string::npos,
           "raw-stats JSON: effective near-ceiling policy is serialized");
-    check(json.str().find("\"near_ceiling_fraction\":0.25") !=
-              std::string::npos,
-          "raw-stats JSON: derived near-ceiling fraction is serialized");
+    check(
+        json.str().find("\"near_ceiling_fraction\":0.25") != std::string::npos,
+        "raw-stats JSON: derived near-ceiling fraction is serialized");
   }
 
-  // Effective black — the Fuji X-T100 case: scalar black and cblack[0..3] are 0,
-  // the real ~1024 DN pedestal lives in the 2x2 cblack[6..] tile. Reading the
-  // scalar alone would report 0 (the bug this exercises).
+  // Effective black — the Fuji X-T100 case: scalar black and cblack[0..3] are
+  // 0, the real ~1024 DN pedestal lives in the 2x2 cblack[6..] tile. Reading
+  // the scalar alone would report 0 (the bug this exercises).
   {
     unsigned cb[16] = {0};
     cb[4] = 2;  // tile rows
@@ -131,7 +134,10 @@ void TESTS() {
   // Scalar + per-channel offsets, no tile (bh=bw=0).
   {
     unsigned cb[16] = {0};
-    cb[0] = 10; cb[1] = 20; cb[2] = 30; cb[3] = 40;
+    cb[0] = 10;
+    cb[1] = 20;
+    cb[2] = 30;
+    cb[3] = 40;
     const auto b = effective_black_levels(100, cb, 16, {0, 1, 2, 3});
     check(b[0] == 110 && b[1] == 120 && b[2] == 130 && b[3] == 140,
           "black: scalar + per-channel, no tile");
@@ -139,27 +145,97 @@ void TESTS() {
   // Non-uniform 2x2 tile mapped through COLOR() indices.
   {
     unsigned cb[16] = {0};
-    cb[4] = 2; cb[5] = 2;
-    cb[6] = 500; cb[7] = 501; cb[8] = 510; cb[9] = 511;  // per-position
+    cb[4] = 2;
+    cb[5] = 2;
+    cb[6] = 500;
+    cb[7] = 501;
+    cb[8] = 510;
+    cb[9] = 511;  // per-position
     const auto b = effective_black_levels(0, cb, 16, {0, 1, 2, 3});
     check(b[0] == 500 && b[1] == 501 && b[2] == 510 && b[3] == 511,
           "black: non-uniform tile per position");
   }
-  // The cblack tile phase is anchored to the active-area origin, matching
-  // LibRaw's subtract_black/raw2image convention and DNG BlackLevel semantics.
-  // Cropping margins must not shift the per-position tile values.
+  // Exercise the LibRaw bridge rather than restating effective_black_levels().
+  // Odd sensor margins must not phase-shift a tile defined in active-image
+  // coordinates.
   {
-    unsigned cb[16] = {0};
-    cb[4] = 2; cb[5] = 2;
-    cb[6] = 500; cb[7] = 501; cb[8] = 510; cb[9] = 511;
-    const auto b = effective_black_levels(0, cb, 16, {0, 1, 2, 3});
-    check(b[0] == 500 && b[1] == 501 && b[2] == 510 && b[3] == 511,
-          "black: tile phase remains active-area-local");
+    LibRaw processor;
+    processor.imgdata.idata.filters = 0x94949494u;
+    processor.imgdata.sizes.top_margin = 3;
+    processor.imgdata.sizes.left_margin = 5;
+    auto& cb = processor.imgdata.color.cblack;
+    cb[4] = 2;
+    cb[5] = 2;
+    cb[6] = 500;
+    cb[7] = 501;
+    cb[8] = 510;
+    cb[9] = 511;
+    const auto meta = raw_meta_from_processor(processor);
+    check(meta.black_per_channel[0] == 500 &&
+              meta.black_per_channel[1] == 501 &&
+              meta.black_per_channel[2] == 510 &&
+              meta.black_per_channel[3] == 511,
+          "black: odd raw margins do not shift active-area tile phase");
+    check(meta.black_repeat_is_cfa_periodic,
+          "black: ordinary 2x2 repeat is representable per CFA position");
+    const auto measurement_meta =
+        measurement_raw_meta_from_processor(processor);
+    check(measurement_meta.has_value() &&
+              measurement_meta->black_per_channel == meta.black_per_channel,
+          "black: post-unpack measurement metadata accepts a 2x2 repeat");
+  }
+  // A larger repeat can be represented by four CFA-position values only when
+  // every same-parity entry agrees. Otherwise the RAW path must reject rather
+  // than subtract the top-left 2x2 across the entire image.
+  {
+    check(black_repeat_is_cfa_periodic(nullptr, 0),
+          "black: absent repeat metadata is an empty tile");
+    unsigned cb[24] = {0};
+    cb[4] = 4;
+    cb[5] = 4;
+    for (int row = 0; row < 4; ++row) {
+      for (int col = 0; col < 4; ++col) {
+        cb[6 + row * 4 + col] =
+            static_cast<unsigned>(500 + (row % 2) * 10 + (col % 2));
+      }
+    }
+    check(black_repeat_is_cfa_periodic(cb, 24),
+          "black: larger tile repeating by CFA parity is supported");
+    cb[6 + 2 * 4 + 2] = 999;
+    check(!black_repeat_is_cfa_periodic(cb, 24),
+          "black: same-parity variation in a larger tile is rejected");
+    check(!black_repeat_is_cfa_periodic(cb, 20),
+          "black: incomplete repeat tile is rejected");
+
+    unsigned odd_cb[9] = {0};
+    odd_cb[4] = 3;
+    odd_cb[5] = 1;
+    odd_cb[6] = 5;
+    odd_cb[7] = 6;
+    odd_cb[8] = 5;
+    check(!black_repeat_is_cfa_periodic(odd_cb, 9),
+          "black: odd repeat period is checked over its full CFA phase cycle");
+    odd_cb[7] = 5;
+    check(black_repeat_is_cfa_periodic(odd_cb, 9),
+          "black: constant odd repeat period remains representable");
+
+    LibRaw processor;
+    auto& processor_cb = processor.imgdata.color.cblack;
+    processor_cb[4] = 4;
+    processor_cb[5] = 4;
+    for (int index = 0; index < 16; ++index) {
+      processor_cb[6 + index] = cb[6 + index];
+    }
+    check(!raw_meta_from_processor(processor).black_repeat_is_cfa_periodic,
+          "black: LibRaw bridge exposes an unsupported spatial repeat");
+    check(!measurement_raw_meta_from_processor(processor).has_value(),
+          "black: post-unpack measurement metadata refuses spatial repeats");
   }
   // Out-of-range tile dimensions must not read past the buffer.
   {
     unsigned cb[16] = {0};
-    cb[4] = 2; cb[5] = 1000;  // (1,*) tile index would be ~1006 >> 16
+    cb[4] = 2;
+    cb[5] = 1000;  // (1,*) tile index would be ~1006 >> 16
     const auto b = effective_black_levels(5, cb, 16, {0, 1, 2, 3});
     check(b[0] == 5 && b[1] == 5 && b[2] == 5 && b[3] == 5,
           "black: out-of-range tile ignored (no OOB read)");
@@ -176,9 +252,9 @@ void TESTS() {
     std::ofstream os(alias_input, std::ios::binary);
     os << "source evidence";
   }
-  check(run_raw_stats({alias_input.string(), "--out", alias_input.string()}) ==
-            2,
-        "raw-stats command refuses output that aliases its input");
+  check(
+      run_raw_stats({alias_input.string(), "--out", alias_input.string()}) == 2,
+      "raw-stats command refuses output that aliases its input");
   check(read_text(alias_input) == "source evidence",
         "raw-stats alias refusal preserves input bytes");
   fs::remove(alias_input);
