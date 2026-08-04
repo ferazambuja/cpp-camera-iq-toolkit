@@ -109,6 +109,20 @@ scientific validation. Tests show that the declared algorithm and contracts
 are implemented consistently; measurement validity still comes from the
 scientific design, controls, references, and evidence.
 
+Every implementation companion must also explain its verification evidence in
+prose, either in a short dedicated section or beside the source-and-test map.
+That explanation identifies representative numeric fixtures, invariants,
+refusal paths, serialization checks, artifact-freshness checks, or independent
+comparisons, as applicable. It also states which physical, perceptual, or
+archive-validity question those checks do **not** answer. At least one public
+test must be linked so the explanation is inspectable.
+
+Verification claims must be portable. Do not freeze a local observed value,
+test count, library-version result, or platform-dependent rounding outcome as a
+general contract unless it is pinned by a committed generated artifact or by an
+executable assertion. Prefer the enforced tolerance or invariant and identify
+optional reference builds as optional.
+
 ### 4. Evidence reference: identity and provenance
 
 Inventories, manifests, reference-data notes, and dataset pages establish which
@@ -221,6 +235,9 @@ Before publishing or materially revising a public portfolio document, verify:
       mechanics, source/test inventory, or command-option catalog.
 - [ ] The implementation companion maps formulas and data flow to real public
       functions and types.
+- [ ] The implementation companion explains what its tests or independent
+      cross-checks establish, links public tests, and separates software
+      correctness from scientific validity.
 - [ ] Passing tests are not presented as proof of physical or perceptual
       validity.
 - [ ] Every figure has a self-contained caption grounded in what is drawn.

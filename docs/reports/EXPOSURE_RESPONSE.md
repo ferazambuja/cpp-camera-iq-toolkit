@@ -84,8 +84,9 @@ Result summary:
 
 This run is the important negative control: the ladder is reported, but the
 near-white plateau is not promoted as OECF-candidate-ready. The same readiness
-gate also rejects at/below-black points and heavily clipped points, covered by
-synthetic tests.
+gate also excludes at/below-black points and heavily clipped points; the
+[implementation companion](../implementation/raw-foundation.md) documents its
+synthetic boundary checks.
 
 ### Accepted non-uniform f8 response ladder
 

@@ -114,6 +114,20 @@ visible rather than hidden inside one rank.
 - An incomplete camera set can participate in SSF-only comparison without being
   forced through unavailable chart closure.
 
+## Verification evidence
+
+Synthetic fixtures recover a known spectral response, an exact physical-closure
+scale, and a zero Luther residual for a color-matching basis. A rank-deficient
+basis, mismatched grids, missing sweep samples, and clipped or non-finite inputs
+are refused. Ideal and deliberately metameric camera fixtures also pin the
+direction of the SMI-style score and the white-preserving constraint. Command
+tests verify that those typed results and limitations survive serialization.
+
+This verifies the numerical stages and their separation. It does not establish
+that an archived sensitivity curve is physically correct, that two archive
+sessions form a valid closure pair, or that the SMI-style approximation is
+bit-exact ISO 17321; those questions remain explicit in the scientific report.
+
 ## Source and tests
 
 - SSF extraction: [`spectral_response.hpp`](../../include/camera_iq/spectral_response.hpp),
@@ -124,7 +138,16 @@ visible rather than hidden inside one rank.
   [`spectral_quality.cpp`](../../src/spectral_quality.cpp)
 - SMI-style analysis: [`spectral_smi.hpp`](../../include/camera_iq/spectral_smi.hpp),
   [`spectral_smi.cpp`](../../src/spectral_smi.cpp)
+- Command adapters: [`cmd_spectral_response.cpp`](../../src/cmd_spectral_response.cpp),
+  [`cmd_spectral_closure.cpp`](../../src/cmd_spectral_closure.cpp),
+  [`cmd_spectral_quality.cpp`](../../src/cmd_spectral_quality.cpp), and
+  [`cmd_spectral_smi.cpp`](../../src/cmd_spectral_smi.cpp)
 - Focused tests: [`test_spectral_response.cpp`](../../tests/test_spectral_response.cpp),
   [`test_spectral_closure.cpp`](../../tests/test_spectral_closure.cpp),
   [`test_spectral_quality.cpp`](../../tests/test_spectral_quality.cpp), and
   [`test_spectral_smi.cpp`](../../tests/test_spectral_smi.cpp)
+- Command and serialization tests:
+  [`test_cmd_spectral_response.cpp`](../../tests/test_cmd_spectral_response.cpp),
+  [`test_cmd_spectral_closure.cpp`](../../tests/test_cmd_spectral_closure.cpp),
+  [`test_cmd_spectral_quality.cpp`](../../tests/test_cmd_spectral_quality.cpp), and
+  [`test_cmd_spectral_smi.cpp`](../../tests/test_cmd_spectral_smi.cpp)

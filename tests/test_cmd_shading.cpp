@@ -147,7 +147,7 @@ void TESTS() {
     check(contains(json, "null"),
           "shading json: undefined chromatic bin serialized as null");
     check(contains(json, "\"green_asymmetry\":0.2"),
-          "shading json: quadrant asymmetry serialized");
+          "shading json: corner-field asymmetry serialized");
     check(contains(json, "\"asymmetry_exceeds_policy\":true"),
           "shading json: asymmetry policy verdict serialized beside the value");
     check(contains(json, "\"pedestal_unverified\":true"),
@@ -179,7 +179,7 @@ void TESTS() {
           "shading json: attribution remains composite regardless of A");
   }
 
-  // Undefined quadrant asymmetry is not a measured zero or a false pass.
+  // Undefined corner-field asymmetry is not a measured zero or a false pass.
   {
     const ShadingField field = accepted_field();
     ShadingChromatic chroma;

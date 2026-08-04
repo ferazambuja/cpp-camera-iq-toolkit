@@ -12,6 +12,9 @@ measurements:
   Stepchart capture.
 - `flat-field-sphere.jpg` — full reduced view of the integrating-sphere field
   used for the CFA response characterization.
+- `art-reproduction-proof.jpg` — reduced photograph of a print of Ansel
+  Adams's *Moonrise* from the earlier art-reproduction course workflow, shown
+  as historical context for the gamut-mapping study rather than analysis input.
 
 All images are compressed and stripped of capture metadata. The target crops
 intentionally omit the full target artwork and original file identity. These are

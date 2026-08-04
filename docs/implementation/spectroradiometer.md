@@ -104,6 +104,23 @@ software behavior.
 - Typed outputs distinguish a singleton from repeated-data statistics that
   happen to be numerically small.
 
+## Verification evidence
+
+Byte-built MATLAB v5 fixtures exercise compressed and uncompressed arrays,
+padding, dimensions, logical fields, size limits, and malformed nested data.
+Ledger and ingest tests bind canonical paths to SHA-256 digests, preserve exact
+aliases without double-counting them, and refuse traversal, identity mismatch,
+or ambiguous membership. Numeric fixtures cover repeated-reading statistics,
+level/shape/chromaticity separation, same-record XYZ closure, cancellation, and
+very large or subnormal values; command tests cover privacy-safe serialization.
+
+The independent MATLAB export is compared reading by reading and retained in a
+hash-bound public cross-check record. Mutation tests show that changing its
+dataset identity, source hashes, counts, or numeric comparison breaks the
+record check. This evidence supports parser and calculation agreement; it does
+not prove that the archived scenes were physically stable or that undocumented
+instrument CCT and Duv conventions have been recovered.
+
 ## Source and tests
 
 - MATLAB parser: [`mat_file.hpp`](../../include/camera_iq/mat_file.hpp),
@@ -118,5 +135,13 @@ software behavior.
 - Focused tests: [`test_mat_file.cpp`](../../tests/test_mat_file.cpp),
   [`test_spectro_measurement.cpp`](../../tests/test_spectro_measurement.cpp),
   [`test_spectro_ingest.cpp`](../../tests/test_spectro_ingest.cpp),
+  [`test_spectro_ledger.cpp`](../../tests/test_spectro_ledger.cpp),
   [`test_spectro_analysis.cpp`](../../tests/test_spectro_analysis.cpp), and
   [`test_spectro_colorimetry.cpp`](../../tests/test_spectro_colorimetry.cpp)
+- Command and serialization test:
+  [`test_cmd_spectro_ingest.cpp`](../../tests/test_cmd_spectro_ingest.cpp)
+- Independent MATLAB comparison and record checks:
+  [`compare_spectro_crosscheck.py`](../../tools/compare_spectro_crosscheck.py),
+  [`check_spectro_matlab_crosscheck_receipt.py`](../../tools/check_spectro_matlab_crosscheck_receipt.py),
+  [`test_compare_spectro_crosscheck.py`](../../tools/test_compare_spectro_crosscheck.py), and
+  [`test_check_spectro_matlab_crosscheck_receipt.py`](../../tools/test_check_spectro_matlab_crosscheck_receipt.py)

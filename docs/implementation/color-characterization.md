@@ -113,6 +113,21 @@ the chart.
   is not inferred from surrounding prose.
 - A localization candidate must pass geometric error, not only RGB correlation.
 
+## Verification evidence
+
+Synthetic fixtures recover known patch means and a known 3 by 3 matrix, then
+show why held-out error can expose a nonlinear example that looks better on its
+training fit. Geometry fixtures distinguish a valid projective chart grid from
+degenerate or crossed corners, and localization tests require absolute
+patch-center agreement even when RGB correlation is high. Separate refusal
+cases cover mismatched patch identities, singular fits, invalid spectra,
+flat-field gate failures, and stale reference provenance.
+
+These tests establish the extraction, fitting, evaluation, and failure
+contracts. They do not turn the compatible spectral chart reference into a
+per-unit measurement of the photographed chart; that scientific boundary comes
+from the reference-provenance report and remains serialized in every CCM result.
+
 ## Source and tests
 
 - Chart and patch types: [`patches.hpp`](../../include/camera_iq/patches.hpp),

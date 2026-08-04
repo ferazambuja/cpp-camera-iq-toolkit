@@ -336,6 +336,58 @@ class DocumentationLayerTests(unittest.TestCase):
         )
         self.assertEqual([], DOCS.report_layer_failures_for_text(relative, text))
 
+    def test_current_implementation_companions_explain_verification_evidence(self) -> None:
+        repo_root = SCRIPT.parent.parent
+        self.assertEqual([], DOCS.implementation_evidence_failures(repo_root))
+
+    def test_implementation_companion_requires_a_test_link(self) -> None:
+        relative = Path("docs/implementation/example.md")
+        text = (
+            "Synthetic tests exercise numeric fixtures, invariants, and "
+            "rejection behavior.\n"
+        )
+        failures = DOCS.implementation_evidence_failures_for_text(relative, text)
+        self.assertTrue(
+            any("public test link" in item for item in failures), failures
+        )
+
+    def test_implementation_companion_requires_evidence_role_prose(self) -> None:
+        relative = Path("docs/implementation/example.md")
+        text = "- Tests: [test_example.cpp](../../tests/test_example.cpp)\n"
+        failures = DOCS.implementation_evidence_failures_for_text(relative, text)
+        self.assertTrue(
+            any("verification evidence explanation" in item for item in failures),
+            failures,
+        )
+
+    def test_implementation_evidence_contract_allows_rewording_and_new_numbers(self) -> None:
+        relative = Path("docs/implementation/example.md")
+        text = (
+            "## Evidence from verification\n\n"
+            "The test suite challenges analytic invariants, malformed-input "
+            "refusals, and a 4,096-point numerical fixture. It establishes "
+            "software behavior, not the physical validity of a capture.\n\n"
+            "- Test: [test_example.cpp](../../tests/test_example.cpp)\n"
+        )
+        self.assertEqual(
+            [], DOCS.implementation_evidence_failures_for_text(relative, text)
+        )
+
+    def test_new_implementation_companion_is_covered_without_registration(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            repo = Path(temp)
+            companion = repo / "docs" / "implementation" / "new-method.md"
+            companion.parent.mkdir(parents=True)
+            companion.write_text(
+                "# New method\n\n"
+                "- Test: [test_new.cpp](../../tests/test_new.cpp)\n",
+                encoding="utf-8",
+            )
+            failures = DOCS.implementation_evidence_failures(repo)
+        self.assertTrue(
+            any("new-method.md" in item for item in failures), failures
+        )
+
     def test_current_case_study_and_report_figures_have_captions(self) -> None:
         repo_root = SCRIPT.parent.parent
         failures = []

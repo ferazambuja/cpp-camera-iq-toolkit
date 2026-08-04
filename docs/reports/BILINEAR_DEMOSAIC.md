@@ -114,16 +114,17 @@ Interpretation: the core bilinear interpolation agrees with LibRaw to sub-DN
 mean error on all three makers. Canon and Nikon are within rounding tolerance
 at every checked pixel. Fuji has a few larger differences, so this report does
 not claim bit-exact LibRaw equivalence for every camera; it claims a transparent
-hand-written bilinear demosaic whose behavior is defined by the synthetic tests
-above and sanity-checked against LibRaw. The consistent ~0.19–0.22 DN mean
-offset is systematic uint16 truncation in LibRaw's unsigned `image` buffer, not
-random disagreement.
+hand-written bilinear demosaic whose measured non-negative output is
+cross-checked against LibRaw under the comparison boundary above. The
+consistent ~0.19–0.22 DN mean offset is systematic uint16 truncation in
+LibRaw's unsigned `image` buffer, not random disagreement.
 
 Scope of this agreement: because LibRaw's buffer is unsigned, the comparison
 clips this tool's signed residuals to zero. It therefore validates only the
 non-negative region — it does **not** exercise the negative-residual behavior
-that is this tool's actual point of difference from LibRaw. Negative residual
-handling is covered by the synthetic tests, not by the LibRaw comparison.
+that is this tool's actual point of difference from LibRaw. The
+[implementation companion](../implementation/raw-foundation.md) documents the
+separate numerical verification of signed residual handling.
 
 ## Interpretation limits
 
