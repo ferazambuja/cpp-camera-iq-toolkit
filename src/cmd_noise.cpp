@@ -153,16 +153,14 @@ int cmd_noise(int argc, char** argv) {
                 << "' is not a directory or dataset id in " << config << "\n";
       return 1;
     }
-    if (!subdir.empty() && !is_safe_dataset_subdir(subdir)) {
+    const auto scan_root = resolve_dataset_scan_root(*resolved, subdir);
+    if (!scan_root) {
       std::cerr << "camera_iq noise: --subdir requires a relative path inside the dataset root\n";
       return 2;
     }
-
-    const std::filesystem::path scan_root =
-        subdir.empty() ? resolved->root : (resolved->root / subdir);
     const std::string root_label = dataset_scan_label(*resolved, subdir);
 
-    const auto scanned = scan_dataset(scan_root);
+    const auto scanned = scan_dataset(*scan_root);
     std::vector<ManifestEntry> entries;
     for (const auto& entry : scanned) {
       if (!is_raw_extension(entry.extension)) continue;
@@ -175,7 +173,8 @@ int cmd_noise(int argc, char** argv) {
 
     std::map<std::string, RawCfaReport> reports;
     for (const auto& entry : entries) {
-      const auto report = read_raw_cfa_stats(scan_root / entry.relative_path);
+      const auto report =
+          read_raw_cfa_stats(*scan_root / entry.relative_path);
       if (report) {
         reports.emplace(entry.relative_path, *report);
       } else {
@@ -271,8 +270,10 @@ int cmd_noise(int argc, char** argv) {
 
       const AcceptedFrame& a = frames[0];
       const AcceptedFrame& b = frames[1];
-      const auto image_a = read_raw_cfa_image(scan_root / a.entry.relative_path);
-      const auto image_b = read_raw_cfa_image(scan_root / b.entry.relative_path);
+      const auto image_a =
+          read_raw_cfa_image(*scan_root / a.entry.relative_path);
+      const auto image_b =
+          read_raw_cfa_image(*scan_root / b.entry.relative_path);
       if (!image_a || !image_b) {
         add_exclusion(summary, a.entry.relative_path, "pair_raw_unreadable",
                       a.calibration.max_abs_mean_residual);

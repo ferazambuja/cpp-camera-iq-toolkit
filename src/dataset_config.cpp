@@ -326,6 +326,13 @@ std::string dataset_file_label(std::string_view dataset_id,
   return label;
 }
 
+std::string public_file_label(const std::filesystem::path& path,
+                              std::string_view scope) {
+  std::string basename = path.filename().string();
+  if (basename.empty()) basename = ".";
+  return std::string(scope) + ":" + basename;
+}
+
 std::string dataset_display_label(const ResolvedDataset& dataset) {
   if (dataset.from_config) return dataset_root_label(dataset.id);
   const std::string basename = dataset.root.filename().string();
@@ -374,6 +381,27 @@ std::optional<std::filesystem::path> resolve_dataset_child(
     }
   }
   return candidate;
+}
+
+std::optional<ResolvedFileInput> resolve_dataset_or_external_file(
+    const ResolvedDataset& dataset, const std::filesystem::path& path) {
+  if (path.empty()) return ResolvedFileInput{};
+  if (path.is_absolute()) {
+    return ResolvedFileInput{path, public_file_label(path, "external")};
+  }
+  const auto contained = resolve_dataset_child(dataset.root, path);
+  if (!contained) return std::nullopt;
+  return ResolvedFileInput{*contained, dataset_file_label(dataset.id, path)};
+}
+
+std::optional<std::filesystem::path> resolve_dataset_scan_root(
+    const ResolvedDataset& dataset,
+    const std::filesystem::path& relative_subdir) {
+  if (!is_safe_dataset_subdir(relative_subdir)) return std::nullopt;
+  if (dataset.from_config) {
+    return resolve_dataset_child(dataset.root, relative_subdir);
+  }
+  return (dataset.root / relative_subdir).lexically_normal();
 }
 
 }  // namespace camera_iq

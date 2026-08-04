@@ -116,6 +116,15 @@ void TESTS() {
                               out.string()});
   check(rc == 0, "ccm-fit command: exclusion run succeeds");
   const std::string json = read_file(out);
+  check(json.find("\"reference_path\":\"external:reference.csv\"") !=
+                std::string::npos &&
+            json.find("\"camera_rgb_path\":\"external:camera_rgb.csv\"") !=
+                std::string::npos &&
+            json.find("\"illuminant_spd_path\":\"external:illuminant.csv\"") !=
+                std::string::npos,
+        "ccm-fit JSON: local inputs publish external scoped basenames");
+  check(json.find(root.string()) == std::string::npos,
+        "ccm-fit JSON: local absolute directory is not published");
   check(json.find("\"timeline_provenance\"") != std::string::npos,
         "ccm-fit JSON: timeline provenance emitted");
   check(json.find("\"capture_project\":\"Synthetic capture\"") !=

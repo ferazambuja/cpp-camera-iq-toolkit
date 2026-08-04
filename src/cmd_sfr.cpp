@@ -74,6 +74,12 @@ std::optional<std::filesystem::path> resolve_child(
   return resolve_dataset_child(dataset.root, child);
 }
 
+std::string raw_public_label(const ResolvedDataset& dataset,
+                             const std::filesystem::path& raw_rel) {
+  return dataset.from_config ? dataset_file_label(dataset.id, raw_rel)
+                             : public_file_label(raw_rel, "direct");
+}
+
 void write_roi(JsonWriter& json, const RoiRect& roi) {
   json.begin_object();
   json.key("x");
@@ -111,8 +117,7 @@ void write_sfr_json_impl(
   json.key("dataset");
   json.value(dataset_display_label(dataset));
   json.key("raw");
-  json.value(dataset.from_config ? dataset_file_label(dataset.id, raw_rel)
-                                 : raw_rel.generic_string());
+  json.value(raw_public_label(dataset, raw_rel));
   const std::string raw_filename = raw_rel.filename().string();
   const auto filename_meta = parse_capture_filename(raw_filename);
   json.key("provenance_checks");
@@ -383,8 +388,7 @@ void write_sfr_field_json(std::ostream& os, const ResolvedDataset& dataset,
   json.key("dataset");
   json.value(dataset_display_label(dataset));
   json.key("raw");
-  json.value(dataset.from_config ? dataset_file_label(dataset.id, raw_rel)
-                                 : raw_rel.generic_string());
+  json.value(raw_public_label(dataset, raw_rel));
   json.key("provenance_checks");
   json.begin_object();
   json.key("raw_filename");
@@ -579,6 +583,12 @@ int cmd_sfr(int argc, char** argv) {
                 << "\n";
       return 1;
     }
+    if (dataset->from_config &&
+        output_path_aliases_input(args.out, args.config)) {
+      std::cerr << "camera_iq sfr: output path must not alias the dataset "
+                   "config\n";
+      return 2;
+    }
 
     std::optional<ImatestYMultiOracle> oracle;
     std::optional<ImatestYMultiFile> field_oracle;
@@ -587,6 +597,11 @@ int cmd_sfr(int argc, char** argv) {
       if (!oracle_path) {
         std::cerr << "camera_iq sfr: oracle path resolves outside dataset '"
                   << dataset->id << "'\n";
+        return 2;
+      }
+      if (output_path_aliases_input(args.out, *oracle_path)) {
+        std::cerr << "camera_iq sfr: output path must not alias the oracle "
+                     "input\n";
         return 2;
       }
       if (args.field_map) {
@@ -616,6 +631,10 @@ int cmd_sfr(int argc, char** argv) {
     if (!raw_path) {
       std::cerr << "camera_iq sfr: RAW path resolves outside dataset '"
                 << dataset->id << "'\n";
+      return 2;
+    }
+    if (output_path_aliases_input(args.out, *raw_path)) {
+      std::cerr << "camera_iq sfr: output path must not alias the RAW input\n";
       return 2;
     }
     const auto image = read_raw_cfa_image(*raw_path);

@@ -44,11 +44,6 @@ struct Args {
   std::filesystem::path out;
 };
 
-struct ResolvedPath {
-  std::filesystem::path actual;
-  std::string label;
-};
-
 void usage() {
   std::cerr << "Usage: camera_iq patches <raw-file>"
                " (--coords FILE | --rawdigger-csv FILE | --sg-corners SPEC)"
@@ -65,18 +60,6 @@ void usage() {
                "\"x1,y1;x2,y2;x3,y3;x4,y4\".\n"
                "--rawdigger-oracle-csv validates --sg-corners output against "
                "uncorrected RawDigger means without using them as input.\n";
-}
-
-ResolvedPath resolve_dataset_side_path(const ResolvedDataset& dataset,
-                                       const std::filesystem::path& path) {
-  if (path.is_absolute()) {
-    return {path, path.string()};
-  }
-  const auto inside_dataset = dataset.root / path;
-  if (std::filesystem::exists(inside_dataset)) {
-    return {inside_dataset, dataset_file_label(dataset.id, path)};
-  }
-  return {path, path.generic_string()};
 }
 
 WhiteBalanceGains parse_wb_gains(const std::string& text) {
@@ -361,9 +344,11 @@ int cmd_patches(int argc, char** argv) {
 
   try {
     std::filesystem::path actual_raw = args.raw_file;
-    std::string file_label = args.raw_file.string();
+    std::string file_label = public_file_label(args.raw_file, "direct");
     std::filesystem::path actual_coords = args.coords;
-    std::string coords_label = args.coords.string();
+    std::string coords_label = args.coords.empty()
+                                   ? std::string{}
+                                   : public_file_label(args.coords, "external");
     std::string coordinate_source_format =
         "checker2colors_csv_one_based_top_left";
     if (sg_geometry) {
@@ -381,6 +366,7 @@ int cmd_patches(int argc, char** argv) {
     std::string flat_label;
     std::optional<ColorReferenceSpec> color_reference_spec;
     std::filesystem::path actual_color_reference;
+    bool reference_rgb_is_configured_external = false;
 
     std::optional<ResolvedDataset> dataset;
     if (!args.dataset_id.empty()) {
@@ -406,25 +392,38 @@ int cmd_patches(int argc, char** argv) {
       }
       actual_raw = *dataset_raw;
       file_label = dataset_file_label(args.dataset_id, args.raw_file);
+      const auto resolve_side = [&](const std::filesystem::path& path,
+                                    std::string_view kind) {
+        const auto resolved_side =
+            resolve_dataset_or_external_file(*dataset, path);
+        if (!resolved_side) {
+          std::cerr << "camera_iq patches: " << kind
+                    << " resolves outside dataset '" << args.dataset_id
+                    << "'\n";
+        }
+        return resolved_side;
+      };
       if (!args.coords.empty()) {
-        const auto resolved_coords =
-            resolve_dataset_side_path(*dataset, args.coords);
-        actual_coords = resolved_coords.actual;
-        coords_label = resolved_coords.label;
+        const auto resolved_coords = resolve_side(args.coords, "coordinates");
+        if (!resolved_coords) return 2;
+        actual_coords = resolved_coords->actual;
+        coords_label = resolved_coords->label;
       }
       if (!args.rawdigger_csv.empty()) {
         const auto resolved_rawdigger =
-            resolve_dataset_side_path(*dataset, args.rawdigger_csv);
-        actual_rawdigger_csv = resolved_rawdigger.actual;
-        rawdigger_label = resolved_rawdigger.label;
+            resolve_side(args.rawdigger_csv, "RawDigger input");
+        if (!resolved_rawdigger) return 2;
+        actual_rawdigger_csv = resolved_rawdigger->actual;
+        rawdigger_label = resolved_rawdigger->label;
         coords_label = rawdigger_label;
         coordinate_source_format = "rawdigger_csv_zero_based_left_top";
       }
       if (!args.rawdigger_oracle_csv.empty()) {
         const auto resolved_oracle =
-            resolve_dataset_side_path(*dataset, args.rawdigger_oracle_csv);
-        actual_rawdigger_oracle_csv = resolved_oracle.actual;
-        rawdigger_oracle_label = resolved_oracle.label;
+            resolve_side(args.rawdigger_oracle_csv, "RawDigger oracle");
+        if (!resolved_oracle) return 2;
+        actual_rawdigger_oracle_csv = resolved_oracle->actual;
+        rawdigger_oracle_label = resolved_oracle->label;
       }
 
       const auto configs = read_dataset_config(args.config);
@@ -436,45 +435,79 @@ int cmd_patches(int argc, char** argv) {
           color_reference_spec &&
           !color_reference_spec->pairing_rgb_path.empty()) {
         args.reference_rgb = color_reference_spec->pairing_rgb_path;
+        reference_rgb_is_configured_external = true;
       }
       if (color_reference_spec && !color_reference_spec->path.empty()) {
-        actual_color_reference =
-            resolve_dataset_side_path(*dataset, color_reference_spec->path)
-                .actual;
+        // Reference paths in dataset configuration are independent evidence
+        // locations, not children implicitly joined to the capture root.
+        actual_color_reference = color_reference_spec->path;
       }
       if (!args.flat_field_raw.empty()) {
         const auto resolved_flat =
-            resolve_dataset_side_path(*dataset, args.flat_field_raw);
-        actual_flat_field_raw = resolved_flat.actual;
-        flat_label = resolved_flat.label;
+            resolve_side(args.flat_field_raw, "flat-field RAW");
+        if (!resolved_flat) return 2;
+        actual_flat_field_raw = resolved_flat->actual;
+        flat_label = resolved_flat->label;
       }
     }
 
     if (!args.rawdigger_csv.empty() && !dataset) {
       actual_rawdigger_csv = args.rawdigger_csv;
-      rawdigger_label = args.rawdigger_csv.string();
+      rawdigger_label = public_file_label(args.rawdigger_csv, "external");
       coords_label = rawdigger_label;
       coordinate_source_format = "rawdigger_csv_zero_based_left_top";
     }
     if (!args.rawdigger_oracle_csv.empty() && !dataset) {
       actual_rawdigger_oracle_csv = args.rawdigger_oracle_csv;
-      rawdigger_oracle_label = args.rawdigger_oracle_csv.string();
+      rawdigger_oracle_label =
+          public_file_label(args.rawdigger_oracle_csv, "external");
     }
 
     if (!args.reference_rgb.empty()) {
-      if (dataset) {
+      if (dataset && !reference_rgb_is_configured_external) {
         const auto resolved_ref =
-            resolve_dataset_side_path(*dataset, args.reference_rgb);
-        actual_reference_rgb = resolved_ref.actual;
-        reference_label = resolved_ref.label;
+            resolve_dataset_or_external_file(*dataset, args.reference_rgb);
+        if (!resolved_ref) {
+          std::cerr << "camera_iq patches: reference RGB resolves outside "
+                       "dataset '"
+                    << args.dataset_id << "'\n";
+          return 2;
+        }
+        actual_reference_rgb = resolved_ref->actual;
+        reference_label = resolved_ref->label;
       } else {
         actual_reference_rgb = args.reference_rgb;
-        reference_label = args.reference_rgb.string();
+        reference_label = public_file_label(args.reference_rgb, "external");
       }
     }
     if (!args.flat_field_raw.empty() && !dataset) {
       actual_flat_field_raw = args.flat_field_raw;
-      flat_label = args.flat_field_raw.string();
+      flat_label = public_file_label(args.flat_field_raw, "external");
+    }
+
+    const std::vector<std::filesystem::path> inputs{
+        actual_raw,
+        actual_coords,
+        actual_rawdigger_csv,
+        actual_rawdigger_oracle_csv,
+        actual_reference_rgb,
+        actual_flat_field_raw,
+        actual_color_reference,
+        dataset ? args.config : std::filesystem::path{}};
+    const auto output_aliases_any_input = [&](const std::filesystem::path& out) {
+      return std::any_of(inputs.begin(), inputs.end(), [&](const auto& input) {
+        return output_path_aliases_input(out, input);
+      });
+    };
+    if (output_aliases_any_input(args.out) ||
+        output_aliases_any_input(args.rgb_csv_out)) {
+      std::cerr << "camera_iq patches: output path must not alias an input\n";
+      return 2;
+    }
+    if (output_path_aliases_input(args.out, args.rgb_csv_out)) {
+      std::cerr << "camera_iq patches: --out and --rgb-csv-out must be "
+                   "different paths\n";
+      return 2;
     }
 
     const auto cfa = read_raw_cfa_image(actual_raw);

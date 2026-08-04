@@ -110,6 +110,12 @@ void TESTS() {
     }
     fs::create_symlink(base / "outside" / "secret.NEF",
                        base / "root" / "link.NEF");
+    {
+      std::ofstream os(base / "outside" / "oracle.csv");
+      os << "outside oracle";
+    }
+    fs::create_symlink(base / "outside" / "oracle.csv",
+                       base / "root" / "oracle-link.csv");
     const auto config = base / "datasets.json";
     {
       std::ofstream os(config);
@@ -132,6 +138,59 @@ void TESTS() {
     check(run_sfr({"fixture", "--config", cfg, "--raw", "Images/edge.NEF",
                    "--oracle-y-multi", "../../outside/oracle.csv"}) == 2,
           "sfr command: configured dataset refuses oracle traversal");
+    check(run_sfr({"fixture", "--config", cfg, "--raw", "Images/edge.NEF",
+                   "--oracle-y-multi",
+                   (base / "outside" / "oracle.csv").string()}) == 2,
+          "sfr command: configured dataset refuses an absolute oracle");
+    check(run_sfr({"fixture", "--config", cfg, "--raw", "Images/edge.NEF",
+                   "--oracle-y-multi", "oracle-link.csv"}) == 2,
+          "sfr command: configured dataset refuses an oracle symlink escape");
+
+    const auto source = base / "root" / "Images" / "source.NEF";
+    {
+      std::ofstream os(source);
+      os << "source evidence";
+    }
+    check(run_sfr({"fixture", "--config", cfg, "--raw", "Images/source.NEF",
+                   "--edge-roi", "0,0,64,64", "--out", source.string()}) == 2,
+          "sfr command: output cannot alias the RAW input");
+    const auto normalized_source =
+        source.parent_path() / "." / source.filename();
+    check(run_sfr({"fixture", "--config", cfg, "--raw", "Images/source.NEF",
+                   "--edge-roi", "0,0,64,64", "--out",
+                   normalized_source.string()}) == 2,
+          "sfr command: normalized-equivalent output cannot alias RAW");
+    const auto hard_linked_output = base / "hard-linked-sfr-output.json";
+    fs::create_hard_link(source, hard_linked_output);
+    check(run_sfr({"fixture", "--config", cfg, "--raw", "Images/source.NEF",
+                   "--edge-roi", "0,0,64,64", "--out",
+                   hard_linked_output.string()}) == 2,
+          "sfr command: hard-linked output cannot alias RAW");
+    const auto contained_oracle = base / "root" / "oracle-input.csv";
+    {
+      std::ofstream os(contained_oracle);
+      os << "oracle evidence";
+    }
+    check(run_sfr({"fixture", "--config", cfg, "--raw", "Images/source.NEF",
+                   "--oracle-y-multi", "oracle-input.csv", "--out",
+                   contained_oracle.string()}) == 2,
+          "sfr command: output cannot alias oracle input");
+    const std::string config_before = [&] {
+      std::ifstream input(config, std::ios::binary);
+      return std::string(std::istreambuf_iterator<char>(input),
+                         std::istreambuf_iterator<char>());
+    }();
+    check(run_sfr({"fixture", "--config", cfg, "--raw", "Images/source.NEF",
+                   "--edge-roi", "0,0,64,64", "--out", cfg}) == 2,
+          "sfr command: output cannot alias dataset configuration");
+    std::ifstream preserved_config(config, std::ios::binary);
+    check(std::string(std::istreambuf_iterator<char>(preserved_config),
+                      std::istreambuf_iterator<char>()) == config_before,
+          "sfr command: config alias refusal preserves configuration bytes");
+    std::ifstream preserved(source);
+    check(std::string(std::istreambuf_iterator<char>(preserved),
+                      std::istreambuf_iterator<char>()) == "source evidence",
+          "sfr command: alias refusal preserves RAW bytes");
 
     // A contained relative input passes containment and fails later, at I/O.
     check(run_sfr({"fixture", "--config", cfg, "--raw", "Images/edge.NEF",

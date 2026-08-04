@@ -44,6 +44,11 @@ void TESTS() {
   write_file(root / "notes.txt", "hello");
   write_file(root / ".DS_Store", "junk");
   write_file(root / "Images/._CCSG_appledouble", "junk");
+  const fs::path outside = root.parent_path() / "camera_iq_manifest_outside";
+  fs::remove_all(outside);
+  write_file(outside / "outside.csv", "x,y\n1,2\n");
+  fs::create_symlink(outside / "outside.csv", root / "linked-outside.csv");
+  fs::create_directory_symlink(outside, root / "linked-outside-dir");
 
   const auto entries = scan_dataset(root);
 
@@ -51,6 +56,10 @@ void TESTS() {
   check(find_entry(entries, ".DS_Store") == nullptr, "no .DS_Store");
   check(find_entry(entries, "Images/._CCSG_appledouble") == nullptr,
         "no AppleDouble");
+  check(find_entry(entries, "linked-outside.csv") == nullptr,
+        "symlinked file outside the scan root is excluded");
+  check(find_entry(entries, "linked-outside-dir/outside.csv") == nullptr,
+        "symlinked directory outside the scan root is not traversed");
 
   // Sorted by relative path.
   bool sorted = true;
@@ -104,4 +113,5 @@ void TESTS() {
   check(threw, "missing root throws");
 
   fs::remove_all(root);
+  fs::remove_all(outside);
 }

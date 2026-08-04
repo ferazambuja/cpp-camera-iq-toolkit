@@ -128,7 +128,7 @@ int cmd_raw_stats(int argc, char** argv) {
   }
 
   std::filesystem::path actual_file = file;
-  std::string file_label = file.string();
+  std::string file_label = public_file_label(file, "direct");
   if (!dataset_id.empty()) {
     const auto resolved = resolve_dataset_root(dataset_id, config);
     if (!resolved || !resolved->from_config) {

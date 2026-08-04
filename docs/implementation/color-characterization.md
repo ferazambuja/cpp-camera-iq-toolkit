@@ -157,7 +157,20 @@ cases cover singular fits, invalid spectral-reference inputs, flat-field gate
 failures, missing required provenance fields, and a non-compatible reference
 role. The command test also pins the exact
 `compatible_sg_spectral_not_exact_per_unit` reference scope in the serialized
-result.
+result and reduces reference, camera-RGB, and illuminant paths to explicit
+`external:<basename>` labels.
+
+The shared path-resolution fixtures in
+[`test_dataset_config.cpp`](../../tests/test_dataset_config.cpp), together with
+the patch-command fixtures in
+[`test_cmd_patches.cpp`](../../tests/test_cmd_patches.cpp), keep the primary RAW
+and every dataset-side coordinate, RawDigger, reference, and flat-field input
+inside the configured root before assigning a `dataset:<id>/...` label.
+Absolute CLI sidecars and references explicitly named by dataset configuration
+remain usable but receive an `external:<basename>` label instead. The same
+fixtures refuse identical,
+normalized-equivalent, and hard-linked output aliases and prevent the CSV and
+JSON outputs from replacing one another.
 
 The public corrected-patch guard and its mutation tests—
 [`check_patch_baseline.py`](../../tools/check_patch_baseline.py) and

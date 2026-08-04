@@ -139,6 +139,10 @@ std::vector<std::filesystem::path> find_summary_files(
   }
   std::vector<std::filesystem::path> files;
   for (const auto& entry : std::filesystem::directory_iterator(dir)) {
+    if (entry.is_symlink()) {
+      throw std::runtime_error("symlinked oracle summary is not allowed: " +
+                               entry.path().filename().string());
+    }
     if (!entry.is_regular_file()) continue;
     const auto name = entry.path().filename().string();
     if (entry.path().extension() == ".csv" && has_suffix(name, "_summary.csv")) {
@@ -761,8 +765,16 @@ std::array<std::vector<double>, 4> raw_cfa_samples_for_roi(
 StepchartRawFrameMeasurement measure_raw_zones_for_file(
     const ResolvedDataset& dataset, const std::string& raw_name,
     const StepchartLocalizationResult& geometry) {
-  const auto image = read_raw_cfa_image(dataset.root / raw_name);
+  const auto raw_path = dataset.from_config
+                            ? resolve_dataset_child(dataset.root, raw_name)
+                            : std::optional<std::filesystem::path>(
+                                  dataset.root / raw_name);
   const std::string file_label = rel_label(dataset, raw_name);
+  if (!raw_path) {
+    throw std::runtime_error("raw zone file resolves outside dataset: " +
+                             file_label);
+  }
+  const auto image = read_raw_cfa_image(*raw_path);
   if (!image) {
     throw std::runtime_error("cannot read raw zone file: " + file_label);
   }
@@ -947,8 +959,14 @@ int cmd_oecf_stepchart(int argc, char** argv) {
       return 1;
     }
 
+    const auto oracle_root = resolve_dataset_scan_root(*dataset, args.oracle_dir);
+    if (!oracle_root) {
+      std::cerr << "camera_iq oecf-stepchart: --oracle-dir resolves outside "
+                   "the configured dataset root\n";
+      return 2;
+    }
     const auto entries = scan_dataset(dataset->root);
-    const auto summary_files = find_summary_files(dataset->root / args.oracle_dir);
+    const auto summary_files = find_summary_files(*oracle_root);
     std::vector<SummaryGroup> groups;
     groups.reserve(summary_files.size());
     std::set<std::pair<int, std::string>> seen_groups;
@@ -972,9 +990,29 @@ int cmd_oecf_stepchart(int argc, char** argv) {
         // Exact-location join: the capture files live at the dataset root; a
         // basename match anywhere in the tree (e.g. a stray Results/ backup
         // copy) must not satisfy the existence gate.
-        if (!std::filesystem::exists(dataset->root / f)) {
+        const auto raw_path = dataset->from_config
+                                  ? resolve_dataset_child(dataset->root, f)
+                                  : std::optional<std::filesystem::path>(
+                                        dataset->root / f);
+        if (!raw_path) {
+          std::cerr << "camera_iq oecf-stepchart: listed NEF resolves outside "
+                       "dataset: "
+                    << f << "\n";
+          return 1;
+        }
+        std::error_code raw_status_error;
+        const auto raw_status =
+            std::filesystem::symlink_status(*raw_path, raw_status_error);
+        if (raw_status_error ||
+            raw_status.type() == std::filesystem::file_type::not_found) {
           std::cerr << "camera_iq oecf-stepchart: listed NEF missing: " << f
                     << "\n";
+          return 1;
+        }
+        if (!std::filesystem::is_regular_file(raw_status)) {
+          std::cerr << "camera_iq oecf-stepchart: listed NEF is not a regular "
+                       "file: "
+                    << f << "\n";
           return 1;
         }
       }

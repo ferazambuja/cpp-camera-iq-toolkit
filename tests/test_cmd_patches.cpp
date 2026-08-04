@@ -64,6 +64,12 @@ void TESTS() {
     }
     fs::create_symlink(base / "outside" / "secret.RAF",
                        base / "root" / "link.RAF");
+    {
+      std::ofstream os(base / "outside" / "side.csv");
+      os << "outside side input";
+    }
+    fs::create_symlink(base / "outside" / "side.csv",
+                       base / "root" / "side-link.csv");
     const auto config = base / "datasets.json";
     {
       std::ofstream os(config);
@@ -79,6 +85,65 @@ void TESTS() {
     check(run_patches({"link.RAF", "--sg-corners", valid_corners, "--dataset",
                        "fixture", "--config", cfg}) == 2,
           "patches command: dataset raw cannot symlink outside root");
+    check(run_patches({"Images/edge.RAF", "--coords", "../outside/side.csv",
+                       "--dataset", "fixture", "--config", cfg}) == 2,
+          "patches command: coordinate input cannot traverse outside root");
+    check(run_patches({"Images/edge.RAF", "--coords", "side-link.csv",
+                       "--dataset", "fixture", "--config", cfg}) == 2,
+          "patches command: coordinate input cannot symlink outside root");
+    check(run_patches({"Images/edge.RAF", "--rawdigger-csv",
+                       "../outside/side.csv", "--dataset", "fixture",
+                       "--config", cfg}) == 2,
+          "patches command: RawDigger input cannot traverse outside root");
+    check(run_patches({"Images/edge.RAF", "--sg-corners", valid_corners,
+                       "--rawdigger-oracle-csv", "../outside/side.csv",
+                       "--dataset", "fixture", "--config", cfg}) == 2,
+          "patches command: RawDigger oracle cannot traverse outside root");
+    check(run_patches({"Images/edge.RAF", "--sg-corners", valid_corners,
+                       "--reference-rgb", "../outside/side.csv", "--dataset",
+                       "fixture", "--config", cfg}) == 2,
+          "patches command: reference RGB cannot traverse outside root");
+    check(run_patches({"Images/edge.RAF", "--sg-corners", valid_corners,
+                       "--flat-field-raw", "../outside/secret.RAF",
+                       "--dataset", "fixture", "--config", cfg}) == 2,
+          "patches command: flat-field RAW cannot traverse outside root");
+
+    const auto source = base / "root" / "Images" / "source.RAF";
+    {
+      std::ofstream os(source);
+      os << "source evidence";
+    }
+    check(run_patches({"Images/source.RAF", "--sg-corners", valid_corners,
+                       "--dataset", "fixture", "--config", cfg, "--out",
+                       source.string()}) == 2,
+          "patches command: report output cannot alias the RAW input");
+    const auto normalized_source =
+        source.parent_path() / "." / source.filename();
+    check(run_patches({"Images/source.RAF", "--sg-corners", valid_corners,
+                       "--dataset", "fixture", "--config", cfg, "--out",
+                       normalized_source.string()}) == 2,
+          "patches command: normalized-equivalent output cannot alias RAW");
+    const auto hard_linked_output = base / "hard-linked-patches-output.json";
+    fs::create_hard_link(source, hard_linked_output);
+    check(run_patches({"Images/source.RAF", "--sg-corners", valid_corners,
+                       "--dataset", "fixture", "--config", cfg, "--out",
+                       hard_linked_output.string()}) == 2,
+          "patches command: hard-linked output cannot alias RAW");
+    const auto contained_coords = base / "root" / "coords.csv";
+    {
+      std::ofstream os(contained_coords);
+      os << "coordinate evidence";
+    }
+    check(run_patches({"Images/source.RAF", "--coords", "coords.csv",
+                       "--dataset", "fixture", "--config", cfg, "--out",
+                       contained_coords.string()}) == 2,
+          "patches command: output cannot alias coordinate input");
+    const auto shared_output = base / "shared-output.json";
+    check(run_patches({"Images/edge.RAF", "--sg-corners", valid_corners,
+                       "--dataset", "fixture", "--config", cfg,
+                       "--rgb-csv-out", shared_output.string(), "--out",
+                       shared_output.string()}) == 2,
+          "patches command: CSV and JSON outputs must be distinct");
     // A contained relative input passes containment and fails later, at I/O.
     check(run_patches({"Images/edge.RAF", "--sg-corners", valid_corners,
                        "--dataset", "fixture", "--config", cfg}) == 1,

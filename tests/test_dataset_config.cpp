@@ -13,9 +13,12 @@ using camera_iq::dataset_file_label;
 using camera_iq::is_safe_dataset_subdir;
 using camera_iq::dataset_root_label;
 using camera_iq::dataset_scan_label;
+using camera_iq::public_file_label;
 using camera_iq::read_dataset_config;
 using camera_iq::resolve_dataset_child;
+using camera_iq::resolve_dataset_or_external_file;
 using camera_iq::resolve_dataset_root;
+using camera_iq::resolve_dataset_scan_root;
 using test::check;
 
 namespace {
@@ -192,6 +195,12 @@ void TESTS() {
                            fs::path("Images/CCSG/file.RAF")) ==
             "dataset:clrs589_project_camera/Images/CCSG/file.RAF",
         "label: dataset file");
+  check(public_file_label(fs::path("/private/archive/file.RAF"), "direct") ==
+            "direct:file.RAF",
+        "label: direct file publishes scope and basename only");
+  check(public_file_label(fs::path("../references/chart.csv"), "external") ==
+            "external:chart.csv",
+        "label: external relative file does not publish directory shape");
 
   check(is_safe_dataset_subdir(fs::path("Images/Dark Frame")),
         "safe subdir: plain relative path accepted");
@@ -219,6 +228,47 @@ void TESTS() {
   fs::create_symlink(outside, escaped_link);
   check(!resolve_dataset_child(root / "clrs", fs::path("escaped-link.RAF")),
         "dataset child: symlink escape rejected");
+
+  if (by_id) {
+    const auto contained_input =
+        resolve_dataset_or_external_file(*by_id, fs::path("Images/file.RAF"));
+    check(contained_input &&
+              contained_input->actual == root / "clrs" / "Images/file.RAF" &&
+              contained_input->label ==
+                  "dataset:clrs589_project_camera/Images/file.RAF",
+          "dataset or external file: relative input stays contained and "
+          "dataset-labeled");
+    const auto external_input = resolve_dataset_or_external_file(
+        *by_id, fs::path("/outside/reference.csv"));
+    check(external_input &&
+              external_input->actual == fs::path("/outside/reference.csv") &&
+              external_input->label == "external:reference.csv",
+          "dataset or external file: absolute input stays usable with a "
+          "scoped basename label");
+    check(!resolve_dataset_or_external_file(*by_id,
+                                             fs::path("../outside.RAF")),
+          "dataset or external file: relative traversal is refused");
+    check(!resolve_dataset_or_external_file(*by_id,
+                                             fs::path("escaped-link.RAF")),
+          "dataset or external file: relative symlink escape is refused");
+  }
+
+  fs::create_directories(root / "clrs" / "Images");
+  fs::create_directories(root / "outside-dir");
+  const fs::path escaped_dir = root / "clrs" / "escaped-dir";
+  fs::create_directory_symlink(root / "outside-dir", escaped_dir);
+  if (by_id) {
+    check(resolve_dataset_scan_root(*by_id, fs::path("Images")) ==
+              root / "clrs" / "Images",
+          "dataset scan root: contained subdirectory accepted");
+    check(!resolve_dataset_scan_root(*by_id, fs::path("escaped-dir")),
+          "dataset scan root: configured symlink escape rejected");
+  }
+  if (by_path) {
+    check(resolve_dataset_scan_root(*by_path, fs::path("escaped-dir")) ==
+              root / "clrs" / "escaped-dir",
+          "dataset scan root: direct mode keeps non-attributed path semantics");
+  }
 
   fs::remove_all(root);
 }
