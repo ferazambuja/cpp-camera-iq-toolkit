@@ -2,7 +2,7 @@
 
 RAW code values include a black pedestal even when no light reaches the sensor.
 Subtracting the wrong pedestal biases shadows and contaminates every later noise
-or color calculation. This report compares the post-unpack metadata black level
+or color calculation. This report compares the decoded metadata black level
 with 21 dark captures: 20 support the recovered 1024 DN pedestal, while one
 outlier is retained and rejected rather than allowed to move the consensus.
 
@@ -11,11 +11,11 @@ RAW captures remain outside the public repository.
 
 ## Scope
 
-The analysis reconciles post-unpack metadata black against measured
+The analysis reconciles decoded metadata black against measured
 dark-frame RAW data:
 
 - Analyze the 21 declared dark-frame candidates as one bounded set.
-- Measure post-unpack RAW-CFA statistics for each candidate.
+- Measure decoded, active-area RAW-CFA statistics for each candidate.
 - Report each frame's signed mean residual after metadata black subtraction.
 - Report measured dark raw means as `metadata_black + residual_mean`.
 - Count frames inside and outside a configurable residual tolerance.
@@ -25,8 +25,9 @@ DSNU/PRNU result, temporal-noise result, PTC, or dynamic-range metric.
 
 ## Scientific Handling
 
-- Black and pitch are read after unpacking and use the same active-area crop and
-  repeating black-tile handling as the RAW-statistics and demosaic baselines.
+- Black level and storage layout are finalized during pixel decoding and use
+  the same active-area crop and repeating pedestal handling as the RAW-statistics
+  and demosaic baselines.
 - A dark-frame residual near zero means the metadata black subtraction agrees
   with measured dark RAW values for that frame. The reported measured raw dark
   level is the metadata black plus the signed residual mean.

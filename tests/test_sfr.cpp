@@ -386,6 +386,43 @@ void TESTS() {
   }
 
   {
+    // A broad edge in the minimum-size ROI crosses 0.5 between DC and the
+    // first non-DC DFT bin. The crossing search must include that interval.
+    const auto image = synthetic_green_edge(64, 64, 6.0, 12.0, true);
+    const auto result =
+        camera_iq::analyze_green_sfr(image, RoiRect{20, 20, 24, 24});
+    test::check(result.accepted,
+                "broad edge with first-bin MTF50 crossing is accepted");
+    test::check(result.mtf_frequency_cy_per_px.size() > 1 &&
+                    result.mtf50_cy_per_px > 0.0 &&
+                    result.mtf50_cy_per_px <
+                        result.mtf_frequency_cy_per_px[1],
+                "MTF50 crossing between DC and first non-DC bin is retained");
+    test::check(result.mtf_frequency_cy_per_px.size() > 1 &&
+                    result.mtf50p_cy_per_px > 0.0 &&
+                    result.mtf50p_cy_per_px <
+                        result.mtf_frequency_cy_per_px[1],
+                "MTF50P crossing between DC and first non-DC bin is retained");
+  }
+
+  {
+    // With 2 px ESF bins, the computed frequency axis ends below sensor
+    // Nyquist. Returning the last sampled MTF as MTF(0.5) would be an
+    // extrapolation disguised as an interpolation.
+    const auto image = synthetic_green_edge(160, 144, -6.0, 1.25, true);
+    camera_iq::SfrOptions options;
+    options.bin_spacing_px = 2.0;
+    const auto result = camera_iq::analyze_green_sfr(
+        image, RoiRect{20, 16, 120, 112}, options);
+    test::check(!result.mtf_frequency_cy_per_px.empty() &&
+                    result.mtf_frequency_cy_per_px.back() < 0.5,
+                "coarse ESF fixture ends below sensor Nyquist");
+    test::check(!result.accepted &&
+                    result.rejection_reason == "nyquist_not_sampled",
+                "frequency axes ending below Nyquist are rejected");
+  }
+
+  {
     // Area-integrated (pixel-aperture) step edge: analytic MTF ~ |sinc(f)|,
     // MTF50 ~ 0.6034 cy/px. Distinct sampling model from the point-sampled
     // Gaussian erf test above. Tolerance covers the known small biases:

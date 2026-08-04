@@ -118,6 +118,9 @@ visible rather than hidden inside one rank.
 
 ## Verification evidence
 
+The spectral-response assertions are in
+[`test_spectral_response.cpp`](../../tests/test_spectral_response.cpp).
+
 The legacy parser fixture requires 48 samples from `360` through `830 nm` in
 `10 nm` steps and pins the normalized green peak at `1.0` to `1e-12`. It
 refuses wrong row counts, an axis gap, misaligned SPD, non-finite response, and

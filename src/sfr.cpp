@@ -178,9 +178,14 @@ double interpolate_crossing(const std::vector<double>& x,
 
 double interpolate_curve(const std::vector<double>& x,
                          const std::vector<double>& y, double target_x) {
-  if (x.empty() || y.empty() || x.size() != y.size()) return 0.0;
-  if (target_x <= x.front()) return y.front();
-  if (target_x >= x.back()) return y.back();
+  if (x.empty() || y.empty() || x.size() != y.size()) {
+    return std::numeric_limits<double>::quiet_NaN();
+  }
+  if (target_x < x.front() || target_x > x.back()) {
+    return std::numeric_limits<double>::quiet_NaN();
+  }
+  if (target_x == x.front()) return y.front();
+  if (target_x == x.back()) return y.back();
   for (std::size_t i = 0; i + 1 < x.size(); ++i) {
     if (target_x >= x[i] && target_x <= x[i + 1]) {
       const double denom = x[i + 1] - x[i];
@@ -188,12 +193,12 @@ double interpolate_curve(const std::vector<double>& x,
       return y[i] + t * (y[i + 1] - y[i]);
     }
   }
-  return y.back();
+  return std::numeric_limits<double>::quiet_NaN();
 }
 
 double find_mtf_crossing(const std::vector<double>& f,
                          const std::vector<double>& mtf, double target) {
-  for (std::size_t i = 1; i + 1 < f.size(); ++i) {
+  for (std::size_t i = 0; i + 1 < f.size(); ++i) {
     if (mtf[i] >= target && mtf[i + 1] <= target) {
       const double denom = mtf[i + 1] - mtf[i];
       const double t = std::abs(denom) > kEps ? (target - mtf[i]) / denom : 0.0;
@@ -526,8 +531,16 @@ SfrResult analyze_green_sfr(const RawCfaImage& image, const RoiRect& requested,
     result.mtf_frequency_cy_per_px.push_back(f);
     result.mtf.push_back(mtf);
   }
+  if (result.mtf_frequency_cy_per_px.empty() ||
+      result.mtf_frequency_cy_per_px.front() > 0.5 ||
+      result.mtf_frequency_cy_per_px.back() < 0.5) {
+    return reject_result(std::move(result), "nyquist_not_sampled");
+  }
   result.mtf_at_nyquist =
       interpolate_curve(result.mtf_frequency_cy_per_px, result.mtf, 0.5);
+  if (!std::isfinite(result.mtf_at_nyquist)) {
+    return reject_result(std::move(result), "nyquist_not_sampled");
+  }
   result.mtf50_cy_per_px =
       find_mtf_crossing(result.mtf_frequency_cy_per_px, result.mtf, 0.5);
   const double peak = *std::max_element(result.mtf.begin(), result.mtf.end());

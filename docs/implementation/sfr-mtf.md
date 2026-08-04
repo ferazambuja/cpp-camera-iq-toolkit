@@ -45,8 +45,8 @@ For each scan line, the implementation:
 1. collects green samples in spatial order;
 2. estimates the two plateau levels from the first and last quarters;
 3. finds the strongest crossing of their midpoint;
-4. refines the edge position with an absolute-gradient centroid in an 8 px
-   window; and
+4. refines the edge position with an absolute-gradient centroid within
+   ±8 px of the coarse crossing; and
 5. fits edge position against scan-line position by least squares.
 
 The fitted slope establishes edge orientation and angle. Each sample is then
@@ -102,6 +102,9 @@ conclusions cannot be merged accidentally.
 
 ## Verification evidence
 
+The executable numerical assertions are in
+[`test_sfr.cpp`](../../tests/test_sfr.cpp).
+
 The numerical core is checked against analytic fixtures. A delta LSF produces
 three nonredundant DFT bins of `1.0` to `1e-12`; a 32-sample cosine concentrates
 energy in bin 3 while other non-DC bins stay below `1e-10`. The
@@ -124,6 +127,15 @@ bins remain accepted within `0.02 cycles/pixel` of the default MTF50, while
 `0.015 px` refuses as `underfilled_esf` and `0.01 px` refuses as
 `invalid_esf_grid` before allocation. Rejected JSON is checked for `null`
 MTF50, MTF50P, Nyquist MTF, and R10–90 fields.
+
+A separate `64 × 64`, `sigma = 12`, `6°` fixture with the minimum `24 × 24`
+ROI pins both MTF50 and peak-normalized MTF50P crossings between DC and the
+first non-DC DFT bin; this prevents broad edges from being rejected merely
+because a crossing lies in the first interval. On the standard Gaussian
+fixture, changing the ESF spacing to `2 px` makes the sampled frequency axis
+end below `0.5 cycles/pixel`;
+that case must refuse as `nyquist_not_sampled` instead of substituting the last
+sampled MTF for an unmeasured Nyquist value.
 
 Archive-shaped D800 and D810 fixtures serve a different role: they verify the
 advisory parser, physical-corner labels, field summaries, and the fact that the

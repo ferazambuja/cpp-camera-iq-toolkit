@@ -70,8 +70,9 @@ guarantee that every chromatic ratio has a nonzero denominator.
 
 ## Asymmetry and dark controls
 
-`ShadingBlocks` holds one median per CFA position for the center block and for
-each of the four corner blocks, plus each corner's center-normalized value. The
+`ShadingField::center_block_median` holds one center median per CFA position.
+`ShadingBlocks` holds the four corner medians and their center-normalized
+values. The
 corner blocks are `corner_block_px` squares inset by `corner_inset_px`; they are
 deliberately not the grid's corner bins, which a 16x12 grid centers at 1/32 of
 the frame width and which therefore never reach the corner.
@@ -79,9 +80,12 @@ the frame width and which therefore never reach the corner.
 `ShadingChromatic::green_asymmetry` reduces those four corner values to the
 single scalar the scientific report defines, using the mean of the two green
 planes at each corner. Keeping four named corners rather than a radial average
-is what makes the statistic informative: the four blocks sit at equal radius, so
-a centered radially symmetric field drives the spread to zero analytically, and
-a nonzero value is a departure that a radial average would have erased.
+is what makes the statistic informative: in a continuous centered radial field,
+the four equal-radius locations have identical response and therefore zero
+spread. The finite CFA/block estimator has a small fixture-dependent sampling
+residual; a nonzero measured value is a departure that a radial average would
+have erased, but the estimator does not make every sampled radial fixture
+exactly zero.
 
 Equal radius is a geometric precondition, so the code enforces it rather than
 assuming it. Odd block and inset requests round inward to even values, and the
@@ -112,8 +116,14 @@ outputs so an aggregate cannot be detached from the policy that produced it.
 
 ## Verification evidence
 
+The primary scalar and geometry assertions are in
+[`test_shading.cpp`](../../tests/test_shading.cpp).
+
 Synthetic fields distinguish a centered radial response from a four-corner
-asymmetry and keep R, G1, G2, and B independent. Gate fixtures verify that
+asymmetry and keep R, G1, G2, and B independent. For the sampled centered-radial
+fixture and its declared CFA/block geometry, green asymmetry must remain below
+`1e-3`; that is a fixture-specific discretization bound, not a universal
+sampling floor. Gate fixtures verify that
 exactly `1%` near-ceiling samples and exactly `90%` finite coverage pass, while
 values beyond either inclusive boundary fail per CFA position. Other fixtures
 cover zero chromatic denominators, odd-mosaic refusal, dark metadata and

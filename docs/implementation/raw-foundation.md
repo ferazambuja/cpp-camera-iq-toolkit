@@ -166,6 +166,9 @@ conversion gain is available.
 
 ## Verification evidence
 
+The cross-camera RAW invariants begin in
+[`test_raw_meta.cpp`](../../tests/test_raw_meta.cpp).
+
 The RAW bridge is tested at the representation boundaries that can change the
 meaning of every later result. A `12032`-byte row pitch is interpreted as
 `6016` `uint16` samples, while an odd `12033`-byte pitch is refused. Synthetic

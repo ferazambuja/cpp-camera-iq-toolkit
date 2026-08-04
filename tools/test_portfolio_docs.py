@@ -300,6 +300,10 @@ class DocumentationLayerTests(unittest.TestCase):
             "The parser is deliberately table-scoped.\n",
             "This verifies that the parser sees archive metadata.\n",
             "The signal is transformed with an in-repo DFT.\n",
+            "Pixels come from LibRaw `rawdata.raw_image` after `unpack()`.\n",
+            "The result emits `dsnu_below_temporal_floor`.\n",
+            "The pedestal uses `cblack[6..]` and `sizes.raw_pitch`.\n",
+            "The report measures post-unpack black metadata.\n",
         )
         for text in examples:
             with self.subTest(text=text):
@@ -349,6 +353,37 @@ class DocumentationLayerTests(unittest.TestCase):
         failures = DOCS.implementation_evidence_failures_for_text(relative, text)
         self.assertTrue(
             any("public test link" in item for item in failures), failures
+        )
+
+    def test_evidence_section_requires_its_own_test_link(self) -> None:
+        relative = Path("docs/implementation/example.md")
+        text = (
+            "## Verification evidence\n\n"
+            "Synthetic fixtures establish a 1e-6 numeric bound. They do not "
+            "establish the physical validity of a capture.\n\n"
+            "## Source and tests\n\n"
+            "- Test: [test_example.cpp](../../tests/test_example.cpp)\n"
+        )
+        failures = DOCS.implementation_evidence_failures_for_text(relative, text)
+        self.assertTrue(
+            any("evidence section missing public test link" in item
+                for item in failures),
+            failures,
+        )
+
+    def test_evidence_section_requires_a_pinned_assertion(self) -> None:
+        relative = Path("docs/implementation/example.md")
+        text = (
+            "## Verification evidence\n\n"
+            "Synthetic tests exercise useful behavior and rejection paths. "
+            "They do not establish the physical validity of a capture.\n\n"
+            "- Test: [test_example.cpp](../../tests/test_example.cpp)\n"
+        )
+        failures = DOCS.implementation_evidence_failures_for_text(relative, text)
+        self.assertTrue(
+            any("numeric assertion or semantic contract" in item
+                for item in failures),
+            failures,
         )
 
     def test_implementation_companion_requires_evidence_role_prose(self) -> None:
@@ -405,12 +440,42 @@ class DocumentationLayerTests(unittest.TestCase):
             failures,
         )
 
+    def test_evidence_section_requires_a_scientific_limitation(self) -> None:
+        # A verification inventory without its scientific boundary invites the
+        # reader to treat software behavior as physical validation.
+        relative = Path("docs/implementation/example.md")
+        text = (
+            "## Verification evidence\n\n"
+            "Synthetic tests establish analytic invariants, numeric bounds, "
+            "and malformed-input rejection behavior.\n\n"
+            "- Test: [test_example.cpp](../../tests/test_example.cpp)\n"
+        )
+        failures = DOCS.implementation_evidence_failures_for_text(relative, text)
+        self.assertTrue(
+            any("scientific limitation" in item for item in failures),
+            failures,
+        )
+
+    def test_algorithm_negation_is_not_a_scientific_limitation(self) -> None:
+        relative = Path("docs/implementation/example.md")
+        text = (
+            "## Verification evidence\n\n"
+            "Display-P3 mapping tests establish numeric bounds. Mapped outputs "
+            "do not increase chroma, and the algorithms do not use LittleCMS.\n\n"
+            "- Test: [test_example.cpp](../../tests/test_example.cpp)\n"
+        )
+        failures = DOCS.implementation_evidence_failures_for_text(relative, text)
+        self.assertTrue(
+            any("scientific limitation" in item for item in failures),
+            failures,
+        )
+
     def test_evidence_section_heading_wording_is_not_pinned(self) -> None:
         relative = Path("docs/implementation/example.md")
         text = (
             "## What the fixtures establish, and what they do not\n\n"
-            "Synthetic tests cover analytic invariants and rejection paths. "
-            "The scientific report remains the authority for physical claims.\n\n"
+            "Synthetic tests cover 3 analytic invariants and rejection paths. "
+            "They do not establish the physical validity of a capture.\n\n"
             "- Test: [test_example.cpp](../../tests/test_example.cpp)\n"
         )
         self.assertEqual(

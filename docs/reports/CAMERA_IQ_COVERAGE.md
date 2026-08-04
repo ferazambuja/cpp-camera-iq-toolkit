@@ -48,7 +48,7 @@ turning this scientific coverage map into a software inventory.
 
 | IQ dimension | Scientific status | Reports | Supported method or result | Limitations |
 |---|---|---|---|---|
-| RAW file inventory and metadata | Covered | [Fuji manifest](FUJI_XT100_CCSG_MANIFEST.md), [spectral report](SPECTRAL_SENSITIVITY.md) | Dataset scans, filename/EXIF checks, candidate exposure series, private-data labeling. | `manifest` is metadata/open-file oriented; maker black and pitch are authoritative only after unpack where needed. |
+| RAW file inventory and metadata | Covered | [Fuji manifest](FUJI_XT100_CCSG_MANIFEST.md), [spectral report](SPECTRAL_SENSITIVITY.md) | Dataset scans, filename/EXIF checks, candidate exposure series, private-data labeling. | The inventory is based on initial file metadata; maker black level and storage layout are authoritative only after pixel decoding where needed. |
 | RAW CFA statistics | Covered | [RAW stats](RAW_STATS.md) | Black-subtracted per-CFA-position statistics over full frames or regions, with controlled cross-maker comparisons. | Not a full ISP or rendered-image analysis. |
 | Demosaic | Covered as transparent baseline | [Bilinear demosaic](BILINEAR_DEMOSAIC.md) | Hand-written bilinear demosaic with synthetic and real validation. | Not bit-exact LibRaw parity or production demosaic quality. |
 | ColorChecker-SG reference provenance | Covered | [SG provenance](SG_REFERENCE_PROVENANCE.md) | Spectral reference inventory, X-Rite verification, orientation/layout checks. | Not a measured per-unit CLRS-589 SG reference. |

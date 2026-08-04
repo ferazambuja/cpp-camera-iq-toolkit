@@ -112,6 +112,9 @@ software behavior.
 
 ## Verification evidence
 
+The MAT-ingest assertions begin in
+[`test_mat_file.cpp`](../../tests/test_mat_file.cpp).
+
 Byte-built MATLAB v5 fixtures exercise compressed and uncompressed numeric
 structs, padding, mixed numeric widths, compact tags, logical identity, and
 bounded cumulative inflation. Malformed headers, versions, dimensions, lossy

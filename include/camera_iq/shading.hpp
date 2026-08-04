@@ -118,6 +118,8 @@ struct ShadingGates {
 //
 // Equal radius is what licenses the inference. An off-axis maximum alone does
 // not: a centered radial response may peak on an annulus.
+// Four corner-block scalar sets used by the corner-field asymmetry statistic.
+// The separate center normalizer is ShadingField::center_block_median.
 struct ShadingBlocks {
   std::array<std::array<double, 4>, 4> corner_median{};
   std::array<std::array<double, 4>, 4> corner_relative{};

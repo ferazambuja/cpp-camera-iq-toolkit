@@ -14,18 +14,19 @@ are not distributed with this repository.
 
 The calculation is scoped to what the local CLRS-589 dark-frame data supports:
 
-- Start with the post-unpack, black-subtracted CFA samples and exclude the
+- Start with decoded, active-area, black-subtracted CFA samples and exclude the
   outlier identified by the dark-calibration screen.
 - Estimate temporal dark-frame noise from matched setting pairs in DN:
   `sigma_temporal = stddev(frame1 - frame2) / sqrt(2)`.
 - Estimate dark-signal non-uniformity (DSNU), the fixed spatial component, from
   the pair mean after subtracting the temporal contribution:
   `DSNU^2 = var(mean_pair) - sigma_temporal^2 / N`, with `N=2` for a pair.
-- Emit a robust MAD-based DSNU companion because the moment estimate is
-  defect-pixel-inclusive. The companion subtracts the SAME temporal floor
+- Report a robust MAD-based DSNU companion because the moment estimate includes
+  defect pixels. The companion subtracts the same temporal floor
   (`robust^2 = mad(mean_pair)^2 - sigma_temporal^2 / N`) so both DSNU columns
-  are on one scale, and clamps to null with `dsnu_below_temporal_floor` when the
-  tail-robust bulk holds no fixed-pattern above that floor.
+  are on one scale. When the robust variance does not exceed that floor, the
+  result remains undefined rather than being forced to zero or an imaginary
+  value.
 - Fit an expected-null dark-current diagnostic over in-tolerance dark frames.
 
 This is deliberately not photon-transfer, electron read noise, full well, or
@@ -66,8 +67,8 @@ reported in `DARK_CALIBRATION.md` (`max_abs_mean_residual` =
 
 ## Temporal Noise And DSNU
 
-All values are black-subtracted DN. Channel labels are CFA-position labels from
-LibRaw's active Bayer phase; the two green positions are kept separate.
+All values are black-subtracted DN. Channel labels follow the decoded active
+Bayer phase; the two green positions are kept separate.
 
 | Plane | Temporal noise DN | Moment DSNU DN | Robust MAD DSNU DN |
 |---|---:|---:|---:|

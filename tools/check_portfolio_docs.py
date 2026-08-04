@@ -57,6 +57,33 @@ IMPLEMENTATION_EVIDENCE_ROLE_RE = re.compile(
     r"\b(?:test(?:s|ed|ing)?|cross-check(?:s|ed|ing)?|fixtures?)\b",
     re.IGNORECASE,
 )
+IMPLEMENTATION_EVIDENCE_LIMIT_RE = re.compile(
+    r"\b(?:does|do|did)\s+not\s+"
+    r"(?:establish|prove|validate|remeasure|rerun|recover|inspect|identify|turn)\w*\b|"
+    r"\bcannot\s+"
+    r"(?:establish|prove|validate|remeasure|rerun|recover|inspect|identify)\w*\b|"
+    r"\bneither\s+(?:is|are)\b.{0,160}"
+    r"\b(?:validation|evidence|proof|measurement)\w*\b|"
+    r"\bnot\s+(?:a|an|the)\s+"
+    r"(?:claim|proof|validation|measurement|evidence)\w*\b|"
+    r"\bnot\s+(?:a|an|the)\s+"
+    r"(?:physical|perceptual|observer|capture|archive|instrument|display|"
+    r"scene|measurement|scientific|causal)\w*"
+    r"(?:\s+\w+){0,6}\s+"
+    r"(?:validity|accuracy|proof|validation|evidence)\w*\b|"
+    r"\b(?:reports?|measurements?|captures?)\b.{0,220}"
+    r"\b(?:remain|remains)\s+(?:the\s+)?authority\b",
+    re.IGNORECASE,
+)
+IMPLEMENTATION_EVIDENCE_ASSERTION_RE = re.compile(
+    r"(?<![A-Za-z0-9_])\d[\d,]*(?:\.\d+)?(?:e[+-]?\d+)?"
+    r"(?![A-Za-z0-9_])|"
+    r"\b(?:reject(?:s|ed|ion)?|refus(?:e|es|ed|al)|preserv(?:e|es|ed)|"
+    r"round[- ]trip(?:s|ped)?|mutation)\b.{0,120}`[^`]+`|"
+    r"`[^`]+`.{0,120}\b(?:reject(?:s|ed|ion)?|refus(?:e|es|ed|al)|"
+    r"preserv(?:e|es|ed)|round[- ]trip(?:s|ped)?|mutation)\b",
+    re.IGNORECASE,
+)
 
 # Every public study and report must route implementation detail to one named
 # companion. Exact links are intentional: a generic implementation index does
@@ -128,6 +155,13 @@ REPORT_LAYER_PATTERNS = {
     ),
     "repository-specific numerical method in scientific report": re.compile(
         r"\bin-repo DFT\b", re.IGNORECASE
+    ),
+    "library or serialization identifier in scientific report": re.compile(
+        r"`(?:COLOR\(\)|unpack\(\)|effective_black_levels\(\)|"
+        r"rawdata\.raw_image|sizes\.(?:width|height|top_margin|left_margin|"
+        r"raw_pitch)|raw_width|cblack(?:\[[^`]*\])?|"
+        r"dsnu_below_temporal_floor)`|\bpost[- ]unpack\b",
+        re.IGNORECASE,
     ),
 }
 STALE_PATTERNS = {
@@ -491,6 +525,15 @@ def implementation_evidence_failures_for_text(
             tail[: next_peer_or_parent.start()] if next_peer_or_parent else tail
         )
 
+    if evidence_sections and not any(
+        IMPLEMENTATION_TEST_LINK_RE.search(section)
+        for section in evidence_sections
+    ):
+        failures.append(
+            f"implementation evidence section missing public test link: "
+            f"{relative} — link the executable assertion beside the claim it pins"
+        )
+
     prose_paragraphs = []
     for evidence_text in evidence_sections:
         for paragraph in re.split(r"\n\s*\n", evidence_text):
@@ -508,6 +551,24 @@ def implementation_evidence_failures_for_text(
             f"implementation companion missing verification evidence explanation: "
             f"{relative} — explain what tests or cross-checks establish and what "
             f"scientific validity still depends on"
+        )
+    if not any(
+        IMPLEMENTATION_EVIDENCE_ASSERTION_RE.search(paragraph)
+        for paragraph in prose_paragraphs
+    ):
+        failures.append(
+            f"implementation companion missing a numeric assertion or semantic "
+            f"contract in its verification evidence: {relative} — retain at "
+            f"least one test-backed count, bound, precondition, or exact refusal"
+        )
+    if not any(
+        IMPLEMENTATION_EVIDENCE_LIMIT_RE.search(paragraph)
+        for paragraph in prose_paragraphs
+    ):
+        failures.append(
+            f"implementation companion missing a scientific limitation in its "
+            f"verification evidence: {relative} — state what the tests do not "
+            f"establish about the physical evidence"
         )
     return failures
 

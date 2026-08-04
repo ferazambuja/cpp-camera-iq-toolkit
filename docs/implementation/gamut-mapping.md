@@ -98,6 +98,9 @@ has been established; it is not the mapping algorithm.
 
 ## Verification evidence
 
+The core mapping assertions are in
+[`test_gamut_mapping.cpp`](../../tests/test_gamut_mapping.cpp).
+
 The test suite challenges broad algorithm contracts, while the artifact check
 separately regenerates the published 125-point JSON, CSV, and SVG outputs from
 the current executable. The first asks whether the methods remain well behaved

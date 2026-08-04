@@ -47,7 +47,8 @@ illuminant, and chart reflectance.
 All source captures remain private. The retained legacy response curves are
 comparison references for reimplementation fidelity, not independent truth.
 Black levels used for sample calculations are read after RAW unpacking because
-maker metadata can change between file open and unpack; camera clocks and file
+maker metadata can change between initial file inspection and pixel decoding;
+camera clocks and file
 modification times do not determine session pairing.
 
 ## Recovering and checking the sensitivity functions

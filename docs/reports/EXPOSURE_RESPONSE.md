@@ -16,14 +16,11 @@ are not distributed with this repository.
 The analysis first identifies coherent exposure series and then measures each
 frame on the same sensor-linear basis:
 
-- Detect RAW exposure series from filename metadata across supported LibRaw
-  extensions, not only RAF.
-- Parse the Nikon D800 archive pattern
-  `NIKON D800_i100_s1-40_8.NEF` as group / ISO / shutter / frame metadata.
-- Run full-frame or ROI raw-CFA statistics for each selected series frame.
-- Emit black-subtracted per-shutter CFA response summaries.
-- Optionally restrict the response summary to a CFA-balanced region of interest
-  (ROI) in active-area coordinates.
+- Group supported RAW files into exposure series using their retained capture
+  labels and settings rather than assuming one camera-specific filename form.
+- Measure black-subtracted CFA response at each shutter setting, either across
+  the full active area or within a CFA-balanced region of interest (ROI).
+- Keep the effective ROI with every result so spatial support remains explicit.
 
 This report covers exposure-series readiness rather than a final OECF, PTC,
 read-noise, dynamic-range, or ISO-conformance metric. The implemented
@@ -32,14 +29,15 @@ conformance.
 
 ## Scientific Handling
 
-- Per-frame statistics reuse the post-unpack black subtraction and active-area
-  crop defined in [RAW CFA statistics](RAW_STATS.md).
+- Per-frame statistics reuse the decoded active-area crop and black subtraction
+  defined in [RAW CFA statistics](RAW_STATS.md).
 - Series keys remain conservative: directory, group, aperture, and ISO token.
   Missing ISO is not merged with explicit ISO.
-- `mean_signal_by_plane` is the average of per-frame black-subtracted CFA means
-  at the same shutter.
-- `mean_spatial_stddev_by_plane` is named as spatial stddev. It is not temporal
-  noise and must not be used as PTC/read-noise evidence.
+- At each shutter, the reported plane signal is the average of the
+  black-subtracted CFA means across the available frames.
+- The accompanying spatial standard deviation describes variation within a
+  frame. It is not temporal noise and must not be used as PTC/read-noise
+  evidence.
 - ROI mode uses active-area coordinates, clips the requested rectangle to image
   bounds, and rounds inward to an even origin and even dimensions so every
   selected region contains complete 2x2 Bayer blocks. The effective measured
@@ -128,30 +126,29 @@ Result summary:
 | ROI uniformity checked | true |
 | Max ROI stddev / range | 0.021073 |
 
-This proves the ROI plumbing and provenance path on real RAFs. It is still only
-a manually selected active-area rectangle, not an identified chart patch or
-measured reflectance target.
+This demonstrates the same ROI policy and frame identity on real RAFs. It is
+still only a manually selected active-area rectangle, not an identified chart
+patch or measured reflectance target.
 
-### Nikon D800 archive parse check
+### Nikon D800 archive suitability check
 
 Result summary:
 
 | Field | Value |
 |---|---:|
 | Files scanned | 206 |
-| Parsed `NIKON D800_i..._s...` files | 91 |
-| Exposure-series candidates | 0 |
-| Example parse | ISO 100, `s1-40`, 0.025 s, frame 1 |
+| Files with interpretable exposure labels | 91 |
+| Fixed-ISO, fixed-aperture shutter ladders | 0 |
+| Example exposure label | ISO 100, 1/40 s, frame 1 |
 
-This verifies that the archive metadata can be interpreted while the declared
-fixed-ISO/fixed-aperture grouping rule does not falsely manufacture a shutter
-ladder from the D800 folder.
+The archive metadata is interpretable, but the declared fixed-ISO,
+fixed-aperture grouping rule finds no valid shutter ladder in the D800 folder.
 
 The D800 folder's Imatest Stepchart summaries are handled by the separate
 [Stepchart analysis](OECF_STEPCHART.md), not as a change to this fixed-ISO
 exposure-series detector. That capture set compensates shutter as
 ISO changes, so the chart zones supply the rendered-luminance log-exposure axis
-and the current `exposure-response` zero-series result remains correct.
+and the zero eligible exposure-series result remains correct.
 
 ## Interpretation limits
 

@@ -117,6 +117,9 @@ the chart.
 
 ## Verification evidence
 
+The primary colorimetric assertions are in
+[`test_colorimetry.cpp`](../../tests/test_colorimetry.cpp).
+
 Patch fixtures pin selected `5 × 5`-image ROI means to `1e-12`. Projective
 geometry tests retain all 140 cells in `A1…N10` order and refuse degenerate,
 crossed, or non-finite corner sets. The localization gate is tested against two
