@@ -14,27 +14,25 @@ Source RAW files are not distributed with this repository.
 
 ## Scope
 
-The measurement covers RAW unpack and per-CFA-position statistics over the
-visible active Bayer mosaic. It deliberately stops before demosaic, response
+The measurement covers decoded RAW samples and per-CFA-position statistics over
+the visible active Bayer mosaic. It deliberately stops before demosaic, response
 fitting, photon-transfer analysis, noise modeling, or color correction so the
 sensor-domain baseline remains observable.
 
 ## Scientific Handling
 
-- Input pixels come from LibRaw `rawdata.raw_image` after `unpack()`.
-- Statistics use LibRaw `sizes.width` / `sizes.height` as the visible active
-  area and start at `sizes.top_margin` / `sizes.left_margin`.
-- Row stepping uses `sizes.raw_pitch / 2` when LibRaw reports a pitch, otherwise
-  falls back to `raw_width` for tightly packed `uint16_t` raw buffers.
-- Non-ordinary Bayer layouts are rejected for this phase (`filters < 1000`,
-  including X-Trans, monochrome/full-color, and other special masks).
-- Black subtraction uses the effective LibRaw pedestal:
-  `black + cblack[color] + cblack tile`. The repeating `cblack[6..]` tile is
-  indexed in active-area-local coordinates; margins move the raw pointer to the
-  visible image, but do not shift the black-tile phase.
-- Black level and pitch are read after pixel unpacking. A metadata-only archive
-  inventory may see maker-dependent pre-unpack values and is therefore not the
-  authority for scientific black subtraction.
+- Pixels are decoded before measurement and restricted to the visible active
+  Bayer area. The recorded row stride and crop margins are honored so padding
+  and masked borders cannot enter the statistics.
+- This phase accepts ordinary Bayer mosaics only. X-Trans, monochrome,
+  full-color, and other special layouts are refused rather than forced into a
+  four-position CFA model.
+- Black subtraction combines the decoder's scalar, per-color, and repeating
+  per-position pedestal metadata. Repeating metadata is indexed in active-area
+  coordinates so the visible crop does not silently change its phase.
+- Pedestal and storage-layout metadata are evaluated after pixel decoding. A
+  metadata-only archive inventory can expose maker-dependent preliminary values
+  and is therefore not the authority for scientific black subtraction.
 - Reported `min`, `max`, `mean`, and `stddev` are signed black-subtracted
   residuals. Values below black are preserved, not clamped, so dark/noise
   analysis is not biased upward.
@@ -135,7 +133,7 @@ the second statistic is reported.
 
 ## Cross-Maker Regression Checks
 
-### Canon CR2 post-unpack black
+### Canon CR2 decoded black level
 
 Result summary:
 
@@ -154,8 +152,8 @@ Result summary:
 | Pixels per CFA position | 5,284,692 |
 
 This file is the regression for maker metadata timing: reading metadata before
-`unpack()` reported `black_level = 0` on this CR2, while the patched stats path
-reads post-`unpack()` and subtracts the 1023.75 DN effective pedestal.
+pixel decoding reported a zero black level on this CR2, while the decoded
+measurement metadata supplies and subtracts the 1023.75 DN effective pedestal.
 
 Per-position signed residual means after the fix:
 
@@ -220,23 +218,23 @@ frame sitting within 15% of the ceiling.
 ## References
 
 - LibRaw data-structure docs:
-  <https://www.libraw.org/docs/API-datastruct-eng.html>. `raw_width` /
-  `raw_height` describe the full RAW frame, `width` / `height` the visible
-  area, and some fields are finalized during unpack.
-- LibRaw `raw_image` forum guidance:
-  <https://www.libraw.org/node/2504>. `raw_image` keeps masked pixels and
-  should be cropped with `top_margin`, `left_margin`, `width`, `height`, and
-  row pitch.
+  <https://www.libraw.org/docs/API-datastruct-eng.html>. The documentation
+  distinguishes the full RAW frame from the visible area and notes that some
+  metadata is finalized during pixel decoding.
+- LibRaw RAW-buffer forum guidance:
+  <https://www.libraw.org/node/2504>. The decoded buffer retains masked pixels,
+  so active-area margins, visible dimensions, and row stride must all be
+  respected.
 - LibRaw black-level forum guidance:
-  <https://www.libraw.org/node/2565>. Effective black is additive across
-  `black`, `cblack[color]`, and the optional `cblack[6..]` pattern.
+  <https://www.libraw.org/node/2565>. Effective black can combine scalar,
+  per-color, and repeating spatial pedestal metadata.
 
 ## Metadata-stage boundary
 
 The archive inventory reads metadata at file-open time. For makers that
-finalize black level or pitch during unpacking, such as the Canon CR2 case
-above, its recorded black level can be an open-stage placeholder. Scientific
-pixel calculations therefore use the post-unpack value.
+finalize black level or storage layout during pixel decoding, such as the Canon
+CR2 case above, the earlier value can be a placeholder. Scientific pixel
+calculations therefore use the metadata finalized during decoding.
 
 ## Engineering companion
 

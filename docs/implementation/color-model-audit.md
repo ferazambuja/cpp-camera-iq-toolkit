@@ -77,6 +77,9 @@ does not recover the missing original tool settings or full-precision input.
 
 ## Verification evidence
 
+The equation-audit assertions are in
+[`test_cam16_equation_audit.cpp`](../../tests/test_cam16_equation_audit.cpp).
+
 The published curves are test oracles rather than unchecked outputs. Both
 brightness relations are pinned at their midpoint consequences to `1e-15`:
 CAM16's square-root relation reaches half normalized brightness at `J = 25`,
@@ -105,12 +108,15 @@ The six published `R²` values are compared with tolerance `0.0` — exact
 equality. They are transcribed from the source paper, so any drift is a
 transcription error rather than numerical noise, and that includes the
 unfavorable `0.81 → 0.71` colorfulness result. Curve lengths are pinned at
-`21`, `8`, and `72` points. The generator requires the correction date
+`21`, `8`, and `72` points. The generator and its mutation tests in
+[`test_generate_cam16_equation_audit.py`](../../tools/test_generate_cam16_equation_audit.py)
+require the correction date
 `2022-04-22`, coefficient `43`, scope marker, JSON and CSV schemas, and finite
 values; regenerated JSON/CSV numerics compare to `1e-12`, while the SVG is
 byte-exact. CLI argument refusals are covered separately.
 
-For CIE94, the tests recompute all 24 retained patches under both directional
+For CIE94, [`test_colorimetry.cpp`](../../tests/test_colorimetry.cpp) recomputes
+all 24 retained patches under both directional
 conventions and the separately named geometric-mean variant. The nine summary
 values are pinned to `1e-6`, every printed patch remains within `0.015` of the
 geometric-mean result, and non-finite Lab input is refused.
@@ -134,4 +140,5 @@ table; the scientific report keeps those boundaries explicit.
   [`test_colorimetry.cpp`](../../tests/test_colorimetry.cpp), and
   [`test_cmd_cam16_equation_audit.cpp`](../../tests/test_cmd_cam16_equation_audit.cpp)
 - Artifact generator:
-  [`generate_cam16_equation_audit.py`](../../tools/generate_cam16_equation_audit.py)
+  [`generate_cam16_equation_audit.py`](../../tools/generate_cam16_equation_audit.py),
+  [`test_generate_cam16_equation_audit.py`](../../tools/test_generate_cam16_equation_audit.py)

@@ -15,27 +15,29 @@ are not distributed with this repository.
 
 The fit reuses the existing exposure-response chain:
 
-- Reuse exposure-series grouping, post-`unpack()` black subtraction, active-area
-  ROI handling, ROI uniformity, lower-bound signal, near-white, saturation, and
-  EXIF-consistency gates.
+- Reuse the established exposure-series grouping, decoded active-area crop,
+  black subtraction, ROI uniformity, lower-bound signal, near-white,
+  saturation, and EXIF-consistency gates.
 - Fit black-subtracted mean CFA signal versus relative exposure
-  (`shutter_s / fastest_usable_shutter_s`) for each CFA plane.
-- Emit slope, intercept, R-squared, max nonlinearity percent, per-point fitted
-  signal, and residuals.
+  (shutter duration divided by the fastest usable shutter duration) for each
+  CFA plane.
+- For each CFA plane, estimate slope, intercept, R-squared, maximum nonlinearity,
+  fitted signal, and residuals.
 
 This is not ISO 14524 conformance. It is not PTC, read-noise, dark-current,
 dynamic-range, reflectance, or color accuracy analysis.
 
 ## Scientific Handling
 
-- The signal entering the fit is already black-subtracted by `raw-stats` /
-  `exposure-response`.
-- Only `usable_oecf` points reach the fit. That inherited gate requires
+- The signal entering the fit is already black-subtracted by the common RAW
+  measurement and exposure-response stages.
+- Only points that pass the inherited OECF-readiness gate reach the fit. The
+  gate requires
   positive mean signal above black in every CFA plane, mean below 98% of the
   black-subtracted sensor range, less than 1% saturated pixels, matching EXIF
   controls, and ROI uniformity when an ROI was measured.
 - A series needs at least three usable shutter points before any plane fit is
-  emitted.
+  reported.
 - Relative exposure is anchored at the fastest usable shutter in the selected
   series. The fit intercept is left free and reported as a black-subtraction
   sanity check; it is not forced to zero.
@@ -43,8 +45,9 @@ dynamic-range, reflectance, or color accuracy analysis.
   shutter ladder. The tool cannot verify light-source stability; illumination
   drift is mathematically indistinguishable from sensor nonlinearity in this
   relative fit.
-- `max_nonlinearity_pct` is `max(abs(residual)) / fitted_signal_range * 100`
-  over the usable fit points for that plane.
+- Maximum nonlinearity is
+  `max(abs(residual)) / fitted_signal_range × 100%` over the usable fit points
+  for that plane.
 - Data readiness and fit validity are reported as separate verdicts. A series
   can contain enough usable exposure points to attempt a fit without that fit
   satisfying the declared linearity conditions.

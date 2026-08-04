@@ -75,8 +75,10 @@ Z_p = k * sum w_i R_p(lambda_i) E(lambda_i) z_bar(lambda_i)
 
 `integration_weights()` derives weights from the wavelength grid and
 `render_reference_xyz()` normalizes the perfect diffuser under the selected
-illuminant. The reference parser verifies patch count, chart order, wavelength
-coverage, and provenance fields before rendering.
+illuminant. The reference readers preserve file row order, while the
+reference validator checks count, wavelength coverage, width, and reflectance
+range. Before rendering, the command separately requires its provenance fields
+and applies luminance, R-G, and B-G proxy-correlation gates.
 
 ## Matrix fit and evaluation
 
@@ -101,30 +103,45 @@ the chart.
 
 ## Invariants and failure behavior
 
-- Camera/reference row counts must agree, and their declared order pairing must
-  pass the luminance, R-G, and B-G proxy-correlation gates.
+- Camera/reference row counts must agree, and their positional row pairing must
+  pass the luminance, R-G, and B-G proxy-correlation gates. This is a proxy gate,
+  not semantic verification of patch IDs.
 - Fewer than three patch rows is refused; a singular camera design matrix is a
   separate refusal even when the row count is sufficient.
 - Non-finite spectra, grids, coordinates, matrices, and predicted colors are
   rejected rather than serialized.
 - Reference provenance and capture/reference timeline fields remain attached to
   output.
-- The output records the cross-project relationship in `timeline_provenance`
-  and sets `reference_scope` to
+- The command accepts the `compatible_sg_spectral` reference role, records the
+  cross-project relationship in `timeline_provenance`, and sets
+  `reference_scope` to
   `compatible_sg_spectral_not_exact_per_unit`; the compatible-reference scope
   is not inferred from surrounding prose.
 - A localization candidate must pass geometric error, not only RGB correlation.
 
 ## Verification evidence
 
-Patch fixtures pin selected `5 × 5`-image ROI means to `1e-12`. Projective
+Patch fixtures in [`test_patches.cpp`](../../tests/test_patches.cpp) pin
+selected `5 × 5`-image ROI means to `1e-12`. Projective
 geometry tests retain all 140 cells in `A1…N10` order and refuse degenerate,
-crossed, or non-finite corner sets. The localization gate is tested against two
+crossed, or non-finite corner sets in
+[`test_chart_localization.cpp`](../../tests/test_chart_localization.cpp). The
+localization gate is tested against two
 misleading cases: a `6 px` shift fails the declared `5 px` center limit while
 RGB correlation still passes, and a `30 DN` offset fails the `25 DN` absolute
 mean-error limit while correlation again passes.
 
-The known linear CCM fixture recovers all nine matrix coefficients and pins
+The residual-diagnosis fixtures in
+[`test_localization_diagnosis.cpp`](../../tests/test_localization_diagnosis.cpp)
+pin 140 residuals, model degrees of freedom, three held-out splits, and
+synthetic-model discrimination. Separate cases exercise the noise floor,
+inconclusive/refusal outcomes, and arbitration against an independent center;
+this is the evidence behind using held-out geometry rather than correlation
+alone.
+
+The known linear CCM fixture in
+[`test_colorimetry.cpp`](../../tests/test_colorimetry.cpp) recovers all nine
+matrix coefficients and pins
 four zero training summaries, held-out mean Delta E 76, and held-out maximum
 CIEDE2000 to `1e-9`. A nonlinear fixture then requires held-out mean Delta E 76
 to exceed training mean Delta E 76 by more than `1.0`, which establishes why
@@ -132,12 +149,20 @@ the report does not use training error alone. CIEDE2000 is checked against ten
 Sharma/Wu/Dalal reference assertions—pairs 1–6, a neutral-chroma case in both
 orders, and hue-wrap pairs 9 and 11—each to `1e-4`.
 
-Row-count and order-pairing tests distinguish an aligned reference from a
-shifted order; they do not match camera rows by patch ID because those rows do
-not carry IDs. Other refusal cases cover singular fits, invalid spectra,
-flat-field gate failures, and stale reference provenance.
+The order-pairing fixture in
+[`test_color_reference.cpp`](../../tests/test_color_reference.cpp)
+distinguishes an aligned reference from a shifted order; it does not match
+camera rows by patch ID because those rows do not carry IDs. Tested refusal
+cases cover singular fits, invalid spectral-reference inputs, flat-field gate
+failures, missing required provenance fields, and a non-compatible reference
+role. The command test also pins the exact
+`compatible_sg_spectral_not_exact_per_unit` reference scope in the serialized
+result.
 
-The public corrected-patch guard separately pins the canonical-LF SHA-256,
+The public corrected-patch guard and its mutation tests—
+[`check_patch_baseline.py`](../../tools/check_patch_baseline.py) and
+[`test_check_patch_baseline.py`](../../tools/test_check_patch_baseline.py)—
+separately pin the canonical-LF SHA-256,
 exactly 140 nonblank rows, three finite positive R/G/B fields per row, and A1
 agreement at the report's published two-decimal precision. Mutation tests break
 the check after digest or A1 drift, a dropped row, an added header, changed byte

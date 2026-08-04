@@ -1,16 +1,21 @@
 #include "camera_iq/raw_meta.hpp"
+#include "camera_iq/commands.hpp"
 
 #include <libraw/libraw.h>
 
 #include <cstdio>
 #include <filesystem>
 #include <fstream>
+#include <iterator>
 #include <sstream>
+#include <string>
+#include <vector>
 
 #include "harness.hpp"
 
 namespace fs = std::filesystem;
 using camera_iq::cfa_pattern_string;
+using camera_iq::cmd_raw_stats;
 using camera_iq::body_serial_string;
 using camera_iq::effective_black_levels;
 using camera_iq::effective_raw_stride_pixels;
@@ -20,6 +25,30 @@ using camera_iq::read_raw_metadata;
 using camera_iq::raw_meta_from_processor;
 using camera_iq::write_raw_stats_json;
 using test::check;
+
+namespace {
+
+int run_raw_stats(const std::vector<std::string>& args) {
+  std::vector<std::string> storage = args;
+  std::vector<char*> argv;
+  argv.reserve(storage.size());
+  for (auto& arg : storage) argv.push_back(arg.data());
+  return cmd_raw_stats(static_cast<int>(argv.size()), argv.data());
+}
+
+std::string read_text(const fs::path& path) {
+  std::ifstream input(path, std::ios::binary);
+  return std::string(std::istreambuf_iterator<char>(input),
+                     std::istreambuf_iterator<char>());
+}
+
+void write_dataset_config(const fs::path& path, const fs::path& dataset_root) {
+  std::ofstream output(path, std::ios::binary);
+  output << "{\"datasets\":{\"fixture\":{\"root\":\""
+         << dataset_root.generic_string() << "\"}}}";
+}
+
+}  // namespace
 
 void TESTS() {
   // LibRaw Bayer cdesc is "RGBG": index 0=R, 1=G, 2=B, 3=second G.
@@ -140,6 +169,45 @@ void TESTS() {
         "missing file yields nullopt");
   check(!read_raw_cfa_image("/nonexistent/file.RAF").has_value(),
         "missing file yields no CFA image");
+
+  const fs::path alias_input =
+      fs::temp_directory_path() / "camera_iq_raw_stats_alias.RAF";
+  {
+    std::ofstream os(alias_input, std::ios::binary);
+    os << "source evidence";
+  }
+  check(run_raw_stats({alias_input.string(), "--out", alias_input.string()}) ==
+            2,
+        "raw-stats command refuses output that aliases its input");
+  check(read_text(alias_input) == "source evidence",
+        "raw-stats alias refusal preserves input bytes");
+  fs::remove(alias_input);
+
+  const fs::path dataset_fixture =
+      fs::temp_directory_path() / "camera_iq_raw_stats_dataset_escape";
+  fs::remove_all(dataset_fixture);
+  fs::create_directories(dataset_fixture / "dataset" / "Images");
+  const fs::path outside_raw = dataset_fixture / "outside.RAF";
+  {
+    std::ofstream os(outside_raw, std::ios::binary);
+    os << "outside evidence";
+  }
+  const fs::path dataset_config = dataset_fixture / "datasets.local.json";
+  write_dataset_config(dataset_config, dataset_fixture / "dataset");
+  check(run_raw_stats({"../outside.RAF", "--dataset", "fixture", "--config",
+                       dataset_config.string()}) == 2,
+        "raw-stats command rejects leading dataset traversal");
+  check(run_raw_stats({"Images/../../outside.RAF", "--dataset", "fixture",
+                       "--config", dataset_config.string()}) == 2,
+        "raw-stats command rejects embedded dataset traversal");
+  fs::create_symlink(outside_raw,
+                     dataset_fixture / "dataset" / "escaped-link.RAF");
+  check(run_raw_stats({"escaped-link.RAF", "--dataset", "fixture", "--config",
+                       dataset_config.string()}) == 2,
+        "raw-stats command rejects dataset symlink escape");
+  check(read_text(outside_raw) == "outside evidence",
+        "raw-stats dataset escape refusals preserve outside bytes");
+  fs::remove_all(dataset_fixture);
 
   const fs::path garbage = fs::temp_directory_path() / "camera_iq_garbage.RAF";
   {

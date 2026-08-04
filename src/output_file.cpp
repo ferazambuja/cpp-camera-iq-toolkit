@@ -49,7 +49,23 @@ bool output_path_uses_symlink(const std::filesystem::path& path,
   return false;
 }
 
+std::filesystem::path comparable_path(const std::filesystem::path& path) {
+  std::error_code error;
+  const auto canonical = std::filesystem::weakly_canonical(path, error);
+  if (!error) return canonical;
+  const auto absolute = std::filesystem::absolute(path, error);
+  return error ? path.lexically_normal() : absolute.lexically_normal();
+}
+
 }  // namespace
+
+bool output_path_aliases_input(const std::filesystem::path& output,
+                               const std::filesystem::path& input) {
+  if (output.empty() || input.empty()) return false;
+  std::error_code error;
+  if (std::filesystem::equivalent(output, input, error) && !error) return true;
+  return comparable_path(output) == comparable_path(input);
+}
 
 bool finish_output_stream_checked(std::ostream& os,
                                   const std::filesystem::path& path,

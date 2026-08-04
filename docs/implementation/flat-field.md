@@ -70,8 +70,9 @@ guarantee that every chromatic ratio has a nonzero denominator.
 
 ## Asymmetry and dark controls
 
-`ShadingBlocks` holds one median per CFA position for the center block and for
-each of the four corner blocks, plus each corner's center-normalized value. The
+`ShadingField::center_block_median` holds one center median per CFA position.
+`ShadingBlocks` holds the four corner medians and their center-normalized
+values. The
 corner blocks are `corner_block_px` squares inset by `corner_inset_px`; they are
 deliberately not the grid's corner bins, which a 16x12 grid centers at 1/32 of
 the frame width and which therefore never reach the corner.
@@ -79,9 +80,13 @@ the frame width and which therefore never reach the corner.
 `ShadingChromatic::green_asymmetry` reduces those four corner values to the
 single scalar the scientific report defines, using the mean of the two green
 planes at each corner. Keeping four named corners rather than a radial average
-is what makes the statistic informative: the four blocks sit at equal radius, so
-a centered radially symmetric field drives the spread to zero analytically, and
-a nonzero value is a departure that a radial average would have erased.
+is what makes the statistic informative: in a continuous centered radial field,
+the four equal-radius locations have identical response and therefore zero
+spread. The finite CFA/block estimator has a small fixture-dependent sampling
+residual, so a nonzero measurement by itself does not establish a physical
+departure. The four-corner statistic becomes informative when its magnitude is
+materially above that estimator residual; a radial average would erase the
+directional pattern either way.
 
 Equal radius is a geometric precondition, so the code enforces it rather than
 assuming it. Odd block and inset requests round inward to even values, and the
@@ -112,21 +117,32 @@ outputs so an aggregate cannot be detached from the policy that produced it.
 
 ## Verification evidence
 
-Synthetic fields distinguish a centered radial response from a four-corner
-asymmetry and keep R, G1, G2, and B independent. Gate fixtures verify that
+The primary scalar and geometry assertions are in
+[`test_shading.cpp`](../../tests/test_shading.cpp).
+
+Synthetic fields in [`test_shading.cpp`](../../tests/test_shading.cpp)
+distinguish a centered radial response from a four-corner
+asymmetry and keep R, G1, G2, and B independent. For the sampled centered-radial
+fixture and its declared CFA/block geometry, green asymmetry must remain below
+`1e-3`; that is a fixture-specific discretization bound, not a universal
+sampling floor. Gate fixtures verify that
 exactly `1%` near-ceiling samples and exactly `90%` finite coverage pass, while
 values beyond either inclusive boundary fail per CFA position. Other fixtures
 cover zero chromatic denominators, odd-mosaic refusal, dark metadata and
 pedestal controls, matched comparison geometry, publication-safe labels, and
 the JSON/CSV rejection states described above.
 
-The live producer-to-consumer check executes the compiled C++ serializer and
-feeds its output to the Python exporter. The exporter independently requires
-measured gates, CFA-balanced contained rectangles, positive center medians,
-four finite corner rows, complete chromatic maps for detailed accepted results,
-and verified pedestal evidence. Portfolio fixtures pin 52 unique inventory
-rows, the `18/21/13` aperture census, three accepted frames, one measured
-capture pair, and one complete `16 × 12` response grid for each accepted file.
+The live producer-to-consumer check in
+[`emit_shading_contract.cpp`](../../tests/emit_shading_contract.cpp) and
+[`test_export_shading_portfolio.py`](../../tools/test_export_shading_portfolio.py)
+executes the compiled C++ serializer and feeds its output to the Python
+exporter. The exporter independently requires measured gates, even
+CFA-balanced rectangles, a center contained in the gate, positive center
+medians, four finite corner rows, complete chromatic maps for detailed accepted
+results, and verified pedestal evidence. Portfolio fixtures pin 52 unique
+inventory rows, the `18/21/13` aperture census, three accepted frames, one
+measured capture pair, and one complete `16 × 12` response grid for each
+accepted file.
 Mutation tests break the contract when producer or consumer semantics drift.
 
 These checks establish gate, schema, join, and calculation behavior. They do
@@ -137,7 +153,9 @@ or isolate a physical cause for the measured field.
 
 - Public types and analysis API: [`shading.hpp`](../../include/camera_iq/shading.hpp)
 - Shared source-frame gate: [`flat_field_gate.hpp`](../../include/camera_iq/flat_field_gate.hpp),
-  [`flat_field_gate.cpp`](../../src/flat_field_gate.cpp)
+  [`flat_field_gate.cpp`](../../src/flat_field_gate.cpp),
+  shared correction use in [`patches.cpp`](../../src/patches.cpp), and
+  [`test_patches.cpp`](../../tests/test_patches.cpp)
 - Field analysis: [`shading.cpp`](../../src/shading.cpp)
 - Command orchestration and serializers:
   [`cmd_shading.cpp`](../../src/cmd_shading.cpp)

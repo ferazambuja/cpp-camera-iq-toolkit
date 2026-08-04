@@ -366,6 +366,8 @@ void TESTS() {
       RoiRect{0, 0, 4, 4});
   check_near(partial_clip.samples[10].saturated_fraction_r, 0.25, 1e-12,
              "raw spectral response: partial saturation is flagged");
+  check_near(partial_clip.response.response_r[10], 11.0 / 96.0, 1e-12,
+             "raw spectral response: clipped red pixel is excluded from mean");
   check_near(partial_clip.response.response_g.back(), 1.0, 1e-12,
              "raw spectral response: partial saturation keeps extraction");
   check(partial_clip.saturated_sample_count == 1,

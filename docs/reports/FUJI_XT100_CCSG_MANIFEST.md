@@ -23,7 +23,7 @@ provenance checks while keeping source paths private.
 The manifest records, per file: relative path, size, filesystem mtime from the
 local/imported file copy, filename-encoded exposure metadata
 (`<Group>_f<aperture>_1:<shutter-denominator>[_ISO<iso>]_DSCF<frame>.RAF`),
-LibRaw EXIF (make/model/ISO/shutter/aperture/camera-clock timestamp), derived
+Decoded EXIF (make/model/ISO/shutter/aperture/camera-clock timestamp), derived
 CFA pattern, black/white levels, and CSV shape probes. Supplementary `.mat`
 inspection was done with a Python helper; results are recorded below.
 
@@ -51,9 +51,9 @@ inspection was done with a Python helper; results are recorded below.
 ## Camera and CFA (verified, not hardcoded)
 
 - All 480 RAFs: **Fujifilm X-T100**, 6016×4014, zero sensor margins.
-- CFA pattern derived per file via LibRaw `COLOR()`: **RGGB for all 480** —
+- CFA pattern decoded independently for every file: **RGGB for all 480** —
   standard Bayer, not X-Trans.
-- White level (LibRaw `maximum`): 16383 (14-bit).
+- Decoded white level: 16383 (14-bit).
 
 ## Filename ↔ EXIF cross-check
 
@@ -72,16 +72,15 @@ within 0.11, ISO exact). Filename-encoded exposure metadata is trustworthy.
    The configured capture year comes from the owner-assigned archival label
    naming the year and course. The camera timestamps are consistent with that
    label but are not its authority.
-2. **LibRaw black level needed the `cblack` *tile*, not the scalar** (resolved).
-   `color.black` and `cblack[0..3]` are all zero on this camera, but the real
-   pedestal lives in LibRaw's repeating black tile: `cblack[4]=2, cblack[5]=2`
-   (a 2×2 block) with `cblack[6..9] = 1024`. The manifest reader now combines
-   `black + cblack[color] + cblack[6 + (r%bh)*bw + (c%bw)]` and reports
-   **black = 1024 DN** across all four RGGB positions. A sampled dark frame
+2. **The repeating black metadata, not the scalar alone, carries the pedestal**
+   (resolved). The scalar and per-color metadata are zero on this camera, while
+   a repeating 2×2 metadata block supplies 1024 DN at all four CFA positions.
+   The decoded effective result is therefore **black = 1024 DN** across RGGB.
+   A sampled dark frame
    (`Dark_Frame_f8.0_1:1000_DSCF0437.RAF`, mean ≈ **1024 DN**, min 1005)
-   independently confirms it. The `raw-stats` and `demosaic` paths now
-   subtract the LibRaw-derived pedestal directly; the 21 dark frames remain a
-   cross-check, not the sole source.
+   independently confirms it. Sensor-domain statistics and the demosaic
+   baseline subtract that decoder-derived pedestal directly; the 21 dark
+   frames remain a cross-check, not the sole source.
 3. **`PRD_SPD_all.csv` has 46 rows for 45 measurements** — the last row is an
    exact duplicate of row 45 (`PRD_47`). `XYZ_all.csv` (45 rows) is consistent.
    The `.mat` files are the source of truth; the combined CSVs are derived and

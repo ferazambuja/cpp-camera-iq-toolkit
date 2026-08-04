@@ -2,6 +2,9 @@
 #include "camera_iq/demosaic.hpp"
 
 #include <array>
+#include <filesystem>
+#include <fstream>
+#include <iterator>
 #include <string>
 #include <vector>
 
@@ -27,6 +30,27 @@ void check_pixel(const std::vector<RgbPixel>& img, int width, int r, int c,
   check_near(p.r, red, 1e-9, name + " R");
   check_near(p.g, green, 1e-9, name + " G");
   check_near(p.b, blue, 1e-9, name + " B");
+}
+
+int run_demosaic(const std::vector<std::string>& args) {
+  std::vector<std::string> storage = args;
+  std::vector<char*> argv;
+  argv.reserve(storage.size());
+  for (auto& arg : storage) argv.push_back(arg.data());
+  return cmd_demosaic(static_cast<int>(argv.size()), argv.data());
+}
+
+std::string read_text(const std::filesystem::path& path) {
+  std::ifstream input(path, std::ios::binary);
+  return std::string(std::istreambuf_iterator<char>(input),
+                     std::istreambuf_iterator<char>());
+}
+
+void write_dataset_config(const std::filesystem::path& path,
+                          const std::filesystem::path& dataset_root) {
+  std::ofstream output(path, std::ios::binary);
+  output << "{\"datasets\":{\"fixture\":{\"root\":\""
+         << dataset_root.generic_string() << "\"}}}";
 }
 
 }  // namespace
@@ -144,4 +168,43 @@ void TESTS() {
   }
 
   check(cmd_demosaic(0, nullptr) == 2, "cli: demosaic requires raw file");
+
+  const auto alias_input = std::filesystem::temp_directory_path() /
+                           "camera_iq_demosaic_alias.RAF";
+  {
+    std::ofstream seed(alias_input, std::ios::binary);
+    seed << "source evidence";
+  }
+  check(run_demosaic({alias_input.string(), "--out", alias_input.string()}) ==
+            2,
+        "demosaic command refuses output that aliases its input");
+  check(read_text(alias_input) == "source evidence",
+        "demosaic alias refusal preserves input bytes");
+  std::filesystem::remove(alias_input);
+
+  const auto dataset_fixture = std::filesystem::temp_directory_path() /
+                               "camera_iq_demosaic_dataset_escape";
+  std::filesystem::remove_all(dataset_fixture);
+  std::filesystem::create_directories(dataset_fixture / "dataset" / "Images");
+  const auto outside_raw = dataset_fixture / "outside.RAF";
+  {
+    std::ofstream seed(outside_raw, std::ios::binary);
+    seed << "outside evidence";
+  }
+  const auto dataset_config = dataset_fixture / "datasets.local.json";
+  write_dataset_config(dataset_config, dataset_fixture / "dataset");
+  check(run_demosaic({"../outside.RAF", "--dataset", "fixture", "--config",
+                      dataset_config.string()}) == 2,
+        "demosaic command rejects leading dataset traversal");
+  check(run_demosaic({"Images/../../outside.RAF", "--dataset", "fixture",
+                      "--config", dataset_config.string()}) == 2,
+        "demosaic command rejects embedded dataset traversal");
+  std::filesystem::create_symlink(
+      outside_raw, dataset_fixture / "dataset" / "escaped-link.RAF");
+  check(run_demosaic({"escaped-link.RAF", "--dataset", "fixture", "--config",
+                      dataset_config.string()}) == 2,
+        "demosaic command rejects dataset symlink escape");
+  check(read_text(outside_raw) == "outside evidence",
+        "demosaic dataset escape refusals preserve outside bytes");
+  std::filesystem::remove_all(dataset_fixture);
 }

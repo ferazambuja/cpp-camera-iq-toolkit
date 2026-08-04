@@ -119,7 +119,11 @@ representative numeric fixtures, invariants,
 refusal paths, serialization checks, artifact-freshness checks, or independent
 comparisons, as applicable. It also states which physical, perceptual, or
 archive-validity question those checks do **not** answer. At least one public
-test must be linked so the explanation is inspectable.
+test must be linked inside that section so the explanation is inspectable. The
+section must retain at least one test-backed numeric assertion or exact semantic
+contract—a count, bound, precondition, or refusal. Generic statements such as
+"tests cover the algorithm" are not a substitute for the evidence actually
+pinned by the executable assertion.
 
 Verification claims must be portable. Do not freeze a local observed value,
 test count, library-version result, or platform-dependent rounding outcome as a
@@ -242,6 +246,9 @@ Before publishing or materially revising a public portfolio document, verify:
 - [ ] The implementation companion explains what its tests or independent
       cross-checks establish, links public tests, and separates software
       correctness from scientific validity.
+- [ ] Its verification section links the relevant executable assertion and
+      retains a numeric bound/count or exact semantic contract with every
+      precondition needed to interpret it.
 - [ ] Passing tests are not presented as proof of physical or perceptual
       validity.
 - [ ] Every figure has a self-contained caption grounded in what is drawn.

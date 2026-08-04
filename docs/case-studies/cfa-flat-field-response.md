@@ -57,9 +57,10 @@ centre. **The three maps use different colour scales** — the green map spans
 0.45–1.05, the two colour-ratio maps only 0.97–1.03 and 0.97–1.05 — so a strong
 colour in the left map means a change roughly ten times larger than the same
 colour on the right. That contrast is the finding: brightness falls to about
-half at the worst corner while colour balance moves by a few percent. The green
-map's four corner blocks spread by 19.65% of their own average, which a centred
-radial model cannot produce. The matched repeat measured 19.996%, closely
+half at the worst corner while colour balance moves by a few percent. Four
+separately measured 400 × 400 px corner blocks spread by 19.65% of their own
+average, which a centred radial model cannot produce. The matched repeat
+measured 19.996%, closely
 repeating the large asymmetry; two frames do not validate the 5% threshold, and
 nothing here identifies which component caused it.*
 

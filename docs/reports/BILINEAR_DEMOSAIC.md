@@ -14,23 +14,22 @@ are not distributed with this repository.
 The analysis uses a transparent hand-written demosaic:
 
 - Bilinear interpolation over the active, black-subtracted Bayer mosaic.
-- RGGB-family phase support via LibRaw `COLOR()` positions plus `cdesc`; the
-  implementation does not assume one fixed RGGB origin.
+- RGGB-family phase support from the decoded CFA layout; the measurement does
+  not assume one fixed Bayer origin.
 - Edge pixels average only same-color neighbors that exist inside bounds.
 - The reported output is RGB summary statistics rather than a rendered image.
 
 ## Scientific Handling
 
-- Input CFA samples are copied after LibRaw `unpack()`, cropped to
-  `sizes.width` / `sizes.height`, and black-subtracted with the same effective
-  per-position black levels used by `raw-stats`.
+- Input CFA samples are decoded, cropped to the visible active area, and
+  black-subtracted with the same effective per-position pedestal used by the
+  common RAW measurement pipeline.
 - **Black-level source.** An earlier manifest pass anticipated deriving black
-  from the 21 dark frames after finding LibRaw's *scalar* `black`
-  reports 0 for the Fujifilm X-T100. The implemented path reads the LibRaw
-  `cblack` **tile**
-  via `effective_black_levels()`, which correctly recovers the ~1024 DN pedestal
-  the scalar hides (Fuji matches the X-T100 dark-frame mean of 1023.99). This is
-  adequate for a DN-space demosaic preview, and the implemented
+  from the 21 dark frames after the decoder's scalar metadata reported zero for
+  the Fujifilm X-T100. The effective repeating per-position metadata instead
+  recovers the approximately 1024 DN pedestal and agrees with the X-T100
+  dark-frame mean of 1023.99. This is adequate for a DN-space demosaic preview,
+  and the implemented
   [dark-calibration analysis](DARK_CALIBRATION.md) reconciles it against the
   CLRS-589 X-T100 dark frames. It is still not a
   substitute for camera-by-camera dark-current/noise modeling: the Nikon D800
@@ -41,9 +40,9 @@ The analysis uses a transparent hand-written demosaic:
   conversion.
 - Each missing RGB component is the arithmetic mean of same-component samples
   in the local 3x3 neighborhood. Known components are preserved.
-- Negative residuals are preserved in this tool's output statistics. LibRaw's
-  interpolated `image` buffer is unsigned, so LibRaw comparisons clip this
-  tool's signed values to zero only for comparison.
+- Negative residuals are preserved in the reported statistics. The independent
+  LibRaw comparison uses an unsigned image representation, so signed residuals
+  are clipped to zero for that comparison only.
 
 ## Real-Data Validation Runs
 
@@ -116,8 +115,8 @@ at every checked pixel. Fuji has a few larger differences, so this report does
 not claim bit-exact LibRaw equivalence for every camera; it claims a transparent
 hand-written bilinear demosaic whose measured non-negative output is
 cross-checked against LibRaw under the comparison boundary above. The
-consistent ~0.19–0.22 DN mean offset is systematic uint16 truncation in
-LibRaw's unsigned `image` buffer, not random disagreement.
+consistent ~0.19–0.22 DN mean offset follows systematic unsigned-integer
+truncation in LibRaw's comparison buffer, not random disagreement.
 
 Scope of this agreement: because LibRaw's buffer is unsigned, the comparison
 clips this tool's signed residuals to zero. It therefore validates only the
