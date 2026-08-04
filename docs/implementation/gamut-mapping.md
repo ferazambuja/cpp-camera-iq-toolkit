@@ -116,8 +116,12 @@ require that:
 - no legal input throws, and every mapped output is finite;
 - every output is rechecked against the destination RGB cube;
 - the CIELAB radial and soft methods do not increase Lab chroma, preserve
-  `L*`, and hold Lab-hue change to `2e-7` radians away from the neutral
-  singularity, where hue is undefined rather than merely noisy;
+  `L*`, and hold Lab-hue change to `2e-7` radians. The hue bound is asserted
+  only where the input and the mapped output both keep chroma above `1e-6`,
+  which excludes more than near-neutral inputs: a strongly chromatic ray that
+  the method compresses almost onto the neutral axis also leaves the bound's
+  scope, because an angle around a point of vanishing radius is not a
+  meaningful quantity to hold fixed;
 - the OkLCh radial intent does not increase mapping chroma, preserves OkLab
   lightness, and holds OkLCh hue to `1e-8` degrees when hue is defined; and
 - all three hard mapping intents leave destination-in-gamut inputs unchanged.

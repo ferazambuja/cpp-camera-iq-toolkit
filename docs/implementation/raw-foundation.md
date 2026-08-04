@@ -164,6 +164,49 @@ conversion gain is available.
 - Spatial standard deviation and temporal variance use different fields and
   names so one cannot silently substitute for the other.
 
+## Verification evidence
+
+The RAW bridge is tested at the representation boundaries that can change the
+meaning of every later result. A `12032`-byte row pitch is interpreted as
+`6016` `uint16` samples, while an odd `12033`-byte pitch is refused. Synthetic
+black metadata recovers a four-position `2 × 2` tile of `1024` without reading
+past a short tile buffer, and a strided active-area fixture proves that border
+samples do not enter the statistics. With black `1024`, white `16383`, and a
+`0.98` policy level, raw code `16075` is below the first flagged integer and
+`16076` is included; the threshold is recomputed for each CFA position.
+
+The demosaic tests use constant fields, a hand-computed `5 × 5` RGGB mosaic,
+edge-only `3 × 3` neighborhoods, and a BGGR phase fixture. The selected
+interpolated values are pinned to `1e-9`, and a missing RAW argument is verified
+to return usage status `2`. These checks establish the stated local averaging
+and phase behavior; they are not a claim of bit-exact agreement with every
+LibRaw interpolation path.
+
+Dark/noise fixtures pin the equations as well as their failure states. An
+eight-sample pair with difference standard deviation `4 DN` must produce
+temporal noise `2 sqrt(2) DN` to `1e-12`; the corresponding moment-DSNU result
+is `sqrt(1.25) DN` to `1e-12`. When the temporal floor exceeds the spatial
+spread, both DSNU estimates are absent with reason
+`dsnu_below_temporal_floor`. Dimension, CFA-phase, and buffer mismatches are
+refused before differencing, and serialized DN-space results keep gain, PTC,
+and dynamic-range support false.
+
+Exposure and tone-response tests keep acceptance and fitting separate. A
+four-frame fixture with three distinct shutters groups the duplicate exposure,
+while missing reports, changed ISO, below-black signal, heavy clipping, and a
+nonuniform ROI each exercise a different refusal. The exact linear OECF fixture
+recovers slope `100`, intercept `0`, `R² = 1`, and `0%` maximum nonlinearity to
+`1e-12`; a separate injected-knee fixture pins the nonzero residual path. The
+Stepchart tests distinguish strip and ring geometry, require 20 ordered zones,
+pin the green-ladder correlation floor at `0.98`, and keep a DN-space PTC fit
+separate from unsupported electron gain or dynamic range.
+
+Manifest and command tests exclude AppleDouble and `.DS_Store` files, preserve
+relative public paths, serialize unavailable EXIF as `null`, reduce direct-root
+inputs to basename-safe labels, and reject parent traversal. Together these
+tests establish numeric and output contracts. The archive-backed reports, not
+the fixtures, remain the authority for the physical captures and conclusions.
+
 ## Source and tests
 
 - RAW bridge: [`raw_meta.hpp`](../../include/camera_iq/raw_meta.hpp),
@@ -180,15 +223,19 @@ conversion gain is available.
   [`manifest.cpp`](../../src/manifest.cpp),
   [`cmd_manifest.cpp`](../../src/cmd_manifest.cpp)
 - Focused tests: [`test_raw_meta.cpp`](../../tests/test_raw_meta.cpp),
+  [`test_cfa_stats.cpp`](../../tests/test_cfa_stats.cpp),
   [`test_demosaic.cpp`](../../tests/test_demosaic.cpp),
   [`test_dark_calibration.cpp`](../../tests/test_dark_calibration.cpp),
   [`test_noise.cpp`](../../tests/test_noise.cpp),
   [`test_exposure_response.cpp`](../../tests/test_exposure_response.cpp),
   [`test_oecf_fit.cpp`](../../tests/test_oecf_fit.cpp), and
+  [`test_imatest_stepchart.cpp`](../../tests/test_imatest_stepchart.cpp),
+  [`test_stepchart_localization.cpp`](../../tests/test_stepchart_localization.cpp),
   [`test_stepchart_raw.cpp`](../../tests/test_stepchart_raw.cpp), plus
   [`test_manifest_scan.cpp`](../../tests/test_manifest_scan.cpp) and
   [`test_manifest_json.cpp`](../../tests/test_manifest_json.cpp)
-
-The tests cover algorithmic invariants, rejection paths, typed serialization,
-and synthetic numeric cases. Archive-backed reports remain the authority for
-the physical conclusions.
+- Command and public-label tests:
+  [`test_cmd_noise.cpp`](../../tests/test_cmd_noise.cpp),
+  [`test_cmd_exposure_response.cpp`](../../tests/test_cmd_exposure_response.cpp),
+  [`test_cmd_oecf_stepchart.cpp`](../../tests/test_cmd_oecf_stepchart.cpp), and
+  [`test_cmd_dataset_labels.cpp`](../../tests/test_cmd_dataset_labels.cpp)

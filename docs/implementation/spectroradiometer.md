@@ -3,13 +3,16 @@
 [Implementation index](README.md) ·
 [case study](../case-studies/spectroradiometer-ingest.md) ·
 [scientific report](../reports/SPECTRORADIOMETER_INGEST.md) ·
-[aggregate data](../data/spectro_group_summary.csv)
+[aggregate data](../data/spectro_group_summary.csv) ·
+[result receipt](../data/spectro_result_receipt.json) ·
+[MATLAB cross-check receipt](../data/spectro_matlab_crosscheck_receipt.json)
 
 ## Software boundary
 
 This pipeline reads the subset of MATLAB v5 needed by the retained
 spectroradiometer files, converts each measurement struct to a typed record,
-resolves aliases by exact content identity, joins readings to a declared ledger,
+joins readings and declared aliases to an identity ledger, optionally verifies
+alias bytes against their canonical source,
 and computes level, normalized-shape, chromaticity, and same-record XYZ closure
 as separate outputs.
 
@@ -17,7 +20,7 @@ as separate outputs.
 
 ```text
 configured archive root + identity ledger
-  -> bounded file discovery and exact-byte digest
+  -> resolve declared relative paths below the root + exact-byte digest
   -> read_mat_struct()
   -> spectro_measurement_from_mat()
   -> alias collapse and ledger group join
@@ -29,10 +32,12 @@ configured archive root + identity ledger
 
 ## MATLAB parser and typed measurement
 
-`read_mat_struct()` parses little-endian MATLAB v5 elements, including compressed
-elements, numeric arrays, character values, and nested structs needed by this
-archive. Parsing uses checked dimensions, bounded decompression, depth limits,
-and exact element widths before allocation.
+`read_mat_struct()` parses the flat little-endian MATLAB v5 numeric and logical
+fields used by this archive, including compressed elements and mixed numeric
+storage widths. Character arrays and nested structs are outside this parser's
+public subset and are refused. Parsing uses checked dimensions, bounded
+decompression and cumulative inflation, nesting limits, and exact element
+widths before allocation.
 
 `spectro_measurement_from_mat()` then enforces the measurement contract:
 
@@ -97,7 +102,8 @@ software behavior.
 ## Identity, failure, and serialization
 
 - The ledger, not filename similarity, assigns measurement groups.
-- Exact-byte aliases are retained as provenance but analyzed once.
+- Declared aliases are retained as provenance but analyzed once; exact-byte
+  equality is additionally checked when alias verification is enabled.
 - Paths must remain below the configured root and serialize as relative labels.
 - A ledger mismatch, ambiguous source, nonuniform grid, shape mismatch, or
   non-finite derived value is a refusal, not a partial group.
@@ -106,20 +112,39 @@ software behavior.
 
 ## Verification evidence
 
-Byte-built MATLAB v5 fixtures exercise compressed and uncompressed arrays,
-padding, dimensions, logical fields, size limits, and malformed nested data.
-Ledger and ingest tests bind canonical paths to SHA-256 digests, preserve exact
-aliases without double-counting them, and refuse traversal, identity mismatch,
-or ambiguous membership. Numeric fixtures cover repeated-reading statistics,
-level/shape/chromaticity separation, same-record XYZ closure, cancellation, and
-very large or subnormal values; command tests cover privacy-safe serialization.
+Byte-built MATLAB v5 fixtures exercise compressed and uncompressed numeric
+structs, padding, mixed numeric widths, compact tags, logical identity, and
+bounded cumulative inflation. Malformed headers, versions, dimensions, lossy
+integer widening, complex values, duplicate fields, character arrays, nested
+structs, and excessive depth are refused.
 
-The independent MATLAB export is compared reading by reading and retained in a
-hash-bound public cross-check record. Mutation tests show that changing its
-dataset identity, source hashes, counts, or numeric comparison breaks the
-record check. This evidence supports parser and calculation agreement; it does
-not prove that the archived scenes were physically stable or that undocumented
-instrument CCT and Duv conventions have been recovered.
+Ledger tests preserve declared repeat-index order rather than filename order
+and refuse duplicate canonical paths, duplicate content digests, ambiguous
+aliases, traversal, malformed hashes, gaps, and silent regrouping. Ingest tests
+bind canonical bytes to SHA-256, distinguish readings from aliases, refuse
+symlinks and byte-limit violations, and verify alias bytes when requested.
+
+A two-reading analysis fixture pins spectral integral `8`, mean level `12`, and
+coefficient of variation `sqrt(32) / 12`, each to `1e-12`; a pure scale change
+must produce zero normalized-shape and chromaticity separation. The closure
+fixture recovers one global scale `10` and zero maximum relative residual to
+`1e-12`. High-range, cancellation, subnormal, and overflow-refusal cases keep
+those numerical paths explicit. Command tests cover JSON plus three CSV
+outputs, privacy-safe labels, CSV quoting, vector hashes, source identities,
+output collisions, and the ban on writing output inside the source root.
+
+The retained runtime receipt records a MATLAB R2026a/C++ comparison over 89
+private readings: two binary64 vector hashes per reading give 178 exact hash
+comparisons, and seven numeric fields per reading give 623 comparisons at
+`1e-12` absolute-or-relative tolerance. Public checks recompute the
+`2 × reading_count` and `7 × reading_count` relationships, bind the receipt to
+the 89-row ledger and public artifacts, and reject changed identities, hashes,
+counts, or tolerance outcomes. They do not rerun the private 89-reading export
+unless those CSVs are supplied.
+
+This evidence supports parser and calculation agreement on the retained
+archive. It does not prove physical scene stability, instrument accuracy, or
+the undocumented CCT and Duv conventions.
 
 ## Source and tests
 
@@ -145,3 +170,7 @@ instrument CCT and Duv conventions have been recovered.
   [`check_spectro_matlab_crosscheck_receipt.py`](../../tools/check_spectro_matlab_crosscheck_receipt.py),
   [`test_compare_spectro_crosscheck.py`](../../tools/test_compare_spectro_crosscheck.py), and
   [`test_check_spectro_matlab_crosscheck_receipt.py`](../../tools/test_check_spectro_matlab_crosscheck_receipt.py)
+- Public result-receipt validation:
+  [`check_spectro_receipt.py`](../../tools/check_spectro_receipt.py),
+  [`test_generate_spectro_receipt.py`](../../tools/test_generate_spectro_receipt.py), and
+  [`test_check_spectro_receipt.py`](../../tools/test_check_spectro_receipt.py)

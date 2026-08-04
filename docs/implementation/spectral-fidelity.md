@@ -40,8 +40,8 @@ SSF + observer + illuminant + test reflectances
 ## RAW sweep extraction
 
 `discover_spectral_sweep_files()` requires one sorted RAW file for each
-wavelength in the validated axis. Missing, duplicated, or extra positions are
-refused before extraction. `extract_raw_spectral_response()` samples a
+wavelength in the validated axis and refuses a broken count or non-contiguous
+map before extraction. `extract_raw_spectral_response()` samples a
 CFA-balanced ROI directly from the mosaic, subtracts a measured dark residual
 per CFA position, combines the two greens only at the channel-summary stage,
 and records saturation and below-dark fractions for every wavelength.
@@ -105,8 +105,10 @@ visible rather than hidden inside one rank.
 
 ## Invariants and evidence separation
 
-- Every stage validates grid length, monotonicity, finite values, and aligned
-  vector shapes.
+- The legacy parser validates its wavelength grid, finite response values, and
+  positive line SPD. Closure validates aligned shapes and patch counts; the
+  Luther fit validates minimum size and basis rank; the SMI-style path validates
+  aligned lengths, enough colors, and positive white responses.
 - A legacy spectral curve is labeled as a comparison reference, not silently
   promoted to a toolkit measurement.
 - Same-session physical closure, cross-camera Luther residual, and SMI-style
@@ -116,12 +118,35 @@ visible rather than hidden inside one rank.
 
 ## Verification evidence
 
-Synthetic fixtures recover a known spectral response, an exact physical-closure
-scale, and a zero Luther residual for a color-matching basis. A rank-deficient
-basis, mismatched grids, missing sweep samples, and clipped or non-finite inputs
-are refused. Ideal and deliberately metameric camera fixtures also pin the
-direction of the SMI-style score and the white-preserving constraint. Command
-tests verify that those typed results and limitations survive serialization.
+The legacy parser fixture requires 48 samples from `360` through `830 nm` in
+`10 nm` steps and pins the normalized green peak at `1.0` to `1e-12`. It
+refuses wrong row counts, an axis gap, misaligned SPD, non-finite response, and
+nonpositive SPD. A synthetic RAW sweep recovers normalized R/G/B of
+`0.5/1.0/0.25` to `1e-12`, preserves basename-only provenance, and refuses a
+fully clipped CFA channel. Partial clipping has a different, explicit contract:
+one clipped red sample out of four is excluded, recorded as
+`0.25 ± 1e-12`, and extraction continues.
+
+The closure fixture uses measured RGB exactly ten times the predicted RGB. It
+must recover one global `k = 10`, zero white-ratio error, and zero per-channel
+relative RMS to `1e-9`. A white mismatch fails before patch emission, and a
+doubled red channel remains visible rather than being hidden by per-channel
+scales. Command tests also pin that saturation is evaluated before dark
+subtraction and that invalid inputs produce no output.
+
+For the Luther calculation, an overdetermined basis produces residuals
+`0, 1, 0` and combined residual `sqrt(1/3)` to `1e-9`; a rank-deficient basis
+is refused. The ideal SMI-style fixture retains six colors, produces mean Delta
+E 76 near zero and both scores near `100` under their declared tolerances, while
+a wavelength-shifted metameric fixture must score below `100`. The equation
+`100 - 5.5 × mean Delta E 76` is pinned to `1e-9`, and the separate
+white-preserving fit must keep white error at zero to `1e-9`.
+
+The registered CIE table guard pins official and derived hashes, the 360–830 nm
+observer extent, the `ȳ` peak of `1.0` at 555 nm to `1e-9`, and declared
+observer/illuminant subset tolerances; mutation tests alter each table and
+require failure. Command tests verify that the four typed stages and their
+limitations survive serialization.
 
 This verifies the numerical stages and their separation. It does not establish
 that an archived sensitivity curve is physically correct, that two archive
@@ -151,3 +176,6 @@ bit-exact ISO 17321; those questions remain explicit in the scientific report.
   [`test_cmd_spectral_closure.cpp`](../../tests/test_cmd_spectral_closure.cpp),
   [`test_cmd_spectral_quality.cpp`](../../tests/test_cmd_spectral_quality.cpp), and
   [`test_cmd_spectral_smi.cpp`](../../tests/test_cmd_spectral_smi.cpp)
+- Reference-table integrity:
+  [`check_cie_cmf_1nm.py`](../../tools/check_cie_cmf_1nm.py) and
+  [`test_check_cie_cmf_1nm.py`](../../tools/test_check_cie_cmf_1nm.py)

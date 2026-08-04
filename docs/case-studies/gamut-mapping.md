@@ -67,14 +67,10 @@ stakes are neutrality and tonal separation surviving the move from screen to
 print. Those stakes are what make the mapping decision worth specifying rather
 than delegating, and they are why this study reports hue behavior and preserved
 distinctions alongside color difference instead of ranking methods on a single
-displacement number.
-
-![Ansel Adams Moonrise print from the earlier art-reproduction workflow](../images/art-reproduction-proof.jpg)
-
-*A print of Ansel Adams's* Moonrise *photographed during the earlier course
-workflow. The recognizable work makes the screen-to-print motivation concrete;
-the photograph is historical context, not an input to the current synthetic
-gamut study.*
+displacement number. The earlier workflow included an Ansel Adams *Moonrise*
+print; that recognizable example explains why opaque rendering choices mattered
+in the print workflow, but it is historical context rather than an input to the
+current synthetic study.
 
 ## Why the boundary search is not a simple bisection
 

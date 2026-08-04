@@ -58,7 +58,7 @@ are checked for representability. Overflow and invalid background/lightness
 combinations are refusals.
 
 The corrected Equation 23 coefficient is pinned by a literal 3-4-5 opponent
-vector case. Curve tests pin selected endpoints and monotonic behavior, while
+vector case. Curve tests pin selected values and grid sizes, while
 the generated-artifact check requires exact schemas and finite values. The
 figure is regenerated from the current command output rather than from a
 hand-maintained table.
@@ -74,6 +74,52 @@ The historical fixture carries rounded Lab pairs. The tests recompute all
 patches under the declared variants and compare their summaries with the printed
 course result. Agreement shows consistency with the retained rounded table; it
 does not recover the missing original tool settings or full-precision input.
+
+## Verification evidence
+
+The published curves are test oracles rather than unchecked outputs. Both
+brightness relations are pinned at their midpoint consequences to `1e-15`:
+CAM16's square-root relation reaches half normalized brightness at `J = 25`,
+and the proposed linear relation reaches it at `J = 50`. The background factor
+is pinned at the reference condition and at selected darker backgrounds
+`Y_b = 5`, `1`, and `0.1`. At
+`Y_b = 0.1`, the coupled expression is pinned to
+`2.6865933941337503` for reference `J₀ = 10` and
+`2.1198928552563943` for `J₀ = 90`, both to `1e-12`; those values establish
+that the isolated `2.595287047166021` term is neither a floor nor a ceiling. A
+literal 3-4-5 opponent vector with `N_c = e_t = 1` must return `215` to `1e-12`,
+which pins the corrected Equation 23 coefficient `43`.
+
+The implementation enforces these domains: normalized brightness accepts `J`
+only in `[0,100]`; relative and reference backgrounds only in `(0,100]`; the
+coupled expression's reference `J` only in `(0,100]`; and serialized published
+`R²` only in `[0,1]`. The current test fixture directly exercises brightness
+values just above `100`, at `150`, just below zero, `NaN`, and infinity. For the
+isolated background factor it exercises actual and reference backgrounds above
+`100`, non-finite actual backgrounds, and zero actual background. Zero is an
+asymptote of the relation, so returning a finite number there would invent a
+value the equation does not have. The remaining enforced domain edges are not
+claimed as directly exercised by this fixture.
+
+The six published `R²` values are compared with tolerance `0.0` — exact
+equality. They are transcribed from the source paper, so any drift is a
+transcription error rather than numerical noise, and that includes the
+unfavorable `0.81 → 0.71` colorfulness result. Curve lengths are pinned at
+`21`, `8`, and `72` points. The generator requires the correction date
+`2022-04-22`, coefficient `43`, scope marker, JSON and CSV schemas, and finite
+values; regenerated JSON/CSV numerics compare to `1e-12`, while the SVG is
+byte-exact. CLI argument refusals are covered separately.
+
+For CIE94, the tests recompute all 24 retained patches under both directional
+conventions and the separately named geometric-mean variant. The nine summary
+values are pinned to `1e-6`, every printed patch remains within `0.015` of the
+geometric-mean result, and non-finite Lab input is refused.
+
+This evidence establishes that the declared equations are implemented as
+written and that their behavior is reproducible. It does not validate CAM16
+against observers, establish CIE 248:2022 conformance, implement the full
+forward model, or recover the missing tool settings behind the historical CIE94
+table; the scientific report keeps those boundaries explicit.
 
 ## Source and tests
 

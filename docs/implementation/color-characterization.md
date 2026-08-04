@@ -101,8 +101,10 @@ the chart.
 
 ## Invariants and failure behavior
 
-- Camera and reference patch IDs must align exactly.
-- Fewer than three independent RGB samples or a singular fit is refused.
+- Camera/reference row counts must agree, and their declared order pairing must
+  pass the luminance, R-G, and B-G proxy-correlation gates.
+- Fewer than three patch rows is refused; a singular camera design matrix is a
+  separate refusal even when the row count is sufficient.
 - Non-finite spectra, grids, coordinates, matrices, and predicted colors are
   rejected rather than serialized.
 - Reference provenance and capture/reference timeline fields remain attached to
@@ -115,13 +117,33 @@ the chart.
 
 ## Verification evidence
 
-Synthetic fixtures recover known patch means and a known 3 by 3 matrix, then
-show why held-out error can expose a nonlinear example that looks better on its
-training fit. Geometry fixtures distinguish a valid projective chart grid from
-degenerate or crossed corners, and localization tests require absolute
-patch-center agreement even when RGB correlation is high. Separate refusal
-cases cover mismatched patch identities, singular fits, invalid spectra,
+Patch fixtures pin selected `5 × 5`-image ROI means to `1e-12`. Projective
+geometry tests retain all 140 cells in `A1…N10` order and refuse degenerate,
+crossed, or non-finite corner sets. The localization gate is tested against two
+misleading cases: a `6 px` shift fails the declared `5 px` center limit while
+RGB correlation still passes, and a `30 DN` offset fails the `25 DN` absolute
+mean-error limit while correlation again passes.
+
+The known linear CCM fixture recovers all nine matrix coefficients and pins
+four zero training summaries, held-out mean Delta E 76, and held-out maximum
+CIEDE2000 to `1e-9`. A nonlinear fixture then requires held-out mean Delta E 76
+to exceed training mean Delta E 76 by more than `1.0`, which establishes why
+the report does not use training error alone. CIEDE2000 is checked against ten
+Sharma/Wu/Dalal reference assertions—pairs 1–6, a neutral-chroma case in both
+orders, and hue-wrap pairs 9 and 11—each to `1e-4`.
+
+Row-count and order-pairing tests distinguish an aligned reference from a
+shifted order; they do not match camera rows by patch ID because those rows do
+not carry IDs. Other refusal cases cover singular fits, invalid spectra,
 flat-field gate failures, and stale reference provenance.
+
+The public corrected-patch guard separately pins the canonical-LF SHA-256,
+exactly 140 nonblank rows, three finite positive R/G/B fields per row, and A1
+agreement at the report's published two-decimal precision. Mutation tests break
+the check after digest or A1 drift, a dropped row, an added header, changed byte
+layout, non-finite data, or a stale published digest. This preserves the
+committed table; it does not rerun the private RAW extraction or prove
+producer-to-baseline equality.
 
 These tests establish the extraction, fitting, evaluation, and failure
 contracts. They do not turn the compatible spectral chart reference into a
@@ -146,4 +168,9 @@ from the reference-provenance report and remains serialized in every CCM result.
   [`test_chart_localization.cpp`](../../tests/test_chart_localization.cpp),
   [`test_localization_diagnosis.cpp`](../../tests/test_localization_diagnosis.cpp),
   [`test_colorimetry.cpp`](../../tests/test_colorimetry.cpp), and
-  [`test_cmd_ccm_fit.cpp`](../../tests/test_cmd_ccm_fit.cpp)
+  [`test_color_reference.cpp`](../../tests/test_color_reference.cpp)
+- Command and published-baseline tests:
+  [`test_cmd_patches.cpp`](../../tests/test_cmd_patches.cpp),
+  [`test_cmd_ccm_fit.cpp`](../../tests/test_cmd_ccm_fit.cpp),
+  [`check_patch_baseline.py`](../../tools/check_patch_baseline.py), and
+  [`test_check_patch_baseline.py`](../../tools/test_check_patch_baseline.py)

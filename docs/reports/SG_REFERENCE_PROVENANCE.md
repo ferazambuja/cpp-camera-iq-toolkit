@@ -101,9 +101,11 @@ The independent manufacturer comparison uses the same CIE 1931 2-degree
 observer and D50 tables declared here; its software path is documented in the
 [color-characterization implementation companion](../implementation/color-characterization.md).
 
-**Render self-check (validates the tables before trusting any chromatic number):**
-the column-A neutral border renders L = 96.5 / 8.9 / 50.8 (A1/A2/A3) vs X-Rite
-96.7 / 8.1 / 49.8, a,b within ~1 unit of zero. The render pipeline is sound.
+**Render self-check (checks the neutral anchors before any chromatic comparison):**
+all six column-A neutral patches pass the declared `|ΔL*| ≤ 2.5` gate. The
+shown A1/A2/A3 values render L = 96.5 / 8.9 / 50.8 vs X-Rite
+96.7 / 8.1 / 49.8, with a,b within ~1 unit of zero. This establishes the
+declared neutral-anchor check, not general correctness of the render pipeline.
 
 | Comparison | mean ΔE76 | median | max (worst patch) |
 |---|---|---|---|
