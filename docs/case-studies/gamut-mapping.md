@@ -62,14 +62,12 @@ transform, boundary search, coordinates, and mapping rule from camera, printer,
 and proprietary-profile variables. It is a separate engineering experiment,
 not a reconstruction of the course project.
 
-![Ansel Adams Moonrise print from the earlier art-reproduction workflow](../images/art-reproduction-proof.jpg)
-
-*An Ansel Adams* Moonrise *print photographed in class during the earlier
-art-reproduction workflow. The recognizable fine-art subject makes the
-practical motivation — preserving neutrality and tonal separation across screen
-and print — concrete. This photograph is historical context only: the current
-gamut study uses deterministic synthetic colors, not the print or this reduced
-JPEG, as its input.*
+That course work reproduced fine-art photographic prints, where the practical
+stakes are neutrality and tonal separation surviving the move from screen to
+print. Those stakes are what make the mapping decision worth specifying rather
+than delegating, and they are why this study reports hue behavior and preserved
+distinctions alongside color difference instead of ranking methods on a single
+displacement number.
 
 ## Why the boundary search is not a simple bisection
 
