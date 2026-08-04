@@ -1,11 +1,5 @@
 # CFA Flat-Field Response in a Uniform-Field Capture
 
-[Detailed method report](../reports/FLAT_FIELD_RESPONSE.md) ·
-[aggregate response maps](../data/flat_field_response.csv) ·
-[52-frame screening table](../data/flat_field_summary.csv) ·
-[implementation](../../src/shading.cpp) ·
-[tests](../../tests/test_shading.cpp)
-
 ## What this is about
 
 A flat-field measurement asks a simple question: if a camera photographs an
@@ -14,8 +8,10 @@ falls toward the corners and can fall by different amounts in the red, green,
 and blue samples. Cameras compensate for this with shading correction, often
 starting from a simplified model in which response changes smoothly with
 distance from the image center. This study tests that assumption on an archived
-integrating-sphere capture set. The sphere provides a controlled luminous field;
-the RAW sensor mosaic keeps the individual color responses visible.
+integrating-sphere capture set. The sphere provides a controlled luminous field,
+and the measurement works directly on the colour filter array — the mosaic of
+red, green, and blue filters laid over the sensor — so each colour's response
+stays separately visible instead of being blended together first.
 
 The integrating-sphere port provided the controlled field, but residual source
 nonuniformity was not independently isolated from the camera/lens response by
@@ -24,16 +20,27 @@ Most frames were also too bright to use: near clipping, the apparent falloff
 flattens and understates response variation, so each frame was screened for
 headroom before measurement.
 
+[Detailed method report](../reports/FLAT_FIELD_RESPONSE.md) ·
+[aggregate response maps](../data/flat_field_response.csv) ·
+[52-frame screening table](../data/flat_field_summary.csv) ·
+[implementation companion](../implementation/flat-field.md)
+
 ## Headline finding
 
-Three of 52 integrating-sphere captures retained usable headroom; the primary
-f/8 frame showed 19.65% green-field quadrant asymmetry, exceeding the declared
-5% criterion and conflicting with a centered radial scalar model for the
-measured field. The other 49 frames were too close to the sensor ceiling for a
-trustworthy falloff measurement: clipping would make the field look flatter
-than it was. The result remains a capture-system characterization because the
-available captures do not separate illumination nonuniformity from lens,
-alignment, mechanical shading, or sensor-angular effects.
+Only three of the 52 sphere frames were usable. In the other 49 the brightest
+parts of the frame sat close to the sensor's ceiling, where clipping flattens
+the falloff and makes the field look more even than it is — so those frames
+would have understated the very thing being measured.
+
+In the primary usable frame the green response is uneven between corners:
+comparing the brightest and darkest of the four corner blocks, and scaling that
+spread by their average, gives 19.65% — nearly four times the 5% the project
+treats as acceptable. No model in which response depends only on distance from
+the centre can produce that, because such a model gives every corner the same
+value by construction. What the measurement cannot say is which
+component is responsible, because these captures do not separate the sphere's
+own unevenness from the lens, the alignment, or the sensor's response to
+off-axis light.
 
 The retained Fujifilm X-T100 and Fujinon XF 14 mm f/2.8 R sphere and dark
 captures are sufficient to detect and quantify composite-field asymmetry.
@@ -43,16 +50,18 @@ what the complete capture system did rather than assigning a lens correction.
 
 ![CFA flat-field response summary](../figures/flat_field_response.svg)
 
-*The figure shows the accepted f/8, 1/1000 s primary frame. Each heatmap divides
-the image into a 16 × 12 grid and expresses every cell relative to a central
-reference area. The green map shows brightness response; the red-to-green and
-blue-to-green maps show how color balance changes across the field. The 19.65%
-quadrant asymmetry exceeds the declared 5% project policy and is inconsistent
-with a centered radial scalar model for the measured composite. It does not
-identify the responsible component; the missing source and rotation controls
-preclude isolated lens attribution. The matched repeat measured 19.996%, only 0.348
-percentage points away. That supports stability of the large observed
-asymmetry, but two frames do not derive or validate the 5% policy threshold.*
+*The accepted f/8, 1/1000 s primary frame. Across the top, the four measurement
+stages. Below, three maps of the frame: each divides the image into a 16 × 12
+grid and shows every cell's median relative to a 400 × 400 px block at the
+centre. **The three maps use different colour scales** — the green map spans
+0.45–1.05, the two colour-ratio maps only 0.97–1.03 and 0.97–1.05 — so a strong
+colour in the left map means a change roughly ten times larger than the same
+colour on the right. That contrast is the finding: brightness falls to about
+half at the worst corner while colour balance moves by a few percent. The green
+map's four corner blocks spread by 19.65% of their own average, which a centred
+radial model cannot produce. The matched repeat measured 19.996%, closely
+repeating the large asymmetry; two frames do not validate the 5% threshold, and
+nothing here identifies which component caused it.*
 
 ## What the measurement found
 

@@ -2,23 +2,20 @@
 
 RAW code values include a black pedestal even when no light reaches the sensor.
 Subtracting the wrong pedestal biases shadows and contaminates every later noise
-or color calculation. This report compares the post-unpack LibRaw black level
+or color calculation. This report compares the post-unpack metadata black level
 with 21 dark captures: 20 support the recovered 1024 DN pedestal, while one
 outlier is retained and rejected rather than allowed to move the consensus.
 
-Date: 2026-07-03
-Tool: `camera_iq dark-calibration` (this repository, v0.1.0)
-Dataset: private local RAW captures used only for validation. Source RAW files
-are not distributed with this repository.
+The input is the retained CLRS-589 Fujifilm X-T100 dark-frame set; the source
+RAW captures remain outside the public repository.
 
 ## Scope
 
-The command reconciles LibRaw-derived metadata black against measured dark-frame
-RAW data:
+The analysis reconciles post-unpack metadata black against measured
+dark-frame RAW data:
 
-- Scan a selected dark-frame folder using the existing dataset-ID path privacy
-  layer.
-- Run post-`unpack()` raw-CFA statistics for each dark-frame candidate.
+- Analyze the 21 declared dark-frame candidates as one bounded set.
+- Measure post-unpack RAW-CFA statistics for each candidate.
 - Report each frame's signed mean residual after metadata black subtraction.
 - Report measured dark raw means as `metadata_black + residual_mean`.
 - Count frames inside and outside a configurable residual tolerance.
@@ -28,9 +25,8 @@ DSNU/PRNU result, temporal-noise result, PTC, or dynamic-range metric.
 
 ## Scientific Handling
 
-- The tool reuses `read_raw_cfa_stats()`, so black and pitch are read after
-  `unpack()` and use the same active-area crop and `cblack` tile handling as
-  `raw-stats` and `demosaic`.
+- Black and pitch are read after unpacking and use the same active-area crop and
+  repeating black-tile handling as the RAW-statistics and demosaic baselines.
 - A dark-frame residual near zero means the metadata black subtraction agrees
   with measured dark RAW values for that frame. The reported measured raw dark
   level is the metadata black plus the signed residual mean.
@@ -42,19 +38,12 @@ DSNU/PRNU result, temporal-noise result, PTC, or dynamic-range metric.
   an ISO/EMVA threshold.
 - Aggregate means are reported two ways: all readable frames, and only frames
   whose per-plane mean residuals stay within tolerance.
-- The JSON deliberately separates two questions:
-  `all_dark_frames_within_tolerance` answers whether every selected dark frame
-  is clean, while `in_tolerance_supports_metadata_black` answers whether the
-  clean-frame consensus supports the metadata black level.
+- Two verdicts are kept separate: whether every selected dark frame stays
+  within tolerance, and whether the clean-frame consensus supports the
+  metadata black level. A contaminated frame can fail the first question
+  without erasing the evidence provided by the clean subset.
 
-## Real-Data Validation Run
-
-```bash
-./build/camera_iq dark-calibration \
-  clrs589_project_camera \
-  --subdir "Images/Dark Frame" \
-  --out out/clrs_dark_calibration.json
-```
+## Results
 
 Result summary:
 
@@ -65,8 +54,8 @@ Result summary:
 | Missing reports | 0 |
 | Frames within 2 DN | 20 |
 | Outlier frames | 1 |
-| `all_dark_frames_within_tolerance` | false |
-| `in_tolerance_supports_metadata_black` | true |
+| All selected frames within tolerance | no |
+| Clean subset supports metadata black | yes |
 | Metadata black by plane | [1024, 1024, 1024, 1024] DN |
 | In-tolerance metadata black mean | [1024, 1024, 1024, 1024] DN |
 | In-tolerance residual mean | [0.0207, 0.1749, 0.1841, 0.2235] DN |
@@ -74,9 +63,9 @@ Result summary:
 | All-frame residual mean | [2.1516, 4.0292, 4.0441, 2.5923] DN |
 
 Interpretation: 20 of the 21 dark-frame candidates independently support the
-1024 DN pedestal recovered from LibRaw's `cblack` tile. The all-frame mean is
-dominated by one outlier, so `all_dark_frames_within_tolerance` is false, but
-`in_tolerance_supports_metadata_black` is true.
+1024 DN pedestal recovered from the repeating metadata black tile. The
+all-frame mean is dominated by one outlier, so the complete set fails the
+tolerance while the clean subset supports the metadata value.
 
 Outlier:
 
@@ -85,25 +74,8 @@ Outlier:
 | `Dark_Frame_f8.0_1:1000_DSCF0434.RAF` | 1:1000 | 81.2448 DN | [44.770, 81.115, 81.245, 49.969] DN |
 
 The outlier should not be used as a black/noise/dynamic-range calibration frame
-until the capture provenance is resolved. The tool keeps it visible instead of
+until the capture provenance is resolved. The analysis keeps it visible instead of
 silently discarding it.
-
-## Validation
-
-```bash
-cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
-cmake --build build --parallel
-ctest --test-dir build --output-on-failure
-```
-
-Targeted checks:
-
-- `test_dark_calibration` covers missing reports, signed residual averaging,
-  measured raw dark reconstruction, outlier counts, in-tolerance aggregates, the
-  strict all-frame flag, the consensus metadata-black support flag, and JSON
-  fields.
-- `camera_iq_tests` verifies the CLI command is routed.
-- The real-data validation output was written under `out/`, not tracked in git.
 
 ## Interpretation limits
 
@@ -113,9 +85,9 @@ Targeted checks:
   automatically classified as a bad capture. The result is scoped to the
   CLRS-589 Fujifilm X-T100 dark-frame set.
 
-## Reproducibility
+## Engineering companion
 
-- [`src/dark_calibration.cpp`](../../src/dark_calibration.cpp)
-- [`src/cmd_dark_calibration.cpp`](../../src/cmd_dark_calibration.cpp)
-- [`tests/test_dark_calibration.cpp`](../../tests/test_dark_calibration.cpp)
-- [Dark-frame noise report](DARK_FRAME_NOISE.md)
+The [RAW implementation companion](../implementation/raw-foundation.md)
+explains how the analysis is realized in C++ and routes readers to the public
+source and tests. The downstream matched-pair calculation is reported
+separately in [Dark-frame noise](DARK_FRAME_NOISE.md).

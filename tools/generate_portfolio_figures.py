@@ -756,7 +756,7 @@ def generate_shading(data_dir: Path) -> str:
     cards = [
         ("Frame screening", "3 / 52 accepted", "49 rejected by the near-ceiling gate"),
         ("Capture pair", f"max Δ {max_delta:.3f} pp", f"RMS Δ {rms_delta:.3f} pp over corner/plane pairs"),
-        ("Quadrant asymmetry", f"A = {100 * asymmetry:.2f}%", "exceeds the 5% project policy"),
+        ("Corner-field asymmetry", f"A = {100 * asymmetry:.2f}%", "exceeds the 5% project policy"),
     ]
     for index, (title, value, detail) in enumerate(cards):
         x = 42 + index * 385

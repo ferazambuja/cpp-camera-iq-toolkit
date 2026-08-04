@@ -26,13 +26,12 @@ presented as a firm ranking.
 [detailed report](../reports/SPECTRAL_SENSITIVITY.md) ·
 [measurement inventory](../reports/SPECTRAL_ARCHIVE_INVENTORY.md) ·
 [aggregate CSV](../data/spectral_color_fidelity.csv) ·
-[SSF implementation](../../src/spectral_response.cpp) ·
-[closure implementation](../../src/spectral_closure.cpp) ·
-[tests](../../tests/test_spectral_closure.cpp)
+[implementation companion](../implementation/spectral-fidelity.md)
 
-The archive combines one four-camera monochromator, camSPECS, and target
+The archive combines one four-camera monochromator, camSPECS measurement, and target
 laboratory run with a separate Phase One IQ3 camSPECS session on a different
-rig. The four-camera set retains same-session SSF, broadband target,
+rig. The four-camera set retains same-session spectral sensitivity functions
+(SSFs), a broadband target,
 illuminant, and chart-reflectance records; the IQ3 session retains the SSF
 capture but no same-session broadband target or chart reflectance. The analysis
 therefore closes only the evidence-complete set and keeps IQ3 in the SSF-only
@@ -40,15 +39,18 @@ comparison instead of filling the missing physical links by assumption.
 
 ![Five-camera spectral color-fidelity comparison](../figures/spectral_color_fidelity.svg)
 
-*Five cameras scored on three chart sets (SG-140, CC-24, and the CC-18
-chromatic subset). The bars are an ISO 17321-style sensitivity metric where
-higher is better; `QI` beside each camera is the separate Luther-fit quality
-index, which asks how closely that sensor's spectral sensitivities can be
-matched to the human observer by any linear transform. The two answer different
-questions, so they are reported side by side rather than merged. Only the Canon
-row comes from this toolkit's own RAW extraction; the others use measured legacy
-sensitivity functions, which is why the ordering is read at its endpoints rather
-than by small differences in the middle.*
+*Each circle is one camera scored on one chart set — five cameras, three sets
+(the 18 chromatic ColorChecker patches, the full 24, and the 140-patch SG).
+Higher is better on an ISO 17321-style sensitivity metamerism index (SMI).
+Note the vertical
+axis spans 86 to 94 rather than starting at zero, so the visual spread is much
+wider than the numeric spread; that is why only the endpoints are read as a
+result and the middle ordering is not. `QI` beside each camera is the separate
+Luther-fit quality index, which asks how closely that sensor's spectral
+sensitivities can be matched to the human observer by any linear transform. The
+two answer different questions, so they are shown side by side rather than
+merged. Only the Canon row comes from this toolkit's own RAW extraction; the
+others use measured legacy sensitivity functions.*
 
 ## Method
 
@@ -70,7 +72,7 @@ Those sensitivities are then tested three ways:
   to the CIE 1931 color-matching functions. The residual reports how closely
   the sensitivities approach that colorimetric subspace under the declared
   unweighted fit; it is not a scene-performance bound.
-- **ISO 17321-style sensitivity metric** over D55 and the measured chart sets,
+- **ISO 17321-style sensitivity metamerism index (SMI)** over D55 and the measured chart sets,
   with a white-preserving variant run as a sensitivity check on the ranking.
 
 ## Cross-checks

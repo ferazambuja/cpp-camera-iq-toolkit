@@ -7,21 +7,19 @@ bounded DN-space diagnostic—not a camera specification, photon-transfer curve,
 or electron-calibrated read-noise result.
 
 Date: 2026-07-07
-Tool: `camera_iq noise` (this repository, v0.1.0)
 Dataset: private CLRS-589 Fujifilm X-T100 dark-frame captures. Source RAW files
 are not distributed with this repository.
 
 ## Scope
 
-The sensor-noise command is scoped to what the local
-CLRS-589 dark-frame data supports:
+The calculation is scoped to what the local CLRS-589 dark-frame data supports:
 
-- Reuse the existing post-`unpack()` RAW/CFA path and the
-  `dark-calibration` residual gate.
-- Exclude dark-calibration outliers before any pair differencing.
+- Start with the post-unpack, black-subtracted CFA samples and exclude the
+  outlier identified by the dark-calibration screen.
 - Estimate temporal dark-frame noise from matched setting pairs in DN:
   `sigma_temporal = stddev(frame1 - frame2) / sqrt(2)`.
-- Estimate DSNU from the pair mean after subtracting the temporal contribution:
+- Estimate dark-signal non-uniformity (DSNU), the fixed spatial component, from
+  the pair mean after subtracting the temporal contribution:
   `DSNU^2 = var(mean_pair) - sigma_temporal^2 / N`, with `N=2` for a pair.
 - Emit a robust MAD-based DSNU companion because the moment estimate is
   defect-pixel-inclusive. The companion subtracts the SAME temporal floor
@@ -33,14 +31,14 @@ CLRS-589 dark-frame data supports:
 This is deliberately not photon-transfer, electron read noise, full well, or
 dynamic range.
 
-## Real-Data Run
+Subtracting the two matched frames cancels spatial structure that is fixed in
+place and leaves frame-to-frame noise. The variance of two independent noise
+samples adds, so division by `sqrt(2)` returns the single-frame standard
+deviation. Averaging the same pair does the opposite: it retains fixed pattern
+while reducing the temporal contribution, which is why that contribution is
+subtracted before DSNU is reported.
 
-```bash
-./build/camera_iq noise \
-  clrs589_project_camera \
-  --subdir "Images/Dark Frame" \
-  --out out/noise.json
-```
+## Real-Data Run
 
 Result summary:
 
@@ -109,33 +107,6 @@ This diagnostic is reported so a future longer-exposure dark set has a stable
 output contract. For this dataset it confirms that dark current is not
 measurable from the available short-exposure ladder.
 
-## Validation
-
-Verification covers:
-
-- Pair temporal noise: `stddev(frame1-frame2)/sqrt(2)`.
-- DSNU moment correction with a material temporal-noise subtraction.
-- Negative DSNU variance clamp to `null` with
-  `dsnu_below_temporal_floor`.
-- Hot-pixel sensitivity: moment DSNU inflates while the temporal-corrected
-  robust MAD stays stable, and the robust estimate clamps to null with
-  `dsnu_below_temporal_floor` when the robust bulk spread sits below the
-  temporal floor.
-- Dimension and CFA-phase mismatch rejection before differencing.
-- Dark-current expected-null diagnostic.
-- JSON result contract: DN units, single-pair status, and gain/PTC/DR
-  non-support flags.
-- Command parsing and routing.
-
-Local validation:
-
-```bash
-cmake -S . -B build
-cmake --build build --parallel
-ctest --test-dir build --output-on-failure
-bash tools/check_public_paths.sh
-```
-
 ## Interpretation limits
 
 - Results remain DN-referred because system gain was not measured; electron
@@ -145,10 +116,9 @@ bash tools/check_public_paths.sh
 - Only one clean matched dark pair survives calibration, without an independent
   pair cross-check.
 
-## Reproducibility
+## Engineering companion
 
-- [`src/noise.cpp`](../../src/noise.cpp)
-- [`src/cmd_noise.cpp`](../../src/cmd_noise.cpp)
-- [`tests/test_noise.cpp`](../../tests/test_noise.cpp)
-- [`tests/test_cmd_noise.cpp`](../../tests/test_cmd_noise.cpp)
-- [Dark-calibration report](DARK_CALIBRATION.md)
+The [RAW implementation companion](../implementation/raw-foundation.md)
+explains how this measurement is realized in C++ and routes readers to the
+public source and tests. Input black-level screening is documented in
+[Dark calibration](DARK_CALIBRATION.md).

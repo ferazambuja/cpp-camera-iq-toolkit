@@ -14,6 +14,16 @@ from urllib.parse import unquote
 LINK_RE = re.compile(r"!?\[[^\]]*\]\(([^)]+)\)")
 REQUIRED_PROJECT_DOCUMENTS = (
     Path("docs/README.md"),
+    Path("docs/PUBLIC_DOCUMENTATION_STANDARD.md"),
+    Path("docs/implementation/README.md"),
+    Path("docs/implementation/raw-foundation.md"),
+    Path("docs/implementation/sfr-mtf.md"),
+    Path("docs/implementation/color-characterization.md"),
+    Path("docs/implementation/flat-field.md"),
+    Path("docs/implementation/spectral-fidelity.md"),
+    Path("docs/implementation/spectroradiometer.md"),
+    Path("docs/implementation/gamut-mapping.md"),
+    Path("docs/implementation/color-model-audit.md"),
     Path("docs/case-studies/sfr-mtf-aperture-field.md"),
     Path("docs/case-studies/spectral-color-fidelity.md"),
     Path("docs/case-studies/colorchecker-ccm.md"),
@@ -22,6 +32,79 @@ REQUIRED_PROJECT_DOCUMENTS = (
     Path("docs/case-studies/gamut-mapping.md"),
     Path("docs/case-studies/color-model-equation-audit.md"),
 )
+
+# Every public study and report must route implementation detail to one named
+# companion. Exact links are intentional: a generic implementation index does
+# not establish which architecture realizes a particular measurement.
+IMPLEMENTATION_COMPANION_LINKS = {
+    Path("docs/case-studies/sfr-mtf-aperture-field.md"): "../implementation/sfr-mtf.md",
+    Path("docs/case-studies/spectral-color-fidelity.md"): "../implementation/spectral-fidelity.md",
+    Path("docs/case-studies/colorchecker-ccm.md"): "../implementation/color-characterization.md",
+    Path("docs/case-studies/cfa-flat-field-response.md"): "../implementation/flat-field.md",
+    Path("docs/case-studies/spectroradiometer-ingest.md"): "../implementation/spectroradiometer.md",
+    Path("docs/case-studies/gamut-mapping.md"): "../implementation/gamut-mapping.md",
+    Path("docs/case-studies/color-model-equation-audit.md"): "../implementation/color-model-audit.md",
+    Path("docs/reports/BILINEAR_DEMOSAIC.md"): "../implementation/raw-foundation.md",
+    Path("docs/reports/CAM16_EQUATION_AUDIT.md"): "../implementation/color-model-audit.md",
+    Path("docs/reports/CAMERA_IQ_COVERAGE.md"): "../implementation/README.md",
+    Path("docs/reports/CCM_FIT.md"): "../implementation/color-characterization.md",
+    Path("docs/reports/DARK_CALIBRATION.md"): "../implementation/raw-foundation.md",
+    Path("docs/reports/DARK_FRAME_NOISE.md"): "../implementation/raw-foundation.md",
+    Path("docs/reports/EXPOSURE_RESPONSE.md"): "../implementation/raw-foundation.md",
+    Path("docs/reports/FLAT_FIELD_RESPONSE.md"): "../implementation/flat-field.md",
+    Path("docs/reports/FUJI_XT100_CCSG_MANIFEST.md"): "../implementation/raw-foundation.md",
+    Path("docs/reports/GAMUT_MAPPING.md"): "../implementation/gamut-mapping.md",
+    Path("docs/reports/OECF_FIT.md"): "../implementation/raw-foundation.md",
+    Path("docs/reports/OECF_STEPCHART.md"): "../implementation/raw-foundation.md",
+    Path("docs/reports/PATCH_EXTRACTION.md"): "../implementation/color-characterization.md",
+    Path("docs/reports/RAW_CHART_LOCALIZATION.md"): "../implementation/color-characterization.md",
+    Path("docs/reports/RAW_STATS.md"): "../implementation/raw-foundation.md",
+    Path("docs/reports/SFR_MTF.md"): "../implementation/sfr-mtf.md",
+    Path("docs/reports/SFR_MTF_ARCHIVE_INVENTORY.md"): "../implementation/sfr-mtf.md",
+    Path("docs/reports/SG_REFERENCE_PROVENANCE.md"): "../implementation/color-characterization.md",
+    Path("docs/reports/SPECTRAL_ARCHIVE_INVENTORY.md"): "../implementation/spectral-fidelity.md",
+    Path("docs/reports/SPECTRAL_SENSITIVITY.md"): "../implementation/spectral-fidelity.md",
+    Path("docs/reports/SPECTRORADIOMETER_INGEST.md"): "../implementation/spectroradiometer.md",
+}
+
+REPORT_LAYER_PATTERNS = {
+    "shell transcript in scientific report": re.compile(r"^```bash\s*$", re.MULTILINE),
+    "serialized object in scientific report": re.compile(
+        r"^```json\s*$", re.IGNORECASE | re.MULTILINE
+    ),
+    "direct source or test link in scientific report": re.compile(
+        r"\]\(\.\./\.\./(?:include|src|tests)/", re.IGNORECASE
+    ),
+    "software-operation section in scientific report": re.compile(
+        r"^## (?:Command-line interfaces|JSON and CSV behavior|Manifest tool notes|"
+        r"[^\n]*parser[^\n]*|"
+        r"Reproduce(?: the artifacts)?|Reproduction|Reproducibility|Validation)\s*$",
+        re.IGNORECASE | re.MULTILINE,
+    ),
+    "command metadata in scientific report": re.compile(
+        r"^(?:Command|Tool):\s*", re.IGNORECASE | re.MULTILINE
+    ),
+    "CLI option in scientific report": re.compile(r"`--[a-z][a-z0-9-]*"),
+    "command narration in scientific report": re.compile(
+        r"\bThe command (?:accepts|can|emits|implements|reads|reports|uses|writes)\b|"
+        r"`camera_iq\s+[a-z]",
+        re.IGNORECASE,
+    ),
+    "serialization mechanics in scientific report": re.compile(
+        r"\b(?:JSON|CSV)\s+(?:carr(?:y|ies)|emit(?:s|ted)?|records?|serializ(?:e|es|ed))\b|"
+        r"\bJSON\b.{0,60}\b(?:deliberately|retain(?:s|ed)?|separat(?:e|es|ed))\b|"
+        r"\b(?:reports?|retains?)\b.{0,60}\bin JSON\b|"
+        r"\bserializ(?:e|es|ed|ation)\s+(?:as|in|the|every|effective)\b|"
+        r"\bschema-?\d+\b",
+        re.IGNORECASE,
+    ),
+    "parser mechanics in scientific report": re.compile(
+        r"\bparser\b", re.IGNORECASE
+    ),
+    "repository-specific numerical method in scientific report": re.compile(
+        r"\bin-repo DFT\b", re.IGNORECASE
+    ),
+}
 STALE_PATTERNS = {
     "obsolete CTest count": re.compile(r"\b16/16 CTest tests\b"),
     "implemented work labeled Next": re.compile(r"^## Next\b", re.MULTILINE),
@@ -223,11 +306,21 @@ PROVENANCE_CONTRACTS = {
             re.compile(r"cross-timeline by design", re.IGNORECASE),
         ),
         (
+            "compatible-reference scope",
+            re.compile(
+                r"compatible spectral reference.{0,120}not a measurement of "
+                r"the physical chart unit",
+                re.IGNORECASE,
+            ),
+        ),
+    ),
+    Path("docs/implementation/color-characterization.md"): (
+        (
             "serialized timeline provenance",
             re.compile(r"`timeline_provenance`"),
         ),
         (
-            "compatible-reference scope",
+            "serialized compatible-reference scope",
             re.compile(r"`compatible_sg_spectral_not_exact_per_unit`"),
         ),
     ),
@@ -300,6 +393,71 @@ def provenance_contract_failures(repo_root: Path) -> list[str]:
                 relative, path.read_text(encoding="utf-8")
             )
         )
+    return failures
+
+
+def implementation_link_failures_for_text(relative: Path, text: str) -> list[str]:
+    expected = IMPLEMENTATION_COMPANION_LINKS.get(relative)
+    if expected is None:
+        return []
+    failures = []
+    if f"]({expected})" not in text:
+        failures.append(
+            f"missing implementation companion link: {relative} -> {expected}"
+        )
+    if relative.parent == Path("docs/reports"):
+        count = len(re.findall(r"^## Engineering companion\s*$", text, re.MULTILINE))
+        if count != 1:
+            failures.append(
+                f"scientific report requires exactly one engineering companion "
+                f"section: {relative} (found {count})"
+            )
+    return failures
+
+
+def implementation_link_failures(repo_root: Path) -> list[str]:
+    failures: list[str] = []
+    for relative in IMPLEMENTATION_COMPANION_LINKS:
+        path = repo_root / relative
+        if not path.is_file():
+            failures.append(f"missing implementation-linked document: {relative}")
+            continue
+        failures.extend(
+            implementation_link_failures_for_text(
+                relative, path.read_text(encoding="utf-8")
+            )
+        )
+    return failures
+
+
+def report_layer_failures_for_text(relative: Path, text: str) -> list[str]:
+    if relative.parent != Path("docs/reports"):
+        return []
+    return [
+        f"{label}: {relative} — move software operation to docs/implementation/"
+        for label, pattern in REPORT_LAYER_PATTERNS.items()
+        if pattern.search(text)
+    ]
+
+
+def figure_caption_failures_for_text(relative: Path, text: str) -> list[str]:
+    if relative.parent not in {
+        Path("docs/case-studies"),
+        Path("docs/reports"),
+    }:
+        return []
+    lines = text.splitlines()
+    failures = []
+    for index, line in enumerate(lines):
+        if not re.match(r"^!\[[^]]*\]\([^)]+\)\s*$", line):
+            continue
+        next_index = index + 1
+        while next_index < len(lines) and not lines[next_index].strip():
+            next_index += 1
+        if next_index >= len(lines) or not lines[next_index].lstrip().startswith("*"):
+            failures.append(
+                f"figure missing adjacent caption: {relative}:{index + 1}"
+            )
     return failures
 
 
@@ -390,6 +548,7 @@ def main() -> int:
             )
 
     failures.extend(provenance_contract_failures(repo_root))
+    failures.extend(implementation_link_failures(repo_root))
 
     markdown_files = public_markdown(repo_root)
     for path in markdown_files:
@@ -417,6 +576,12 @@ def main() -> int:
             for label, pattern in NORMALIZED_STALE_PATTERNS.items():
                 if pattern.search(normalized):
                     failures.append(f"{label}: {path.relative_to(repo_root)}")
+        failures.extend(
+            report_layer_failures_for_text(path.relative_to(repo_root), text)
+        )
+        failures.extend(
+            figure_caption_failures_for_text(path.relative_to(repo_root), text)
+        )
 
     index_path = repo_root / "docs" / "README.md"
     if index_path.is_file():
@@ -425,6 +590,20 @@ def main() -> int:
             expected = f"reports/{report.name}"
             if expected not in index_text:
                 failures.append(f"report missing from docs index: {report.name}")
+
+    implementation_index = repo_root / "docs" / "implementation" / "README.md"
+    if implementation_index.is_file():
+        implementation_index_text = implementation_index.read_text(encoding="utf-8")
+        for companion in sorted(
+            (repo_root / "docs" / "implementation").glob("*.md")
+        ):
+            if companion == implementation_index:
+                continue
+            expected = f"]({companion.name})"
+            if expected not in implementation_index_text:
+                failures.append(
+                    f"implementation companion missing from index: {companion.name}"
+                )
 
     readme = (repo_root / "README.md").read_text(encoding="utf-8")
     if "https://github.com/ferazambuja" not in readme:

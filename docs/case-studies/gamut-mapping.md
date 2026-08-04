@@ -1,14 +1,5 @@
 # Display-P3 to sRGB gamut mapping
 
-[Detailed report](../reports/GAMUT_MAPPING.md) ·
-[figure](../figures/gamut_mapping_synthetic.svg) ·
-[CIELAB-radial data](../data/gamut_synthetic_radial.csv) ·
-[OkLCh-radial data](../data/gamut_synthetic_oklch_radial.csv) ·
-[CSS Local-MINDE data](../data/gamut_synthetic_css_local_minde.csv) ·
-[soft-compression data](../data/gamut_synthetic_soft.csv) ·
-[implementation](../../src/gamut_mapping.cpp) ·
-[tests](../../tests/test_gamut_mapping.cpp)
-
 ## What this is about
 
 A wide-gamut encoding such as Display-P3 can represent colors that sRGB cannot.
@@ -24,16 +15,39 @@ rule. The question is how to move a color from a wider encoding into a smaller
 destination without shifting hue unnecessarily, crushing distinctions, or
 changing colors that already fit.
 
+[Detailed report](../reports/GAMUT_MAPPING.md) ·
+[figure](../figures/gamut_mapping_synthetic.svg) ·
+[CIELAB-radial data](../data/gamut_synthetic_radial.csv) ·
+[OkLCh-radial data](../data/gamut_synthetic_oklch_radial.csv) ·
+[CSS Local-MINDE data](../data/gamut_synthetic_css_local_minde.csv) ·
+[soft-compression data](../data/gamut_synthetic_soft.csv) ·
+[implementation companion](../implementation/gamut-mapping.md)
+
 ## Headline results
 
-Changing only the radial coordinates from CIELAB to OkLCh retained much more
+Changing only the radial coordinates from CIELAB to OkLCh — the cylindrical
+lightness, chroma, and hue form of OkLab — retained much more
 P3-yellow chroma (`0.211` versus `0.058`) and reduced that sample's CIEDE2000
 color difference from `23.928` to `5.523`, where lower is better. The grid mean
 rose from `2.857` to `2.947` and the worst point moved from yellow to red, so
 the coordinate change is a targeted trade rather than a universal improvement.
-Changing only the OkLCh algorithm to Local MINDE then reduced the complete-grid
+Changing only the OkLCh algorithm to CSS Local MINDE, a local
+minimum-color-difference search, then reduced the complete-grid
 mean from `2.947` to `2.323` and the maximum from `9.956` to `7.602`, while
-widening the IPT-hue 90th percentile from `3.368°` to `4.806°`.
+widening the 90th-percentile hue shift in the separate IPT color model from
+`3.368°` to `4.806°`.
+
+![Synthetic Display-P3 to sRGB mapping](../figures/gamut_mapping_synthetic.svg)
+
+*Left: the CIELAB `a*b*` plane under the fixed-lightness, fixed-hue radial
+baseline. Each segment joins a sample's input chroma to its mapped chroma, so
+longer segments mean more chroma was removed. Upper right: a paired 12-bin
+histogram of modified-sample CIEDE2000 values for the radial baseline and the
+experimental protected-core method; bar height is the bin count normalized to
+the tallest bin, not an individual sample value. Lower right: all four methods
+compared by modified-sample count, grid-mean CIEDE2000, and 90th-percentile IPT
+hue shift. Together the panels show why no single aggregate makes one method a
+uniform improvement.*
 
 ## Relationship to the earlier color-management work
 
@@ -50,21 +64,22 @@ not a reconstruction of the course project.
 
 ![Ansel Adams Moonrise print from the earlier art-reproduction workflow](../images/art-reproduction-proof.jpg)
 
-*An Ansel Adams “Moonrise” print photographed during the earlier class workflow
-under dual 45° illumination. Working with a recognizable fine-art print made
-the practical concerns — neutrality, tonal separation, and reproduction across
-screen and paper — concrete. The current gamut experiment uses deterministic
-synthetic colors; this reduced, metadata-stripped JPEG provides context and is
-not an analysis input.*
+*An Ansel Adams* Moonrise *print photographed in class during the earlier
+art-reproduction workflow. The recognizable fine-art subject makes the
+practical motivation — preserving neutrality and tonal separation across screen
+and print — concrete. This photograph is historical context only: the current
+gamut study uses deterministic synthetic colors, not the print or this reduced
+JPEG, as its input.*
 
 ## Why the boundary search is not a simple bisection
 
 A constant-Lab-hue path can leave an RGB gamut and later re-enter it. A fixed
-membership scan missed a real 0.10-C\* excursion in an adversarial high-
-lightness ray. The final solver instead represents each destination channel as
-a piecewise cubic function of chroma, enumerates its `0` and `1` surface
-crossings, and refines the first in-to-out transition. This turns a visual
-assumption about gamut shape into a tested numerical contract.
+0.25-C\* membership scan stepped straight over a narrow excursion in an
+adversarial high-lightness ray, sampling in-gamut on both sides and selecting
+the wrong boundary. The final solver instead represents each destination
+channel as a piecewise cubic function of chroma, enumerates its `0` and `1`
+surface crossings, and refines the first in-to-out transition. This turns a
+visual assumption about gamut shape into a tested numerical contract.
 
 ## Method: a controlled mapping comparison
 
@@ -124,18 +139,6 @@ constructed LittleCMS profiles to `1e-6` per encoded channel on the tested
 common-gamut samples in both directions. This cross-check supports the
 color-space transforms; it does not validate the toolkit's boundary search or
 mapping intents.
-
-![Synthetic Display-P3 to sRGB mapping](../figures/gamut_mapping_synthetic.svg)
-
-*Left: the CIELAB `a*b*` plane under the fixed-L\*, Lab-hue radial baseline;
-each segment joins a sample's input chroma to where the method placed it, so
-segment length is how much chroma that color lost. The longest segments are the
-overcompressed high-chroma rays. Upper right: modified-sample CIEDE2000
-displacement for the radial baseline and experimental protected-core method.
-Lower right: all four methods compared by modified-sample count, grid-mean
-CIEDE2000, and IPT hue-difference 90th percentile. The panels keep coordinate
-and algorithm tradeoffs visible instead of presenting one aggregate as a
-uniform improvement.*
 
 ## What the result does not establish
 

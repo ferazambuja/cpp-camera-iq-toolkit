@@ -36,6 +36,16 @@ class PublicationLanguageTests(unittest.TestCase):
             DOCS.REQUIRED_PROJECT_DOCUMENTS,
         )
 
+    def test_documentation_standard_and_implementation_index_are_required(self) -> None:
+        self.assertIn(
+            Path("docs/PUBLIC_DOCUMENTATION_STANDARD.md"),
+            DOCS.REQUIRED_PROJECT_DOCUMENTS,
+        )
+        self.assertIn(
+            Path("docs/implementation/README.md"),
+            DOCS.REQUIRED_PROJECT_DOCUMENTS,
+        )
+
     def test_public_markdown_includes_untracked_public_plan(self) -> None:
         with tempfile.TemporaryDirectory() as temp:
             repo = Path(temp)
@@ -245,6 +255,112 @@ class ProvenanceContractTests(unittest.TestCase):
             failures,
         )
 
+
+class DocumentationLayerTests(unittest.TestCase):
+    def test_current_studies_and_reports_link_to_companions(self) -> None:
+        repo_root = SCRIPT.parent.parent
+        self.assertEqual([], DOCS.implementation_link_failures(repo_root))
+
+    def test_removing_companion_link_is_detected(self) -> None:
+        relative = Path("docs/case-studies/cfa-flat-field-response.md")
+        repo_root = SCRIPT.parent.parent
+        text = (repo_root / relative).read_text(encoding="utf-8")
+        expected = DOCS.IMPLEMENTATION_COMPANION_LINKS[relative]
+        mutated = text.replace(f"]({expected})", "](missing.md)")
+        failures = DOCS.implementation_link_failures_for_text(relative, mutated)
+        self.assertTrue(any("missing implementation companion link" in item
+                            for item in failures), failures)
+
+    def test_report_requires_one_engineering_companion_section(self) -> None:
+        relative = Path("docs/reports/SFR_MTF.md")
+        repo_root = SCRIPT.parent.parent
+        text = (repo_root / relative).read_text(encoding="utf-8")
+        mutated = text.replace("## Engineering companion", "## Software note")
+        failures = DOCS.implementation_link_failures_for_text(relative, mutated)
+        self.assertTrue(any("engineering companion section" in item
+                            for item in failures), failures)
+
+    def test_scientific_report_rejects_software_operation_sections(self) -> None:
+        relative = Path("docs/reports/EXAMPLE.md")
+        examples = (
+            "## Reproduce\n\n```bash\nctest --test-dir build\n```\n",
+            "[test](../../tests/test_example.cpp)\n",
+            "Tool: `camera_iq example`\n",
+            "The command emits a summary.\n",
+            "Use `--threshold 0.5` for this run.\n",
+            "```json\n{\"accepted\": true}\n```\n",
+            "The JSON records the effective threshold.\n",
+            "The JSON deliberately separates two questions.\n",
+            "The analyzer reports rectangles in JSON.\n",
+            "Accepted patches JSON retain the gate diagnostics.\n",
+            "The result is serialized as `uniform_equal_weight`.\n",
+            "All files used schema-3 diagnostics.\n",
+            "## Parser boundary\n",
+            "The parser reads all retained rows.\n",
+            "The parser is deliberately table-scoped.\n",
+            "This verifies that the parser sees archive metadata.\n",
+            "The signal is transformed with an in-repo DFT.\n",
+        )
+        for text in examples:
+            with self.subTest(text=text):
+                self.assertTrue(
+                    DOCS.report_layer_failures_for_text(relative, text)
+                )
+
+    def test_scientific_report_allows_formulas_and_measurement_crosschecks(self) -> None:
+        relative = Path("docs/reports/EXAMPLE.md")
+        text = (
+            "## Method\n\n"
+            "```text\nresponse = signal / center_signal\n```\n\n"
+            "## Measurement cross-check\n\nThe independent reference agreed.\n"
+        )
+        self.assertEqual(
+            [], DOCS.report_layer_failures_for_text(relative, text)
+        )
+
+    def test_engineering_companion_heading_cannot_hide_software_details(self) -> None:
+        relative = Path("docs/reports/EXAMPLE.md")
+        text = (
+            "## Engineering companion\n\n"
+            "The [companion](../implementation/example.md) is linked here. "
+            "The parser reads a private schema.\n"
+        )
+        self.assertTrue(DOCS.report_layer_failures_for_text(relative, text))
+
+    def test_engineering_companion_link_without_inventory_is_allowed(self) -> None:
+        relative = Path("docs/reports/EXAMPLE.md")
+        text = (
+            "## Engineering companion\n\n"
+            "The [companion](../implementation/example.md) explains how the "
+            "method is realized in C++ and routes readers to the public source.\n"
+        )
+        self.assertEqual([], DOCS.report_layer_failures_for_text(relative, text))
+
+    def test_current_case_study_and_report_figures_have_captions(self) -> None:
+        repo_root = SCRIPT.parent.parent
+        failures = []
+        for folder in ("case-studies", "reports"):
+            for path in (repo_root / "docs" / folder).glob("*.md"):
+                failures.extend(
+                    DOCS.figure_caption_failures_for_text(
+                        path.relative_to(repo_root), path.read_text(encoding="utf-8")
+                    )
+                )
+        self.assertEqual([], failures)
+
+    def test_uncaptioned_figure_is_rejected(self) -> None:
+        relative = Path("docs/reports/EXAMPLE.md")
+        text = "![Plot](../figures/plot.svg)\n\n## Results\n"
+        failures = DOCS.figure_caption_failures_for_text(relative, text)
+        self.assertTrue(any("figure missing adjacent caption" in item
+                            for item in failures), failures)
+
+    def test_captioned_figure_is_allowed(self) -> None:
+        relative = Path("docs/case-studies/EXAMPLE.md")
+        text = "![Plot](../figures/plot.svg)\n\n*Axes and marks explained.*\n"
+        self.assertEqual(
+            [], DOCS.figure_caption_failures_for_text(relative, text)
+        )
 
 class HeadingAnchorTests(unittest.TestCase):
     """A link to `FILE.md#section` is only checked as far as FILE.md unless the

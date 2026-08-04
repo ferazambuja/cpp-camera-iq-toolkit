@@ -8,15 +8,13 @@ looks like an exposure ramp is rejected because its samples sit on a near-white
 plateau and cannot reveal response linearity.
 
 Date: 2026-07-03
-Tool: `camera_iq exposure-response` (this repository, v0.1.0)
 Dataset: private local RAW captures used only for validation. Source RAW files
 are not distributed with this repository.
-Commands using dataset IDs require a local `configs/datasets.local.json` that
-points those IDs at private data or an archive mount.
 
 ## Scope
 
-The command provides the objective-IQ series layer:
+The analysis first identifies coherent exposure series and then measures each
+frame on the same sensor-linear basis:
 
 - Detect RAW exposure series from filename metadata across supported LibRaw
   extensions, not only RAF.
@@ -24,8 +22,8 @@ The command provides the objective-IQ series layer:
   `NIKON D800_i100_s1-40_8.NEF` as group / ISO / shutter / frame metadata.
 - Run full-frame or ROI raw-CFA statistics for each selected series frame.
 - Emit black-subtracted per-shutter CFA response summaries.
-- Optionally restrict the response summary to a CFA-balanced active-area ROI
-  with `--roi x,y,width,height`.
+- Optionally restrict the response summary to a CFA-balanced region of interest
+  (ROI) in active-area coordinates.
 
 This report covers exposure-series readiness rather than a final OECF, PTC,
 read-noise, dynamic-range, or ISO-conformance metric. The implemented
@@ -34,8 +32,8 @@ conformance.
 
 ## Scientific Handling
 
-- Per-frame statistics reuse the post-`unpack()` black subtraction and active-area
-  crop from `raw-stats`.
+- Per-frame statistics reuse the post-unpack black subtraction and active-area
+  crop defined in [RAW CFA statistics](RAW_STATS.md).
 - Series keys remain conservative: directory, group, aperture, and ISO token.
   Missing ISO is not merged with explicit ISO.
 - `mean_signal_by_plane` is the average of per-frame black-subtracted CFA means
@@ -44,8 +42,9 @@ conformance.
   noise and must not be used as PTC/read-noise evidence.
 - ROI mode uses active-area coordinates, clips the requested rectangle to image
   bounds, and rounds inward to an even origin and even dimensions so every
-  selected region contains complete 2x2 Bayer blocks. The actual ROI is recorded
-  in each frame's JSON as `measurement_roi`.
+  selected region contains complete 2x2 Bayer blocks. The effective measured
+  rectangle is retained with each frame so the reported statistics remain tied
+  to their spatial support.
 - ROI mode applies a coarse uniformity readiness gate:
   `max_spatial_stddev_fraction_of_range <= 0.05`, where the denominator is the
   black-subtracted sensor range for each CFA plane. This prevents an obviously
@@ -69,14 +68,6 @@ conformance.
 
 ### Rejected saturated sphere ladder
 
-```bash
-./build/camera_iq exposure-response \
-  clrs589_project_camera \
-  --subdir "Images/Sphere" \
-  --series-min 3 --series-limit 1 \
-  --out out/sphere_exposure_response.json
-```
-
 Result summary:
 
 | Field | Value |
@@ -98,14 +89,6 @@ synthetic tests.
 
 ### Accepted non-uniform f8 response ladder
 
-```bash
-./build/camera_iq exposure-response \
-  clrs589_project_camera \
-  --subdir "Images/Non_Unifform_f8" \
-  --series-min 3 --series-limit 1 \
-  --out out/nonuniform_exposure_response.json
-```
-
 Result summary:
 
 | Field | Value |
@@ -126,15 +109,6 @@ chart/patch selection and reference handling are still required for a standard
 metric.
 
 ### Accepted non-uniform f8 response ladder, manual ROI
-
-```bash
-./build/camera_iq exposure-response \
-  clrs589_project_camera \
-  --subdir "Images/Non_Unifform_f8" \
-  --series-min 3 --series-limit 1 \
-  --roi 1000,1000,500,500 \
-  --out out/nonuniform_f8_roi_exposure_response.json
-```
 
 Result summary:
 
@@ -159,13 +133,6 @@ measured reflectance target.
 
 ### Nikon D800 archive parse check
 
-```bash
-./build/camera_iq manifest \
-  d800_oecf_2016 \
-  --no-exif --series-min 3 \
-  --out out/d800_manifest_noexif.json
-```
-
 Result summary:
 
 | Field | Value |
@@ -175,8 +142,8 @@ Result summary:
 | Exposure-series candidates | 0 |
 | Example parse | ISO 100, `s1-40`, 0.025 s, frame 1 |
 
-This verifies that the parser sees the archive metadata, while the current
-fixed-ISO/fixed-aperture series key does not falsely manufacture a shutter
+This verifies that the archive metadata can be interpreted while the declared
+fixed-ISO/fixed-aperture grouping rule does not falsely manufacture a shutter
 ladder from the D800 folder.
 
 The D800 folder's Imatest Stepchart summaries are handled by the separate
@@ -184,19 +151,6 @@ The D800 folder's Imatest Stepchart summaries are handled by the separate
 exposure-series detector. That capture set compensates shutter as
 ISO changes, so the chart zones supply the rendered-luminance log-exposure axis
 and the current `exposure-response` zero-series result remains correct.
-
-## Validation
-
-```bash
-cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
-cmake --build build --parallel
-ctest --test-dir build --output-on-failure
-```
-
-Verification covers NEF parsing, RAW-extension series discovery, CFA-balanced
-ROI handling, odd-origin CFA phase preservation, ROI uniformity checks, JSON
-serialization, missing-frame handling, and near-white plateau rejection.
-Archive-backed outputs remain outside the public repository.
 
 ## Interpretation limits
 
@@ -207,10 +161,9 @@ Archive-backed outputs remain outside the public repository.
   different matched captures and calibration.
 - Chart detection and color-reference pairing are separate measurement paths.
 
-## Reproducibility
+## Engineering companion
 
-- [`src/exposure_response.cpp`](../../src/exposure_response.cpp)
-- [`src/cmd_exposure_response.cpp`](../../src/cmd_exposure_response.cpp)
-- [`tests/test_exposure_response.cpp`](../../tests/test_exposure_response.cpp)
-- [`tests/test_cmd_exposure_response.cpp`](../../tests/test_cmd_exposure_response.cpp)
-- [Relative OECF report](OECF_FIT.md)
+The [RAW implementation companion](../implementation/raw-foundation.md)
+explains how the readiness analysis is realized in C++ and routes readers to
+the public source and tests. The accepted ladder's fitted response is reported in the
+[relative OECF report](OECF_FIT.md).

@@ -12,16 +12,6 @@ Date: 2026-07-09
 
 Dataset: `d800_oecf_2016`
 
-Command:
-
-```bash
-./build/camera_iq oecf-stepchart \
-  d800_oecf_2016 \
-  --config configs/datasets.local.json \
-  --oracle-dir Results \
-  --out out/d800_oecf_stepchart_oracle.json
-```
-
 ## Result
 
 The Nikon D800 OECF archive is now handled as an Imatest Stepchart oracle
@@ -40,10 +30,10 @@ Real output summary from the configured private dataset:
 | ISO25600 unoracled files | 11 |
 | Test/unmatched NEFs | 3 |
 
-`camera_iq exposure-response d800_oecf_2016 --series-min 3` selecting zero
-series is correct: the capture changes ISO and shutter together, so each ISO
-group has one shutter token. The Stepchart's 20 printed density zones provide
-the rendered-luminance oracle axis.
+An ordinary fixed-ISO shutter-series search correctly selects no series: ISO
+and shutter change together, leaving one shutter value per ISO group. The
+Stepchart's 20 printed density zones, rather than shutter time, provide the
+rendered-luminance reference axis.
 
 ## Archive Shape
 
@@ -60,28 +50,20 @@ ISO25600 is diagnostic-only. It reuses `s1-5000`, the same shutter as ISO12800,
 because the D800 capture set has no `s1-10000` frame; it is one stop brighter
 than the compensated ISO100-12800 ladder.
 
-## Oracle Format
+## Retained advisory data
 
-The summaries are Imatest 4.5.7 Stepchart CSVs. The parser is deliberately
-table-scoped because the files contain several traps:
-
-- The primary header has 10 split cells, ending in empty `Lux (patch),`, while
-  every primary data row has 8 fields.
-- Secondary density/noise/SNR tables also contain numeric zone-like rows and
-  `Inf` values.
-- `Directory` metadata in the tail contains private absolute paths and is not
-  emitted.
-- `File Name`, `File Size`, and `File Source` metadata rows are not combined
-  file-list rows.
-- Run dates are one sequential run per ISO, not one identical batch timestamp.
-
-The command emits only sanitized dataset labels and dataset-relative filenames.
-The live JSON was checked for zero private absolute-path markers.
+The reference summaries come from Imatest 4.5.7 Stepchart analyses. Each file
+contains several tables, but only the primary zone-response table answers this
+study's question. Density, noise, and signal-to-noise rows are excluded rather
+than mistaken for additional chart zones. Run dates identify one sequential
+analysis per ISO, not one shared batch timestamp. The public record retains the
+dataset identity and response values needed for this comparison without
+reproducing archive-location metadata.
 
 ## Advisory Spread
 
-The command reports rendered-luma spread across the 8 ISO summaries as advisory
-only. It is a join/provenance sanity check, not a hard physics gate.
+Rendered-luma spread across the eight ISO summaries is advisory only. It is a
+join and provenance check, not a hard physics gate.
 
 Observed envelope:
 
@@ -99,24 +81,20 @@ Observed envelope:
 ## Interpretation limits
 
 - ISO 14524 OECF conformance.
-- Raw-DN OECF or raw Stepchart zone extraction unless a raw-zone mode
-  (`--zone-corners` or `--zone-ring`) is provided; the default oracle-only
-  command stays rendered-luma only. On this archive only the ring mode yields
-  accepted raw-DN output — the strip mode refuses at the oracle-ladder gate.
+- Raw-DN OECF or raw Stepchart zone extraction without declared zone geometry;
+  the reference-table-only path stays rendered-luma only. On this archive only
+  the ring geometry yields accepted raw-DN output—the strip geometry fails the
+  reference-ladder gate.
 - Electron-calibrated PTC, full well, PRNU, or dynamic range.
 - Chart-density traceability. The `Lux (patch)` column is empty in every
   summary, so the log-exposure axis is nominal chart density.
 - Measured ISO speed. ISO tokens are exposure-index settings from filenames.
 
-## Raw Zone Extraction
+## Raw zone extraction
 
-The command has two explicit raw-zone modes:
-
-- `--zone-corners` / `--zone-inner-fraction`: a 20x1 contiguous strip. **On
-  this archive it correctly refuses** because the physical chart is not a
-  linear 20-zone strip.
-- `--zone-ring` / `--zone-roi-size`: a measured ring layout. On this archive it
-  is the accepted raw-DN extraction path.
+Two candidate geometries were tested. A 20-by-1 contiguous strip is rejected
+because the physical chart is not a linear step wedge. A measured ring layout
+is the accepted RAW-DN extraction path for this archive.
 
 ![Reduced crop of the Stepchart ring-zone layout](../images/oecf-stepchart-zones.jpg)
 
@@ -141,11 +119,10 @@ produces non-monotone means, mid-zone spatial stddevs of 800-1300 DN
 (ROIs straddling structured content), and step-free deep zones. The strip seed
 is therefore an invalid extraction model for this archive.
 
-The command now enforces an empirical oracle-ladder gate
-(`validate_stepchart_raw_iso_against_oracle`): per ISO group, green zone
-means must be non-increasing in oracle zone order (deep-shadow ties allowed)
-and correlate with `10^log_exposure` at r >= 0.98. The strip seed on this
-archive fails it immediately:
+The empirical reference-ladder gate requires the green mean in each ISO group
+to be non-increasing in zone order, allowing ties in the deepest shadows, and
+to correlate with `10^log_exposure` at `r >= 0.98`. The strip seed fails
+immediately because its regions do not follow the physical zones.
 
 ```text
 Stepchart raw gate: green zone means are not monotone with the oracle ladder
@@ -160,8 +137,9 @@ Scope boundaries for the raw-zone path:
   deterministic ISO 14524-style alternating pattern — no external zone-order
   map was needed; the accepted 4-parameter seed is verified by the two-frame
   validation described below.
-- The ring mode uses `--zone-ring 3633,2582,1341,-97.8 --zone-roi-size 150` and
-  passes the oracle-ladder gate on all 8 oracled ISO groups. Green-channel
+- The accepted ring has center `(3633, 2582)`, radius `1341 px`, angular offset
+  `-97.8 degrees`, and `150 px` square sampling regions. It passes the
+  reference-ladder gate on all eight matched ISO groups. Green-channel
   correlation with `10^log_exposure` is 0.999795-0.999938 across ISO 100-12800.
 - When the gate passes, it reports black-subtracted raw-CFA DN means per
   ISO/zone/channel, the repeat-frame spread of ROI means, and aligned same-pixel
@@ -174,9 +152,8 @@ Scope boundaries for the raw-zone path:
 - It does **not** claim ISO 14524 conformance, electron-calibrated gain/read
   noise, full well, engineering dynamic range, measured ISO speed, or PRNU.
 
-DN-referred per-pixel temporal-variance result from the accepted ring seed
-(`--zone-ring 3633,2582,1341,-97.8 --zone-roi-size 150`, G1 shown for
-compactness):
+DN-referred per-pixel temporal-variance result from that accepted ring geometry
+(G1 shown for compactness):
 
 | ISO | min R^2 across planes | G1 slope (DN^2/DN) | G1 intercept (DN^2) | fit zones per plane |
 |---:|---:|---:|---:|---:|
@@ -194,45 +171,12 @@ intercepts are not reported as read noise: the chart density axis is nominal,
 deep patches are flare/noise-floor dominated, and no electron calibration or
 full-well evidence is present.
 
-## Validation
+The strip-seed failure is intentional and remains fail-closed; the ring seed is
+the accepted raw-DN path. The implementation companion documents the two
+geometry branches, refusal behavior, and validation fixtures.
 
-Local verification after implementation:
+## Engineering companion
 
-```bash
-cmake --build build --parallel
-ctest --test-dir build --output-on-failure
-./build/camera_iq oecf-stepchart d800_oecf_2016 \
-  --config configs/datasets.local.json \
-  --oracle-dir Results \
-  --out out/d800_oecf_stepchart_oracle.json
-# The strip seed refuses on this ring-layout archive (exit 1, gate message):
-./build/camera_iq oecf-stepchart d800_oecf_2016 \
-  --config configs/datasets.local.json \
-  --oracle-dir Results \
-  --zone-corners "2240,1830;6260,1830;6260,2122;2240,2122" \
-  --zone-inner-fraction 1 \
-  --out out/d800_oecf_stepchart_raw_zone.json
-# The accepted ring seed writes raw-DN zone summaries:
-./build/camera_iq oecf-stepchart d800_oecf_2016 \
-  --config configs/datasets.local.json \
-  --oracle-dir Results \
-  --zone-ring "3633,2582,1341,-97.8" \
-  --zone-roi-size 150 \
-  --out out/d800_oecf_stepchart_ring.json
-bash tools/check_public_paths.sh
-git diff --check
-```
-
-The strip-seed failure is intentional and must remain fail-closed; the ring
-seed is the accepted raw-DN path. The test suite tracks the Stepchart hardening,
-raw-zone gate, ring-contract, and ring-implementation commits.
-
-## Reproducibility
-
-- [`src/imatest_stepchart.cpp`](../../src/imatest_stepchart.cpp)
-- [`src/stepchart_localization.cpp`](../../src/stepchart_localization.cpp)
-- [`src/stepchart_raw.cpp`](../../src/stepchart_raw.cpp)
-- [`src/cmd_oecf_stepchart.cpp`](../../src/cmd_oecf_stepchart.cpp)
-- [`tests/test_imatest_stepchart.cpp`](../../tests/test_imatest_stepchart.cpp)
-- [`tests/test_stepchart_localization.cpp`](../../tests/test_stepchart_localization.cpp)
-- [`tests/test_stepchart_raw.cpp`](../../tests/test_stepchart_raw.cpp)
+The [RAW implementation companion](../implementation/raw-foundation.md)
+explains how the Stepchart analysis is realized in C++ and routes readers to
+the public source and tests.

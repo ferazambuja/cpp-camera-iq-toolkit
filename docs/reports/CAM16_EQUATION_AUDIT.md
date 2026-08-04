@@ -1,13 +1,5 @@
 # CAM16 equation audit and CIE94 continuity check
 
-[Documentation index](../README.md) ·
-[case study](../case-studies/color-model-equation-audit.md) ·
-[data](../data/cam16_equation_audit.csv) ·
-[historical CIE94 fixture](../data/cie94_historical_24patch.csv) ·
-[figure](../figures/cam16_equation_audit.svg) ·
-[implementation](../../src/cam16_equation_audit.cpp) ·
-[tests](../../tests/test_cam16_equation_audit.cpp)
-
 ## Overview
 
 A color appearance model predicts perceived attributes such as brightness and
@@ -27,6 +19,13 @@ The colorimetry library also adds directional CIE94 and a separately named
 geometric-mean-chroma variant. That distinction resolves an ambiguity in a
 prior color-management study without rewriting its historical result as a
 modern validation claim.
+
+[Documentation index](../README.md) ·
+[case study](../case-studies/color-model-equation-audit.md) ·
+[data](../data/cam16_equation_audit.csv) ·
+[historical CIE94 fixture](../data/cie94_historical_24patch.csv) ·
+[figure](../figures/cam16_equation_audit.svg) ·
+[implementation companion](../implementation/color-model-audit.md)
 
 ## Normalized lightness and brightness
 
@@ -134,6 +133,16 @@ improve every evaluated attribute.
 The source datasets are not used here, so these published correlations are
 context, not independently reproduced observer results.
 
+![CAM16 equation audit](../figures/cam16_equation_audit.svg)
+
+*Left: normalized brightness against CAM16 lightness `J`; the square-root CAM16
+relation reaches half brightness at `J = 25`, while the proposed linear
+relation reaches it at `J = 50`. Center: the isolated background factor and the
+range of the complete chroma expression across reference lightness
+`J₀ = 10…90`; the band crossing the isolated line shows that the single term is
+neither a floor nor a ceiling. Right: the paper's reported fits, including the
+colorfulness regression from `0.81` to `0.71`.*
+
 ## CIE94 and the prior study
 
 CIE94 is directional: the chroma and hue weighting terms use the reference
@@ -156,34 +165,13 @@ gives:
 | Geometric-mean-chroma weighting | 3.098 | 2.751 | 6.919 |
 | Printed historical summary | 3.10 | 2.75 | 6.92 |
 
-The C++ test suite reads all 24 retained pairs and pins the three summaries and
-the patch-level rounding agreement. The printed table is internally consistent
-and closely follows the geometric-mean-chroma variant. The original tool,
-full-precision inputs, and its convention were not retained, so this is not
-proof that the historical workflow used that formula and not an exact
-independent reproduction. The custom-ICC arm remains aggregate-only and cannot
-be recalculated per patch.
-
-## Reproduce
-
-```bash
-cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
-cmake --build build --parallel
-
-./build/camera_iq cam16-equation-audit \
-  --out-json out/cam16-equation-audit.json \
-  --out-csv out/cam16-equation-audit.csv
-
-python3 tools/generate_cam16_equation_audit.py \
-  --camera-iq build/camera_iq --check
-```
-
-The command serializes its scope, equation correction, curve samples, and
-published performance values. The generator reruns the C++ command and
-requires exact schemas and finite numerics in both data files, allowing only
-`1e-12` relative or absolute numeric roundoff; the SVG remains byte-exact.
-
-![CAM16 equation audit](../figures/cam16_equation_audit.svg)
+Recalculation across all 24 retained pairs reproduces the three summaries and
+patch-level rounding agreement. The printed table is internally consistent and
+closely follows the geometric-mean-chroma variant. The original tool,
+full-precision inputs, and its convention were not retained, so this is neither
+proof that the historical workflow used that formula nor an exact independent
+reproduction. The custom-ICC arm remains aggregate-only and cannot be
+recalculated per patch.
 
 ## Limitations
 
@@ -203,3 +191,9 @@ requires exact schemas and finite numerics in both data files, allowing only
 Luke Hellwig and Mark D. Fairchild, “Brightness, Lightness, Colorfulness, and
 Chroma in CIECAM02 and CAM16,” *Color Research & Application* 47 (2022),
 [doi:10.1002/col.22792](https://doi.org/10.1002/col.22792).
+
+## Engineering companion
+
+The [color-model implementation companion](../implementation/color-model-audit.md)
+explains how the audited equations map to the C++ implementation and routes
+readers to the public source, tests, and artifact generation.

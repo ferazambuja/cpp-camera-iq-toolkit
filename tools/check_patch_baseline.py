@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Validate the committed corrected-patch baseline against its own report.
+"""Validate the committed corrected-patch baseline and published evidence.
 
 `docs/data/ccsg_f8_flat_wb_patches.csv` is the accepted-flat regression table:
 the headerless R/G/B output of the documented `camera_iq patches` run. It is
@@ -8,10 +8,10 @@ numbers and private-archive reruns have an exact comparator.
 
 A committed table only guards anything if something checks it. Nothing here
 re-runs the command, because the source RAW files are private; what it does
-check is that the complete table still has the SHA-256 the report publishes,
-has the shape the command produces, and agrees with the rounded A1 value the
-report publishes in prose. Code-output drift still requires a private-archive
-rerun against this baseline.
+check is that the complete table still has the SHA-256 the data index publishes,
+has the shape the producer creates, and agrees with the rounded A1 value the
+scientific report publishes in prose. Code-output drift still requires a
+private-archive rerun against this baseline.
 
 Usage: python3 tools/check_patch_baseline.py [--repo-root PATH]
 """
@@ -28,6 +28,7 @@ from pathlib import Path
 
 BASELINE = Path("docs/data/ccsg_f8_flat_wb_patches.csv")
 REPORT = Path("docs/reports/PATCH_EXTRACTION.md")
+DIGEST_AUTHORITY = Path("docs/data/README.md")
 EXPECTED_ROWS = 140
 
 # | first patch A1 corrected RGB | 7677.11 / 7639.68 / 8712.55 |
@@ -35,7 +36,7 @@ A1_RE = re.compile(
     r"first patch A1 corrected RGB\s*\|\s*"
     r"([0-9.]+)\s*/\s*([0-9.]+)\s*/\s*([0-9.]+)"
 )
-SHA256_RE = re.compile(r"had SHA-256\s+`([0-9a-fA-F]{64})`")
+SHA256_RE = re.compile(r"canonical-LF SHA-256 is\s+`([0-9a-fA-F]{64})`")
 
 
 def check(root: Path) -> list[str]:
@@ -87,24 +88,30 @@ def check(root: Path) -> list[str]:
             )
         values.append(row)
 
+    digest_authority = root / DIGEST_AUTHORITY
+    if not digest_authority.is_file():
+        errors.append(f"{DIGEST_AUTHORITY}: missing")
+        return errors
+
+    digest_text = digest_authority.read_text()
+    digests = SHA256_RE.findall(digest_text)
+    if len(digests) != 1:
+        errors.append(
+            f"{DIGEST_AUTHORITY}: expected one published corrected-patch "
+            f"SHA-256, found {len(digests)}"
+        )
+    elif digest != digests[0].lower():
+        errors.append(
+            f"{BASELINE}: SHA-256 is {digest}, but {DIGEST_AUTHORITY} publishes "
+            f"{digests[0].lower()}"
+        )
+
     report = root / REPORT
     if not report.is_file():
         errors.append(f"{REPORT}: missing")
         return errors
 
     report_text = report.read_text()
-    digests = SHA256_RE.findall(report_text)
-    if len(digests) != 1:
-        errors.append(
-            f"{REPORT}: expected one published corrected-patch SHA-256, "
-            f"found {len(digests)}"
-        )
-    elif digest != digests[0].lower():
-        errors.append(
-            f"{BASELINE}: SHA-256 is {digest}, but {REPORT} publishes "
-            f"{digests[0].lower()}"
-        )
-
     match = A1_RE.search(report_text)
     if not match:
         errors.append(f"{REPORT}: no 'first patch A1 corrected RGB' row to check")
@@ -134,7 +141,7 @@ def main() -> int:
         return 1
     print(
         f"corrected-patch baseline ok: {EXPECTED_ROWS} rows, "
-        "SHA-256 and A1 match report"
+        "SHA-256 matches data index and A1 matches report"
     )
     return 0
 

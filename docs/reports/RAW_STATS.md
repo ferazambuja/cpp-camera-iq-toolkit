@@ -8,18 +8,16 @@ is measured against the signal range above black, preventing dark and
 near-clipping behavior from being silently distorted.
 
 Date: 2026-07-02
-Tool: `camera_iq raw-stats` (this repository, v0.1.0)
 Dataset: private local RAW captures: CLRS-589 "Project Camera" for the Fuji
 validation run, plus local Canon CR2 and Nikon NEF files for cross-maker regression.
 Source RAW files are not distributed with this repository.
-Commands using dataset IDs require a local `configs/datasets.local.json` that
-points those IDs at private data or an archive mount.
 
 ## Scope
 
-The command implements RAW unpack plus per-CFA-position statistics over the
-visible active Bayer mosaic. It does not implement demosaic, OECF, PTC, noise
-modeling, or color correction yet.
+The measurement covers RAW unpack and per-CFA-position statistics over the
+visible active Bayer mosaic. It deliberately stops before demosaic, response
+fitting, photon-transfer analysis, noise modeling, or color correction so the
+sensor-domain baseline remains observable.
 
 ## Scientific Handling
 
@@ -34,10 +32,9 @@ modeling, or color correction yet.
   `black + cblack[color] + cblack tile`. The repeating `cblack[6..]` tile is
   indexed in active-area-local coordinates; margins move the raw pointer to the
   visible image, but do not shift the black-tile phase.
-- `raw-stats` reads black level and pitch after `unpack()`. The `manifest`
-  command is intentionally metadata-only and may report maker-dependent
-  open-file black/pitch values; it must not be used as the authority for
-  scientific black subtraction.
+- Black level and pitch are read after pixel unpacking. A metadata-only archive
+  inventory may see maker-dependent pre-unpack values and is therefore not the
+  authority for scientific black subtraction.
 - Reported `min`, `max`, `mean`, and `stddev` are signed black-subtracted
   residuals. Values below black are preserved, not clamped, so dark/noise
   analysis is not biased upward.
@@ -61,20 +58,11 @@ modeling, or color correction yet.
   signal-referred ceiling. That count is not, by itself, a measurement of a
   sensor plateau, clipping, or response compression; those interpretations
   require response-series or other independent evidence.
-- JSON records the effective `near_ceiling_level` beside the derived plane
-  fractions. Full-frame and CFA-balanced ROI reports apply the same per-plane
-  `white_level - black[p]` definition.
+- The declared near-ceiling level is retained beside the derived plane
+  fractions. Full-frame and CFA-balanced ROI measurements apply the same
+  per-plane `white_level - black[p]` definition.
 
 ## Real-Data Validation Run
-
-Command:
-
-```bash
-./build/camera_iq raw-stats \
-  --dataset clrs589_project_camera \
-  "Images/CCSG/CCSG_f9.0_1:100_ISO200_DSCF0299.RAF" \
-  --out out/ccsg_f9_1_100_raw_stats.json
-```
 
 Result summary:
 
@@ -112,15 +100,6 @@ not exercise the case `near_ceiling_fraction` exists for. The frame below does.
 
 ## Near-ceiling plateau contrast
 
-Command:
-
-```bash
-./build/camera_iq raw-stats \
-  --dataset clrs589_project_camera \
-  "Images/Sphere/Sphere_f8.0_1:10_DSCF0369.RAF" \
-  --out out/sphere_f8_1_10_raw_stats.json
-```
-
 Same camera, same black and white levels, and ISO 200, but a different target
 and illumination. This integrating-sphere frame uses a 10× longer shutter
 (0.1 s versus 0.01 s) and f/8 rather than f/9. It is not a controlled exposure
@@ -157,15 +136,6 @@ the second statistic is reported.
 ## Cross-Maker Regression Checks
 
 ### Canon CR2 post-unpack black
-
-Command:
-
-```bash
-./build/camera_iq raw-stats \
-  --dataset canon_5d2_repro \
-  "Capture/DSLR_White.CR2" \
-  --out out/canon_5d2_white_raw_stats.json
-```
 
 Result summary:
 
@@ -207,15 +177,6 @@ the Fuji does exact-white accounting collapse to zero.
 
 ### Nikon active-area crop
 
-Command:
-
-```bash
-./build/camera_iq raw-stats \
-  --dataset d800_oecf_2016 \
-  "NIKON D800_i100_s1-40_8.NEF" \
-  --out out/nikon_d800_i100_s1_40_8_raw_stats.json
-```
-
 Result summary:
 
 | Field | Value |
@@ -248,17 +209,6 @@ This body reports `black_level = 0`, so the signal-referred ceiling equals
 green residual is 14091, which is why both fractions read zero despite the
 frame sitting within 15% of the ceiling.
 
-## Validation
-
-```bash
-cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
-cmake --build build --parallel
-ctest --test-dir build --output-on-failure
-```
-
-The complete CTest suite covers this command together with repository privacy,
-sample-fixture, documentation, and figure-freshness checks.
-
 ## Interpretation limits
 
 - Results are active-area CFA statistics, not demosaiced image quality,
@@ -281,16 +231,15 @@ sample-fixture, documentation, and figure-freshness checks.
   <https://www.libraw.org/node/2565>. Effective black is additive across
   `black`, `cblack[color]`, and the optional `cblack[6..]` pattern.
 
-## Manifest Note
+## Metadata-stage boundary
 
-`manifest` remains an open-file metadata inventory command. For makers that
-finalize black level or pitch during `unpack()`, such as the Canon CR2
-regression above, its `black_level` can be an open-stage placeholder; use
-`raw-stats` for pixel-correct black subtraction.
+The archive inventory reads metadata at file-open time. For makers that
+finalize black level or pitch during unpacking, such as the Canon CR2 case
+above, its recorded black level can be an open-stage placeholder. Scientific
+pixel calculations therefore use the post-unpack value.
 
-## Reproducibility
+## Engineering companion
 
-- [`src/raw_meta.cpp`](../../src/raw_meta.cpp)
-- [`src/cmd_raw_stats.cpp`](../../src/cmd_raw_stats.cpp)
-- [`tests/test_raw_meta.cpp`](../../tests/test_raw_meta.cpp)
-- [`tests/test_cfa_stats.cpp`](../../tests/test_cfa_stats.cpp)
+The [RAW implementation companion](../implementation/raw-foundation.md)
+explains how this sensor-linear baseline is realized in C++ and routes readers
+to the public source and tests.

@@ -10,7 +10,6 @@ endpoints of the separate colorimetric-fit comparison, while the middle ordering
 remains method-sensitive.
 
 Date: 2026-07-06
-Tool: `camera_iq manifest` (this repository, v0.1.0)
 Dataset: `spectral_sensitivity_2016_2017`
 
 ## Result summary
@@ -21,217 +20,56 @@ residuals, and an ISO 17321-style SMI approximation.
 
 [Case study](../case-studies/spectral-color-fidelity.md) ·
 [aggregate results CSV](../data/spectral_color_fidelity.csv) ·
-[archive role map](SPECTRAL_ARCHIVE_INVENTORY.md)
+[archive role map](SPECTRAL_ARCHIVE_INVENTORY.md) ·
+[implementation companion](../implementation/spectral-fidelity.md)
 
 The source archive was read only. The tracked repository records relative
 dataset labels; private RAW files, workbooks, and generated manifests remain
 under ignored paths.
 
-## Input datasets
+## Inputs and conditions
 
-The spectral-sensitivity dataset is intended to run from the read-only archive
-root configured as `spectral_sensitivity_2016_2017`. The first scoped camera
-subset is:
+The evidence-complete portion is a four-camera laboratory run in which each
+camera has a monochromator sweep, a same-session broadband chart capture, a
+measured illuminant, and measured chart reflectance. A Phase One IQ3 sweep from
+a separate rig has no matching broadband target and therefore enters only the
+spectral-sensitivity comparison, not physical closure. Exact file roles and
+session pairings are recorded in the
+[spectral archive inventory](SPECTRAL_ARCHIVE_INVENTORY.md).
 
-| Role | Location |
-|---|---|
-| Archive label | `archive:2016_Monochromator/2016_11_21_5D2_Monochromator_OK` |
-| Derived manifest | `out/spectral_sensitivity_5d2_20161121_manifest.json` |
+The Canon 5D2 is the retained end-to-end RAW extraction case. Its sweep contains
+48 wavelengths from 360 to 830 nm in 10 nm steps, one matched dark frame, and a
+line-source spectrum sampled on the same rounded axis. The camera settings are
+ISO 100, 1/160 s, f/5.6, and 50 mm. The physical-closure calculation later uses
+only 380–730 nm, the strict overlap shared by the camera sensitivities,
+illuminant, and chart reflectance.
 
-The current workflow reads the required 57 files directly through the
-configured archive root rather than mirroring the full archive.
+All source captures remain private. The retained legacy response curves are
+comparison references for reimplementation fidelity, not independent truth.
+Black levels used for sample calculations are read after RAW unpacking because
+maker metadata can change between file open and unpack; camera clocks and file
+modification times do not determine session pairing.
 
-Derived manifests remain gitignored under `out/`. RAW files, workbooks, PDFs,
-and generated manifests remain outside the public repository.
+## Recovering and checking the sensitivity functions
 
-## Manifest Run
+A monochromator presents a narrow band of wavelengths to the camera, one band
+at a time. For each wavelength `lambda_i`, the response of channel `c` is the
+mean sensor signal above the matched dark measurement divided by the measured
+line-source power at that wavelength:
 
-```bash
-./build/camera_iq manifest spectral_sensitivity_2016_2017 \
-  --config configs/datasets.local.json \
-  --subdir 2016_11_21_5D2_Monochromator_OK \
-  --out out/spectral_sensitivity_5d2_20161121_manifest.json
-# scanned 57 files; exif read for 50/50 raw files; 0 exposure-series candidates
+```text
+S_c(lambda_i) = max(0, mean_light,c(lambda_i) - mean_dark,c)
+                / line_power(lambda_i)
 ```
 
-File census from the manifest:
+The three curves are then divided by the maximum green response, fixing their
+shared scale while preserving their relative shapes. Samples near saturation
+are excluded before the mean is formed; below-dark tails become zero response
+and remain counted as diagnostics. The Canon extraction uses the central 50%
+of the active mosaic, rounded to complete Bayer blocks, so red, both greens,
+and blue are sampled without demosaic.
 
-| Extension | Count |
-|---|---:|
-| `.CR2` | 50 |
-| `.csv` | 2 |
-| `.pdf` | 1 |
-| `.pgm` | 1 |
-| `.py` | 2 |
-| `.xlsx` | 1 |
-
-Directory census:
-
-| Directory | Files |
-|---|---:|
-| root | 9 |
-| `raw/` | 48 |
-
-## Canon 5D2 Subset Contents
-
-The subset is a complete first target for parser and normalizer work:
-
-- 48 sweep RAW files under `raw/`, from
-  `raw/2016_11_21_5D2_mono_0592.CR2` through
-  `raw/2016_11_21_5D2_mono_0639.CR2`.
-- 1 root-level dark frame:
-  `2016_11_21_5D2_mono_DARK_FRAME_0640.CR2`.
-- 1 root-level test RAW: `2016_11_21_5D2_monotest_0591.CR2`.
-- `spd.csv` line-SPD sidecar, 48 samples.
-- `2016_11_21_5D2_mono.csv` legacy spectral-response output, 48 samples.
-- `2016_11_21_5D2.xlsx`, `2016_11_21_5D2_mono.pdf`,
-  `2016_11_21_5D2_mono_DARK_FRAME_0640.pgm`.
-- Legacy scripts: `spectral_v2_1.py` and `raw2tiff.py`.
-
-The two legacy scripts are method context only. They are not a correctness
-oracle and should not be copied into new implementation logic.
-
-## Wavelength and Sidecar Checks
-
-`2016_11_21_5D2_mono.csv`:
-
-- 48 rows.
-- Header: `Wavelength (nm),Red,Green,Blue`.
-- Axis: 360 nm to 830 nm in 10 nm steps.
-- Channel ranges: R 0.00017047 to 0.54720, G 0.00016838 to 1.0,
-  B 0.00015089 to 0.80003.
-
-`spd.csv`:
-
-- 48 rows.
-- Axis: 359.993 nm to 830.037 nm, rounding to the same 360 to 830 nm,
-  10 nm grid.
-- Voltage range: 4.00357e-07 to 6.97176e-05.
-
-These two CSVs share the same rounded wavelength grid, supporting strict axis
-validation before any RAW pixel extraction.
-
-## Camera Metadata
-
-Representative sweep RAW (`raw/2016_11_21_5D2_mono_0592.CR2`) and dark frame
-both parse as:
-
-- Camera: Canon EOS 5D Mark II.
-- ISO 100, 1/160 s, f/5.6, 50 mm.
-- CFA: GBRG.
-- Raw frame: 5792 x 3804.
-- Visible image: 5634 x 3752.
-- Sensor margins: top 52, left 158.
-- Raw pitch: 11584 bytes.
-- LibRaw white level: 15600.
-
-Manifest-time black level is `0` for this Canon subset because the manifest
-path uses metadata available at file-open time. That is a manifest provenance
-field, not a calibration truth. Canon black can populate after `unpack()`; the
-analysis paths must use the post-unpack metadata path already used by
-`raw-stats`, not this open-time manifest value.
-
-Camera-clock timestamps and filesystem mtimes are provenance clues only. They
-must not drive dataset pairing or reference selection.
-
-## Provenance Boundaries
-
-- The camera captures are privately held archive validation data.
-- The original DPMI-era analysis was a team effort; this repository reprocesses
-  the data with a fresh C++ pipeline.
-- `spectral_v2_1.py` is legacy method context. A new C++ pipeline
-  should reimplement the method fresh.
-- `2016_Monochromator` in this report means camera spectral-sensitivity sweeps.
-  It is not the SG chart reflectance reference directory named
-  `sg_2016_archive/monochromator_color_checker`.
-
-## Validation Hierarchy
-
-Legacy reproduction is a fidelity check, not a scientific correctness proof:
-
-1. **Implementation fidelity:** parse the 48-row response CSV and SPD sidecar,
-   then re-extract Canon 5D2 response from the RAW sweep and compare to
-   `2016_11_21_5D2_mono.csv`.
-2. **Independent oracle:** verify whether a published Canon EOS 5D Mark II
-   spectral-sensitivity function exists in a suitable public database before
-   asserting an external comparison.
-3. **Physical closure:** integrate the same-session measured illuminant SPD and
-   measured SG reflectance through the reconstructed response, then compare
-   predicted RGB against the Canon 5D2 broadband target capture.
-
-Do not promote a conclusion from tier 1 alone.
-
-## Legacy CSV parser and normalizer
-
-The `spectral-response` command adds a spectral-response parser/normalizer
-before RAW extraction:
-
-- read `spd.csv` and `*_mono.csv`;
-- validate 48 samples, 360-830 nm rounded axis, 10 nm spacing, finite numeric
-  values, and nonzero SPD;
-- emit a normalized response JSON/CSV with explicit provenance fields:
-  `camera_model`, `dataset_id`, `archive_subset`, `axis_nm`, `response_rgb`,
-  `line_spd`, and `validation_tier`;
-- keep legacy CSV comparison labeled as `legacy_fidelity_only`.
-
-The command shape is:
-
-```bash
-SUBSET="<archive-2016-monochromator>/2016_11_21_5D2_Monochromator_OK"
-./build/camera_iq spectral-response \
-  --response-csv "$SUBSET/2016_11_21_5D2_mono.csv" \
-  --spd-csv "$SUBSET/spd.csv" \
-  --camera-model "Canon EOS 5D Mark II" \
-  --dataset-id spectral_sensitivity_2016_2017 \
-  --archive-subset 2016_11_21_5D2_Monochromator_OK \
-  --out out/spectral_response_5d2_20161121.json
-```
-
-On the Canon 5D2 archive subset this emits 48 samples, axis 360-830 nm, a
-positive 48-sample line SPD, the original legacy RGB response, normalization
-`legacy_peak_channel_normalized_green_1_no_rescale`, and
-`validation_tier: "legacy_fidelity_only"`.
-
-## Toolkit RAW extraction
-
-Toolkit-derived RAW extraction covers the same 48 sweep CR2s plus the matched
-dark frame. This remains tier-1 fidelity evidence only: the comparison target
-is the legacy `*_mono.csv`, not an independent camera spectral-sensitivity
-oracle.
-
-The command shape is:
-
-```bash
-SUBSET="<archive-2016-monochromator>/2016_11_21_5D2_Monochromator_OK"
-./build/camera_iq spectral-response \
-  --response-csv "$SUBSET/2016_11_21_5D2_mono.csv" \
-  --spd-csv "$SUBSET/spd.csv" \
-  --camera-model "Canon EOS 5D Mark II" \
-  --dataset-id spectral_sensitivity_2016_2017 \
-  --archive-subset 2016_11_21_5D2_Monochromator_OK \
-  --raw-dir "$SUBSET/raw" \
-  --dark-raw "$SUBSET/2016_11_21_5D2_mono_DARK_FRAME_0640.CR2" \
-  --ssf-csv-out out/spectral_response_5d2_toolkit_ssf.csv \
-  --out out/spectral_response_5d2_raw_20161121.json
-```
-
-Implementation details:
-
-- RAW decoding reuses `read_raw_cfa_image`, so Canon black is read after
-  `unpack()` through the same `cblack`/active-area path used by `raw-stats`.
-  It does not use the manifest's open-time black value.
-- The empirical dark frame is subtracted per CFA position over the same
-  measurement ROI, so the extracted response uses measured dark residuals while
-  still logging the post-unpack metadata black for sanity checking.
-- With no explicit `--roi`, extraction uses the central 50% of the active image,
-  CFA-balanced to preserve Bayer phase. For this Canon 5D2 subset the emitted
-  ROI is `{x: 1408, y: 938, width: 2816, height: 1876}`.
-- Near-saturated pixels are excluded from the channel mean and reported per
-  sample; a channel only fails if no unsaturated samples remain. Tails at or
-  below the dark-frame mean are flagged and clamped to zero response rather than
-  hidden or treated as negative physical responsivity.
-
-Local Canon 5D2 run:
+Canon 5D2 extraction diagnostics:
 
 | Field | Value |
 |---|---:|
@@ -242,16 +80,8 @@ Local Canon 5D2 run:
 | Maximum below-dark fraction | `1.0` |
 | Samples with any below-dark tail flag | `12 / 48` |
 
-The saturation and below-dark flags are diagnostics, not silent corrections:
-near-saturated pixels are omitted from the channel mean, while below-dark tails
-are clamped to zero physical response and remain visible in the emitted JSON.
-The four values above are emitted as top-level `extraction` rollups
-(`saturated_sample_count`, `max_saturated_fraction`, `below_dark_sample_count`,
-`max_below_dark_fraction`) so a consumer can read whether the guards fired
-without iterating the per-sample array — a mis-named per-sample field otherwise
-defaults to zero and makes a run look deceptively clean.
-
-Tier-1 legacy fidelity, normalized to the extracted green peak:
+Agreement with the retained legacy curve, after the same green-peak
+normalization:
 
 | Channel | RMS vs legacy | Pearson correlation |
 |---|---:|---:|
@@ -259,25 +89,15 @@ Tier-1 legacy fidelity, normalized to the extracted green peak:
 | G | `0.0068747` | `0.9997911` |
 | B | `0.0037980` | `0.9999076` |
 
-This is a strong reimplementation-fidelity result. It is not a proof that the
-legacy curve is scientifically correct.
+This close match shows that the new extraction recovers the retained curve; it
+does not establish that either curve is physically correct. That stronger test
+is closure: use the recovered sensitivities to predict an independent
+broadband chart capture from measured illuminant and reflectance data. The
+legacy workflow differs materially—it could omit dark subtraction, selected a
+region on a downscaled TIFF, sampled a rectangular border, and operated after
+demosaic—so it remains method context rather than the measurement definition.
 
-The command emits the toolkit-derived SSF as `Wavelength,R,G,B` CSV via
-`--ssf-csv-out`, so the `spectral-closure` and `spectral-quality` commands can
-consume the C++ extraction directly instead of the legacy `*_mono.csv`. The
-legacy CSV stays as a tier-1 fidelity comparison target only. This distinction
-matters because the legacy `spectral_v2_1.py` path is method context, not a
-scientific oracle:
-
-- its dark-frame path is commented out, so the historical TIFF workflow can run
-  without dark subtraction;
-- its ROI is selected manually on a downscaled TIFF preview;
-- its `meanrgb()` mask uses `cv2.rectangle(..., thickness=10)`, which samples a
-  rectangular border rather than a filled interior;
-- it consumes demosaiced TIFFs, while the toolkit extraction uses CFA-direct
-  per-channel means plus saturation and below-dark rollups.
-
-## Physical closure feasibility
+## Physical closure against an independent chart capture
 
 The `2016_Monochromator` archive contains a same-session Canon 5D2 broadband
 target set. The RAW frames live in the top-level
@@ -305,71 +125,29 @@ the monochromator. Unknown wavelength, bandpass, and stray-light behavior can
 affect relative curves and rankings as well as absolute SSF values; the 2017 IQ3
 session below is a separate rig and timeline.
 
-The session `readme.rtf` states that the 5D2 target files were normalized to the
-same naming convention and that the CC/SG patch readings were reordered to match
-RawDigger. This makes tier-3 physical closure feasible without mixing
-the separate `canon_5d2_repro` / `2016_IS_Reproduction` capture.
+The chart response predicted for patch `p` and camera channel `c` is
 
-The implemented `spectral-closure` command follows these constraints:
-
-- **confirm the illuminant pairing first (gate 1), do not assume it**: this
-  report treats `PR655_HID` as the Target capture's illuminant on strong but
-  circumstantial grounds (same session, only measured broadband source in the
-  session, standard SSF-plus-known-light design). That the `Target` ColorChecker
-  frames were actually shot under that HID lamp is inferred, not documented. The
-  closure analysis must verify it via a white-card cross-check before using the
-  target patches. Because no measured white-card reflectance is available here,
-  this is an illuminant-pairing / chromaticity sanity gate, not the physical
-  closure result: the `WhiteCard` frame's dark-subtracted channel ratios should
-  be consistent with an SSF-times-HID neutral prediction under one global scale.
-  If the chromaticity check fails, stop and report the pairing as unconfirmed
-  rather than emitting a closure residual that could rest on the wrong
-  illuminant. The gate passes on the archive-mounted dataset: the `WhiteCard`
-  dark-subtracted channel ratios (R/G 0.589, B/G 0.459, mean over 140 sampled
-  points, RawDigger `_SG` export; dark frame verified ~0 DN) match the
-  SSF-times-HID neutral prediction (R/G 0.591, B/G 0.462) to 0.4% and 0.8%.
-  This confirms the Target/WhiteCard/DarkFrame set is chromatically
-  consistent with the PR-655-measured HID lamp. Discriminating power (same SSF,
-  reproducible from the archive files): the predicted white ratios differ from the
-  HID result by roughly 16-53% under the tested broad proxy set (equal energy
-  plus 2856K, 5000K, and 6500K blackbodies; examples: tungsten ~2856K gives
-  R/G +26%, B/G -25%, daylight ~6500K gives R/G -26%, B/G +53%). Thus the
-  sub-1% HID match is specific relative to these proxies, not a generic result
-  produced by any broad illuminant assumption. This does not rule out every
-  possible engineered spectrum. The command encodes this as the
-  `white_card_gate` and exits nonzero if the pairing check fails;
-- use the strict three-way spectral overlap, **380-730 nm**, because the SG
-  reflectance file ends at 730 nm; do not extrapolate reflectance to the PR-655
-  780 nm endpoint;
-- resample the PR-655 illuminant from 4 nm to the 10 nm closure grid and
-  restrict the extracted SSF from 360-830 nm to the same 380-730 nm grid;
-- fit one global exposure scale `k` across all channels. The target capture is
-  1/200 s while the monochromator sweep is 1/160 s, so a global exposure scale
-  is expected; per-channel scales are diagnostics only, not the closure fit;
-- subtract the same-session dark sidecar when `--dark-rgb` is supplied, exclude
-  saturated or not-above-dark target patches, and report extraction rollups as
-  top-level JSON fields;
-- language should be "consistent with physical closure" until residuals are
-  computed and reviewed. Do not tune the RAW extraction to improve closure.
-
-Canon 5D2 Target set 1 tier-3 closure result using the toolkit-derived SSF
-(`out/spectral_response_5d2_toolkit_ssf.csv`, fresh verified run, with
-same-session dark sidecar subtraction):
-
-```bash
-MONO="<archive-2016-monochromator>"
-./build/camera_iq spectral-closure \
-  --ssf-csv out/spectral_response_5d2_toolkit_ssf.csv \
-  --illuminant "$MONO/Data_Collected/Light Source/PR655_HID_avg.txt" \
-  --reflectance "$MONO/Data_Collected/Color Checker/SGMeasurements_CGATS.txt" \
-  --target-rgb "$MONO/Data_Collected/Canon 5D Mk II/Target/2016_11_21_5D2_Target_1_Target_0116_CR2_SG.txt" \
-  --white-rgb "$MONO/Data_Collected/Canon 5D Mk II/Target/2016_11_21_5D2_Target_1_WhiteCard_0117_CR2_SG.txt" \
-  --dark-rgb "$MONO/Data_Collected/Canon 5D Mk II/Target/2016_11_21_5D2_Target_1_DarkFrame_0118_CR2_SG.txt" \
-  --camera-model "Canon EOS 5D Mark II" \
-  --dataset-id spectral_sensitivity_2016_2017 \
-  --archive-subset "2016_11_21_5D2_Target set 1 (Data_Collected sidecars)" \
-  --out out/spectral_closure_5d2_20161121.json
+```text
+P[p,c] = sum_lambda S[c,lambda] E[lambda] R[p,lambda] delta_lambda
 ```
+
+where `S` is the camera sensitivity, `E` the measured HID illuminant, and `R`
+the measured patch reflectance. All three are aligned to 380–730 nm. A single
+global scale `k` is fitted across every patch and channel because exposure
+differs between the monochromator sweep and chart capture; separate channel
+scales would conceal a spectral mismatch.
+
+The illuminant label is supported by the session context but not written into
+the target capture itself, so a white-card check comes first. The measured
+dark-subtracted white ratios, R/G `0.589` and B/G `0.459`, agree with the
+SSF-times-HID prediction, `0.591` and `0.462`, within 0.4% and 0.8% on that
+calculation. Equal-energy and 2856 K, 5000 K, and 6500 K proxy illuminants miss
+the same ratios by roughly 16–53%. This makes the HID pairing specific among
+the tested broad alternatives, although it cannot rule out every engineered
+spectrum. The chart result is reported only after that pairing check, matched
+dark subtraction, and saturated/below-dark patch screening.
+
+Canon 5D2 Target set 1 closure uses the RAW-derived SSF.
 
 Result:
 
@@ -384,17 +162,15 @@ Result:
 | R/G/B relative RMS | 9.539% / 9.840% / 11.618% |
 | R/G/B correlation | 0.994688 / 0.994328 / 0.994999 |
 
-The JSON also emits per-patch measured, predicted, and residual RGB rows, plus
-per-channel diagnostic `k` values. Those per-channel values stay diagnostic only;
-the fitted closure uses the single global `k` above.
+Per-channel scale values are retained only as diagnostics; the fitted closure
+uses the single global `k` above.
 
-Four-camera Target set 1 fan-out (`--dark-rgb` supplied for every camera, shared
-PR-655 HID illuminant and SG reflectance). This retained closure table is a
+The four-camera Target set 1 comparison uses the shared PR-655 HID illuminant,
+SG reflectance, and per-camera dark measurements. This retained closure table is a
 mixed-source baseline: the Canon row uses the toolkit RAW-derived SSF; the other
 three rows use their legacy `*_mono.csv` SSFs. Toolkit-SSF closure artifacts
 for the Nikon D810, Sony A7RII, and Sony A7SII are not retained in this table,
-so it remains a
-mixed-source comparison:
+so it remains a mixed-source comparison:
 
 | Camera | SSF source | Gate-1 max ratio error | Patches | Target saturated / below-dark exclusions | R/G/B relative RMS | Minimum channel correlation |
 |---|---|---:|---:|---:|---:|---:|
@@ -409,16 +185,11 @@ cross-manufacturer method validation: independently measured SSF, illuminant,
 and chart reflectance predict the same-session camera target captures with a
 single global exposure scale.
 
-#### CC-24 closure (classic ColorChecker, complementary to SG-140)
+### CC-24 closure: a complementary standard chart
 
-The same `spectral-closure` command also closes the **classic 24-patch
-ColorChecker** for all four 2016 cameras. This run uses the original paired-column
-`CC24Patch_CGATS.txt` SpectraShop export, not the canonical
-`patch_id,380,390,...` CSV used by `spectral-smi`; `spectral-closure` reads
-paired `SPECTRAL_NM` / `SPECTRAL_DEC` CGATS rows and matches by patch name
-(`A1`..`F4`). Inputs are Target set 1 (2016-11-21) `_CC.txt` RawDigger ROI
-sidecars, the same PR-655 HID illuminant, legacy `*_mono.csv` SSFs for the four
-rows, and per-patch dark subtraction.
+The classic 24-patch ColorChecker provides a smaller complementary closure test
+for all four cameras. It uses the same-session patch measurements, PR-655 HID
+illuminant, legacy SSFs, and per-patch dark subtraction as the SG comparison.
 
 | Camera | Gate-1 max ratio error | Patches | Target saturated / below-dark exclusions | R/G/B relative RMS | Minimum channel correlation |
 |---|---:|---:|---:|---:|---:|
@@ -435,22 +206,12 @@ error on small RGB values is larger. Both charts hold high patch-order
 correlation, so both validate the same SSF physics; CC-24 is the standard-chart
 complement to the denser SG-140 closure, not a replacement.
 
-The suite was also re-run on the toolkit's **own** RAW extractions via
-`spectral-response --raw-dir --ssf-csv-out` (CR2/NEF/ARW sweeps discovered by
-the generalized `discover_spectral_sweep_files`). Distinguish reproducibility:
-
-- **Canon 5D2 was the retained end-to-end validation case** — its 48 sweep RAW
-  and same-session closure inputs are private archive data, while the public
-  repo retains the code, tests, and report evidence. Reproduction requires a
-  configured private dataset or archive mount.
-- **D810 / A7RII / A7SII were extracted by reading the mounted archive
-  read-only** (their RAW are not scoped-copied locally, ~1-4 GB each). Those
-  runs confirm the ranking is stable across legacy-vs-toolkit SSFs (combined
-  residuals 0.297 / 0.297 / 0.309, unchanged at the reported precision from the
-  legacy `mono.csv` values), but those toolkit SSF artifacts are **not retained
-  as local artifacts**. The committed local closure pipeline for these three
-  still uses legacy SSFs until the archive-backed toolkit CSVs and closure JSONs
-  are regenerated and kept under ignored `out/`.
+As a method-sensitivity check, all four monochromator sweeps were also
+re-extracted directly from RAW. Only the Canon extraction is retained as a
+local end-to-end artifact; the other three comparisons were read from the
+mounted archive. The near-identical combined residuals below show that the
+reported ordering is not an artifact of choosing the retained legacy curve over
+the new extraction.
 
 | Camera | Combined residual, toolkit extraction | Combined residual, legacy SSF |
 |---|---:|---:|
@@ -463,19 +224,24 @@ The stability of the ranking across legacy and toolkit SSFs is the real result:
 it confirms the color-fidelity ordering is a genuine SSF property, not an
 artifact of which extraction is trusted.
 
-Do **not** read the residual spread as a camera-quality ranking. These numbers
-measure per-camera session and optical-path closure consistency, including lens,
-capture, RawDigger sidecar, SSF, and shared illuminant/reference pairing.
+This residual spread measures per-camera session and optical-path closure
+consistency—including lens, capture, patch extraction, SSF, and shared
+illuminant/reference pairing—not camera quality.
 
-### Camera color-fidelity ranking (`spectral-quality`, Luther metric)
+### Luther-condition residual
 
-The fair cross-camera color ranking is a per-camera SSF property, not a closure
-number. The `spectral-quality` command fits each camera's SSFs to the CIE 1931
-2-degree color-matching functions (`data/cie1931_2deg_cmf.csv`, the same
-10-nm Wyszecki/Stiles table already used by `colorimetry.cpp`) with one 3x3
-transform and reports the relative residual (Luther condition). Lower residual
-is better, and the metric is scale-invariant so the peak-G SSF normalization does
-not bias it. Result over the current CMF grid, 380-730 nm:
+The cross-camera comparison uses a property of the SSF itself rather than a
+closure residual. For each CIE 1931 2-degree color-matching function `CMF_j`, it
+fits the best linear combination of the camera sensitivities:
+
+```text
+CMF_j(lambda) approximately equals
+  a_jR S_R(lambda) + a_jG S_G(lambda) + a_jB S_B(lambda)
+```
+
+The relative residual is the remaining error divided by the norm of the CIE
+function. Lower is better, and the measure is scale-invariant, so green-peak
+normalization does not bias it. Results use the 380–730 nm common grid:
 
 | Rank | Camera | SSF source | xbar residual | ybar residual | zbar residual | Combined residual | Quality index |
 |---|---|---|---:|---:|---:|---:|---:|
@@ -498,12 +264,9 @@ IQ3 provenance caveats (distinct from the four 2016 cameras):
   not the 2016 monochromator run. This is legitimate for the Luther metric, which
   is a pure SSF-vs-CMF geometry — session-, illuminant-, and capture-independent —
   but it would be invalid to pool the IQ3 into any closure comparison.
-- **Legacy SSF, SSF-only**: the IQ3 uses its legacy `Spectral_Sensitivity_Data.csv`
-  (already in `Wavelength,Red,Green,Blue` form — no conversion needed; the earlier
-  "once converted" note was wrong). A toolkit dark-subtracted variant is possible
-  from the 2017 IIQ sweeps but is not extracted or retained. The IQ3 cannot be
-  tier-3 closed: the 2017 session has no broadband target capture and no measured
-  chart reflectance.
+- **Legacy SSF, SSF-only**: the IQ3 uses its retained
+  `Spectral_Sensitivity_Data.csv`. Its session has no broadband target capture
+  or measured chart reflectance, so it cannot participate in physical closure.
 
 Caveats shared with the four-camera table: this is a Luther-condition CMF-fit
 residual (a metamerism proxy), not the official CIE Sensitivity Metamerism Index
@@ -517,17 +280,16 @@ The separate `canon_5d2_repro` / `2016_IS_Reproduction` captures remain real
 archive material, but they are not the closure evidence for this report because
 they are a different session with no paired capture illuminant SPD.
 
-### Camera color-fidelity ranking (`spectral-smi`, ISO 17321-style SMI approximation)
+### ISO 17321-style Sensitivity Metamerism Index approximation
 
-The Luther residual above is an unweighted geometric CMF-fit. The `spectral-smi`
-command implements an ISO 17321-style Sensitivity Metamerism Index approximation:
-synthesize each camera's linear RGB response to a set of real test colours under
-a reference illuminant, fit the optimal 3x3 RGB->XYZ transform, and score the
-residual **perceptual** CIELAB error as `SMI = 100 - 5.5 * meanDE*ab`. Higher is
-better; 100 is a Luther-condition camera. The primary run below uses **CIE D55**
-(`data/cie_d55.csv`, generated from the official CIE D55 dataset and white-point-
-checked by `tools/gen_cie_d55.py`), because ISO 17321's DSC/SMI annex uses D55 as
-the default illuminant. D50 is retained as a cross-check.
+The Luther residual is an unweighted geometric fit. The complementary
+Sensitivity Metamerism Index (SMI) approximation synthesizes each camera's RGB
+response to real test colors under a reference illuminant, fits the best 3 by 3
+RGB-to-XYZ transform, and scores the remaining CIELAB error as
+`SMI = 100 - 5.5 * mean Delta E*ab`. Higher is better; 100 describes a camera
+whose sensitivities satisfy the Luther condition for this calculation. The
+primary comparison uses CIE D55, the default illuminant in the ISO 17321
+DSC/SMI annex; D50 is retained as a sensitivity check.
 
 The ISO-recommended test set is the **18 chromatic patches** of the classic
 ColorChecker 24. The 6 bottom-row neutrals (`A4`/`B4`/`C4`/`D4`/`E4`/`F4`) are
@@ -573,8 +335,8 @@ What is robust and what is not:
   CC-18 is the more discriminating metric.
 - **dE2000 is a companion diagnostic, not the SMI ranking metric.** Under dE2000
   A7SII has the lowest CC-18 mean in the D55 run, while SMI is defined on dE*ab
-  1976 and keeps Canon clearly ahead. Report both, but do not reinterpret SMI
-  using the dE2000 ordering.
+  1976 and keeps Canon clearly ahead. The two orderings answer different
+  questions and are therefore kept separate.
 
 White-preserving optimization sensitivity (same CC-18 / D55 inputs):
 
@@ -586,41 +348,35 @@ White-preserving optimization sensitivity (same CC-18 / D55 inputs):
 | Nikon D810 | 89.40 | 89.76 | +0.36 |
 | Phase One IQ3 100 | 88.29 | 86.64 | -1.65 |
 
-The `spectral-smi` command reports this as a sensitivity bound:
-`white_preserving_*` refits the 3x3 while forcing the camera's perfect-diffuser
-RGB response to map exactly to the CIE illuminant white. It is a plausible
-normalization variant, not a claim that ISO Annex B uses this exact optimizer.
-The check narrows the residual optimizer caveat from a pure prose warning to a
-measured range: the endpoints (Canon best, IQ3 worst) remain stable, while the
-middle pack can shift by a few tenths of an SMI point.
+The white-preserving variant refits the 3 by 3 matrix while forcing the camera's
+perfect-diffuser RGB response to map exactly to the CIE illuminant white. It is
+a plausible normalization variant, not a claim that ISO Annex B uses this exact
+optimizer. The comparison turns the optimizer caveat into a measured range:
+the endpoints remain stable while the middle group can shift by a few tenths of
+an SMI point.
 
 SMI limitations:
 - **Close to ISO, not bit-exact.** The test set now matches the ISO 17321 shape
   (18 chromatic ColorChecker patches) and the primary illuminant now follows the
   ISO DSC/SMI default (D55). The metric uses `SMI = 100 - 5.5*dE*ab` after a 3x3
-  RGB->XYZ fit. The command also emits a white-preserving constrained-fit
-  sensitivity check, but the remaining gaps to a citable absolute ISO SMI are
-  still the exact slope constant and Annex B optimizer/normalization details.
-  The command exposes `--smi-slope`; slope changes the
-  absolute SMI scale but not the ranking (a positive affine map).
-- **Reproducibility.** The `spectral-smi` command and its unit tests are fully
-  reproducible from the committed repo (synthetic fixtures + committed D50/D55).
-  The five-camera *numbers* depend on private measured reflectances (CC-24 /
-  SG) and per-camera SSFs supplied through configured private dataset roots, so
-  they are not regenerable from the public tree alone. Both committed daylight
-  illuminants are white-point-verified by generator scripts.
+  RGB-to-XYZ fit. The remaining gaps to a citable absolute ISO SMI are the exact
+  slope constant and Annex B optimizer/normalization details. Changing the
+  positive slope rescales absolute SMI values but not their ordering.
+- **Data access.** The five-camera values depend on private measured
+  reflectances and SSFs, so they cannot be regenerated from the public tree
+  alone. The implementation and synthetic numerical contracts remain public.
 - **Mixed SSF sources / cross-timeline**, exactly as the Luther table: Canon uses
   the toolkit extraction, the rest legacy; the IQ3 is the 2017 camSPECS SSF. SMI,
   like Luther, is a per-camera SSF property, so this is valid for ranking.
 
 ## Per-camera coverage and closure status
 
-The archive is a five-camera set across two sessions. Tier-3 closure needs, per
+The archive is a five-camera set across two sessions. Physical closure needs, per
 camera: an SSF source, a broadband ColorChecker/Target capture, a measured
 illuminant SPD, and a measured chart reflectance. Coverage (verified 2026-07-07,
 read-only):
 
-| Camera | Session | SSF source | Target capture | Illuminant SPD | Chart reflectance | Tier-3 |
+| Camera | Session | SSF source | Target capture | Illuminant SPD | Chart reflectance | Physical closure |
 |---|---|---|---|---|---|---|
 | Canon 5D2 | 2016 | sweeps + `mono.csv` | `_Target` (5 sets) | HID (PR655) | SGMeasurements | Target set 1 closure run; gate PASS |
 | Nikon D810 | 2016 | sweeps + `mono.csv` | `_Target` (5 sets) | HID (shared) | SGMeasurements (shared) | Target set 1 closure run; gate PASS |
@@ -630,33 +386,14 @@ read-only):
 
 Only the Phase One IQ3 is missing measurements: its 2017 camSPECS session has
 spectral sweeps and a lamp SPD but no broadband Target capture and no chart
-reflectance, so it is SSF-only (tier-1/tier-2), not physically closable. The
+reflectance, so it is SSF-only, not physically closable. The
 four 2016 cameras are archive input-complete and share the single measured HID
 illuminant and the single measured proven-identity SG reflectance. Target set 1
 has now been gate-checked for all four 2016 cameras. The additional
-target sets span 2016-11-21 and 2016-11-22 and must carry their own
-white-card/dark pairing if used later. Additional camera or target subsets
-remain outside the reported analysis until their session pairing is verified.
-
-## Implemented extensions
-
-1. **Phase One IQ3 color-fidelity ranking.**
-   The IQ3 `Spectral_Sensitivity_Data.csv` was already in `Wavelength,Red,Green,
-   Blue` form — no conversion needed — so `spectral-quality` runs on it directly
-   (the SSF is supplied through the private spectral archive root). Added as
-   rank 5 above (combined residual 0.348 run 1 / 0.336 run 2, worst of the five).
-   The medium-format back has the highest CMF-fit residual of the set.
-2. **Upgrade from the Luther CMF-fit proxy to the CIE
-   Sensitivity Metamerism Index (SMI) method.** The `spectral-smi` command
-   (optimal 3x3 + mean CIELAB error, `SMI = 100 - 5.5*dE`) scores all five cameras
-   under CIE D55 over three measured test sets — the ISO-recommended 18 chromatic
-   ColorChecker patches, the full CC-24, and the SG-140 — see the SMI ranking
-   section above (Canon best, IQ3 worst on all three; A7RII second; A7SII slightly
-   ahead of D810 in the D55 run). The command also reports a white-preserving
-   constrained-fit sensitivity check to bound one plausible normalization
-   variant. The remaining gaps to a *bit-exact* citable SMI are the `5.5` slope
-   and the exact Annex B optimizer/normalization convention; slope does not
-   change the ranking.
+target sets span 2016-11-21 and 2016-11-22; interpreting either requires its
+own white-card and dark-frame pairing. Additional camera or target subsets
+remain outside the reported analysis because their session pairing is not yet
+verified.
 
 ## Interpretation limits
 
@@ -667,15 +404,14 @@ remain outside the reported analysis until their session pairing is verified.
   exposure scale, not a uniqueness proof or public-SSF validation.
 - Closure residuals do not rank camera color quality; that question is handled
   separately by the SSF-vs-CMF metrics.
+- A stronger comparison would remeasure all five cameras on one characterized
+  rig, repeat each spectral sweep, and capture matching white, dark, and chart
+  targets for every camera. That would turn the IQ3 from SSF-only evidence into
+  a closure case and quantify session-to-session uncertainty for the full set.
 
-## Reproducibility
+## Engineering companion
 
-- [`src/spectral_response.cpp`](../../src/spectral_response.cpp)
-- [`src/spectral_closure.cpp`](../../src/spectral_closure.cpp)
-- [`src/spectral_quality.cpp`](../../src/spectral_quality.cpp)
-- [`src/spectral_smi.cpp`](../../src/spectral_smi.cpp)
-- [`tests/test_spectral_response.cpp`](../../tests/test_spectral_response.cpp)
-- [`tests/test_spectral_closure.cpp`](../../tests/test_spectral_closure.cpp)
-- [`tests/test_spectral_quality.cpp`](../../tests/test_spectral_quality.cpp)
-- [`tests/test_spectral_smi.cpp`](../../tests/test_spectral_smi.cpp)
-- [`tools/generate_portfolio_figures.py`](../../tools/generate_portfolio_figures.py)
+The [spectral implementation companion](../implementation/spectral-fidelity.md)
+explains how the scientific method is realized in C++ and routes readers to
+the public source, tests, and aggregate generation. The report above remains
+canonical for input pairing, method conditions, results, and limitations.

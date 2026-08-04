@@ -1,14 +1,5 @@
 # Display-P3 to sRGB gamut mapping
 
-[Documentation index](../README.md) ·
-[case study](../case-studies/gamut-mapping.md) ·
-[synthetic input](../data/gamut_synthetic_input.csv) ·
-[CIELAB-radial result](../data/gamut_synthetic_radial.csv) ·
-[OkLCh-radial result](../data/gamut_synthetic_oklch_radial.csv) ·
-[CSS Local-MINDE result](../data/gamut_synthetic_css_local_minde.csv) ·
-[soft-compression result](../data/gamut_synthetic_soft.csv) ·
-[figure](../figures/gamut_mapping_synthetic.svg)
-
 ## Overview
 
 Display-P3 can encode colors that an sRGB destination cannot reproduce. A gamut
@@ -18,6 +9,15 @@ already fit. This report compares four fully specified methods on the same
 deterministic input, changing coordinates and mapping rules separately so their
 effects can be interpreted rather than blended together.
 
+[Documentation index](../README.md) ·
+[case study](../case-studies/gamut-mapping.md) ·
+[synthetic input](../data/gamut_synthetic_input.csv) ·
+[CIELAB-radial result](../data/gamut_synthetic_radial.csv) ·
+[OkLCh-radial result](../data/gamut_synthetic_oklch_radial.csv) ·
+[CSS Local-MINDE result](../data/gamut_synthetic_css_local_minde.csv) ·
+[soft-compression result](../data/gamut_synthetic_soft.csv) ·
+[figure](../figures/gamut_mapping_synthetic.svg)
+
 The numerical path converts encoded Display-P3 or sRGB samples through linear
 RGB and relative D65 XYZ before applying a declared method in CIELAB or OkLCh.
 It rejects non-finite or out-of-domain input, tests destination membership in
@@ -25,18 +25,19 @@ linear RGB, and verifies every accepted output against the destination cube.
 
 Four methods form two controlled comparisons:
 
-- `fixed_Lh_radial_boundary_clip` preserves every destination-in-gamut color
+- **Fixed-L\*, Lab-hue radial clip** preserves every destination-in-gamut color
   and moves an out-of-gamut color to the first destination boundary connected
   to the neutral axis.
-- `experimental_CIELAB_protected_core_asymptotic_headroom_soft_chroma_compression`
-  preserves chroma below a declared knee and compresses the shoulder with a
-  continuous, monotone curve that approaches the destination boundary without
-  reaching it at finite input chroma.
-- `fixed_OkLCh_radial_boundary_clip` applies the same first-connected-boundary
-  radial rule in OkLCh, isolating the effect of changing coordinates.
-- `CSS_Color_4_2026-07-28_binary_search_local_MINDE` keeps destination-in-gamut
-  colors unchanged and applies the dated W3C draft's OkLCh binary search and
-  local clipping, isolating the effect of changing the algorithm.
+- **Experimental protected-core soft compression** preserves chroma below a
+  declared knee and compresses the shoulder with a continuous, monotone curve
+  that approaches the destination boundary without reaching it at finite input
+  chroma.
+- **Fixed-L, OkLCh-hue radial clip** applies the same first-connected-boundary
+  rule in OkLCh, isolating the effect of changing coordinates.
+- **CSS Color 4 Local MINDE**, pinned to the dated W3C draft, keeps
+  destination-in-gamut colors unchanged and uses an OkLCh minimum-color-
+  difference search with local clipping, isolating the effect of changing the
+  algorithm.
 
 The CIELAB radial method is the reference baseline. CIELAB radial versus OkLCh
 radial tests coordinate choice under the same mapping rule. OkLCh radial versus
@@ -81,21 +82,20 @@ The v1 transform is an ideal RGB encoding-gamut study:
   components to zero, bounding the discarded near-neutral chroma at `4e-6`; and
 - legal encoded input components are finite values in `[0,1]`.
 
-The rational matrices, inverse matrices, transfer constants, white, numeric
-domains, mapping coordinates, solver tolerances, algorithm constants, and knee
-are serialized in each JSON result. The RGB and OkLab matrix values were
-transcribed from the non-normative sample conversion code in the
+The RGB and OkLab matrix values were transcribed from the non-normative sample
+conversion code in the
 [28 July 2026 CSS Color Module Level 4 Candidate Recommendation Draft](https://www.w3.org/TR/2026/CRD-css-color-4-20260728/#color-conversion-code).
 The specification's sRGB and Display-P3 definitions provide the chromaticity,
-D65-white, and transfer-function contract; the numeric tests evaluate the
-sample-code rationals independently.
+D65-white, and transfer-function contract. Independent calculations evaluate
+the sample-code rationals over the shared-gamut points used in the cross-check.
 
 CSS Color 4 is a work-in-progress draft and currently permits three SDR
 single-color gamut-mapping algorithms. This study implements one named,
 dated option: Binary Search Gamut Mapping with Local MINDE from the 28 July
 2026 draft. Its `deltaEOK` JND (`0.02`), binary-search epsilon (`0.0001`),
 component-clipping rule, and relative-colorimetric identity behavior are
-serialized rather than generalized as a timeless "CSS algorithm."
+treated as properties of that dated draft rather than generalized as a
+timeless "CSS algorithm."
 
 This contract does not describe the measured gamut of a physical display.
 That would require device characterization, viewing conditions, and a separate
@@ -119,7 +119,7 @@ The solver uses that structure directly:
    out-of-gamut transition.
 
 This matters because constant-Lab-hue rays are not necessarily star-convex.
-One test fixture is a legal Display-P3 color at `L*=96.23856` and Lab hue
+One constructed counterexample is a legal Display-P3 color at `L*=96.23856` and Lab hue
 `1.80124` radians. Its ray first leaves sRGB at approximately `C*=57.64096`,
 re-enters shortly afterward, and leaves again much later. A fixed 0.25-C\*
 membership scan samples both sides of the narrow first excursion as in-gamut
@@ -195,9 +195,9 @@ expressed in IPT and compared by its IPT hue angle. The transform follows the
 and is checked against independent MATLAB reference vectors for D65 white and
 Display-P3 yellow.
 
-Hue is marked undefined when opponent chroma is at most `0.001` of `|I|`; the
-CSV and JSON carry that validity flag so nominal grays do not acquire a
-meaningless angle from rounded transform coefficients.
+Hue is marked undefined when opponent chroma is at most `0.001` of `|I|`, so
+nominal grays do not acquire a meaningless angle from rounded transform
+coefficients.
 
 | Method | Modified chromatic samples | Median | 90th percentile | Maximum | Above 3° |
 |---|---:|---:|---:|---:|---:|
@@ -224,64 +224,14 @@ space alone does not supply either one.
 The soft method remains an experimental baseline rather than a completed
 appearance model.
 
-## Reference and invariant tests
+## Independent transform cross-check
 
-The C++ tests include:
-
-- all six sRGB and Display-P3 primary-to-XYZ vectors from the W3C rational
-  matrices, their inverses, D65 white, and transfer-function breakpoints;
-- W3C literal OkLab/OkLCh vectors, signed-cube-root and inverse round trips,
-  powerless neutral hue, hue wrapping, `deltaEOK`, and overflow rejection;
-- a ColorAide 5.1 cross-check for the dated Local-MINDE Display-P3-yellow
-  output;
-- black, white, neutral, near-black, near-white, cube corners, hue wrap, and
-  deterministic repeated runs;
-- colorimetric identity for a common-gamut color whose Display-P3 and sRGB
-  encoded triples differ;
-- a Display-P3 red reference boundary at approximately `C*=93.86561`;
-- just-inside and just-outside boundary probes;
-- the narrow leave/re-enter adversarial ray described above;
-- protected-core identity, continuity and unit slope at the knee, monotone
-  output chroma, and intentional modification of the in-gamut shoulder;
-- rejection of invalid domains, non-finite values, discontinuous knee
-  settings, and unconverged boundary searches; and
-- a deterministic 3,229-input adversarial set spanning transfer breakpoints,
-  fixed-seed cube samples, and near-neutrals, with all four methods producing
-  finite in-gamut output; both radial methods preserve their declared L/h
-  coordinates, and both relative-colorimetric methods preserve in-gamut
-  inputs.
-
-The schema-v3 JSON and CSV paths keep CIELAB diagnostics, OkLab/OkLCh
-coordinates, radial-boundary evidence, and Local-MINDE evidence in typed,
-separate fields. They are tested for duplicate identifiers, exact schemas,
-finite numerics, SHA-256 syntax, privacy-safe input labels, RFC-compatible CSV
-escaping, and output-path collisions. The portfolio generator also reconciles
-every JSON sample field against the same-ID CSV row and recomputes both the
-overall and IPT-hue aggregates from those rows. For achromatic CIELAB or OkLCh
-inputs, radial-boundary evidence is marked inapplicable (and the OkLCh hue flag
-stays false); an arbitrary angle from floating-point noise is not reported as
-evidence.
-
-An optional LittleCMS test creates sRGB and Display-P3 profiles independently,
-then compares common-gamut conversions against the toolkit in both directions.
-The Display-P3-to-sRGB direction includes a shared-blue-primary check, but most
-full-code Display-P3 corners are outside sRGB. Running the conversion the other
-way adds all full-code sRGB primaries and secondaries because they lie inside
-Display-P3. The single-channel primaries isolate the source sRGB-to-XYZ matrix
-columns, while the composed comparison also exercises the independent
-XYZ-to-Display-P3 inverse. Neutral samples alone could hide compensating matrix
-errors because all three source columns contribute to their result.
-
-Agreement is required to `1e-6` per encoded channel. LittleCMS evaluates the
-transform through a float path, so machine-epsilon agreement with the toolkit's
-double-precision path is not expected. The declared bound is enforced on named
-primaries, secondaries, neutrals, a sub-breakpoint transfer sample, and a
-216-point sRGB cube that straddles the transfer-function breakpoint. The test
-reports the worst cube error on each platform and remains tight enough to catch
-small matrix-coefficient errors; it does not claim identical rounding across
-LittleCMS versions. The check is enabled in CI with
-`CAMERA_IQ_ENABLE_LCMS=ON`; LittleCMS remains a test-only dependency and is not
-used by the mapping implementation.
+Independently constructed LittleCMS sRGB and Display-P3 profiles agree with the
+toolkit's common-gamut conversions to `1e-6` per encoded channel in both
+directions. The comparison includes primaries, secondaries, neutrals, a sample
+below the transfer-function breakpoint, and a 216-point sRGB cube. This supports
+the RGB/XYZ transform path; LittleCMS is not used by the mapping calculation and
+the comparison does not validate the boundary search or rendering intents.
 
 ## Synthetic study
 
@@ -331,40 +281,12 @@ of excessive chroma reduction for light yellow in simple LCH mapping.
 
 ![Synthetic Display-P3 to sRGB mapping](../figures/gamut_mapping_synthetic.svg)
 
-## Reproduce the artifacts
-
-```bash
-cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
-cmake --build build --parallel
-
-./build/camera_iq gamut-map docs/data/gamut_synthetic_input.csv \
-  --out-json out/gamut-radial.json \
-  --out-csv out/gamut-radial.csv
-
-./build/camera_iq gamut-map docs/data/gamut_synthetic_input.csv \
-  --intent soft-knee --knee 0.75 \
-  --out-json out/gamut-soft.json \
-  --out-csv out/gamut-soft.csv
-
-./build/camera_iq gamut-map docs/data/gamut_synthetic_input.csv \
-  --intent oklch-radial \
-  --out-json out/gamut-oklch-radial.json \
-  --out-csv out/gamut-oklch-radial.csv
-
-./build/camera_iq gamut-map docs/data/gamut_synthetic_input.csv \
-  --intent css-local-minde \
-  --out-json out/gamut-css-local-minde.json \
-  --out-csv out/gamut-css-local-minde.csv
-
-python3 tools/generate_gamut_portfolio.py --camera-iq build/camera_iq --check
-```
-
-The generator re-creates all four command results and the SVG. It
-byte-compares the input and figure, compares schemas exactly, and compares
-finite numerics within `1e-12` relative/absolute tolerance. Angular diagnostics
-allow `1e-5` degrees because `atan2` and related math-library results vary
-slightly across platforms; material mapping values remain under the tighter
-tolerance.
+*Left: the CIELAB `a*b*` plane under the fixed-lightness, fixed-hue radial
+baseline; each segment joins input to mapped chroma, so longer segments mean
+more chroma was removed. Upper right: a paired 12-bin histogram of modified-
+sample CIEDE2000 values for the radial and protected-core methods, with counts
+normalized to the tallest bin. Lower right: all four methods compared by
+modified-sample count, grid-mean CIEDE2000, and 90th-percentile IPT hue shift.*
 
 ## Limitations
 
@@ -387,3 +309,9 @@ tolerance.
 - The LittleCMS reference check covers the ideal common-gamut RGB transform;
   loading arbitrary ICC profiles and validating printer rendering remain out of
   scope.
+
+## Engineering companion
+
+The [gamut-mapping implementation companion](../implementation/gamut-mapping.md)
+explains how the four scientific methods map to C++ and routes readers to the
+public source, tests, and deterministic artifact generation.

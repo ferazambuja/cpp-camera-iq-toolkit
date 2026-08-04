@@ -8,7 +8,6 @@ maximum nonlinearity of 0.72–1.04%; the result is a bounded linearity check, n
 ISO 14524 conformance or proof of source stability.
 
 Date: 2026-07-04
-Tool: `camera_iq oecf-fit` (this repository, v0.1.0)
 Dataset: private local RAW captures used only for validation. Source RAW files
 are not distributed with this repository.
 
@@ -46,20 +45,11 @@ dynamic-range, reflectance, or color accuracy analysis.
   relative fit.
 - `max_nonlinearity_pct` is `max(abs(residual)) / fitted_signal_range * 100`
   over the usable fit points for that plane.
-- The JSON carries both `oecf_candidate` from the readiness layer and
-  `fit_candidate` from the fit layer so consumers can distinguish data
-  readiness from fit emission.
+- Data readiness and fit validity are reported as separate verdicts. A series
+  can contain enough usable exposure points to attempt a fit without that fit
+  satisfying the declared linearity conditions.
 
 ## Real-Data Validation Run
-
-```bash
-./build/camera_iq oecf-fit \
-  clrs589_project_camera \
-  --subdir "Images/Sphere" \
-  --series-min 3 --series-limit 3 \
-  --roi 1000,1000,500,500 \
-  --out out/sphere_roi_oecf_fit.json
-```
 
 Result summary:
 
@@ -91,25 +81,6 @@ is still not an ISO OECF result because the ROI is not an identified standard
 chart patch with reflectance/illumination controls, and the tool does not
 independently prove illumination stability.
 
-## Validation
-
-```bash
-cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
-cmake --build build --parallel
-ctest --test-dir build --output-on-failure
-```
-
-Targeted checks:
-
-- `test_oecf_fit` covers a perfectly linear ladder, an injected knee with known
-  residuals and nonlinearity percent, inherited exclusion of below-black and
-  non-uniform ROI points, the all-CFA-planes-above-black lower-bound gate,
-  fewer-than-three usable points, and JSON fields.
-- `test_exposure_response` covers the per-point `usable_oecf` gate that feeds
-  this fit.
-- `camera_iq_tests` verifies that `camera_iq oecf-fit` is routed.
-- The real-data validation output was written under `out/`, not tracked in git.
-
 ## Interpretation limits
 
 - The relative-exposure fit is not ISO 14524 conformance and has no independent
@@ -119,9 +90,9 @@ Targeted checks:
 - Chart/reflectance pairing and colorimetric or perceptual quality are separate
   analyses.
 
-## Reproducibility
+## Engineering companion
 
-- [`src/oecf_fit.cpp`](../../src/oecf_fit.cpp)
-- [`src/cmd_oecf_fit.cpp`](../../src/cmd_oecf_fit.cpp)
-- [`tests/test_oecf_fit.cpp`](../../tests/test_oecf_fit.cpp)
-- [Exposure-response report](EXPOSURE_RESPONSE.md)
+The [RAW implementation companion](../implementation/raw-foundation.md)
+explains how the fit is realized in C++ and routes readers to the public source
+and tests. The input-gating results remain in the
+[exposure-response report](EXPOSURE_RESPONSE.md).

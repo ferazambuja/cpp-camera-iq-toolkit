@@ -34,19 +34,21 @@ archive honestly.
 [Documentation index](../README.md) ·
 [detailed report](../reports/SPECTRORADIOMETER_INGEST.md) ·
 [aggregate CSV](../data/spectro_group_summary.csv) ·
-[implementation](../../src/spectro_ingest.cpp) ·
-[tests](../../tests/test_spectro_ingest.cpp)
+[implementation companion](../implementation/spectroradiometer.md)
 
 ![Measurement-group level and chromaticity variation](../figures/spectro_group_variation.svg)
 
-*One circle per multi-reading group — 37 of them, each a set of readings the
-archive treats as repeats of the same target — showing how far those repeats
-disagreed. Horizontal position is variation in total level (spectral-integral
-CV), vertical position is the largest chromaticity separation within the group
-(Δu′v′), and circle size is the normalized spectral-shape residual. The three
-stay on separate axes rather than collapsing into one score because their
-maxima land on different groups: the group that varied most in brightness is
-not the group that varied most in color.*
+*Both panels cover the same 37 groups — every set of readings the archive
+treats as repeats of one target. Left: total light level, one bar per group,
+sorted, colored by whether the group is a ramp or reference measurement or a
+scene; the single tall bar is the 41.65% maximum. Right: the same groups as
+circles, with horizontal position again the level variation, vertical position
+the largest chromaticity separation inside the group — note that axis is scaled
+×1000, so the 0.002852 maximum in the text appears near 3 — and circle size the
+normalized spectral-shape residual, readable as ordering rather than as values.
+Level, shape, and color stay on separate axes rather than collapsing into one
+score because their maxima land on different groups: the group that varied most
+in brightness is not the group that varied most in color.*
 
 ## Method
 
