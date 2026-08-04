@@ -16,16 +16,16 @@ The CLRS-589 Fujifilm X-T100 dataset does not contain a slanted-edge or
 resolution target. The mounted 2016 esensi archive contains Nikon D800 and D810
 SFR captures plus Imatest-derived SFR/MTF result CSVs.
 
-The completed SFR/MTF study uses this 2016 Nikon archive. New capture work is
-needed only for the Fuji X-T100 or for a camera/lens condition not represented
-in the archive.
+The completed SFR/MTF study uses this Nikon archive. A Fujifilm or different
+camera/lens conclusion would require a separate capture set.
 
 [SFR/MTF report](SFR_MTF.md) ·
 [case study](../case-studies/sfr-mtf-aperture-field.md)
 
 ## Archive Labels
 
-Use archive labels in public docs, not absolute mount paths:
+The public record identifies source groups with archive labels rather than
+private mount paths:
 
 | Role | Archive label |
 |---|---|
@@ -104,17 +104,15 @@ capture-system contributions to the measured SFR.
 
 ## D810 Oracle Contract
 
-The implemented D810 center sweep uses exact filename-keyed NEFs, per-file ROI
-tables, and the complete f/1.4..f/16 series. The actual filenames include the
-`NIKON ` prefix and a space:
-`NIKON D810_50mm_f<aperture>_.NEF`. Do not split these names with whitespace-
-delimited shell tools.
+The D810 center sweep uses exact filename-keyed NEFs, per-file regions of
+interest, and the complete f/1.4..f/16 series. Filename identity includes the
+`NIKON ` prefix and embedded space.
 
-Use a **single Imatest batch** for any advisory comparison. The per-folder
+The advisory comparison uses a **single Imatest batch**. The per-folder
 `Results/SFR_cypx.csv` concatenates two batches; the per-file
 `Results/NIKON D810_50mm_f...__Y_multi.csv` files are the 10-Dec-2016 batch and
-carry both the exact center ROI and the matching center MTF50 values. Do not mix
-the first `SFR_cypx.csv` batch with the per-file ROI tables.
+carry both the exact center ROI and the matching center MTF50 values. Mixing the
+first batch with those per-file tables would compare different analysis runs.
 
 For the green-linear trend gate, these 10-Dec center rows are the
 coherent advisory oracle:
@@ -142,45 +140,42 @@ The per-file tables also expose 23 ROIs per aperture. The center-ROI sweep and
 the 23-ROI field maps are reported separately so the single-edge aperture trend
 and field behavior do not get conflated.
 
-Toolkit orientation convention: the center ROI is processed as a near-vertical
+Analysis orientation convention: the center ROI is processed as a near-vertical
 edge (edge-position x as a function of y), with measured edge angles around
 -6.3 degrees. Describing this ROI as "horizontal" mismatches the actual
 green-plane detector convention.
 
 ## Field-MTF measurement contract
 
-Center SFR and field MTF are complete for the D810 50 mm sweep.
-`camera_iq sfr --field-map` processes all 23 per-aperture ROIs from a single
-per-file `_Y_multi.csv` table:
+Center SFR and field MTF are complete for the D810 50 mm sweep. All 23 regions
+at each aperture come from one per-file `_Y_multi.csv` table:
 
-1. The `_Y_multi.csv` parser reads all 23 rows, preserving the row number,
+1. Each `_Y_multi.csv` table contributes all 23 rows, retaining the row number,
    region (`Center`, `Corner`, `Pt Way`), direction label, edge ID, full-frame
-   ROI, matching MTF50/MTF50P, R1090, peak MTF, field offsets, and the per-ROI
-   CSV-summary filename as a basename.
-2. The command reuses the existing green-linear `sfr` core for every ROI and
-   emits a per-aperture field map. The command reports a green-linear
-   measurement with the Imatest comparison identified as advisory.
+   region, matching MTF50/MTF50P, R1090, peak MTF, field offsets, and the
+   per-region summary identity.
+2. The same green-linear estimator measures every region and produces one
+   per-aperture field map; the Imatest value remains an advisory comparison.
 3. The measured physics gates are:
-   - all 23 ROIs parse and run for each verified plateau aperture;
+   - all 23 regions are complete and measurable at each verified plateau aperture;
    - per-ROI filename/run provenance remains single-batch;
    - f/5.6, f/8, and f/11 show center MTF50 above the physical-corner maximum;
-   - f/4 is a near-tie/slight corner win in both Imatest and toolkit probes, so
+   - f/4 is a near-tie/slight corner win in both Imatest and sensor-linear probes, so
      strict center > corner is intentionally **not** a universal plateau gate.
 
    Pin the corner set explicitly: the `Region` column marks only the two LEFT
    corners (`-4_-2_L_C`, `-4_2_L_C`) as `Corner`; the right-side corner
    positions (`4_-2_R_C`, `4_2_R_C`) are labeled `Pt Way` despite the `_C`
    edge-ID suffix. Both gate definitions were probed on real pixels (2026-07-08)
-   and the f/5.6-f/11 center-above / f/4 near-tie results hold under either;
-   prefer deriving field position from the edge-ID grid offsets (or the ROI
-   center coordinates), not the `Region` strings — same label-trust trap as the
-   direction column.
-4. Do not treat Imatest direction labels (`L`, `R`, `AL`, etc.) as proof of
+   and the f/5.6-f/11 center-above / f/4 near-tie results hold under either.
+   Field position is therefore derived from the edge-ID grid offsets or ROI
+   centers rather than the unreliable `Region` strings.
+4. Imatest direction labels (`L`, `R`, `AL`, and similar) do not establish
    mixed horizontal/vertical edge orientation. A real f/5.6 probe classified all
-   23 ROIs as near-vertical in the toolkit convention; field-MTF should report
-   actual detected orientation per ROI instead of assuming it from labels.
-5. Keep the CLRS-589 Fuji dataset status separate: it remains blocked for
-   SFR/MTF because it has no slanted-edge target.
+   23 regions as near-vertical in the toolkit convention, so the analysis uses
+   the detected orientation for each region instead of assuming it from labels.
+5. The CLRS-589 Fujifilm dataset is a separate evidence boundary and contains
+   no slanted-edge target, so it cannot support an SFR/MTF result.
 
 Verified D810 field-map plateau probe:
 
@@ -233,12 +228,12 @@ D800-specific contract notes (all verified on the real files, 2026-07-08):
   tethered `2016_12_09_SFR_D800_f11_0032.NEF` and three
   `2016_12_09_SFR_D800_test_*.NEF` frames — diagnostic only.
 
-Possible extensions are a multi-aperture summary command or an advisory
-rendered-luma comparison path with demosaic/OECF handling.
+An advisory rendered-luma comparison would require a separately declared
+demosaic and opto-electronic conversion path; it is not part of this
+sensor-linear result.
 
-## Reproducibility
+## Engineering companion
 
-- [`src/sfr.cpp`](../../src/sfr.cpp)
-- [`src/cmd_sfr.cpp`](../../src/cmd_sfr.cpp)
-- [`tests/test_sfr.cpp`](../../tests/test_sfr.cpp)
-- [`tests/test_cmd_sfr.cpp`](../../tests/test_cmd_sfr.cpp)
+The [SFR implementation companion](../implementation/sfr-mtf.md) explains the
+software realization and routes readers to the public source and tests. This
+inventory remains canonical for input identity.

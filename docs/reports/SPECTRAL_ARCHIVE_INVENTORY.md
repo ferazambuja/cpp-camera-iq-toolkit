@@ -9,8 +9,9 @@ file-selection contract behind the spectral study, not a camera ranking by
 itself.
 
 Date: 2026-07-07
-Scope: the camera monochromator / camSPECS archive feeding the `spectral-response`,
-`spectral-closure`, `spectral-quality`, and `spectral-smi` methods.
+Scope: the camera monochromator and camSPECS archive feeding spectral-response
+recovery, physical closure, Luther-condition analysis, and the ISO 17321-style
+color-fidelity comparison.
 
 This is the **canonical file->role map** for the spectral track. It records the
 per-camera SSF, illuminant, and chart-reflectance selections used by the
@@ -27,9 +28,9 @@ no absolute mount paths are recorded.
 | `out:` | gitignored generated toolkit artifacts under `out/` |
 
 **Canonical input selection:** `Data_Collected/` is the source of truth. Each
-camera was
-measured on several days (see below); the loose per-day session folders are raw
-inputs. Prefer the curated `Data_Collected/<camera>/Monochromator/` CSV.
+camera was measured on several days (see below); the loose per-day session
+folders are raw inputs. The reported analysis uses the curated
+`Data_Collected/<camera>/Monochromator/` CSV.
 
 ## Per-camera monochromator SSF selections
 
@@ -112,15 +113,15 @@ captures plus same-named ROI sidecars:
 
 `Data_Collected/<camera>/Target/` holds the curated RawDigger ROI sidecars for
 **two** Target sessions, `2016-11-21` and `2016-11-22`, each with numbered
-Target / WhiteCard / DarkFrame captures and two sidecar flavors:
+Target / WhiteCard / DarkFrame captures and two sidecar forms:
 
 - `*_CC.txt` — ColorChecker 24-patch ROI RGB
 - `*_SG.txt` — ColorChecker SG 140-patch ROI RGB
 
 Closure uses the **2016-11-21 set 1** (Target_1 / WhiteCard_1 / DarkFrame_1,
 `_SG.txt`), pairing the 11-21 SSF with the 11-21 capture. The 11-22 set is an
-additional same-chart session; it must carry its own white-card/dark pairing if
-used later.
+additional same-chart session and cannot support closure without its own
+white-card and dark-frame pairing.
 
 ## File-Selection Check
 
@@ -131,14 +132,16 @@ day (11-21). The closure illuminant and SG reflectance are the authoritative
 ## File-selection hazards
 
 - **Mis-filed A7RII CSV in the A7SII folder.** `Data_Collected/Sony A7SII/
-  Monochromator/` contains `2016_11_19_A7RII_mono_II.csv` — a Sony **A7RII** file
-  sitting in the A7SII folder. Always select the `2016_11_21_A7S2_mono.csv` file
-  by exact name; never "grab the A7SII folder's CSVs" blindly.
+  Monochromator/` contains `2016_11_19_A7RII_mono_II.csv`—a Sony **A7RII** file
+  sitting in the A7SII folder. The current A7SII selection is therefore pinned
+  to the exact `2016_11_21_A7S2_mono.csv` identity rather than inferred from its
+  parent folder.
 - **Second-run "II" files** exist for 11-19 and 11-20 (e.g. `..._mono_II.csv`).
   The canonical 11-21 has no II variant, which is the reason to standardize on it.
-- **CamSpec vs Monochromator.** `*_CamSpec_*` / `*_camspec_*` session folders are a
-  different measurement method (camSPECS express) than the monochromator sweeps.
-  The SSF track uses the **Monochromator** outputs. Do not mix them.
+- **CamSpec vs Monochromator.** `*_CamSpec_*` / `*_camspec_*` session folders are
+  a different measurement method (camSPECS express) from the monochromator
+  sweeps. The reported four-camera SSF track uses only the **Monochromator**
+  outputs; the separate Phase One result retains its camSPECS scope.
 
 ## Additional archive data
 
@@ -166,14 +169,13 @@ alongside the 2016 cameras is valid; a closure comparison would not be.
 ## Additional analyses
 
 1. **CC-24 adoption for the ISO-style SMI.** `CC24Patch_CGATS.txt`
-   is converted to canonical CSV and `spectral-smi` runs over the 18 chromatic
-   patches (ISO), the full 24, and the SG-140. The primary SMI run uses D55, as
+   is converted to canonical CSV and evaluated over the 18 chromatic patches
+   (ISO), the full 24, and the SG-140. The primary SMI run uses D55, as
    ISO DSC/SMI specifies by default; D50 is retained as a cross-check. The three
    sets agree on the endpoints (Canon best, IQ3 worst) and on A7RII second; A7SII
    is slightly ahead of D810 under D55, while D50 makes them a practical tie.
-   The command also reports a white-preserving constrained-fit sensitivity check
-   to bound one plausible Annex-B normalization variant. See the SMI ranking
-   section of `SPECTRAL_SENSITIVITY.md`.
+   A white-preserving constrained fit bounds one plausible Annex-B normalization
+   variant. See the SMI ranking section of `SPECTRAL_SENSITIVITY.md`.
 2. **CC-24 closure.** All four 2016 cameras were closed against
    the classic 24-patch ColorChecker using the Target set 1 `<camera>/Target/*_CC.txt`
    ROI RGB, the original paired-column `CC24Patch_CGATS.txt` SpectraShop export,
@@ -187,10 +189,10 @@ alongside the 2016 cameras is valid; a closure comparison would not be.
 - Quantify day-to-day SSF stability across each camera's 11-18 through 11-21
   monochromator runs.
 
-## Reproducibility
+## Engineering companion
 
-- [`src/spectral_response.cpp`](../../src/spectral_response.cpp)
-- [`src/spectral_closure.cpp`](../../src/spectral_closure.cpp)
-- [`src/spectral_smi.cpp`](../../src/spectral_smi.cpp)
-- [`tests/test_spectral_response.cpp`](../../tests/test_spectral_response.cpp)
-- [Spectral case study](../case-studies/spectral-color-fidelity.md)
+The [spectral implementation companion](../implementation/spectral-fidelity.md)
+explains how the evidence roles enter the C++ analysis and routes readers to
+the public source and tests. This inventory remains canonical for the archive
+pairing; the reader-first result is the
+[spectral case study](../case-studies/spectral-color-fidelity.md).

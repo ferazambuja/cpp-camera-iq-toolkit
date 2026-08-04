@@ -12,33 +12,34 @@ measurements, and independent reference comparisons.
 
 ## Selected results and engineering decisions
 
-- **SFR/MTF:** processed **299 field ROIs** across Nikon D800 and D810 aperture
-  sweeps. The D810 peak occurred at f/5.6. That trend did not hold on the D800,
-  which showed asymmetric off-axis behavior, so the two capture systems are
-  reported under separate acceptance criteria rather than one.
+- **Sharpness across the frame:** slanted-edge spatial frequency response and
+  modulation transfer function (SFR/MTF) measurements covered **299 chart
+  regions** across Nikon D800 and D810 aperture sweeps. The D810 peaked at
+  f/5.6; the D800 did not reproduce that trend and showed asymmetric off-axis
+  behavior, so the two capture systems require separate conclusions.
 - **Spectral characterization:** extracted a Canon 5D2 spectral-sensitivity
   function from monochromator RAW sweeps, closed four same-session camera/chart
   datasets with minimum channel correlation above **0.992**, and compared five
   cameras with Luther and ISO 17321-style color-fidelity metrics.
-- **ColorChecker / CCM:** matched uncorrected 140-patch RAW extraction to a
-  reference tool at correlation above **0.99999998** with sub-0.4 DN RMSE, then
-  ran a corrected RAW-to-linear-CCM path with **4.134 mean held-out
-  CIEDE2000**.
+- **ColorChecker / color-correction matrix:** matched uncorrected 140-patch RAW
+  extraction to a reference tool at correlation above **0.99999998** with
+  sub-0.4 DN RMSE, then evaluated the corrected linear fit on patches it had
+  not seen during training, reaching **4.134 mean held-out CIEDE2000**.
 - **Measurement judgment:** rejected a ColorChecker grid despite correlations
   above 0.999 because its center error reached **16.449 px**, and rejected an
   invalid Stepchart strip model before accepting the measured ring geometry.
 - **CFA flat-field response:** screened **52 sphere captures** from a Fujifilm
   X-T100 and Fujinon XF 14 mm f/2.8 R integrating-sphere set, retained three
   usable f/8 frames, and measured center-normalized green and chromatic fields.
-  A **19.65% quadrant asymmetry** exceeded the declared 5% criterion and was
+  A **19.65% spread between the brightest and darkest corner blocks**, scaled
+  by their average, exceeded the declared 5% criterion and was
   inconsistent with a centered radial scalar model for the measured composite
   field; missing capture controls prevent isolated lens attribution.
-- **Flat-field input screening:** `patches` and `shading` evaluate source-CFA
-  samples with the same per-position near-ceiling limits over both the full
-  frame and a centered region. The test rejects a 1/500 s frame whose worst CFA
-  position is **11.63% near ceiling** in the centered region, while retaining
-  the 1/1000 s correction flat. The accepted flat uses the full-frame
-  valid-sample mean for correction normalization.
+- **Flat-field input screening:** both the ColorChecker correction and the
+  spatial-response analysis inspect the source color-filter-array samples over
+  the full frame and a centered region. That screen rejects a 1/500 s frame
+  whose worst sensor position is **11.63% near ceiling** in the center, while
+  retaining the 1/1000 s flat for correction.
 - **Spectroradiometer ingest:** parsed **89 distinct MATLAB v5 readings** into
   40 measurement groups, resolved by content hash rather than by filenames that
   number acquisitions instead of scenes. Across the 37 multi-reading groups,
@@ -60,16 +61,13 @@ measurements, and independent reference comparisons.
   mapping, analytic channel-boundary searches, and a dated CSS Color 4
   Local-MINDE method. No one method wins every statistic; this is a controlled
   algorithm study, not observer validation.
-- **Color-model equation audit:** reproduced half normalized brightness at
-  `J = 25` versus half lightness at `J = 50` and isolated the
-  background-dependent `N_cb^0.9` factor, which reaches **2.595×** its
-  `Y_background = 20` value at `Y_background = 0.1`. Including the paper's
-  coupled `z` and `n` terms under fixed adapted responses produces
-  **2.120–2.687×** across reference `J = 10…90`, showing that the isolated term
-  is neither an upper nor lower bound. The audit keeps the source paper's
-  unfavorable outcome, a LUTCHI colorfulness `R²` drop from **0.81 to 0.71**,
-  alongside its gains. The bounded C++ tests pin the corrected 2022 Equation
-  23 coefficient `43` and make CIE94 reference direction explicit.
+- **Color-model equation audit:** CAM16's square-root relation reaches half
+  normalized brightness at lightness `J = 25`, while half lightness is
+  `J = 50`. One background-adaptation factor rises by **2.595×** under the
+  darkest tested background, but the complete coupled expression spans
+  **2.120–2.687×**, proving the isolated term is neither a floor nor a ceiling.
+  The audit also retains the paper's unfavorable result—a LUTCHI colorfulness
+  `R²` drop from **0.81 to 0.71**—alongside its gains.
 
 ## Featured case studies
 
@@ -88,8 +86,11 @@ to the OECF, noise, demosaic, localization, dataset, and provenance reports.
 
 ![Camera IQ toolkit measurement architecture](docs/figures/architecture.svg)
 
-A thin command-line interface over a reusable C++ core keeps input validation,
-measurement algorithms, and result serialization independently testable.
+*Configured datasets enter through a thin command layer, while the reusable
+C++ core keeps RAW decoding, scientific calculations, and typed results
+separate from JSON/CSV serialization. Archive-backed reports, safe aggregate
+tables, and deterministic figures are the public outputs; private source
+captures remain outside the repository.*
 
 ## Capability map
 
@@ -102,7 +103,7 @@ measurement algorithms, and result serialization independently testable.
 | Spectroradiometry | Exact-byte MATLAB v5 ingest, measurement-group absolute/normalized spectra, chromaticity, and same-record XYZ closure |
 | Tone and noise | Exposure grouping, relative OECF, Stepchart oracle/ring extraction, dark temporal noise, DSNU, DN-referred variance |
 | Sharpness | Green-linear slanted-edge SFR, MTF50/MTF50P, aperture sweeps, 23-ROI field maps |
-| Spatial response | Per-CFA flat-field maps, center-normalized R/G and B/G fields, quadrant asymmetry, bounded dark-control checks, and one capture-pair delta |
+| Spatial response | Per-CFA flat-field maps, center-normalized R/G and B/G fields, corner-field asymmetry, bounded dark-control checks, and one capture-pair delta |
 | Validation and reporting | CLI validation, JSON/CSV reporting, synthetic and negative-path tests, archive-backed checks, privacy-safe dataset IDs |
 
 Implemented commands:

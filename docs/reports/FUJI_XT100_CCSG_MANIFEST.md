@@ -6,11 +6,12 @@ and which dates or filenames are reliable enough to organize them. This report
 establishes that dataset boundary. It inventories the retained material and its
 caveats; it does not calculate a color, noise, or sharpness result.
 
-Date: 2026-07-02
-Tool: `camera_iq manifest` (this repository, v0.1.0)
 Dataset: private local copy of an archived Fujifilm X-T100 ColorChecker-SG
 validation capture set. The dataset is **not** distributed with this
 repository; paths below are relative to the dataset root.
+
+[Documentation index](../README.md) ·
+[RAW implementation companion](../implementation/raw-foundation.md)
 
 ## Scope
 
@@ -18,12 +19,6 @@ The machine-readable manifest records file, metadata, exposure-series, and
 provenance checks while keeping source paths private.
 
 ## Method
-
-```bash
-./build/camera_iq manifest "<dataset-root>" --out out/clrs589_manifest.json
-# scanned 690 files; exif read for 480/480 raw files; 9 exposure-series candidates
-# runtime ≈ 0.4 s (metadata-only LibRaw open, no pixel unpack)
-```
 
 The manifest records, per file: relative path, size, filesystem mtime from the
 local/imported file copy, filename-encoded exposure metadata
@@ -158,24 +153,17 @@ scene-radiance set (15 scenes), **not** a ColorChecker/paint reference chart and
 not Reference-B data. Exact scene identity vs the final PRD set is unresolved
 (numbering differs).
 
-## Reproducibility
+## Evidence status
 
-The manifest results above are regenerable from the raw dataset:
-
-- Manifest (RAW EXIF, CFA, **black level**, CSV shape, exposure series):
-  `camera_iq manifest "<Project Camera>" --out out/clrs589_manifest.json`.
-  Regenerated after the raw-metadata correction; `black_level` is now **1024**
-  for all 480 RAF.
+The file counts and metadata observations above can be recomputed from the
+retained archive. The current inventory records a 1024 DN effective black level
+for all 480 RAF files after unpacking.
 - MAT/PRD observations (wavelength axis, scene→numbered mapping over **all 45** files,
   CSV duplicate row, Old/patch reclassification) were verified during the
-  dataset-inventory pass and are summarized here without distributing the
-  private analysis helper.
+  dataset-inventory pass and are summarized here without publishing the source
+  measurements.
 
-`out/` is git-ignored (derived output over a private dataset path) — regenerate
-locally. The black-level logic is independently proven in CI by `test_raw_meta`
-(synthetic `cblack` tile → 1024), needing no dataset.
-
-## Manifest tool notes
+## Enumeration caveat
 
 - Group classification is **filename-only**. `Images/Dark Frame/DSCF0497.RAF`
   has a bare name (no `Dark_Frame_` prefix), so it is fully enumerated
@@ -192,7 +180,7 @@ locally. The black-level logic is independently proven in CI by `test_raw_meta`
 - The course-project capture campaign predates this repository; the repository
   reprocesses the archived RAW files.
 
-## Relationship to implemented analyses
+## Relationship to scientific analyses
 
 This manifest is the dataset/provenance foundation for the implemented RAW/CFA,
 demosaic, dark calibration/noise, exposure/OECF, ColorChecker extraction, and
@@ -201,9 +189,8 @@ analyses from the remaining calibration gaps: electron gain/read noise, full
 well, engineering dynamic range, exact ISO conformance, and blind chart
 localization.
 
-## Reproducibility
+## Engineering companion
 
-- [`src/manifest.cpp`](../../src/manifest.cpp)
-- [`src/cmd_manifest.cpp`](../../src/cmd_manifest.cpp)
-- [`tests/test_manifest_scan.cpp`](../../tests/test_manifest_scan.cpp)
-- [`tests/test_manifest_json.cpp`](../../tests/test_manifest_json.cpp)
+The [RAW implementation companion](../implementation/raw-foundation.md)
+explains how the archive inventory enters the C++ analysis and routes readers
+to the public source and tests.

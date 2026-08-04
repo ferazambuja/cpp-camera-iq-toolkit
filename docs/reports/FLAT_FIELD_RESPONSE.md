@@ -3,19 +3,18 @@
 A nominally uniform field reveals how much recorded signal changes across the
 image and whether the individual color-filter-array (CFA) samples fall off
 together. This report tests whether a centered radial model describes the
-retained sphere captures. It does not: the primary accepted frame shows 19.65%
-green-field quadrant asymmetry, while the available controls cannot isolate the
+retained sphere captures. It does not: the primary accepted frame shows a
+19.65% spread between its brightest and darkest green corner blocks, scaled by
+their average, while the available controls cannot isolate the
 source, lens, alignment, or sensor contribution.
 
 Dataset: `clrs589_project_camera` Fujifilm X-T100 sphere and dark captures  
-Command: `camera_iq shading`  
 Result type: capture-system field characterization in black-subtracted DN
 
 [Case study](../case-studies/cfa-flat-field-response.md) ·
 [response table](../data/flat_field_response.csv) ·
 [frame screening table](../data/flat_field_summary.csv) ·
-[implementation](../../src/shading.cpp) ·
-[CLI and serialization](../../src/cmd_shading.cpp)
+[implementation companion](../implementation/flat-field.md)
 
 ## Purpose and conclusion
 
@@ -26,7 +25,8 @@ ratios from the normalized maps.
 The CLRS-589 archive yielded three usable f/8 frames from 52 sphere captures.
 The primary green response reached 0.4801 at the lowest bin relative to its
 center, while `C_RG` remained within −2.27 pp and `C_BG` within +4.47 pp of
-unity. Green quadrant asymmetry was 19.65%, well above the 5% project policy.
+unity. The brightest-to-darkest corner-block spread was 19.65% of their
+average, well above the 5% project policy.
 
 "Primary" here means the first frame of the documented pair run
 (`Sphere_f8.0_1:1000_DSCF0368.RAF`) and nothing more. The label carries no
@@ -71,44 +71,11 @@ record is narrower: within a matched-aperture comparison, recorded body, lens
 sample, focal length, focus mode, and ISO do not change. Unrecorded focus
 distance, alignment, illumination, and other capture state remain uncontrolled.
 
-## Reproduction
-
-Source RAFs and dark frames stay outside Git. Configure the dataset root in the
-gitignored `configs/datasets.local.json`, then run:
-
-```bash
-./build/camera_iq shading \
-  'Images/Sphere/Sphere_f8.0_1:1000_DSCF0368.RAF' \
-  --dataset clrs589_project_camera \
-  --config configs/datasets.local.json \
-  --dark 'Images/Dark Frame/Dark_Frame_f8.0_1:1000_DSCF0437.RAF' \
-  --compare 'Images/Sphere/Sphere_f8.0_1:1000_DSCF0387.RAF' \
-  --compare-dark 'Images/Dark Frame/Dark_Frame_f8.0_1:1000_DSCF0437.RAF' \
-  --out out/shading/f8_pair.json \
-  --csv-out out/shading/f8_pair.csv
-```
-
-The committed aggregate tables are exported from those result files with:
-
-```bash
-python3 tools/export_shading_portfolio.py \
-  --inventory-dir out/shading/inventory \
-  --detailed out/shading/f8_pair.json out/shading/f8_1600.json \
-             out/shading/f8_near_ceiling.json \
-  --response out/shading/f8_pair.json out/shading/f8_1600.json \
-  --summary-out docs/data/flat_field_summary.csv \
-  --response-out docs/data/flat_field_response.csv
-
-python3 tools/generate_portfolio_figures.py
-python3 tools/generate_portfolio_figures.py --check
-```
-
 ## Input and ceiling semantics
 
-`read_raw_cfa_image()` returns the active Bayer mosaic as signed,
-black-subtracted residuals. The shading path never subtracts black again. Its
-production entry point accepts a `RawCfaImage` and derives the signal ceiling
-internally:
+The RAW front end supplies the active Bayer mosaic as signed, black-subtracted
+residuals. The spatial-response analysis never subtracts black again and derives
+the signal ceiling from the same per-position metadata:
 
 ```text
 ceiling[p]       = white_level - black_per_channel[p]
@@ -122,8 +89,7 @@ This distinction matters because the input buffer is already black-subtracted.
 
 ## Three geometries
 
-The analyzer reports the effective CFA-balanced rectangles in JSON. The
-primary frame used:
+The primary frame used these effective CFA-balanced rectangles:
 
 | Region | Mosaic rectangle | Purpose |
 |---|---|---|
@@ -163,8 +129,8 @@ cancels during center normalization. A spatially varying mismatch does not.
 
 ## Quality gates
 
-All thresholds below are project policies and every measured diagnostic remains
-in JSON even when a frame is rejected.
+All thresholds below are project policies. A rejected frame retains the
+diagnostics that caused the rejection rather than collapsing to a bare failure.
 
 | Check | Default | Region | Failure behavior |
 |---|---:|---|---|
@@ -183,10 +149,9 @@ a 1% whole-frame test would pass.
 
 ## Archive screening
 
-All 52 sphere files were reprocessed with the same serialized effective options
-and schema-3 diagnostics. The public table records policy ID
-`shading-v2-grid16x12-screening-coverage`; all eight per-position gate/frame
-finite-coverage values are 1.0 in this integer-RAW archive rerun:
+All 52 sphere files were screened with the same 16 by 12 geometry and the
+quality gates defined above. All eight per-position gate/frame finite-coverage
+values are 1.0 in this integer-RAW archive rerun:
 
 | Aperture | Frames | Accepted | Rejected |
 |---|---:|---:|---:|
@@ -259,11 +224,10 @@ full-frame per-plane median was `[0, 0, 0, 0]` DN, every sample was finite, and
 the center plus four corner blocks were also checked against the declared 1 DN
 tolerance. This verifies the stated dark-control checks, not all possible
 spatial pedestal structure. The dark is never applied to the sphere samples.
-The JSON records body-serial presence and equality separately: make/model
-compatibility never becomes an implicit claim of physical-body identity, and a
-one-sided or unequal serial blocks the check. LibRaw exposed no body serial for
-these RAFs (`body_serials_present = false`), so physical-body identity remains
-unverified even though the bounded dark-control checks pass.
+The metadata audit treats make/model compatibility and physical-body identity
+as separate questions; a one-sided or unequal body serial blocks the latter
+check. No body serial was available in these RAFs, so physical-body identity
+remains unverified even though the bounded dark-control checks pass.
 
 For the two f/8, 1/1000 s sphere frames, the absolute corner-response
 difference over four corners × four CFA positions measured:
@@ -304,8 +268,9 @@ rather than shading-calibrated.
 
 ### The shared gate protects correction inputs
 
-`patches` applies the same source-CFA, per-position admission test as
-`shading`, including both full-frame and centered-region measurements. The
+The patch-extraction correction path applies the same source-CFA,
+per-position admission test as the flat-field measurement, including both
+full-frame and centered-region measurements. The
 [f/8, 1/500 s frame](#quality-gates) shows why each dimension is needed. Its worst CFA position
 measured 11.6319% near ceiling in the gate against 0.4964% frame-wide, while the
 full-frame result alone remains below the 1% limit.
@@ -315,93 +280,37 @@ and retaining all four CFA positions prevents one green position from being
 hidden by a pooled color fraction. The center of this field-falloff flat is also
 the brightest region, so a frame-wide denominator alone is insensitive to the
 local headroom loss. The correction normalizer itself is not this center region:
-`apply_flat_field()` uses the full-frame valid-sample mean of each demosaiced
-channel.
+it uses the full-frame valid-sample mean of each demosaiced channel.
 
-`patches` evaluates the source mosaic before demosaic with the shared
-CFA-balanced ROI helper and the same declared 20% geometry, 98% level, 1%
+The correction input is evaluated on the source mosaic before demosaic with
+the same declared 20% geometry, 98% level, 1%
 near-ceiling policy, 90% screening-coverage policy, and per-position decision
-rule as `shading`. Screening coverage is a fixed policy over the full-plane and
-center-gate populations; it is distinct from `shading`'s configurable 90%
-per-map-bin coverage gate. The `1:500` result is therefore identical in both
-commands:
+rule as the flat-field analysis. Screening coverage is a fixed policy over the
+full-plane and center-gate populations; it is distinct from the 90%
+per-map-bin coverage gate used to accept a spatial map. The `1:500` result is
+therefore identical in both analyses:
 
 | Region | R | G1 | G2 | B | Policy |
 |---|---:|---:|---:|---:|---:|
 | Whole frame | 0% | 0.3664% | 0.4964% | 0% | 1% |
 | Centered gate (`x=2406, y=1606, w=1202, h=802`) | 0% | 8.6908% | 11.6319% | 0% | 1% |
 
-G2 rejects. Accepted and rejected `patches` JSON retain the two near-ceiling
-arrays, the two finite-coverage arrays, `min_finite_coverage`, the effective
-rectangles, and the per-position verdict, so a rejection is reported together
-with the measurements that caused it rather than as a bare failure. The shared helper and policy constants make the
+G2 rejects. Accepted and rejected correction inputs retain the two
+near-ceiling arrays, the two finite-coverage arrays, the effective rectangles,
+and the per-position verdict, so a rejection is reported together with the
+measurements that caused it rather than as a bare failure. The shared screening
+rule makes the
 [52-frame screening table](../data/flat_field_summary.csv), with all eight
 per-position frame/gate near-ceiling fractions, the shared gate ledger for both
 consumers rather than two independently implemented tests that happen to agree.
-Its remaining columns and `shading-v2-grid16x12-screening-coverage` policy ID
-still describe `shading`-specific map, dark-control, and asymmetry analysis.
+Its remaining columns describe map-specific coverage, dark-control, and
+asymmetry analysis.
 
 The selected `Sphere_f8.0_1:1000_DSCF0387.RAF` flat is accepted because it
 measures 0% near ceiling at every CFA position in both regions. Its full-frame
 valid-sample mean supplies the correction normalization. The available
 aggregate evidence does not support a quantitative correction comparison with
 the rejected 1/500 s flat, so no correction-error magnitude is claimed.
-
-## JSON and CSV behavior
-
-- JSON schema version 3 records the nullable pre-measurement state and every
-  effective option alongside dataset-relative filenames, signal ceilings,
-  geometry, gate diagnostics, response maps, chromatic completeness,
-  dark-control evidence, asymmetry, and interpretation scope. Screening
-  coverage is explicit as
-  `min_finite_coverage`, `finite_fraction_frame`,
-  `finite_fraction_gate`, `gates.measured`, and `screening_coverage_ok`.
-- A post-measurement rejection retains its measured gates and center/corner
-  medians while relative and chromatic maps become `null`. A rejection before
-  gate measurement writes `gates.measured = false`, JSON `null`, and blank CSV
-  values for those diagnostics; validated signal ceilings remain available,
-  while a rejection before ceiling validation writes `signal_ceiling_dn` as
-  `null`. Initializer values are never published as measurements.
-- Undefined ratio bins become JSON `null`; `chromatic_complete` and
-  `missing_chromatic_bin_count` make the condition explicit.
-- CSV uses RFC 4180-escaped long-form rows and records schema/options,
-  diagnostics, response maps, chromatic rows, and dark-control verdicts. It
-  includes the screening-coverage arrays,
-  `analysis_option_min_finite_coverage`, and its verdict. Comparison mode
-  appends both frames and measured maximum/RMS corner deltas.
-- After measurement begins, an individually undefined aggregate is JSON `null`
-  and a blank CSV value, never a numeric zero or a `nan` token.
-- Absolute input and dark paths are reduced to dataset-relative labels.
-
-## Validation
-
-The shading tests cover:
-
-- production ceiling derivation and invalid RAW buffer sizes;
-- CFA-balanced geometry and impossible-region rejection;
-- finite/range validation, mirrored geometry, gate containment, and grid bounds;
-- central versus full-frame near-ceiling fractions;
-- low signal, negative residuals, independently binding per-position screening
-  coverage, independently binding per-bin coverage, and zero denominators;
-- independent CFA planes, unequal gains, and row/column orientation;
-- exact synthetic `C_RG`/`C_BG`, spatial `C_G1G2`, and missing bins;
-- radial and asymmetric green fields;
-- dark finite coverage, camera/exposure metadata, global and center/corner
-  residual tolerance, and verification;
-- multiplicative repeat invariance and additive-offset detection;
-- JSON/CSV schema/options, escaping, rejection, privacy, dark controls,
-  completeness, pre-measurement null/blank diagnostics, and comparison output;
-- output/input alias refusal, dataset-root containment, and exporter joins.
-
-The exporter rejects legacy schema-2 or unmeasured gate documents, validates
-schema-3 screening coverage independently of near-ceiling headroom, and
-requires finite signal ceilings, CFA-balanced geometry, positive center
-medians, and finite corner medians whenever `finite_ok` is true. The
-exporter and deterministic figure tests validate 52 unique inventory
-labels, the 18/21/13 aperture census, the accepted-set join, one exact 16 × 12
-Cartesian bin grid per accepted file, one measured capture-pair record, the
-declared policy ID, numeric display ranges, and acceptance count. They validate
-table structure and joins; the archive rerun remains the measurement source.
 
 ## Limitations and extensions
 
@@ -414,3 +323,9 @@ Separating those terms would require multiple unsaturated apertures, source and
 camera rotations, an independently characterized source, and more repeated
 frames. A correction workflow would additionally require computing a bounded
 gain surface, applying it to an independent capture, and remeasuring the field.
+
+## Engineering companion
+
+The [flat-field implementation companion](../implementation/flat-field.md)
+explains how the measurement is realized in C++ and routes readers to the
+public source and tests.

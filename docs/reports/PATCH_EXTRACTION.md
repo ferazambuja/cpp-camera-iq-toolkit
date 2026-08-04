@@ -10,113 +10,41 @@ rectangles rather than promoting the inaccurate shortcut.
 
 Date: 2026-07-04
 Dataset: `clrs589_project_camera`
-Command: `camera_iq patches`
 
-## Scope
+[Case study](../case-studies/colorchecker-ccm.md) ·
+[implementation companion](../implementation/color-characterization.md)
 
-The command extracts ColorChecker-SG patch RGB means from a RAW capture using the
-toolkit's own LibRaw unpack, black handling, and hand-written bilinear demosaic.
-It is the patch-statistics component of the documented extraction-to-CCM
-pipeline.
+## Method
 
-Two coordinate sources are supported:
+The RAW capture is opened in its active Bayer area, black-subtracted, and
+demosaiced with a transparent bilinear baseline. Patch rectangles then sample
+mean linear-DN RGB in the chart's physical 14 × 10 order. The reported result
+uses retained RawDigger rectangles because they belong to the same RAW
+coordinate domain. A second path generates rectangles from four chart corners
+with a projective transform; it is evaluated as a localization experiment, not
+silently substituted into the color result.
 
-- `--coords FILE`: four-column checker2colors-style `x,y,width,height` rows,
-  interpreted as MATLAB one-based image rectangles.
-- `--rawdigger-csv FILE`: RawDigger patch export filtered to the selected RAW
-  filename. RawDigger `Left`/`Top` are zero-based and are converted internally to
-  the extractor's one-based coordinate convention. `Sample_Name` is emitted as
-  `sample_name` in JSON.
-- `--sg-corners "x1,y1;x2,y2;x3,y3;x4,y4"`: four ColorChecker-SG outer corners
-  in top-left, top-right, bottom-right, bottom-left order. The command uses the
-  verified 14x10 SG physical layout and a planar homography to generate 140
-  one-based extraction rectangles. This is corner-seeded geometry, not blind
-  chart detection.
+When a flat field is applied, each demosaiced channel is corrected by:
 
-JSON separates the original coordinate source from the normalized extraction
-convention:
-
-- `coordinate_source_format`: e.g. `rawdigger_csv_zero_based_left_top` or
-  `checker2colors_csv_one_based_top_left`.
-- `extraction_coordinate_convention`:
-  `one_based_top_left_rectangles_after_source_conversion`.
-
-## Implemented
-
-- `read_patch_coords_csv()` for simple checker2colors coordinate tables.
-- `read_rawdigger_patch_table()` for quoted RawDigger CSV exports containing
-  `Filename`, `Sample_Name`, `Left`, `Top`, `Width`, `Height`, `Ravg`, `Gavg`,
-  and `Bavg`.
-- `extract_patch_means()` over row-major `RgbPixel` images with clipping and
-  sample counts.
-- `compare_patch_means_to_rgb()` with per-channel Pearson correlation, affine
-  slope/intercept, direct RMSE/bias/max-error, and RMSE after affine fit.
-- Optional image-domain flat-field correction from a local RAW flat/sphere
-  capture: black-subtracted bilinear RGB is multiplied by
-  `channel_mean(flat) / flat_pixel`, with an explicit denominator floor and
-  clamped-sample count in JSON. The flat normalizer is the per-channel mean of
-  valid samples, not the original MATLAB max-based normalization; this avoids a
-  single hot or near-ceiling sample defining the correction scale. JSON records
-  this as `normalization: "per_channel_mean_valid_samples"`.
-- Flat-field RAWs are screened before demosaic in the black-subtracted CFA
-  domain. The command uses the same CFA-balanced center helper and declared
-  20% geometry, 98% signal-ceiling level, and 1% policy as `shading`; all four
-  mosaic positions are decided independently over both the whole frame and the
-  central gate. Any invalid or over-policy value rejects. JSON records both
-  four-position arrays, the effective rectangles, and the failing position.
-  The correction normalizer remains the full-frame valid-sample mean of each
-  demosaiced channel; the center gate protects local headroom, not its scale.
-  An odd active mosaic is rejected rather than trimmed to an even screening
-  frame: `apply_flat_field()` corrects every pixel, so a trimmed frame would
-  leave the last row or column corrected but never screened. `shading` already
-  rejected odd mosaics, so this is the two commands agreeing rather than a new
-  restriction.
-  Each position also reports the fraction of its samples that were finite, over
-  both regions, and a position below 90% coverage rejects. A near-ceiling
-  fraction is a ratio over finite samples only, so a plane reduced to one finite
-  low sample reads 0/1 = 0 and would otherwise look pristine while
-  `apply_flat_field()` substitutes the floor for every non-finite denominator.
-  The 90% figure is the coverage number `shading` already declares for map bins,
-  applied here to the screening regions; that is a new application of an
-  existing declared value, not a pre-existing rule. JSON records both coverage
-  arrays and the policy beside the near-ceiling fractions. Coverage failures
-  are diagnosed against the 90% coverage policy rather than mislabeled as a
-  near-ceiling excess against 1%.
-- Optional white-balance policy: explicit `--wb-gains R,G,B`, or
-  `--wb-from-flat-field`, which anchors the flat/sphere green normalizer and
-  scales red/blue to match it.
-- Optional `--rgb-csv-out`, producing a three-column camera RGB table that
-  `camera_iq ccm-fit --camera-rgb` can consume directly.
-- Optional `--sg-corners`, producing generated SG rectangles with
-  `coordinate_source_format:
-  "colorchecker_sg_corner_seeded_projective_grid"`. JSON records the chart
-  model, corner order, input corners, patch IDs, physical row/column, and each
-  generated rectangle.
-- For `--sg-corners` runs with a configured spectral SG reference, JSON emits
-  `orientation_validation`: direct physical order plus column-flip, row-flip,
-  and 180-degree controls using the same broad luminance/chroma proxy as
-  `reference-info`. `orientation_valid` is true only when direct order is the
-  best control by minimum luminance/R-G/B-G correlation and passes the
-  configured correlation thresholds.
-- Optional `--rawdigger-oracle-csv`, allowed only with `--sg-corners`, compares
-  generated uncorrected patch means and ROI centers against a RawDigger export
-  without using RawDigger as the extraction coordinate source. It records the
-  predeclared 140-patch / 5 px / 0.999 correlation / 25 DN gates in
-  `localization_validation` and exits nonzero when any hard gate fails.
-- `camera_iq patches`, producing per-patch JSON and optional comparison / CSV
-  output.
-
-## Real-Data Validation
-
-Command:
-
-```bash
-./build/camera_iq patches \
-  "Images/CCSG_f8/CCSG_f8.0_1:10_DSCF0402.RAF" \
-  --dataset clrs589_project_camera \
-  --rawdigger-csv Images/CCSG_rawdigger.csv \
-  --out out/clrs589_patches_rawdigger.json
+```text
+corrected_channel(x,y)
+  = target_channel(x,y) × mean_valid_flat_channel / flat_channel(x,y)
 ```
+
+The flat is screened on the source Bayer mosaic before demosaic. Every CFA
+position must retain at least 90% finite coverage and keep the fraction of
+samples above 98% of its signal range below 1%, both over the complete frame and
+over a centered 20% gate. This prevents a bright central plateau from being
+diluted by darker surroundings. A valid flat's full-frame channel means set the
+normalization; optional white balance then scales red and blue to the flat's
+green mean.
+
+Extraction is checked in two independent dimensions. RGB agreement against the
+retained RawDigger means tests sample values, while patch-center distance tests
+geometry. Correlation alone is not accepted because a shifted grid can preserve
+the chart's overall tonal order while sampling the wrong pixels.
+
+## Uncorrected extraction cross-check
 
 Result against RawDigger's own exported patch averages:
 
@@ -126,11 +54,8 @@ Result against RawDigger's own exported patch averages:
 | G | 1.000000000 | -0.003 DN | 0.041 DN | 0.259 DN | 1.000001748 | 0.040 DN |
 | B | 0.999999980 | -0.028 DN | 0.381 DN | 1.415 DN | 1.000013457 | 0.379 DN |
 
-The first patch (`A1`) extracted by C++:
-
-```json
-{"r":4139.5935268265885,"g":7602.262039919428,"b":4651.185008850638}
-```
+The first patch (`A1`) measured
+`RGB = (4139.594, 7602.262, 4651.185) DN`.
 
 RawDigger reports `4139.45, 7602.30, 4651.25`. The direct (pre-affine) RMSE is
 within 1% of the after-affine RMSE and the signed channel bias is below `0.03`
@@ -138,23 +63,11 @@ DN, so the agreement is absolute-DN agreement, not a scale/offset artifact.
 
 ## Corner-Seeded Orientation Gate Validation
 
-The orientation gate was validated on the f/8 CCSG RAW using a
+The orientation gate was evaluated on the f/8 CCSG RAW using a
 RawDigger-derived four-corner seed. The seed was computed from the A1, A14, J14,
 and J1 patch centers and then projected back to the SG outer chart corners, so
-this is **not** an independent localization result; it verifies the command
-wiring, JSON artifact, and direct-vs-flip orientation gate.
-
-Command excerpt:
-
-```bash
-./build/camera_iq patches \
-  "Images/CCSG_f8/CCSG_f8.0_1:10_DSCF0402.RAF" \
-  --dataset clrs589_project_camera \
-  --sg-corners "1242.489159,707.131935;4835.468326,692.253409;4816.545845,3254.656481;1252.609404,3220.163201" \
-  --flat-field-raw "Images/Sphere/Sphere_f8.0_1:1000_DSCF0387.RAF" \
-  --wb-from-flat-field \
-  --out out/camera_iq_sg_orientation_validation.json
-```
+this is **not** an independent localization result; it tests the physical order
+against direct, row-flip, column-flip, and 180-degree alternatives.
 
 Result:
 
@@ -165,14 +78,14 @@ Result:
 | row flip | 0.080909 | 0.491728 | 0.140243 | 0.080909 | false |
 | 180 rotation | -0.280493 | 0.396087 | -0.211692 | -0.280493 | false |
 
-The output reports `orientation_valid: true` and `best_orientation: "direct"`.
+The direct physical orientation is the only candidate that passes the declared
+correlation gate.
 
 ## RawDigger oracle localization result
 
 The f/8 `1:10` corner-seeded model **does not pass** the declared geometry
 criterion. With corners
-derived from RawDigger A1/A14/J14/J1 centers, the command writes
-`out/camera_iq_rawdigger_oracle_validation.json` and exits `1` because:
+derived from RawDigger A1/A14/J14/J1 centers, it fails because:
 
 - patch count: 140, pass
 - max center error: **16.449 px**, fail against the 5 px gate
@@ -184,8 +97,8 @@ This confirms the orientation and mean extraction are close, but the generated
 projective grid fails the 5 px center-error gate and is not used as a
 replacement for RawDigger rectangles. See
 `docs/reports/RAW_CHART_LOCALIZATION.md`. That report records
-the serialized per-patch residuals: the four corner patches are pinned near
-zero, while the middle columns bow by about 15 px relative to RawDigger. The
+the per-patch residuals: the four corner patches are pinned near zero, while
+the middle columns bow by about 15 px relative to RawDigger. The
 miss is therefore a systematic geometry/model mismatch, not a coordinate-origin
 artifact or simple global offset.
 
@@ -216,20 +129,7 @@ Standalone `spectral-diversity-toolkit` columns named `patch_row` and
 `patch_col` are parsed from reference label text and are not authoritative
 physical SG geometry.
 
-## Corrected RAW Patch Table Validation
-
-Command:
-
-```bash
-./build/camera_iq patches \
-  "Images/CCSG_f8/CCSG_f8.0_1:10_DSCF0402.RAF" \
-  --dataset clrs589_project_camera \
-  --rawdigger-csv Images/CCSG_rawdigger.csv \
-  --flat-field-raw "Images/Sphere/Sphere_f8.0_1:1000_DSCF0387.RAF" \
-  --wb-from-flat-field \
-  --rgb-csv-out out/clrs589_raw_flat_wb_patches.csv \
-  --out out/clrs589_raw_flat_wb_patches.json
-```
+## Corrected RAW patch result
 
 Result:
 
@@ -252,9 +152,8 @@ oracle only for the uncorrected mode above.
 The same-aperture `Sphere_f8.0_1:10` through `1:500` frames are too near the
 signal ceiling for meaningful flat-field correction. The validation run
 uses `Sphere_f8.0_1:1000_DSCF0387.RAF`, whose CFA means are well below the
-ceiling and preserve spatial variation. The command rejects
-`Sphere_f8.0_1:10_DSCF0369.RAF` with `flat-field RAW is too close to the sensor
-ceiling for correction`.
+ceiling and preserve spatial variation. The shorter `1:10` flat is rejected
+because it is too close to the sensor ceiling for correction.
 
 The guard measures two regions, not one. A whole-frame near-ceiling fraction
 cannot protect a flat whose brightest region is central: the darker surround
@@ -263,43 +162,31 @@ measured case —
 [11.6319% of its center gate near ceiling against 0.4964% frame-wide](FLAT_FIELD_RESPONSE.md#the-shared-gate-protects-correction-inputs) —
 and the old pooled post-demosaic whole-frame implementation accepted it.
 
-The command now measures the source mosaic before demosaic. A shared helper and
-policy constants give `patches` and `shading` the same effective rectangle and
-per-position decision. On the `1:500` frame both report:
+The screening is performed on the source mosaic before demosaic, using the same
+effective rectangle and per-position decision in both the patch and flat-field
+analyses. On the `1:500` frame both report:
 
 | Region | R | G1 | G2 | B | Policy |
 |---|---:|---:|---:|---:|---:|
 | Whole frame | 0% | 0.3664% | 0.4964% | 0% | 1% |
 | Centered gate (`x=2406, y=1606, w=1202, h=802`) | 0% | 8.6908% | 11.6319% | 0% | 1% |
 
-The command rejects G2. It emits `status: "rejected"` and returns non-zero;
-whether written to stdout or `--out`, the JSON retains the measurement domain,
-both rectangles, both near-ceiling arrays, both finite-coverage arrays, their
-policies, and the failing label. Accepted runs embed the same block under
-`corrections.flat_field.near_ceiling_gate`.
+The second green position exceeds the 1% policy and rejects the frame. Keeping
+the decision per CFA position matters: pooling the two greens would dilute the
+worst local failure.
 
 The 1/1000 s flat measures 0% near ceiling in every CFA position in both
 regions and passes the screening criteria. Its full-frame valid-sample mean
-supplies the correction normalization. An archive-backed comparison produced
-identical 140-row RGB CSVs across all 420 patch-channel values.
-Both files had SHA-256
-`4b8429cdacbb982d33ef56a76e09cc46d8c7aadde927e805e52bc5feec2c8f92`.
-The accepted output is published as
-[`ccsg_f8_flat_wb_patches.csv`](../data/ccsg_f8_flat_wb_patches.csv) and can be
-compared after remeasurement with:
-
-```bash
-cmp out/clrs589_raw_flat_wb_patches.csv \
-  docs/data/ccsg_f8_flat_wb_patches.csv
-```
+supplies the correction normalization. The accepted 140-patch output is
+published as
+[`ccsg_f8_flat_wb_patches.csv`](../data/ccsg_f8_flat_wb_patches.csv).
 
 This verifies the accepted correction output, not a correction result for the
 rejected 1/500 s flat.
 
-Remeasurement requires the private RAW files. Public verification checks the
-table's published digest, 140-row structure, finite positive R/G/B fields, and
-the reported A1 value of `7677.11 / 7639.68 / 8712.55`; it does not remeasure
-the archive.
+Remeasurement requires the private RAW files; the public table preserves the
+140 accepted patch values and reported A1 value of
+`7677.11 / 7639.68 / 8712.55`.
 
 Same-aperture flat coverage is not available for the f/9 CCSG series in the
 private dataset. The f/9 sphere folder contains 13 frames (`1:10` through `1:180`);
@@ -307,27 +194,27 @@ all 13 are rejected by the near-ceiling guard, including the shortest
 exposure, `Sphere_f9.0_1:180_DSCF0400.RAF`. The f/8 folder has four
 same-aperture candidates: `1:500`, two `1:1000` frames, and `1:1600`. The
 shared gate rejects `1:500`, leaving the other three usable. The current
-flat-fielded RAW patch extraction evidence is therefore scoped to
-`Images/CCSG_f8`; using an f/8 flat on the f/9 CCSG series would be a
+flat-fielded RAW patch extraction is therefore scoped to the f/8 series; using
+an f/8 flat on the f/9 CCSG series would be a
 cross-aperture approximation, not a measured same-aperture correction.
 
 ## Scientific Boundaries
 
-- The command uses bilinear demosaic only.
+- The extraction uses bilinear demosaic only.
 - Flat-field correction is multiplicative image-domain correction, not a full
   ISP shading model.
 - Flat-field validity assumes a suitable flat for the target optical state; the
   local CLRS-589 cache has usable same-aperture sphere flats for f/8 CCSG only.
 - White balance is explicit: either caller-provided gains or the documented
   flat-field green-anchor policy.
-- `--rawdigger-csv` validates RAW-space rectangle extraction against RawDigger
-  patch means only when no correction is applied; corrected patch tables need a
-  corrected reference or downstream CCM/DeltaE evaluation.
-- `--coords` supports MATLAB-style rectangle files, but the caller must ensure
-  those coordinates belong to the same image domain as the RAW being read.
-- `--sg-corners` removes the 140-rectangle dependency but still depends on
-  caller-supplied chart corners; there is no blind chart detection yet. The
-  orientation gate confirms the direct physical sweep beats flip
+- The retained RawDigger rectangles validate RAW-space extraction against
+  RawDigger patch means only when no correction is applied; corrected patch
+  tables need a corrected reference or downstream CCM/DeltaE evaluation.
+- MATLAB-style rectangle files remain usable only when the coordinates belong
+  to the same image domain as the RAW being read.
+- Four-corner projective geometry removes the 140-rectangle dependency but
+  still depends on caller-supplied chart corners; there is no blind chart
+  detection yet. The orientation gate confirms the direct physical sweep beats flip
   controls, but the first RawDigger-oracle run fails the predeclared 5 px
   center gate, so the corner-seeded path is not used in the reported analysis.
 
@@ -342,11 +229,9 @@ cross-aperture approximation, not a measured same-aperture correction.
   models would require held-out evidence before they could be treated as an
   improvement.
 
-## Reproducibility
+## Engineering companion
 
-- [`src/patches.cpp`](../../src/patches.cpp)
-- [`src/cmd_patches.cpp`](../../src/cmd_patches.cpp)
-- [`src/chart_localization.cpp`](../../src/chart_localization.cpp)
-- [`tests/test_patches.cpp`](../../tests/test_patches.cpp)
-- [`tests/test_cmd_patches.cpp`](../../tests/test_cmd_patches.cpp)
-- [Case study](../case-studies/colorchecker-ccm.md)
+The [color-characterization implementation companion](../implementation/color-characterization.md)
+explains how the measurement is realized in C++ and routes readers to the
+public source and tests. The concise scientific narrative is the
+[ColorChecker/CCM case study](../case-studies/colorchecker-ccm.md).

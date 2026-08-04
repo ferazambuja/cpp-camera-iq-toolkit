@@ -7,22 +7,17 @@ data from interpolation behavior. The goal is transparency and cross-camera
 correctness, not production rendering quality.
 
 Date: 2026-07-02
-Tool: `camera_iq demosaic` (this repository, v0.1.0)
 Dataset: private local RAW captures used only for validation. Source RAW files
 are not distributed with this repository.
-Commands using dataset IDs require a local `configs/datasets.local.json` that
-points those IDs at private data or an archive mount.
-
 ## Scope
 
-The command implements a transparent hand-written demosaic:
+The analysis uses a transparent hand-written demosaic:
 
-- `demosaic_bilinear()` over the active, black-subtracted Bayer mosaic.
+- Bilinear interpolation over the active, black-subtracted Bayer mosaic.
 - RGGB-family phase support via LibRaw `COLOR()` positions plus `cdesc`; the
   implementation does not assume one fixed RGGB origin.
 - Edge pixels average only same-color neighbors that exist inside bounds.
-- `camera_iq demosaic <raw> --out <json>` emits RGB summary statistics only;
-  it does not write full images yet.
+- The reported output is RGB summary statistics rather than a rendered image.
 
 ## Scientific Handling
 
@@ -50,28 +45,9 @@ The command implements a transparent hand-written demosaic:
   interpolated `image` buffer is unsigned, so LibRaw comparisons clip this
   tool's signed values to zero only for comparison.
 
-## Synthetic Validation
-
-`tests/test_demosaic.cpp` covers:
-
-- Constant per-channel fields reconstruct to constant RGB at interior and edge
-  pixels.
-- Hand-computed 5x5 RGGB interpolation at red, blue, and both green positions.
-- Edge handling on a 3x3 mosaic.
-- Non-RGGB phase handling using BGGR.
-- RGB summary-statistics labels/counts/means/stddev.
-- CLI argument validation for `cmd_demosaic`.
-
 ## Real-Data Validation Runs
 
 ### Fujifilm X-T100 RAF
-
-```bash
-./build/camera_iq demosaic \
-  --dataset clrs589_project_camera \
-  "Images/CCSG/CCSG_f9.0_1:100_ISO200_DSCF0299.RAF" \
-  --out out/ccsg_f9_1_100_demosaic.json
-```
 
 | Field | Value |
 |---|---:|
@@ -88,13 +64,6 @@ The command implements a transparent hand-written demosaic:
 | B | 68.9906 | -25 | 805 | 96.4263 |
 
 ### Canon EOS 5D Mark II CR2
-
-```bash
-./build/camera_iq demosaic \
-  --dataset canon_5d2_repro \
-  "Capture/DSLR_White.CR2" \
-  --out out/canon_5d2_white_demosaic.json
-```
 
 | Field | Value |
 |---|---:|
@@ -113,13 +82,6 @@ The command implements a transparent hand-written demosaic:
 
 ### Nikon D800 NEF
 
-```bash
-./build/camera_iq demosaic \
-  --dataset d800_oecf_2016 \
-  "NIKON D800_i100_s1-40_8.NEF" \
-  --out out/nikon_d800_i100_s1_40_8_demosaic.json
-```
-
 | Field | Value |
 |---|---:|
 | Camera | Nikon D800 |
@@ -137,10 +99,10 @@ The command implements a transparent hand-written demosaic:
 
 ## LibRaw Comparison
 
-`tools/libraw_bilinear_compare.cpp` compared this implementation to LibRaw
-`raw2image_ex(1)` followed by `lin_interpolate()`, with matching dimensions on
-all three files above. Because LibRaw's image buffer is unsigned, this tool's
-signed residuals are clipped to zero for the comparison only.
+A separate LibRaw bilinear result provides an independent numerical
+cross-check on all three files. Because LibRaw represents the interpolated
+image as unsigned values, the signed residuals in this analysis are clipped to
+zero for the comparison only.
 
 | File | Mean abs diff R/G/B | Max abs diff R/G/B |
 |---|---:|---:|
@@ -163,32 +125,18 @@ non-negative region — it does **not** exercise the negative-residual behavior
 that is this tool's actual point of difference from LibRaw. Negative residual
 handling is covered by the synthetic tests, not by the LibRaw comparison.
 
-## Validation
-
-```bash
-cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
-cmake --build build --parallel
-ctest --test-dir build --output-on-failure
-```
-
-The complete CTest suite covers this command together with repository privacy,
-sample-fixture, documentation, and figure-freshness checks.
-
 ## Interpretation limits
 
-- The command emits channel summaries rather than a full image or colorimetric
-  pipeline; white balance, CCM, tone/gamma, and perceptual quality are outside
-  this result. Only 2×2 Bayer mosaics are supported.
-- **Memory.** `camera_iq demosaic` materializes the entire RGB image
-  (~872 MB for a 36 MP Nikon frame, plus the CFA sample copy) only to emit
-  three channel summaries. A streaming summary path would reduce batch memory.
+- The result covers channel summaries rather than a complete rendered image;
+  white balance, a color-correction matrix, tone/gamma, and perceptual quality
+  are outside its scope. Only 2×2 Bayer mosaics are supported.
 - **Black-level provenance.** See `DARK_CALIBRATION.md` for the CLRS-589
   dark-frame reconciliation. Camera-by-camera dark-current/noise modeling still
   requires matched calibration captures.
 
-## Reproducibility
+## Engineering companion
 
-- [`src/demosaic.cpp`](../../src/demosaic.cpp)
-- [`src/cmd_demosaic.cpp`](../../src/cmd_demosaic.cpp)
-- [`tests/test_demosaic.cpp`](../../tests/test_demosaic.cpp)
-- [Dark-calibration report](DARK_CALIBRATION.md)
+The [RAW implementation companion](../implementation/raw-foundation.md)
+explains how this baseline is realized in C++ and routes readers to the public
+source and tests. The scientific relationship to the black pedestal is
+documented in the [dark-calibration report](DARK_CALIBRATION.md).

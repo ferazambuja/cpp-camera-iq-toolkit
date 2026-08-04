@@ -27,24 +27,15 @@ geometry, integration time, or instrument configuration. The calculations
 therefore characterize the retained records rather than reconstructing an
 unrecorded laboratory procedure.
 
-## Evidence binding and parser boundary
+## Evidence binding and admitted record
 
-The command accepts a dataset root or configured dataset ID. For every ledger
-row it:
-
-1. Resolves the canonical dataset root.
-2. Rejects absolute, parent-relative, empty, or malformed ledger paths.
-3. Rejects symlinks along each declared path and confirms the resolved regular
-   file remains below the root.
-4. Reads the file once, verifies its SHA-256, and passes that same byte buffer
-   to the MAT parser.
-5. Selects the named scalar `measurements` struct and validates field shapes,
-   finite values, logical flags, and the wavelength axis.
-
-The reader implements the Level-5 subset the archive uses: compressed
-elements, compact tags, and mixed numeric widths. Inflate and nesting limits
-bound malformed input. Legacy workspace saves with many unrelated variables
-remain outside the named-struct contract.
+Each ledger row names one dataset-relative MAT file and its SHA-256 digest. The
+same verified bytes feed the numerical analysis, so identity cannot change
+between the ledger check and the calculations. Only the named `measurements`
+record is admitted. Its wavelength axis must be ordered, its spectrum and XYZ
+values must have the declared shapes, and every numeric value used below must
+be finite. File-format and path-safety mechanics belong to the
+[implementation companion](../implementation/spectroradiometer.md).
 
 Optional alias verification hashes the 45 declared copies. Aliases can confirm
 identity and preserve descriptive names, but they do not increase sample size.
@@ -58,9 +49,8 @@ nm`, the absolute spectral integral is
 I_i = Δλ Σ_j S_i(λ_j)
 ```
 
-Every sample receives equal weight, including the endpoints. This is
-serialized as `sample_weighting = uniform_equal_weight`; it is not a
-trapezoidal integral.
+Every sample receives equal weight, including the endpoints, so this is a
+rectangular sum rather than a trapezoidal integral.
 
 The normalized spectrum is computed before group averaging:
 
@@ -112,7 +102,7 @@ uncertainty.
 
 ## Same-record XYZ closure
 
-The C++ path recomputes an unscaled tristimulus vector from each spectrum and
+The primary analysis recomputes an unscaled tristimulus vector from each spectrum and
 the committed 1 nm CIE 1931 2-degree observer:
 
 ```text
@@ -141,48 +131,22 @@ independent reference measurement.
 `totalRadiance` equals the rectangular spectral integral in the 45 numbered
 PRD files but has different, nonconstant ratios in the older capture families.
 That proves it is not one fixed multiplier of this integral across the archive;
-it does not reveal its physical definition. The command retains each value but
-does not aggregate it.
+it does not reveal its physical definition. Each value is retained but not
+aggregated.
 
 CCT and Duv are also retained without recomputation because the files do not
 identify the locus and distance conventions used to produce them.
 
-## Outputs and cross-check
+## Independent file-reading cross-check
 
-The command can emit:
-
-- JSON with dataset/ledger/observer identities, method fields, absolute and
-  normalized summaries, closure, and singleton reasons.
-- A group CSV used by the public figure.
-- A spectra CSV with absolute and normalized mean/sample-SD columns.
-- A per-reading CSV with identities, recorded metadata, computed closure, and
-  SHA-256 hashes of the wavelength and radiance vectors as little-endian
-  IEEE-754 binary64.
-- A compact [result receipt](../data/spectro_result_receipt.json) recording the
-  archive-run JSON and reading-table hashes alongside the committed
-  identity-ledger, observer, and aggregate hashes. Public verification covers
-  the committed inputs, aggregate, receipt structure, and value domains;
-  reproducing archive-only closure values requires the private measurements.
-
-`tools/matlab/export_spectro_crosscheck.m` verifies each source MAT file against
-the ledger digest, then reads the same 89 rows through MATLAB.
-`tools/compare_spectro_crosscheck.py` requires the C++ and MATLAB source-file
-identities to agree, compares vector hashes exactly, and compares numeric
-metadata within declared tolerances. This keeps MATLAB as an independent parser
-check rather than an ingest dependency or second source of truth.
-
-The archive comparison with MATLAB R2026a matched all 89 readings. Both paths
-verified the source MAT file digest for every reading against the identity
-ledger. The two parsers produced identical SHA-256 hashes for both numeric
-vectors in every reading (178 exact comparisons), and all 623 numeric-field
-comparisons met the declared `1e-12` absolute-or-relative tolerance. The
-largest absolute difference was `4.55e-12` for CCT; the largest relative
-difference across the seven numeric fields was `4.21e-15`. A compact
-[cross-check receipt](../data/spectro_matlab_crosscheck_receipt.json) binds the
-two private comparison artifacts and the public ledger/exporter/comparator by
-hash without publishing per-reading values or local paths. This establishes
-agreement between two parser implementations on this archive; it does not
-provide an independent reference for instrument accuracy.
+MATLAB R2026a independently read the same 89 ledger-bound files. It reproduced
+both numeric vectors in every reading exactly by SHA-256 and matched the
+retained numeric fields within the declared `1e-12` absolute-or-relative
+tolerance; the largest absolute difference was `4.55e-12` for CCT. This makes
+the observed variation unlikely to be a primary-reader artifact. It does not
+provide an independent reference for instrument accuracy because both paths
+read the same archived measurements. Public aggregate and cross-check receipts
+preserve the comparison identities without publishing the private readings.
 
 ## Interpretation limits
 
@@ -199,15 +163,10 @@ provide an independent reference for instrument accuracy.
   hermetic fixtures, the identity ledger, aggregate results, and deterministic
   figures.
 
-## Reproducibility
+## Engineering companion
 
-- [`src/mat_file.cpp`](../../src/mat_file.cpp)
-- [`src/spectro_ingest.cpp`](../../src/spectro_ingest.cpp)
-- [`src/spectro_analysis.cpp`](../../src/spectro_analysis.cpp)
-- [`src/spectro_colorimetry.cpp`](../../src/spectro_colorimetry.cpp)
-- [`tests/test_spectro_ingest.cpp`](../../tests/test_spectro_ingest.cpp)
-- [`tests/test_spectro_analysis.cpp`](../../tests/test_spectro_analysis.cpp)
-- [`tests/test_spectro_colorimetry.cpp`](../../tests/test_spectro_colorimetry.cpp)
-- [`docs/data/spectro_group_summary.csv`](../data/spectro_group_summary.csv)
-- [`docs/data/spectro_result_receipt.json`](../data/spectro_result_receipt.json)
-- [`docs/data/spectro_matlab_crosscheck_receipt.json`](../data/spectro_matlab_crosscheck_receipt.json)
+The [spectroradiometer implementation companion](../implementation/spectroradiometer.md)
+explains how the analysis is realized in C++ and routes readers to the public
+source and tests. Public aggregate results remain in the
+[group summary](../data/spectro_group_summary.csv); the report above is
+canonical for their scientific meaning and archive limitations.

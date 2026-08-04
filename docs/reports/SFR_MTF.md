@@ -7,9 +7,6 @@ can hide field asymmetry. The D810 system peaks at f/5.6 in the center; the D800
 system follows a different aperture trend and moves its strongest response away
 from center at several apertures.
 
-Evidence runs: 2026-07-08<br>
-Implementation validation refreshed: 2026-07-28
-
 The sensor-linear green analysis accepted all 299 measured chart regions. SFR
 includes lens, aperture, focus and alignment state, optical low-pass filtering,
 sensor sampling, and processing together, so every value below is a
@@ -20,6 +17,13 @@ capture-system result rather than a camera-body or lens property.
 [archive and oracle contract](SFR_MTF_ARCHIVE_INVENTORY.md)
 
 ![D800 and D810 SFR aperture and field summary](../figures/sfr_aperture_field.svg)
+
+*Panel A: center MTF50 in cycles per pixel against aperture. Solid lines are
+the sensor-linear green measurement; dashed lines are the advisory Imatest
+values from a different luma/gamma path. The D810 peaks at f/5.6 while the D800
+does not reproduce that trend. Panel B: paired bars for f/4–f/11, blue for D810
+and orange for D800. Each bar is center minus strongest physical corner, so a
+negative value means the corner measured sharper than the center.*
 
 ## Recorded capture configuration
 
@@ -53,28 +57,55 @@ pixel-pitch difference, although the measurement remains capture-system-specific
 
 ## Measurement model
 
-The `sfr` command:
+Each region uses black-subtracted green samples at their native Bayer
+positions. A tilted edge is important because successive sensor rows cross it
+at different sub-pixel offsets; projecting those samples perpendicular to the
+edge reconstructs an edge-spread function (ESF) on a 0.25 px grid without
+demosaic, gamma, or sharpening becoming part of the measured response.
 
-- reads LibRaw active-area, black-subtracted Bayer samples;
-- uses green CFA positions in native sensor coordinates;
-- converts a full-frame advisory ROI into active-area coordinates;
-- estimates the slanted edge from per-line derivative centroids;
-- projects samples into a 0.25 px ESF and bounds missing-bin interpolation;
-- differentiates to an LSF, applies a Hamming window, and runs an in-repo DFT;
-- applies adjacent-difference attenuation correction;
-- reports MTF50, MTF50P, MTF at sensor Nyquist, R1090, edge angle, saturation,
-  rejection diagnostics, and filename/EXIF checks.
+```text
+RAW Bayer mosaic
+  -> black-subtracted native green samples
+  -> per-line edge positions and fitted edge
+  -> 0.25 px edge-spread function
+  -> line-spread function and window
+  -> Fourier magnitude and sampling correction
+  -> MTF50, MTF at Nyquist, and 10–90% rise distance
+```
 
-`--field-map` applies the same estimator to all 23 ROIs in one coherent
-per-file advisory table. The parser preserves row, grid/edge identity,
-field offset, ROI, and reference values, but emits only basenames for any
-referenced summary file.
+For ESF samples `E_i` at spacing `Delta x = 0.25 px`, the line-spread function
+(LSF), Hamming window, frequency axis, and adjacent-difference correction are:
 
-The implementation validates finite/ranged options at CLI and public-library
-boundaries, rejects non-finite RAW samples and metadata, bounds ESF allocation,
-uses the configured minimum scan-line sample count, validates oracle geometry
-and duplicate rows, and emits measurement-only values as JSON `null` when a
-center is rejected.
+```text
+L_i     = E_(i+1) - E_i
+w_i     = 0.54 - 0.46 cos(2 pi i / (N - 1))
+f_k     = k / (N Delta x)                    [cycles/pixel]
+A(f_k)  = sin(pi f_k Delta x) / (pi f_k Delta x)
+
+MTF(f_k) = |sum_i L_i w_i exp(-j 2 pi k i / N)|
+           / |sum_i L_i w_i| / A(f_k)
+```
+
+Here `E_i` is the normalized ESF, `L_i` is its adjacent-difference LSF, `w_i`
+is the Hamming weight, `N` is the number of LSF samples, `k` is the
+frequency-bin index, `j` is the imaginary unit, and `A` is the attenuation
+introduced by adjacent differencing. `A(0) = 1` by continuity. MTF50 is the
+first falling crossing of `MTF = 0.5`; MTF at sensor Nyquist is interpolated at
+`0.5 cycles/pixel`. The 10–90% rise distance is the pixel distance between the
+ESF's 0.1 and 0.9 crossings.
+
+The edge position is estimated independently on each scan line and fitted by
+least squares before projection. Regions with invalid geometry, non-finite
+samples, weak contrast, excessive near-saturation, incomplete ESF support, or
+missing MTF crossings are rejected rather than converted into plausible-looking
+sharpness values.
+
+For field analysis, the same estimator is applied to all 23 regions of interest
+from one coherent per-file advisory table. Each row retains its grid position,
+physical edge identity, field offset, rectangle, and independent reference
+value. Invalid geometry, non-finite samples, weak edges, and incomplete
+measurements are refused rather than converted into plausible-looking SFR
+values.
 
 ## D810 50 mm center sweep
 
@@ -82,9 +113,9 @@ Dataset label: `archive:2016_esensi_images/2016_12_09_D810_SFR/`
 
 The advisory rows come from one 10-Dec-2016 per-file batch; that is the Imatest
 run date, not the capture date, which is 09-Dec-2016 for both sweeps. The center
-edge is near-vertical in the toolkit convention.
+edge is near-vertical in the analysis convention.
 
-| Aperture | Accepted | Angle deg | Toolkit MTF50 | Advisory MTF50 | Delta | MTF@Nyq | R1090 px |
+| Aperture | Accepted | Angle deg | Sensor-linear MTF50 | Advisory MTF50 | Delta | MTF@Nyq | R1090 px |
 |---|---:|---:|---:|---:|---:|---:|---:|
 | f/1.4 | true | -6.320 | 0.1074 | 0.1158 | -0.0084 | 0.0210 | 5.142 |
 | f/1.8 | true | -6.320 | 0.0837 | 0.0899 | -0.0062 | 0.0802 | 6.852 |
@@ -127,7 +158,7 @@ The D800 sweep used nine matching per-file advisory tables from one
 10-Dec-2016 batch. All **207/207 ROIs** were accepted and detected as
 near-vertical.
 
-| Aperture | Advisory center | Toolkit center | Delta | Toolkit corner max | Center > corner (advisory / toolkit) | Argmax N (advisory / toolkit) |
+| Aperture | Advisory center | Sensor-linear center | Delta | Sensor-linear corner max | Center > corner (advisory / sensor-linear) | Argmax N (advisory / sensor-linear) |
 |---|---:|---:|---:|---:|---|---|
 | f/1.4 | 0.1029 | 0.1082 | +0.0053 | 0.0978 | true / true | 1 / 1 |
 | f/1.8 | 0.1204 | 0.1304 | +0.0100 | 0.1058 | true / true | 1 / 1 |
@@ -142,11 +173,12 @@ near-vertical.
 Load-bearing findings:
 
 - **The D810 aperture gate correctly fails on D800.** D800 f/4 center is below
-  f/16 in both toolkit and advisory results.
+  f/16 in both the sensor-linear and advisory results.
 - **The field maximum moves off center.** The advisory maximum is grid point
-  N=12 at f/2.8 through f/11; the toolkit agrees from f/4 through f/11.
+  N=12 at f/2.8 through f/11; the sensor-linear path agrees from f/4 through
+  f/11.
 - **Center/corner behavior is not monotonic.** At f/4 and f/5.6 the strongest
-  physical corner exceeds center in both paths. At f/4 the toolkit corner is
+  physical corner exceeds center in both paths. At f/4 the sensor-linear corner is
   32% above its center. The advisory table for that file labels no ROI
   `Corner` — its regions are `Center` and `Pt Way` — so the comparable advisory
   figure is its most-peripheral ROI at 0.1647 against 0.1385 at center, +19%.
@@ -194,9 +226,9 @@ Load-bearing findings:
 - **Off-axis reference deltas are larger.** Green-linear CFA SFR and
   rendered-luma processing diverge more away from center. The disagreement is
   reported rather than used as evidence of equivalence.
-- **The low D800 center response is not toolkit-only.** Center agreement within
-  ±0.015 cycles/pixel across the toolkit and advisory paths makes a gross
-  toolkit-specific numerical artifact less likely. It does not identify the
+- **The low D800 center response is not analysis-path-only.** Center agreement
+  within ±0.015 cycles/pixel across the sensor-linear and advisory paths makes a
+  gross sensor-linear-path numerical artifact less likely. It does not identify the
   physical cause because both paths operate on the same captures.
 - D800 center values remain below D810 at matched plateau apertures, but the
   difference cannot be attributed to optical low-pass filtering alone because
@@ -206,28 +238,15 @@ Load-bearing findings:
   a shared lens sample or authorize ranking the lens, body, and setup
   contributions.
 
-## Validation
+## Measurement cross-check
 
-Automated coverage includes:
-
-- synthetic vertical and horizontal edges;
-- MTF50/MTF50P, R1090, Nyquist, sinc correction, and DFT behavior;
-- CFA-balanced ROI conversion and saturation rejection;
-- missing/oversized ESF grids and bounded gap interpolation;
-- non-finite inputs, option ranges, unknown options, and conflicting ROI modes;
-- center/field advisory parsing, duplicate rows, geometry overflow, and missing
-  required rows;
-- rejected-result JSON nullability with retained diagnostics;
-- D810 and D800 trend/field fixture pins, including the intentional D800 gate
-  failure.
-
-Archive verification retained all 207 D800 and 92 D810 accepted ROIs. Two D810
+Archive verification retained all 207 D800 and 92 D810 accepted regions. Two D810
 corner values differ by 0.0001 cycles/pixel at four-decimal reporting precision
 without changing acceptance, aperture ordering, or the interpretations above.
 
 ## Interpretation limits
 
-- The toolkit does not claim absolute Imatest equivalence. Repeated advisory
+- The sensor-linear analysis does not claim absolute Imatest equivalence. Repeated advisory
   batches disagree with each other at some apertures.
 - The path is linear green CFA, not demosaiced/luma/gamma parity.
 - MTF is reported in cycles/pixel; no lp/mm or LW/PH conversion is claimed.
@@ -236,11 +255,8 @@ without changing acceptance, aperture ordering, or the interpretations above.
 - This is a system SFR study, not a lens characterization. Lens-sample identity,
   controlled refocusing, and repeat captures are all absent from the archive.
 
-## Reproducibility
+## Engineering companion
 
-- [`include/camera_iq/sfr.hpp`](../../include/camera_iq/sfr.hpp)
-- [`src/sfr.cpp`](../../src/sfr.cpp)
-- [`src/cmd_sfr.cpp`](../../src/cmd_sfr.cpp)
-- [`tests/test_sfr.cpp`](../../tests/test_sfr.cpp)
-- [`tests/test_cmd_sfr.cpp`](../../tests/test_cmd_sfr.cpp)
-- [`tools/generate_portfolio_figures.py`](../../tools/generate_portfolio_figures.py)
+The [SFR implementation companion](../implementation/sfr-mtf.md) explains how
+the measurement model is realized in C++ and routes readers to the public
+source, tests, and figure generation.

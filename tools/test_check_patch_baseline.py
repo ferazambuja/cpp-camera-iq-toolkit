@@ -4,8 +4,8 @@
 The baseline table is only a regression guard if something fails when it drifts.
 These cases pin the drifts that would otherwise pass silently: a table that no
 longer matches its published full-file digest, an A1 value that diverges from
-its report, a row count that stopped being 140, and byte-format changes that
-would break comparison against `--rgb-csv-out`.
+its scientific report, a row count that stopped being 140, and byte-format
+changes that would break comparison against the producer's CSV output.
 """
 
 from __future__ import annotations
@@ -26,11 +26,12 @@ SPEC.loader.exec_module(CHECK)
 
 BASELINE = Path("docs/data/ccsg_f8_flat_wb_patches.csv")
 REPORT = Path("docs/reports/PATCH_EXTRACTION.md")
+DIGEST_AUTHORITY = Path("docs/data/README.md")
 
 
 def staged(tmp: Path) -> Path:
-    """Copy the two files the validator reads into a writable tree."""
-    for rel in (BASELINE, REPORT):
+    """Copy the three files the validator reads into a writable tree."""
+    for rel in (BASELINE, REPORT, DIGEST_AUTHORITY):
         (tmp / rel.parent).mkdir(parents=True, exist_ok=True)
         shutil.copy(ROOT / rel, tmp / rel)
     return tmp
@@ -52,9 +53,9 @@ def main() -> int:
     with tempfile.TemporaryDirectory() as raw:
         root = staged(Path(raw))
         path = root / BASELINE
-        report = root / REPORT
+        digest_authority = root / DIGEST_AUTHORITY
         rows = path.read_text().splitlines()
-        report_text = report.read_text()
+        digest_authority_text = digest_authority.read_text()
 
         # A Git checkout may materialize this text file with CRLF. That
         # platform-only conversion must not invalidate the canonical LF digest.
@@ -100,10 +101,11 @@ def main() -> int:
         path.write_text("\n".join(broken) + "\n")
         expect_error(root, "finite")
 
-        # The report is the public digest authority; stale prose must fail too.
+        # The data index is the public digest authority; stale evidence must
+        # fail without forcing implementation bookkeeping into the report.
         path.write_text("\n".join(rows) + "\n")
-        report.write_text(
-            report_text.replace(
+        digest_authority.write_text(
+            digest_authority_text.replace(
                 "4b8429cdacbb982d33ef56a76e09cc46d8c7aadde927e805e52bc5feec2c8f92",
                 "0" * 64,
             )

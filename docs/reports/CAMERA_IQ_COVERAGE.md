@@ -5,9 +5,8 @@ test. It shows which image-quality questions the toolkit can currently answer,
 where the supporting reports and data live, and which conclusions remain
 blocked by missing captures or calibration evidence.
 
-Last reviewed: 2026-08-03<br>
-Evidence basis: the implementation, tests, reports, aggregate tables, and
-archive inventories in this repository.
+Evidence basis: the scientific reports, aggregate tables, and archive
+inventories in this repository.
 
 [Documentation index](../README.md)
 
@@ -33,7 +32,7 @@ supported by the available image archives:
   archives.
 - Relative CFA flat-field response with central near-ceiling screening,
   bounded dark-control, one capture-pair-difference, chromatic-ratio, and
-  quadrant-asymmetry diagnostics.
+  corner-field-asymmetry diagnostics.
 
 The current archives do not provide the calibration or target captures needed
 for electron-calibrated gain/read noise, full well, engineering dynamic range,
@@ -41,49 +40,36 @@ PRNU, exact ISO standard conformance, or dedicated vignetting, distortion,
 chromatic-aberration, and flare measurements. Automatic chart localization is
 also incomplete for some target types.
 
-## Command-line interfaces
-
-Current CLI verbs:
-
-| Area | Commands |
-|---|---|
-| Dataset and RAW front-end | `manifest`, `raw-stats`, `demosaic` |
-| Dark/noise/tone | `dark-calibration`, `noise`, `exposure-response`, `oecf-fit`, `oecf-stepchart` |
-| Color chart workflow | `reference-info`, `patches`, `ccm-fit` |
-| Color-space, gamut, and equation audit | `gamut-map`, `cam16-equation-audit` |
-| Spectral workflow | `spectral-response`, `spectral-closure`, `spectral-quality`, `spectral-smi`, `spectro-ingest` |
-| Sharpness and spatial response | `sfr`, `shading` |
-
-The implementation is accompanied by CTest coverage and repository privacy
-checks; the large RAW data and generated outputs stay in private or ignored
-locations.
+The [implementation companion index](../implementation/README.md) maps these
+measurement areas to the command layer, C++ data flow, source, and tests without
+turning this scientific coverage map into a software inventory.
 
 ## Coverage matrix
 
-| IQ dimension | Implementation status | Reports | Implemented and validated | Limitations |
+| IQ dimension | Scientific status | Reports | Supported method or result | Limitations |
 |---|---|---|---|---|
 | RAW file inventory and metadata | Covered | [Fuji manifest](FUJI_XT100_CCSG_MANIFEST.md), [spectral report](SPECTRAL_SENSITIVITY.md) | Dataset scans, filename/EXIF checks, candidate exposure series, private-data labeling. | `manifest` is metadata/open-file oriented; maker black and pitch are authoritative only after unpack where needed. |
-| RAW CFA statistics | Covered | [RAW stats](RAW_STATS.md) | Black-subtracted per-CFA-position stats over full frames or ROIs, cross-maker regression fixtures. | Not a full ISP or rendered-image analysis. |
+| RAW CFA statistics | Covered | [RAW stats](RAW_STATS.md) | Black-subtracted per-CFA-position statistics over full frames or regions, with controlled cross-maker comparisons. | Not a full ISP or rendered-image analysis. |
 | Demosaic | Covered as transparent baseline | [Bilinear demosaic](BILINEAR_DEMOSAIC.md) | Hand-written bilinear demosaic with synthetic and real validation. | Not bit-exact LibRaw parity or production demosaic quality. |
 | ColorChecker-SG reference provenance | Covered | [SG provenance](SG_REFERENCE_PROVENANCE.md) | Spectral reference inventory, X-Rite verification, orientation/layout checks. | Not a measured per-unit CLRS-589 SG reference. |
 | RAW patch extraction | Covered | [Patch extraction](PATCH_EXTRACTION.md) | RawDigger coordinate extraction, flat-field/WB correction, CSV handoff to CCM, orientation checks. | RawDigger-independent replacement remains constrained by localization diagnostics. |
-| RAW chart localization | Partial but bounded | [Localization](RAW_CHART_LOCALIZATION.md) | Projective grid geometry, CLI corner input, residual diagnostics, de-biased detector arbitration. | Final RawDigger replacement stayed unresolved for the centered capture; detector was too unstable to arbitrate. |
+| RAW chart localization | Partial but bounded | [Localization](RAW_CHART_LOCALIZATION.md) | Corner-seeded projective grid, held-out residual diagnostics, and dual-seeded detector arbitration. | Final RawDigger replacement stayed unresolved for the centered capture; detector was too unstable to arbitrate. |
 | Color accuracy / CCM / Delta E | Covered | [CCM fit](CCM_FIT.md), [patch extraction](PATCH_EXTRACTION.md), [equation audit](CAM16_EQUATION_AUDIT.md) | Linear RGB-to-XYZ CCM, held-out diagnostics, dark-patch exclusion experiments, Delta E 76/2000, directional CIE94, and a separately named geometric-mean-chroma historical variant. | Root-polynomial or more flexible models deferred until held-out improvement is proven; the historical CIE94 tool and full-precision inputs were not retained. |
-| RGB encoding-gamut mapping | Covered for ideal sRGB and Display-P3 encodings | [Gamut mapping](GAMUT_MAPPING.md) | Typed encoded/linear transforms, W3C sample-code matrices, analytic CIELAB/OkLCh channel-boundary roots, radial clipping, a dated CSS Local-MINDE option, experimental protected-core compression, JSON/CSV output, and deterministic figures. | Not a measured display/printer gamut, spatial image-rendering study, or observer validation; the CSS draft is work in progress; arbitrary ICC profiles remain outside this method. |
-| CAM16 equation behavior | Covered as a bounded numerical audit | [CAM16 equation audit](CAM16_EQUATION_AUDIT.md) | Normalized brightness relation, isolated `N_cb^0.9` factor, fixed-response complete chroma-expression sweep, corrected Hellwig/Fairchild Equation 23 coefficient, published performance tradeoff, CLI output, and deterministic figure. | Not a general CAM16 forward transform, complete Hellwig implementation, CIE 248:2022 conformance test, appearance prediction, or observer validation. |
-| Spectral sensitivity extraction | Covered deeply | [Spectral report](SPECTRAL_SENSITIVITY.md), [archive map](SPECTRAL_ARCHIVE_INVENTORY.md) | C++ RAW extraction from monochromator sweeps, legacy-fidelity comparison, five-camera SSF inventory. | Legacy CSVs are fidelity checks, not correctness oracles. |
+| RGB encoding-gamut mapping | Covered for ideal sRGB and Display-P3 encodings | [Gamut mapping](GAMUT_MAPPING.md) | D65 transforms, analytic CIELAB/OkLCh boundaries, radial clipping, dated CSS Local-MINDE, and experimental protected-core compression. | Not a measured display/printer gamut, spatial image-rendering study, or observer validation; the CSS draft is work in progress; arbitrary ICC profiles remain outside this method. |
+| CAM16 equation behavior | Covered as a bounded numerical audit | [CAM16 equation audit](CAM16_EQUATION_AUDIT.md) | Normalized brightness, isolated and coupled background factors, corrected Hellwig/Fairchild Equation 23 coefficient, and the published performance tradeoff. | Not a general CAM16 forward transform, complete Hellwig implementation, CIE 248:2022 conformance test, appearance prediction, or observer validation. |
+| Spectral sensitivity extraction | Covered deeply | [Spectral report](SPECTRAL_SENSITIVITY.md), [archive map](SPECTRAL_ARCHIVE_INVENTORY.md) | RAW-derived recovery from monochromator sweeps, legacy-fidelity comparison, five-camera SSF inventory. | Legacy CSVs are fidelity checks, not correctness oracles. |
 | Spectral physical closure | Covered | [Spectral report](SPECTRAL_SENSITIVITY.md), [archive map](SPECTRAL_ARCHIVE_INVENTORY.md) | SG-140 and CC-24 physical closure for Canon/Nikon/Sony 2016 cameras using measured illuminant and reflectance. | Phase One IQ3 has SSF but no same-session broadband closure target. |
 | Spectral color-fidelity ranking | Covered | [Spectral report](SPECTRAL_SENSITIVITY.md) | Luther residuals and ISO-style SMI over SG-140, CC-24, and CC-18; D55 primary; white-preserving sensitivity bound. | Not claimed bit-exact to ISO 17321 Annex B. |
-| Spectroradiometer archive ingest | Covered as record characterization | [Spectroradiometer ingest](SPECTRORADIOMETER_INGEST.md), [SG provenance](SG_REFERENCE_PROVENANCE.md) | Runtime SHA-256 binding, bounded MAT v5 parsing, 40 measurement groups, absolute/normalized spectra, recorded-XYZ chromaticity, and same-record closure. | Source files do not record enough physical controls to assign within-group variation to source, geometry, settings, or instrument repeatability. |
+| Spectroradiometer archive ingest | Covered as record characterization | [Spectroradiometer ingest](SPECTRORADIOMETER_INGEST.md), [SG provenance](SG_REFERENCE_PROVENANCE.md) | Content-identity binding, bounded MATLAB v5 recovery, 40 measurement groups, absolute/normalized spectra, recorded-XYZ chromaticity, and same-record closure. | Source files do not record enough physical controls to assign within-group variation to source, geometry, settings, or instrument repeatability. |
 | Exposure response readiness | Covered | [Exposure response](EXPOSURE_RESPONSE.md) | Exposure-series grouping and black-subtracted CFA response summaries. | Readiness/response summary, not final ISO OECF/PTC. |
 | Relative OECF / linearity | Covered | [OECF fit](OECF_FIT.md) | Relative-exposure linearity over usable OECF points. | Assumes constant illumination; not ISO 14524. |
-| Stepchart OECF oracle | Covered | [OECF Stepchart](OECF_STEPCHART.md) | Imatest Stepchart parser, archive joins, run-window gates, D800 oracle summaries, advisory cross-ISO luma spread. | Rendered-luma oracle path; no chart-density traceability or measured ISO speed. |
+| Stepchart OECF oracle | Covered | [OECF Stepchart](OECF_STEPCHART.md) | Primary Imatest response tables, archive joins, run-window gates, D800 advisory summaries, and cross-ISO luma spread. | Rendered-luma advisory path; no chart-density traceability or measured ISO speed. |
 | Stepchart raw-DN ring extraction | Covered with explicit geometry seed | [OECF Stepchart](OECF_STEPCHART.md) | D800 ISO 14524-style ring seed, 20 zone ROIs, oracle-ladder gate, raw-CFA DN summaries. | Manual seed, not automatic detection; strip model correctly refuses this archive. |
 | DN-referred PTC-style variance | Covered as diagnostic | [OECF Stepchart](OECF_STEPCHART.md) | Aligned per-pixel temporal variance over 10 repeats, variance-vs-mean fits per ISO/CFA plane, saturated/deep-tail exclusions. | DN-domain diagnostic only; no electron gain/read noise, full well, PRNU, or engineering DR. |
 | Dark-frame temporal noise and DSNU | Covered | [Noise](DARK_FRAME_NOISE.md), [dark calibration](DARK_CALIBRATION.md) | Dark-pair temporal noise, moment/robust DSNU, dark-current diagnostic, outlier gating. | DN diagnostics; gain/PTC/DR refused where data does not support them. |
 | SFR / MTF center ROI | Covered | [SFR result](SFR_MTF.md), [archive map](SFR_MTF_ARCHIVE_INVENTORY.md) | Green-linear slanted-edge MTF50P, sinc correction, D810 aperture trend, Imatest advisory comparison. | Not luma/gamma Imatest parity, lp/mm, or rendered Y-channel equivalence. |
-| SFR / MTF field map | Covered | [SFR result](SFR_MTF.md), [archive map](SFR_MTF_ARCHIVE_INVENTORY.md) | 23-ROI field maps for D810 and D800, per-ROI oracle parsing, field/corner gates, D800 negative trend finding. | Still green-linear CFA SFR; no full sagittal/tangential lens model. |
-| CFA flat-field response | Covered as composite characterization; optical attribution remains partial | [Flat-field response](FLAT_FIELD_RESPONSE.md), [patch extraction](PATCH_EXTRACTION.md) | Per-CFA median maps, center-normalized R/G and B/G, center/full-frame near-ceiling gates, bounded dark-control checks, one observed capture-pair delta, and quadrant asymmetry. | Available captures do not separate source, lens, alignment, mechanical shading, or sensor angular response; the single pair is not a repeatability estimate; not an isolated lens-vignetting metric. |
+| SFR / MTF field map | Covered | [SFR result](SFR_MTF.md), [archive map](SFR_MTF_ARCHIVE_INVENTORY.md) | 23-region field maps for D810 and D800, per-region advisory comparisons, field/corner gates, and the D800 negative trend finding. | Still green-linear CFA SFR; no full sagittal/tangential lens model. |
+| CFA flat-field response | Covered as composite characterization; optical attribution remains partial | [Flat-field response](FLAT_FIELD_RESPONSE.md), [patch extraction](PATCH_EXTRACTION.md) | Per-CFA median maps, center-normalized R/G and B/G, center/full-frame near-ceiling gates, bounded dark-control checks, one observed capture-pair delta, and corner-field asymmetry. | Available captures do not separate source, lens, alignment, mechanical shading, or sensor angular response; the single pair is not a repeatability estimate; not an isolated lens-vignetting metric. |
 | Vignetting/shading (optical attribution) | Partial | [Flat-field response](FLAT_FIELD_RESPONSE.md), [patch extraction](PATCH_EXTRACTION.md) | The composite field response above, plus flat-field correction inside patch extraction. | No isolated lens-vignetting metric. Attribution needs camera-rotation pairs and multi-aperture headroom-safe captures, neither of which the archive provides. |
 | Distortion / chromatic aberration / flare | Partial / diagnostic only | [Localization](RAW_CHART_LOCALIZATION.md), [CCM fit](CCM_FIT.md) | Localization residuals and dark-patch flare evidence. | No standalone distortion, lateral CA, flare, or veiling-glare metric. |
 | Texture, autofocus, rolling shutter, HDR/video | Not covered | none | Out of current still-image archive scope. | Would need new target captures or different data. |
@@ -105,8 +91,8 @@ RAW datasets: RAW/CFA statistics, color chart extraction and CCM/Delta E,
 spectral sensitivity with physical closure and SMI-style ranking, OECF and
 Stepchart analysis, dark-frame noise/DSNU, DN-referred temporal-variance
 diagnostics, and slanted-edge SFR/MTF center/field maps. Large source datasets
-stay outside Git; the repository provides method reports, parser and fixture
-tests, aggregate results, and implementation links. The toolkit is a technical
+stay outside Git; the repository provides method reports, aggregate results,
+and public implementation companions. The toolkit is a technical
 implementation and validation project, not a certified ISO laboratory suite.
 
 ## Known gaps
@@ -134,8 +120,9 @@ OECF, noise, and MTF are implemented within the stated measurement limits.
 The remaining gaps require additional calibration evidence or new
 target-specific captures rather than additional file parsing alone.
 
-## Reproducibility
+## Engineering companion
 
-- [`CMakeLists.txt`](../../CMakeLists.txt)
-- [CI workflow](../../.github/workflows/ci.yml)
-- [Documentation index](../README.md)
+The [documentation index](../README.md) routes each scientific result to its
+report, aggregate data, and implementation companion. The
+[implementation index](../implementation/README.md) provides the cross-domain
+software map.

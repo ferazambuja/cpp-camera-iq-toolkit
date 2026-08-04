@@ -638,7 +638,7 @@
 <text x="445" y="581" style="font-size:22px;font-weight:700;fill:#172033">max Δ 0.379 pp</text>
 <text x="445" y="605" class="subtitle">RMS Δ 0.181 pp over corner/plane pairs</text>
 <rect x="812" y="526" width="346" height="94" rx="12" fill="#f7f9fc"/>
-<text x="830" y="554" class="panel-title">Quadrant asymmetry</text>
+<text x="830" y="554" class="panel-title">Corner-field asymmetry</text>
 <text x="830" y="581" style="font-size:22px;font-weight:700;fill:#172033">A = 19.65%</text>
 <text x="830" y="605" class="subtitle">exceeds the 5% project policy</text>
 <rect x="42" y="646" width="1116" height="105" rx="12" fill="#fff7ed" stroke="#fed7aa"/>

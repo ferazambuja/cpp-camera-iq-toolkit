@@ -10,7 +10,8 @@ for the reported CCM result.
 
 Date: 2026-07-06
 Dataset: `clrs589_project_camera`
-Command: `camera_iq patches --sg-corners --rawdigger-oracle-csv`
+
+[Color-characterization implementation companion](../implementation/color-characterization.md)
 
 ## Scope
 
@@ -38,30 +39,19 @@ Correlation is necessary but not sufficient. A shifted or oversized grid can
 preserve the SG tonal ordering while biasing every patch mean, so the center and
 absolute-DN gates are the load-bearing coordinate-replacement checks.
 
-## Command
+## Comparison design
 
-The RawDigger oracle exports uncorrected means, so this command intentionally
-does not apply flat-field or white-balance corrections:
-
-```bash
-./build/camera_iq patches \
-  "Images/CCSG_f8/CCSG_f8.0_1:10_DSCF0402.RAF" \
-  --dataset clrs589_project_camera \
-  --sg-corners "1242.489159,707.131935;4835.468326,692.253409;4816.545845,3254.656481;1252.609404,3220.163201" \
-  --sg-corner-source "RawDigger A1/A14/J14/J1 center-derived outer corners; zero-based active-image coordinates" \
-  --rawdigger-oracle-csv Images/CCSG_rawdigger.csv \
-  --out out/camera_iq_rawdigger_oracle_validation.json
-```
-
-Exit status: `1` by design, because the hard localization gate fails. The JSON
-artifact is still written for inspection.
+RawDigger supplies uncorrected patch means and checked patch centers only after
+the projective grid has been generated. No flat-field or white-balance
+correction is applied, so a color correction cannot conceal a placement error.
+The candidate fails the hard localization gate, while its measurements remain
+available for diagnosis.
 
 ## Corner Source
 
 Corner source: RawDigger A1, A14, J14, and J1 patch centers, projected back to
 the ColorChecker-SG outer chart corners using the verified SG physical layout.
-Coordinates are zero-based active-image coordinates consumed by
-`--sg-corners`.
+Coordinates below are zero-based active-image coordinates.
 
 | Corner | x | y |
 |---|---:|---:|
@@ -113,11 +103,10 @@ Per-channel uncorrected RGB mean comparison:
 | G | 0.999997742 | 6.574 DN | 20.482 DN | true |
 | B | 0.999998012 | 3.813 DN | 11.554 DN | true |
 
-The JSON now serializes every generated-vs-oracle ROI-center residual under
-`localization_validation.center_residuals`, including reference patch ID,
-reference-grid row/column, generated center, oracle center, `dx_px`, `dy_px`,
-and Euclidean distance. This makes the negative verdict diagnosable instead of
-only reporting max/RMS aggregates.
+Every generated-vs-reference ROI-center residual is retained, including patch
+identity, reference-grid position, generated and reference centers, horizontal
+and vertical displacement, and Euclidean distance. This makes the negative
+verdict diagnosable instead of reducing it to maximum and RMS aggregates.
 
 Worst residuals from the f/8 `1:10` run:
 
@@ -152,15 +141,12 @@ global shift. Mean `dx_px` is near zero at columns A/N, but reaches about
 | K | -10.97 | 2.66 | 11.40 | 12.00 |
 | N | 0.03 | 2.69 | 2.72 | 5.12 |
 
-## Model-Comparison Diagnostics
+## Model-comparison diagnostics
 
-The toolkit now emits a diagnostics-only `model_comparison` block under
-`localization_validation`. It does not revise the predeclared 5 px gate and it
-does not promote any candidate to the default coordinate path. The comparison
-is run against regenerated `center_residuals` from the same f/8 `1:10` command
-above, using spatial holdouts rather than fitted RMS alone.
-
-Summary from `out/camera_iq_model_comparison.json`:
+The model comparison leaves the predeclared 5 px gate unchanged and does not
+promote any candidate to the default coordinate path. Every model is compared
+against the same f/8, `1:10` center residuals using spatial holdouts rather than
+fitted RMS alone.
 
 | Model | DOF | In-sample RMS px | Checkerboard held-out RMS px | Row-block held-out RMS px | Column-block held-out RMS px |
 |---|---:|---:|---:|---:|---:|
@@ -188,13 +174,11 @@ Interpretation:
   is not enough to choose a physical explanation; the comparison must be judged
   against a usable independent center noise floor and model parsimony.
 
-The command also emits an `independent_center_check` using a dual-seeded
-color-similarity centroid from the bilinear RAW RGB image as a third source. It
-seeds the detector once from the generated grid and once from the RawDigger
-oracle, then only arbitrates with centres where both seedings agree. This blocks
-an anchoring asymmetry in which the seed determines the verdict: a
-`generated_grid` result is not trusted unless the RawDigger-seeded detector
-reaches the same centre.
+An independent-center check uses a color-similarity centroid from the bilinear
+RAW RGB image as a third source. The detector is seeded once from the generated
+grid and once from the RawDigger rectangles, and only centers where both runs
+agree can arbitrate between them. This prevents the starting seed from deciding
+its own verdict.
 
 On this capture the detector still cannot arbitrate. The two seedings produce
 140 matched attempts but disagree by `20.059 px` RMS, so there are `0` agreed
@@ -202,18 +186,17 @@ centres available for grid-vs-RawDigger arbitration. Tight-vs-wide search
 windows also differ by `69.620 px` RMS, so the detector is not repeatable enough
 to act as the required noise floor.
 
-The emitted real-data verdict is therefore deliberately unresolved:
+The real-data verdict is therefore deliberately unresolved:
 
 | Field | Value |
 |---|---|
-| `method` | `dual_seed_color_similarity_centroid_from_raw_bilinear_rgb` |
-| `best_overall_model` | `smooth_polynomial_degree2_warp_candidate` |
-| `noise_floor_px` | `69.620` |
-| `noise_floor_usable` | `false` |
-| `seed_agreement_rms_px` | `20.059` |
-| `valid_count` | `0` |
-| `parsimony_winner_model` | empty |
-| `conclusive` | `false` |
+| Independent check | dual-seeded color-similarity centroid from bilinear RAW RGB |
+| Lowest held-out-residual model | smooth polynomial degree-2 warp |
+| Tight-versus-wide window disagreement | 69.620 px RMS |
+| Seed-to-seed disagreement | 20.059 px RMS |
+| Centers accepted for arbitration | 0 |
+| Parsimonious winner | none |
+| Conclusion | unresolved |
 
 This blocks a circular RawDigger-only conclusion (RawDigger cannot validate its
 own placement here) and avoids the generated-grid anchoring overclaim. The
@@ -240,23 +223,23 @@ not enough: the generated grid keeps the SG tonal ordering and the patch means
 remain close, but the ROI centers are too far from the RawDigger oracle to claim
 coordinate replacement under the predeclared 5 px gate.
 
-Do not mark the corner-seeded SG grid as the default replacement for
-RawDigger rectangles yet. The residual evidence narrows the mismatch: it is not
-a coordinate-origin convention error, not a simple global shift, and not
-uncorrelated manual jitter. The corner-pinned homography agrees at the four
-seeded corner patches but bows away from RawDigger in the chart interior,
-especially the middle columns. That is consistent with a model mismatch such as
-lens distortion, a different chart/cell geometry assumption, or RawDigger's
-rectangle placement following a non-projective warp.
+The corner-seeded SG grid is therefore not a supported replacement for the
+RawDigger rectangles. The mismatch is not a coordinate-origin convention
+error, a simple global shift, or uncorrelated manual jitter. The corner-pinned
+homography agrees at the four seeded corner patches but bows away from
+RawDigger in the chart interior, especially the middle columns. That pattern is
+consistent with lens distortion, a different chart/cell geometry assumption,
+or RawDigger placement following a non-projective warp, but the available data
+do not distinguish them.
 
-Any threshold change should first diagnose that systematic interior bow:
+Resolving the systematic interior bow requires:
 
 - improve the independent RAW center detector until its repeatability is a
   usable pixel-scale noise floor and its dual seedings agree, or use a separate
   off-center/multi-position capture to break the centered-chart confound;
 - keep the existing radial and affine rows as held-out baselines, not skipped
   dead ends;
-- only then decide whether the default path needs lens-distortion
+- then deciding whether the coordinate model needs lens-distortion
   compensation, a different chart/cell geometry model, a different
   corner-estimation method, or a separately justified pre-run gate revision.
 
@@ -271,15 +254,13 @@ Any threshold change should first diagnose that systematic interior bow:
 - The color reference remains a compatible 2019 SG spectral reference, not a
   proven exact per-unit measurement of the 2020 capture chart.
 - This is not blind chart localization; corners trace back to RawDigger.
-- The `independent_center_check` is dual-seeded, not blind. It avoids a
+- The independent-center check is dual-seeded, not blind. It avoids a
   one-sided generated-grid anchor, but it still depends on coordinate priors and
   is unusable on this capture because the seedings disagree and repeatability is
   poor.
 
-## Reproducibility
+## Engineering companion
 
-- [`src/chart_localization.cpp`](../../src/chart_localization.cpp)
-- [`src/localization_diagnosis.cpp`](../../src/localization_diagnosis.cpp)
-- [`src/patches.cpp`](../../src/patches.cpp)
-- [`tests/test_chart_localization.cpp`](../../tests/test_chart_localization.cpp)
-- [`tests/test_localization_diagnosis.cpp`](../../tests/test_localization_diagnosis.cpp)
+The [color-characterization implementation companion](../implementation/color-characterization.md)
+explains how the localization analysis is realized in C++ and routes readers
+to the public source and tests.

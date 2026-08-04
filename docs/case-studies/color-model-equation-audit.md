@@ -1,12 +1,5 @@
 # Auditing inherited color-model equations
 
-[Detailed report](../reports/CAM16_EQUATION_AUDIT.md) ·
-[figure](../figures/cam16_equation_audit.svg) ·
-[data](../data/cam16_equation_audit.csv) ·
-[historical CIE94 fixture](../data/cie94_historical_24patch.csv) ·
-[implementation](../../src/cam16_equation_audit.cpp) ·
-[tests](../../tests/test_cam16_equation_audit.cpp)
-
 ## What this is about
 
 A color appearance model predicts how a color will *look* under stated viewing
@@ -23,6 +16,16 @@ range, and tradeoffs that a summary can quietly drop. This study turns a small,
 declared set of those equations into inspectable C++ with numeric tests, so the
 behavior can be checked rather than assumed. It audits specific equations; it
 does not implement the full model or validate it against observers.
+
+The equation source is Luke Hellwig and Mark D. Fairchild, “Brightness,
+lightness, colorfulness, and chroma in CIECAM02 and CAM16,” *Color Research &
+Application* (2022), [doi:10.1002/col.22792](https://doi.org/10.1002/col.22792).
+
+[Detailed report](../reports/CAM16_EQUATION_AUDIT.md) ·
+[figure](../figures/cam16_equation_audit.svg) ·
+[data](../data/cam16_equation_audit.csv) ·
+[historical CIE94 fixture](../data/cie94_historical_24patch.csv) ·
+[implementation companion](../implementation/color-model-audit.md)
 
 ## Question
 
@@ -53,9 +56,23 @@ assigned to a display technology.
 
 The audit also pins the corrected Equation 23 coefficient `43` and retains the
 paper's unfavorable result: its proposed colorfulness relation reduced the
-reported LUTCHI `R²` from `0.81` to `0.71`, even while brightness and Munsell
-chroma improved. Retaining that result prevents the paper from being summarized
-only by its favorable outcomes.
+reported `R²` against the published LUTCHI colorfulness data from `0.81` to
+`0.71`, even while brightness and Munsell chroma improved. Retaining that result
+prevents the paper from being summarized only by its favorable outcomes.
+
+![CAM16 equation audit](../figures/cam16_equation_audit.svg)
+
+*Left: two brightness relations against CAM16's lightness scale `J`, both
+normalized to white (`Q/Qw` on the vertical axis). The straight line is the
+proposed linear relation, which puts its halfway point at `J = 50`; the curve is
+CAM16's square-root relation, which reaches half brightness at `J = 25`. Centre:
+the background-dependent factor as the background darkens. The isolated
+`N_cb^0.9` term is drawn against a band spanning the complete chroma expression
+across reference-condition lightness `J₀ = 10` to `90`; because the band
+crosses the line, the isolated term is neither a floor nor a ceiling. Right:
+the paper's reported fits before and after the proposed change. Brightness and
+Munsell chroma improved, while colorfulness against the LUTCHI data fell from
+`0.81` to `0.71`.*
 
 ## Connection to earlier work
 
@@ -94,17 +111,6 @@ Several conventions can reproduce the rounded table closely, but the missing
 tool settings prevent choosing one as uniquely correct. Naming and testing the
 plausible conventions is a stronger scientific result than manufacturing
 certainty from incomplete records.
-
-![CAM16 equation audit](../figures/cam16_equation_audit.svg)
-
-*Left: normalized lightness and brightness plotted against `J`. Lightness is the
-straight line, so half lightness sits at `J = 50`; CAM16 brightness follows the
-square-root curve, so half brightness sits at `J = 25`. The gap between the two
-curves illustrates their different scaling. Right: how the chroma
-expression responds as the background darkens, with the isolated `N_cb^0.9`
-factor shown against the complete expression evaluated across reference
-lightness — the band crosses the isolated line, which is what makes the isolated
-term neither a floor nor a ceiling.*
 
 The curves are equation-level diagnostics with fixed adapted responses. They do
 not replace a general CAM16 forward model, viewing-condition validation,

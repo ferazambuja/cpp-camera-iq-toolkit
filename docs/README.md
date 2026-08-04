@@ -1,9 +1,12 @@
 # Camera IQ documentation and case studies
 
-This index connects concise case studies to detailed method reports, C++ source,
-tests, aggregate tables, dataset notes, and provenance records. The
+This index connects concise case studies to scientific reports, implementation
+companions, aggregate tables, dataset notes, and provenance records. The
 [project overview](../README.md) summarizes the implemented measurement areas
-and principal results.
+and principal results. The
+[public documentation standard](PUBLIC_DOCUMENTATION_STANDARD.md) defines how
+those layers stay readable and technically complete without mixing scientific
+narrative with source-code detail.
 
 ## Featured case studies
 
@@ -12,8 +15,7 @@ and principal results.
 [Case study](case-studies/sfr-mtf-aperture-field.md) ·
 [aggregate data](data/sfr_aperture_summary.csv) ·
 [detailed report](reports/SFR_MTF.md) ·
-[implementation](../src/sfr.cpp) ·
-[tests](../tests/test_sfr.cpp)
+[implementation companion](implementation/sfr-mtf.md)
 
 Sharpness typically changes with aperture: residual aberrations often dominate
 wide open, while diffraction becomes important when the lens is stopped down.
@@ -29,8 +31,7 @@ separate conclusions.
 [Case study](case-studies/spectral-color-fidelity.md) ·
 [aggregate data](data/spectral_color_fidelity.csv) ·
 [detailed report](reports/SPECTRAL_SENSITIVITY.md) ·
-[implementation](../src/spectral_response.cpp) ·
-[tests](../tests/test_spectral_response.cpp)
+[implementation companion](implementation/spectral-fidelity.md)
 
 How faithfully a camera can reproduce color is constrained before any
 processing, by how its red, green, and blue channels respond to each wavelength
@@ -47,8 +48,7 @@ small differences among the middle cameras were treated as method-sensitive.
 [Case study](case-studies/spectroradiometer-ingest.md) ·
 [aggregate data](data/spectro_group_summary.csv) ·
 [detailed report](reports/SPECTRORADIOMETER_INGEST.md) ·
-[implementation](../src/spectro_ingest.cpp) ·
-[tests](../tests/test_spectro_ingest.cpp)
+[implementation companion](implementation/spectroradiometer.md)
 
 Repeat measurements of the same light source rarely agree exactly, and the
 interesting question is what changed: the amount of light, the shape of its
@@ -66,8 +66,7 @@ group reached 41.65%, without establishing why the source or measurement changed
 [aggregate data](data/ccm_validation_summary.csv) ·
 [CCM report](reports/CCM_FIT.md) ·
 [patch report](reports/PATCH_EXTRACTION.md) ·
-[implementation](../src/colorimetry.cpp) ·
-[tests](../tests/test_colorimetry.cpp)
+[implementation companion](implementation/color-characterization.md)
 
 A camera's raw values are not colorimetry: each sensor responds to light
 differently from the human eye, so its RGB values must be transformed before
@@ -85,14 +84,14 @@ against a compatible spectral chart reference.
 [aggregate maps](data/flat_field_response.csv) ·
 [frame screening](data/flat_field_summary.csv) ·
 [detailed report](reports/FLAT_FIELD_RESPONSE.md) ·
-[implementation](../src/shading.cpp) ·
-[tests](../tests/test_shading.cpp)
+[implementation companion](implementation/flat-field.md)
 
 Even under nominally uniform illumination, a camera can record less signal at
 the edges than at the center, with different falloff in each color channel.
 Correcting that field often starts from the assumption that it is symmetric
 about the image center. In this integrating-sphere capture set, it was not:
-opposite quadrants differed by 19.65% where the project allowed 5%, so a simple
+the four corners spread by 19.65% of their own average where the project
+allowed 5%, so a simple
 centered radial model does not describe the measured field. The missing rotation
 controls prevent assigning the asymmetry to the source, lens, or camera alone.
 
@@ -104,8 +103,7 @@ controls prevent assigning the asymmetry to the source, lens, or camera alone.
 [CSS Local-MINDE data](data/gamut_synthetic_css_local_minde.csv) ·
 [soft-compression data](data/gamut_synthetic_soft.csv) ·
 [detailed report](reports/GAMUT_MAPPING.md) ·
-[implementation](../src/gamut_mapping.cpp) ·
-[tests](../tests/test_gamut_mapping.cpp)
+[implementation companion](implementation/gamut-mapping.md)
 
 A wide-gamut image holds colors an ordinary sRGB screen cannot show, and
 something has to decide where those colors land instead — often an ICC profile
@@ -123,8 +121,7 @@ improvement.
 [data](data/cam16_equation_audit.csv) ·
 [figure](figures/cam16_equation_audit.svg) ·
 [detailed report](reports/CAM16_EQUATION_AUDIT.md) ·
-[implementation](../src/cam16_equation_audit.cpp) ·
-[tests](../tests/test_cam16_equation_audit.cpp)
+[implementation companion](implementation/color-model-audit.md)
 
 Color appearance models predict how a color will look rather than only what its
 colorimetric coordinates measure. Implementing one means translating equations
@@ -136,6 +133,15 @@ turns a small set of those equations into tested code to see how they actually
 behave — including a published change that improved two attributes while making
 a third measurably worse. The audit also shows why an isolated background term
 cannot be read as a bound on the complete chroma expression.
+
+## Implementation architecture
+
+The [implementation companion index](implementation/README.md) explains how
+the scientific methods map to C++ types, algorithms, numerical conventions,
+data flow, serializers, and tests. These pages begin with the complete pipeline
+and formula-to-code mapping before linking to individual source files. The
+scientific reports remain the canonical source for equations, measurement
+conditions, results, and limitations.
 
 ## Validation decisions
 
@@ -152,8 +158,10 @@ cannot be read as a bound on the complete chroma expression.
 
 These are the deeper method, result, and measurement-identity appendices behind
 the featured studies. Each opens with the scientific purpose and the conclusion
-it supports; later sections retain equations, input selection, and reproduction
-details for readers who need to audit the work.
+it supports; later sections retain equations, input selection, result
+conditions, and interpretation for readers who need to audit the work. The
+separate implementation companions carry software operation and reproduction
+details.
 
 ### Camera measurement methods
 
@@ -183,7 +191,7 @@ details for readers who need to audit the work.
 |---|---|
 | [Spectral sensitivity](reports/SPECTRAL_SENSITIVITY.md) | RAW extraction, physical closure, Luther residuals, and SMI-style analysis |
 | [Spectral archive inventory](reports/SPECTRAL_ARCHIVE_INVENTORY.md) | Camera/session/file-role map and measurement hazards |
-| [Spectroradiometer ingest](reports/SPECTRORADIOMETER_INGEST.md) | Exact-byte MAT ingestion, measurement-group analysis, chromaticity, and same-record XYZ closure |
+| [Spectroradiometer ingest](reports/SPECTRORADIOMETER_INGEST.md) | Content-bound measurement recovery, group analysis, chromaticity, and same-record XYZ closure |
 
 ### Exposure, tone, and noise
 
@@ -191,14 +199,14 @@ details for readers who need to audit the work.
 |---|---|
 | [Exposure response](reports/EXPOSURE_RESPONSE.md) | Series grouping and readiness gates |
 | [Relative OECF fit](reports/OECF_FIT.md) | Sensor-DN linearity over a controlled relative-exposure span |
-| [OECF Stepchart](reports/OECF_STEPCHART.md) | Oracle parsing, ring-zone RAW extraction, and temporal-variance fits |
+| [OECF Stepchart](reports/OECF_STEPCHART.md) | Advisory response-table comparison, ring-zone RAW measurement, and temporal-variance fits |
 
 ### Sharpness and field behavior
 
 | Report | Status and purpose |
 |---|---|
 | [SFR/MTF result](reports/SFR_MTF.md) | D800/D810 center, aperture, and field analysis |
-| [SFR/MTF archive inventory](reports/SFR_MTF_ARCHIVE_INVENTORY.md) | Input/oracle batch selection and field-label traps |
+| [SFR/MTF archive inventory](reports/SFR_MTF_ARCHIVE_INVENTORY.md) | Input/advisory batch selection, field identity, and metadata limits |
 
 ### Dataset and provenance references
 
@@ -211,16 +219,10 @@ details for readers who need to audit the work.
 ## Reproducibility and data access
 
 Source captures and measured references remain outside Git. Public inspection is
-supported by C++ source, tests, safe aggregate CSVs, deterministic figures, and
-method reports. The aggregate figures can be rebuilt with:
-
-```bash
-python3 tools/generate_portfolio_figures.py
-python3 tools/generate_portfolio_figures.py --check
-python3 tools/generate_gamut_portfolio.py --camera-iq build/camera_iq --check
-python3 tools/generate_cam16_equation_audit.py \
-  --camera-iq build/camera_iq --check
-```
+supported by safe aggregate CSVs, deterministic figures, method reports, and
+the public implementation. Build and artifact-regeneration instructions are
+kept in the [implementation companion index](implementation/README.md#artifact-generation-and-freshness-checks)
+so this scientific index remains focused on the studies.
 
 Selected method pages also include
 [reduced illustrative crops](images/README.md) from the source test captures.

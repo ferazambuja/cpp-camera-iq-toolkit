@@ -73,8 +73,8 @@ Build pipeline confirmed by `Old/load_all.m` + `PRD measurments/create_single_fi
 | RawDigger label convention is transposed relative to reference IDs | compare RawDigger labels and workbook labels | RawDigger row order `A1,A2,...A14,B1...` maps to reference order `A1,B1,...N1,A2...`; literal label matching over shared IDs gives only **0.407** corr, while current physical order gives **0.958** corr against 560-nm proxy |
 | SG orientation sanity check | current physical order vs reference-grid column flip, row flip, and 180° rotation, using RawDigger green vs 560-nm proxy | current **0.958**; reference-grid column/row/180 flips **0.327 / 0.433 / 0.353** — the current sweep direction is the only plausible orientation |
 | Local `spectral-diversity-toolkit` exports checked | inspect CSV headers and source fields | `ccsg_measured_140patch_spectral.csv` and subsets cite `source_file=ccsg.xlsx`, `source_sheet=ccsg_2_FIXED_ref`; they are derivative order/subset exports, not missed newer measurements |
-| C++ ingestion path | `tools/export_ccsg_xlsx.py` → `camera_iq reference-info clrs589_project_camera` | validates 140 patches × 36 bands; A1..N10; 380-730 nm; emits typed provenance |
-| C++ pairing gate | `reference-info` broadband proxy correlations against `Images/ccsg_matlab.csv` | luminance **0.9775**, red-green **0.9498**, blue-green **0.9617**; configured gate passes |
+| Reference ingestion | workbook export and structured validation | 140 patches × 36 bands; A1..N10; 380-730 nm |
+| Camera/reference pairing gate | broadband proxy correlations against the retained camera table | luminance **0.9775**, red-green **0.9498**, blue-green **0.9617**; configured gate passes |
 
 Illuminant conditions (verified): ramp trials (n=42) **CCT mean 5984 K
 [5845–6157], Duv mean −0.0023**; PRD (n=45) **CCT mean ~5510 K, Duv ~−0.0009**
@@ -97,8 +97,9 @@ ColorChecker-SG nominal Lab tables (Zenodo mirror, i1Pro 2 / M0), which ship bot
 the `Before_Nov2014` and `After_Nov2014` pigment editions. The toolkit's
 `ccsg_2_FIXED_ref.csv` reflectance was rendered to CIELAB (D50 / CIE 1931 2°,
 perfect-diffuser white Y=100) and compared **by label** to the manufacturer Lab.
-Reproduce with `tools/verify_ccsg_vs_xrite.py` (self-contained; hardcoded CMF/D50;
-no external deps).
+The independent manufacturer comparison uses the same CIE 1931 2-degree
+observer and D50 tables declared here; its software path is documented in the
+[color-characterization implementation companion](../implementation/color-characterization.md).
 
 **Render self-check (validates the tables before trusting any chromatic number):**
 the column-A neutral border renders L = 96.5 / 8.9 / 50.8 (A1/A2/A3) vs X-Rite
@@ -231,10 +232,9 @@ chart identity or a new measurement of that chart. The current comparison
 supports a neutral local measurement anchor, a compatible colored spectral SG
 reference, and an optional manufacturer-nominal comparison.
 
-## Reproducibility
+## Engineering companion
 
-- [`src/color_reference.cpp`](../../src/color_reference.cpp)
-- [`src/cmd_reference_info.cpp`](../../src/cmd_reference_info.cpp)
-- [`tests/test_color_reference.cpp`](../../tests/test_color_reference.cpp)
-- [`tools/verify_ccsg_vs_xrite.py`](../../tools/verify_ccsg_vs_xrite.py)
-- [ColorChecker/CCM case study](../case-studies/colorchecker-ccm.md)
+The [color-characterization implementation companion](../implementation/color-characterization.md)
+explains how the reference enters the C++ analysis and routes readers to the
+public source and tests. The reader-first result is the
+[ColorChecker/CCM case study](../case-studies/colorchecker-ccm.md).

@@ -24,8 +24,7 @@ ranking.
 [detailed report](../reports/SFR_MTF.md) ·
 [capture inventory](../reports/SFR_MTF_ARCHIVE_INVENTORY.md) ·
 [aggregate CSV](../data/sfr_aperture_summary.csv) ·
-[implementation](../../src/sfr.cpp) ·
-[tests](../../tests/test_sfr.cpp)
+[implementation companion](../implementation/sfr-mtf.md)
 
 ![Nikon D800 and D810 SFR aperture and field summary](../figures/sfr_aperture_field.svg)
 
@@ -36,10 +35,11 @@ values, which run a different luma and gamma path and so are read as a
 consistency check rather than as agreement. The D810 curve peaks at f/5.6, the
 location expected from the usual balance between residual aberrations and
 diffraction, but this archive does not isolate that cause; the D800 curve does
-not follow it. Panel B: center minus corner at each aperture, so a positive
-value means the center outresolves the corner. Where that margin goes negative,
-the corner is sharper than the center — which is why a center-only number cannot
-describe either system.*
+not follow it. Panel B: paired bars for the f/4–f/11 field-map apertures, blue
+for D810 and orange for D800. Each bar is center minus strongest physical
+corner, so a positive value means the center outresolves the corner. Where that
+margin goes negative, the corner is sharper than the center — which is why a
+center-only number cannot describe either system.*
 
 ## Method
 
@@ -72,7 +72,8 @@ toolkit's sensor-linear green path.
 
 The archive retains both RAW sweeps and one matched per-file advisory batch
 generated after capture. It does not retain lens serial identity, controlled
-refocusing, repeat captures, or sagittal/tangential coverage. The study
+refocusing, repeat captures, or controlled coverage of both principal edge
+orientations (often described as sagittal and tangential). The study
 therefore treats the advisory values as a cross-check, reports
 capture-system-specific trends, and does not turn the common lens-model label
 into a universal body or lens rule.

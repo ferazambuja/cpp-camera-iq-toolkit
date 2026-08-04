@@ -27,9 +27,7 @@ per-unit chart calibration or a claim about every scene and illuminant.
 [patch report](../reports/PATCH_EXTRACTION.md) ·
 [reference notes](../reports/SG_REFERENCE_PROVENANCE.md) ·
 [aggregate CSV](../data/ccm_validation_summary.csv) ·
-[patch implementation](../../src/patches.cpp) ·
-[CCM implementation](../../src/colorimetry.cpp) ·
-[tests](../../tests/test_colorimetry.cpp)
+[implementation companion](../implementation/color-characterization.md)
 
 The retained study material includes the RAW, flat-field, and dark captures but
 not an exact per-unit spectral measurement of the photographed chart. The
@@ -103,7 +101,9 @@ evidence that discarding difficult patches created a better camera model.
 The flat used to correct these patches is the accepted f/8, 1/1000 s frame
 characterized in the
 [CFA flat-field case study](cfa-flat-field-response.md), so it is measured
-rather than assumed: green falls to 0.4816 of center, `C_BG` reaches 1.0447,
+rather than assumed. It is the repeat frame of the matched 1/1000 s pair, so its
+figures differ slightly from the primary frame quoted there: green falls to
+0.4816 of center, `C_BG` reaches 1.0447,
 `C_RG` falls to 0.9773, and it is 0% near ceiling in both the whole frame and
 the centered gate. Dividing by it therefore removes a strong intensity gradient
 and a smaller chromatic one across the chart area. What it cannot do is separate
