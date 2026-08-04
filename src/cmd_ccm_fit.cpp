@@ -21,6 +21,17 @@ namespace {
 
 constexpr std::size_t kDefaultCrossValidationFolds = 5;
 
+struct CcmReferenceContract {
+  std::string_view role;
+  std::string_view output_scope;
+  std::string_view physical_chart_identity;
+};
+
+constexpr CcmReferenceContract kCompatibleSgReferenceContract{
+    color_reference_roles::kCompatibleSgSpectral,
+    "compatible_sg_spectral_not_exact_per_unit",
+    "compatible_reference_not_proven_same_physical_chart"};
+
 struct Args {
   std::string dataset_id;
   std::filesystem::path config = default_dataset_config_path();
@@ -40,7 +51,14 @@ void usage() {
                " [--config FILE] [--camera-rgb FILE]"
                " [--exclude-ref-lightness-below LSTAR] [--out FILE]\n"
                "Fits a linear RGB-to-XYZ matrix against the dataset's "
-               "configured spectral reference.\n";
+               "configured spectral reference.\n"
+            << "Supported reference role: '"
+            << kCompatibleSgReferenceContract.role
+            << "' -> reference_scope '"
+            << kCompatibleSgReferenceContract.output_scope << "'.\n"
+            << "Required physical_chart_identity: '"
+            << kCompatibleSgReferenceContract.physical_chart_identity
+            << "'.\n";
 }
 
 PatchSubset subset_patches(const std::vector<CameraRgbPatch>& camera_rgb,
@@ -66,8 +84,8 @@ void require_non_empty(std::string_view value, std::string_view field) {
   }
 }
 
-void validate_ccm_provenance(const DatasetSpec& dataset,
-                             const ColorReferenceSpec& spec) {
+CcmReferenceContract validate_ccm_provenance(const DatasetSpec& dataset,
+                                             const ColorReferenceSpec& spec) {
   require_non_empty(dataset.capture_project, "capture_project");
   require_non_empty(dataset.capture_year, "capture_year");
   require_non_empty(dataset.timeline_note, "timeline_note");
@@ -79,10 +97,26 @@ void validate_ccm_provenance(const DatasetSpec& dataset,
                     "color_reference.physical_chart_identity");
   require_non_empty(spec.numbering_order, "color_reference.numbering_order");
   require_non_empty(spec.role, "color_reference.role");
-  if (spec.role != "compatible_sg_spectral") {
+  if (spec.role != kCompatibleSgReferenceContract.role) {
     throw std::runtime_error(
-        "ccm fit: unsupported color reference role " + spec.role);
+        "ccm fit: unsupported color reference role '" + spec.role +
+        "'; supported role is '" +
+        std::string(kCompatibleSgReferenceContract.role) +
+        "' with reference_scope '" +
+        std::string(kCompatibleSgReferenceContract.output_scope) +
+        "'; adding another role requires an explicit "
+        "role/scope/identity contract");
   }
+  if (spec.physical_chart_identity !=
+      kCompatibleSgReferenceContract.physical_chart_identity) {
+    throw std::runtime_error(
+        "ccm fit: role '" + spec.role +
+        "' requires physical_chart_identity '" +
+        std::string(kCompatibleSgReferenceContract.physical_chart_identity) +
+        "'; adding another identity interpretation requires an explicit "
+        "role/scope/identity contract");
+  }
+  return kCompatibleSgReferenceContract;
 }
 
 SpectralReferenceProvenance provenance_from_spec(
@@ -234,7 +268,8 @@ void write_pairing(JsonWriter& w, const SpectralReferencePairing& pairing) {
 }
 
 void write_timeline_provenance(JsonWriter& w, const DatasetSpec& dataset,
-                               const ColorReferenceSpec& spec) {
+                               const ColorReferenceSpec& spec,
+                               const CcmReferenceContract& reference_contract) {
   w.begin_object();
   w.key("selection_basis");
   w.value(spec.selection_basis);
@@ -249,7 +284,7 @@ void write_timeline_provenance(JsonWriter& w, const DatasetSpec& dataset,
   w.key("reference_source");
   w.value(spec.source);
   w.key("physical_chart_identity");
-  w.value(spec.physical_chart_identity);
+  w.value(reference_contract.physical_chart_identity);
   w.key("timeline_note");
   w.value(dataset.timeline_note);
   w.end_object();
@@ -326,6 +361,7 @@ void write_dark_diagnostics(JsonWriter& w,
 void write_report(std::ostream& os, const std::string& dataset_id,
                   const DatasetSpec& dataset,
                   const ColorReferenceSpec& spec,
+                  const CcmReferenceContract& reference_contract,
                   const std::filesystem::path& camera_rgb_path,
                   const std::filesystem::path& illuminant_path,
                   const SpectralReference& ref,
@@ -347,13 +383,13 @@ void write_report(std::ostream& os, const std::string& dataset_id,
   w.key("reference_id");
   w.value(spec.id);
   w.key("reference_role");
-  w.value(spec.role);
+  w.value(reference_contract.role);
   w.key("reference_scope");
-  w.value("compatible_sg_spectral_not_exact_per_unit");
+  w.value(reference_contract.output_scope);
   w.key("selection_basis");
   w.value(spec.selection_basis);
   w.key("timeline_provenance");
-  write_timeline_provenance(w, dataset, spec);
+  write_timeline_provenance(w, dataset, spec, reference_contract);
   w.key("reference_path");
   w.value(public_file_label(spec.path, "external"));
   w.key("camera_rgb_path");
@@ -533,7 +569,8 @@ int cmd_ccm_fit(int argc, char** argv) {
     }
 
     const auto spec = *it->second.color_reference;
-    validate_ccm_provenance(it->second, spec);
+    const auto reference_contract =
+        validate_ccm_provenance(it->second, spec);
     auto ref = read_reference_from_spec(spec);
     validate_spectral_reference(ref, validation_from_spec(spec));
 
@@ -599,6 +636,7 @@ int cmd_ccm_fit(int argc, char** argv) {
 
     if (args.out.empty()) {
       write_report(std::cout, args.dataset_id, it->second, spec,
+                   reference_contract,
                    camera_rgb_path, args.illuminant_spd, ref, rendered, fit,
                    cv, baseline_all_patch_fit, baseline_cv,
                    all_patches_with_fit_matrix, fit_set_evaluation,
@@ -611,6 +649,7 @@ int cmd_ccm_fit(int argc, char** argv) {
               args.out, "ccm-fit",
               [&](std::ostream& os) {
                 write_report(os, args.dataset_id, it->second, spec,
+                             reference_contract,
                              camera_rgb_path, args.illuminant_spd, ref,
                              rendered, fit, cv, baseline_all_patch_fit,
                              baseline_cv, all_patches_with_fit_matrix,

@@ -8,6 +8,7 @@
       "capture_year": "2020",
       "timeline_note": "Capture and reference provenance are explicit; do not infer pairing from camera EXIF dates.",
       "_reference_note": "Local CLRS-589 spectroradiometry is neutral-only, but a compatible 2019 ColorChecker-SG spectral-reflectance workbook can be used for the colored CCM/deltaE demo when copied locally. Keep all private/reference files under data/private/references/ and document whether each reference is official nominal, compatible standard, representative measured, or exact per-unit.",
+      "_role_note": "Reference roles are command-specific declarative metadata. ccm-fit currently accepts only compatible_sg_spectral, requires physical_chart_identity compatible_reference_not_proven_same_physical_chart, and emits reference_scope compatible_sg_spectral_not_exact_per_unit. Adding another fit interpretation requires an explicit role/scope/identity contract. reference-info synthesizes direct_spectral_reference only for direct-file inspection. See docs/DATASETS.md.",
       "sg_chart_edition": "after_nov2014 | before_nov2014 (set to match the physical chart)",
       "manufacturer_sg_lab_ref": "path/to/manufacturer_SG_Lab_<edition>.csv (external; provide in datasets.local.json)",
       "color_reference": {

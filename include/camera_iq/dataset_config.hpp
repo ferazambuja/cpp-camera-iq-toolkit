@@ -8,6 +8,16 @@
 
 namespace camera_iq {
 
+// Reference roles are declarative provenance metadata. Commands must opt into
+// the roles whose scientific interpretation they can serialize; parsing a
+// role does not imply that every command supports it.
+namespace color_reference_roles {
+inline constexpr std::string_view kCompatibleSgSpectral =
+    "compatible_sg_spectral";
+inline constexpr std::string_view kDirectSpectralReference =
+    "direct_spectral_reference";
+}  // namespace color_reference_roles
+
 struct ColorReferenceSpec {
   std::string id;
   std::string role;

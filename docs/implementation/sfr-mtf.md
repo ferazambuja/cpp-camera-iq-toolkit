@@ -102,7 +102,7 @@ conclusions cannot be merged accidentally.
 
 ## Verification evidence
 
-The executable numerical assertions are in
+At the library/unit layer, the executable numerical assertions are in
 [`test_sfr.cpp`](../../tests/test_sfr.cpp).
 
 The numerical core is checked against analytic fixtures. A delta LSF produces
@@ -113,8 +113,11 @@ cycles/pixel to `1e-6`.
 
 On the `160 × 144`, `sigma = 1.25`, `-6°` point-sampled horizontal Gaussian
 fixture and its fixed `120 × 112` ROI, the algorithm must recover angle within
-`0.08°`, MTF50 within `0.018 cycles/pixel` of the analytic value, and Nyquist
-response within `0.08`. A separate `-6°` hard edge built with `8 × 8`
+`0.08°`, both MTF50 and peak-normalized MTF50P within
+`0.018 cycles/pixel` of the analytic value, and a positive Nyquist response
+below `0.01`. On a separate `sigma = 0.5` fixture with the same geometry, the
+measured Nyquist response must agree with its analytic value within `0.03`.
+A separate `-6°` hard edge built with `8 × 8`
 pixel-area supersampling must recover `0.6034 ± 0.03 cycles/pixel`, including
 the expected result above sensor Nyquist. These are fixture-specific bounds for
 two different sampling models, not interchangeable general guarantees.

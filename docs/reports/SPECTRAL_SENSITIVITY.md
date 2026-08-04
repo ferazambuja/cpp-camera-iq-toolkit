@@ -240,9 +240,13 @@ CMF_j(lambda) approximately equals
   a_jR S_R(lambda) + a_jG S_G(lambda) + a_jB S_B(lambda)
 ```
 
-The relative residual is the remaining error divided by the norm of the CIE
-function. Lower is better, and the measure is scale-invariant, so green-peak
-normalization does not bias it. Results use the 380–730 nm common grid:
+For the reported metric, each camera-sensitivity column and CIE function is
+normalized before reporting the relative projection residual onto the camera's
+three-channel subspace. Lower is better. This normalized SSF-subspace metric is
+invariant to nonzero rescaling of its camera-sensitivity columns, so the
+declared green-peak normalization does not change this metric. That property
+does not apply to the physical sensitivity amplitudes or to the separate
+closure calculation. Results use the 380–730 nm common grid:
 
 | Rank | Camera | SSF source | xbar residual | ybar residual | zbar residual | Combined residual | Quality index |
 |---|---|---|---:|---:|---:|---:|---:|
@@ -262,9 +266,11 @@ run (both well above the A7SII's 0.310).
 
 IQ3 provenance caveats (distinct from the four 2016 cameras):
 - **Different session and rig**: the IQ3 SSF is from the 2017 camSPECS session,
-  not the 2016 monochromator run. This is legitimate for the Luther metric, which
-  is a pure SSF-vs-CMF geometry — session-, illuminant-, and capture-independent —
-  but it would be invalid to pool the IQ3 into any closure comparison.
+  not the 2016 monochromator run. Once an SSF is fixed, the Luther calculation
+  uses no chart capture or test illuminant, so the IQ3 can participate in this
+  SSF-only comparison. That does not make the extracted SSF independent of its
+  measurement session or rig, and it would be invalid to pool the IQ3 into any
+  closure comparison.
 - **Legacy SSF, SSF-only**: the IQ3 uses its retained
   `Spectral_Sensitivity_Data.csv`. Its session has no broadband target capture
   or measured chart reflectance, so it cannot participate in physical closure.
