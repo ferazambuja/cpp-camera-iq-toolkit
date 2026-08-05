@@ -15,12 +15,21 @@ standard observer—the theoretical condition for colorimetric camera response?
 The distinction matters: the first checks a measurement chain, while the second
 compares a sensor's colorimetric potential.
 
-Four evidence-complete camera/chart sets reached minimum channel correlation
-above **0.992** in the physical closure check. Across the five available
-spectral-sensitivity sets, the Canon 5D2 was closest to the human-observer
-subspace under the declared fit and the Phase One IQ3 was farthest; small
-differences among the middle cameras changed with analysis choices and are not
-presented as a firm ranking.
+In the physical closure check, four camera/chart sets whose sessions retained
+every input needed to close the loop predicted their own chart captures to
+within **9.5–13.8% RMS per channel**, with patch-order correlation above 0.992.
+The correlation is the weaker of the two: it is scale-invariant and largely
+driven by the light-to-dark spread across 140 patches, so the RMS is the number
+that could have failed. Both are reported together throughout.
+
+Across the five available spectral-sensitivity sets, the Canon 5D2 was closest
+to the human-observer subspace under the declared fit and the Phase One IQ3 was
+farthest. The practical spread is small: on the ISO-recommended chromatic patch
+set under D55, ISO 17321-style sensitivity metric (SMI) values span **90.7 down
+to 88.3** against a colorimetric ideal of 100, and mean CIEDE2000 against the
+reference spans **0.88 to 1.10** — every camera within roughly one
+just-noticeable difference. Differences among the middle cameras changed with
+analysis choices and are not presented as a firm ranking.
 
 [Documentation index](../README.md) ·
 [detailed report](../reports/SPECTRAL_SENSITIVITY.md) ·
@@ -49,8 +58,10 @@ result and the middle ordering is not. `QI` beside each camera is the separate
 Luther-fit quality index, which asks how closely that sensor's spectral
 sensitivities can be matched to the human observer by any linear transform. The
 two answer different questions, so they are shown side by side rather than
-merged. Only the Canon row comes from this toolkit's own RAW extraction; the
-others use measured legacy sensitivity functions.*
+merged. `QI` runs to a ceiling of 1.0, which would mean the sensitivities are an
+exact linear transform of the CIE observer. Only the Canon row comes from this
+toolkit's own RAW extraction; the others use sensitivity functions measured in
+the same laboratory run and retained in the archive.*
 
 ## Method
 
@@ -81,23 +92,38 @@ For the retained Canon 5D2 end-to-end extraction, toolkit-vs-legacy normalized
 response correlation was **0.99937 / 0.99979 / 0.99991** for R/G/B.
 
 The dense 140-patch closure used a toolkit-extracted Canon SSF and measured
-legacy SSFs for the Nikon D810, Sony A7RII, and Sony A7SII. All four cameras
-matched all 140 patches, with minimum channel correlation above **0.992**. A
-24-patch complementary run held minimum correlation above **0.997**.
+retained SSFs for the Nikon D810, Sony A7RII, and Sony A7SII. All four cameras
+matched all 140 patches, at **9.5–13.8% relative RMS per channel** and
+patch-order correlation above **0.992**. A 24-patch complementary run was
+tighter, at 5–8% RMS and correlation above 0.997.
 
-Toolkit RAW extractions for the other three cameras in the shared run
-reproduced the reported Luther ordering at the shown precision, which checks
-that the ranking is not an artifact of choosing the retained legacy CSVs.
+Those retained curves are comparison references for reimplementation fidelity,
+not independent truth: they were measured on the same rig in the same session,
+so agreement with them shows this toolkit reproduces that measurement, not that
+either is correct. Toolkit RAW extractions for the other three cameras in the
+shared run reproduced the reported Luther ordering at the shown precision, which
+checks that the ranking is not an artifact of choosing the retained CSVs.
 
 ## Findings
 
 The endpoint ordering stayed stable across the Luther residual and all three
 SMI test sets: Canon 5D2 was the closest of the five measured sensitivities to a
-color-matching-function subspace, and the separate Phase One IQ3 run was the
-farthest. Sony A7RII was second across the SMI sets and effectively tied with
-D810 under the Luther residual at published precision. The middle A7SII/D810
-ordering moved by a few tenths under test-set or optimization choices, so it is
-reported as a close comparison rather than a large-margin camera ranking.
+color-matching-function subspace (SMI 90.7, mean CIEDE2000 0.93), and the
+separate Phase One IQ3 run was the farthest (SMI 88.3, 1.10). Sony A7RII was
+second across the SMI sets (90.0) and effectively tied with D810 under the
+Luther residual at published precision. The middle A7SII/D810 ordering moved by
+a few tenths when the illuminant changed, so it is reported as a close
+comparison rather than a large-margin camera ranking.
+
+The two endpoints are not equally well supported. The four 2016 cameras share
+one rig, one session, and one illuminant, so their ordering is a controlled
+comparison. The Phase One IQ3 was measured on a different rig in a different
+year, and no file identifies either monochromator, so its 2.4-point SMI gap
+below the Canon cannot be separated from cross-rig systematics. A second
+retained IQ3 run differs from the first by about 0.1 SMI, which bounds
+within-rig repeatability but says nothing about the between-rig offset. The
+firm result is therefore the Canon's position within the shared run; the IQ3
+endpoint is directional.
 
 The chart-closure residual is not used to rank camera quality. Closure contains
 session, lens, chart, sidecar, illuminant, and SSF effects; the separate
