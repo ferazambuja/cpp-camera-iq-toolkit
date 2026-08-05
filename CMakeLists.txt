@@ -130,8 +130,9 @@ function(camera_iq_expect_doc_evidence target expectations)
             TMPDIR=${evidence_tmpdir}
             TMP=${evidence_tmpdir}
             TEMP=${evidence_tmpdir}
-            $<TARGET_FILE:${target}>
-            --camera-iq-doc-evidence-expect ${expectations})
+            python3 ${CMAKE_SOURCE_DIR}/tools/run_doc_evidence_test.py
+            --binary $<TARGET_FILE:${target}>
+            --expectations ${expectations})
 endfunction()
 
 camera_iq_add_test(camera_iq_tests tests/test_cli_basic.cpp)
@@ -292,6 +293,11 @@ get_property(CAMERA_IQ_REGISTERED_TESTS DIRECTORY PROPERTY TESTS)
 set_tests_properties(${CAMERA_IQ_REGISTERED_TESTS} PROPERTIES
   ENVIRONMENT
     "TMPDIR=${CAMERA_IQ_TEST_TMPDIR};TMP=${CAMERA_IQ_TEST_TMPDIR};TEMP=${CAMERA_IQ_TEST_TMPDIR}")
+
+# Register the supervisor's own behavioral test after shared properties, for
+# the same reason the supervised evidence checks follow it.
+add_test(NAME test_run_doc_evidence_test
+  COMMAND python3 ${CMAKE_SOURCE_DIR}/tools/test_run_doc_evidence_test.py)
 
 # Register dedicated runtime evidence checks after shared test properties are
 # complete, so a later property assignment cannot disable or rewrite them.

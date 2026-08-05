@@ -2,7 +2,10 @@
 #include "harness.hpp"
 
 #include <cstdlib>
+#include <filesystem>
+#include <fstream>
 #include <iostream>
+#include <iterator>
 #include <sstream>
 #include <stdexcept>
 #include <string>
@@ -19,10 +22,12 @@ struct RunResult {
 };
 
 template <typename TestBody>
-RunResult run_and_capture(TestBody body, const char* expectations = nullptr) {
+RunResult run_and_capture(TestBody body, const char* expectations = nullptr,
+                          const char* receipt_path = nullptr,
+                          const char* nonce = nullptr) {
   std::ostringstream captured;
   std::streambuf* original = std::cout.rdbuf(captured.rdbuf());
-  const int exit_code = test::run(body, expectations);
+  const int exit_code = test::run(body, expectations, receipt_path, nonce);
   std::cout.rdbuf(original);
   return {exit_code, captured.str()};
 }
@@ -30,6 +35,11 @@ RunResult run_and_capture(TestBody body, const char* expectations = nullptr) {
 }  // namespace
 
 int main() {
+  const std::filesystem::path receipt_path =
+      std::filesystem::temp_directory_path() /
+      "camera-iq-test-harness-evidence.receipt";
+  std::error_code remove_error;
+  std::filesystem::remove(receipt_path, remove_error);
   const RunResult standard = run_and_capture([] {
     test::check(false, "failure recorded before throw");
     throw std::runtime_error("sentinel exception");
@@ -83,6 +93,24 @@ int main() {
         harness_runtime_probe,
         test::check(false, "wrapped assertion failure remains a test failure"));
   }, "harness_runtime_probe=1");
+  const std::string receipt_path_text = receipt_path.string();
+  const RunResult failed_receipt = run_and_capture(
+      [] {}, "harness_runtime_probe=1", receipt_path_text.c_str(),
+      "failed-nonce");
+  const bool failed_run_left_no_receipt = !std::filesystem::exists(receipt_path);
+  const RunResult completed_receipt = run_and_capture([] {
+    CAMERA_IQ_DOC_EVIDENCE(
+        harness_runtime_probe,
+        test::check(true, "runtime evidence writes completion receipt"));
+  }, "harness_runtime_probe=1", receipt_path_text.c_str(), "completed-nonce");
+  std::string completed_receipt_text;
+  {
+    std::ifstream receipt(receipt_path);
+    completed_receipt_text.assign(
+        std::istreambuf_iterator<char>(receipt),
+        std::istreambuf_iterator<char>());
+  }
+  std::filesystem::remove(receipt_path, remove_error);
   const RunResult nested_run = run_and_capture([] {
     (void)test::run([] { test::check(true, "nested body must not execute"); });
   });
@@ -139,6 +167,13 @@ int main() {
   require(contains(evidence_failed_assertion.output,
                    "[fail] wrapped assertion failure remains a test failure"),
           "harness: a wrapped assertion preserves its failure");
+  require(failed_receipt.exit_code == 1 && failed_run_left_no_receipt,
+          "harness: failed evidence verification writes no completion receipt");
+  require(completed_receipt.exit_code == 0,
+          "harness: verified evidence can write a completion receipt");
+  require(completed_receipt_text ==
+              "completed-nonce\nharness_runtime_probe=1\n",
+          "harness: completion receipt binds nonce and expectations");
   require(nested_run.exit_code == 1,
           "harness: a nested run is rejected without resetting outer state");
   require(contains(nested_run.output, "[fail] nested test::run is not supported"),

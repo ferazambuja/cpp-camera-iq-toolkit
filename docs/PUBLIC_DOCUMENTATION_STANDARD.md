@@ -166,6 +166,11 @@ that paragraph, inside the companion's verification-evidence section:
 <!-- test-evidence: identifier -->
 ```
 
+If the paragraph states an assertion count, describe it as the number
+**registered for this claim**, never as a census of the entire test file. The
+documentation guard compares that stated count with the registered source-
+wrapper count so either side changing forces a review.
+
 In the registered C++ test, wrap every `check()` or `check_near()` assertion
 that constitutes the public claim with
 `CAMERA_IQ_DOC_EVIDENCE(identifier, assertion)`. The harness records the
@@ -193,11 +198,19 @@ invert them are refused. The static guard ignores wrappers in comments, strings,
 Markdown examples, preprocessor definitions, and conditionally compiled
 regions.
 
-CTest passes the expectation as a dedicated harness argument, so global
-initializers and test bodies cannot suppress it by mutating process state.
-Registered test sources may not start a nested harness run, reset failure
-state, terminate successfully before verification, or access the recorder and
-run state except through
+CTest runs each evidence binary through a supervising process. The supervisor
+creates a unique receipt path and random nonce, passes the expectation through
+dedicated harness arguments, and accepts success only when the child exits zero
+and leaves a receipt containing the exact nonce and expectation set. The
+harness writes that receipt only after
+all expected evidence counts verify successfully. A dependency, global
+initializer, or ordinary replacement process that exits zero before completing
+the protocol therefore leaves no valid receipt and fails the CTest. This is a
+freshness and reachability check, not a security boundary against deliberately
+hostile test code: the child necessarily receives the receipt path and nonce.
+Registered test sources
+may not start a nested harness run, reset failure state, invoke process
+termination directly, or access the recorder and run state except through
 `CAMERA_IQ_DOC_EVIDENCE`. The harness self-test exercises those mechanics but
 cannot be registered as scientific evidence.
 
@@ -332,6 +345,10 @@ Before publishing or materially revising a public portfolio document, verify:
       selected additional decision-changing numeric, refusal, provenance, or
       serialization claims use their own wrappers, while other claims remain
       subject to direct technical review.
+- [ ] For every marked claim, a reviewer compares the prose with its exact
+      wrapped assertions: fixture, bound, operating conditions, semantic scope,
+      and any stated assertion count. A count names wrappers registered for the
+      claim, not all assertions in the test file.
 - [ ] Its verification section links the relevant executable assertion and
       retains a numeric bound/count or exact semantic contract with every
       precondition needed to interpret it.
