@@ -25,11 +25,17 @@ this study measures the differences precisely and stops there, rather than
 naming a cause the record cannot support.
 
 The analysis resolves 89 distinct readings plus 45 byte-identical aliases into
-40 declared groups. Among groups with repeated measurements, the typical
-variation in total light level was **7.17%**, while the most variable group
-reached **41.65%**. Spectral shape and chromaticity varied on different groups
-and by different amounts, so no single “stability” score can describe the
-archive honestly.
+40 declared groups. Among the 37 groups holding repeated measurements, the
+median coefficient of variation in total light level — each group's standard
+deviation divided by its mean, across the two or three readings in that group —
+was **7.17%**, while the most variable group reached **41.65%**.
+
+Level moved independently of the other two. The group with the largest level
+variation is not the group with the largest shape or chromaticity variation:
+those two peak together on one group, and the level maximum lands on a
+different one. So a source can hold its spectral shape and its color while its
+output drifts, and no single “stability” score can describe the archive
+honestly.
 
 [Documentation index](../README.md) ·
 [detailed report](../reports/SPECTRORADIOMETER_INGEST.md) ·
@@ -56,8 +62,11 @@ Byte identity and spectrum content distinguish the 89 retained readings from 45
 descriptive aliases without treating the aliases as new measurements. The
 retained grouping record then identifies distinct readings of the same target;
 target identity is not inferred from spectral similarity. That yields 40
-measurement groups — 37 holding two or three readings, and three singletons. Each
-multi-reading group is characterized on three independent axes:
+measurement groups — 37 holding two or three readings, and three singletons.
+Each multi-reading group is characterized on three axes. They are not
+independent — chromaticity is computed from the spectrum through the CIE
+observer, so it is a functional of the normalized shape — but they isolate
+different failure modes, and a source can fail on one while holding the others:
 
 - **Level** — the coefficient of variation of the equal-weight spectral
   integral, that is, how much total radiance differed between repeats.
