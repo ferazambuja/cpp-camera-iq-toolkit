@@ -21,64 +21,14 @@ the best single entry point: it measures two camera bodies with the same lens
 model and shows why one center-of-frame sharpness number does not describe
 either of them.
 
-## Selected results and engineering decisions
+![Nikon D800 and D810 SFR aperture and field summary](docs/figures/sfr_aperture_field.svg)
 
-- **Sharpness across the frame:** slanted-edge spatial frequency response and
-  modulation transfer function (SFR/MTF) measurements covered **299 chart
-  regions** across Nikon D800 and D810 aperture sweeps. The D810 peaked at
-  f/5.6; the D800 did not reproduce that trend and showed asymmetric off-axis
-  behavior, so the two capture systems require separate conclusions.
-- **Spectral characterization:** extracted a Canon 5D2 spectral-sensitivity
-  function from monochromator RAW sweeps, closed four same-session camera/chart
-  datasets with minimum channel correlation above **0.992**, and compared five
-  cameras with Luther and ISO 17321-style color-fidelity metrics.
-- **ColorChecker / color-correction matrix:** matched uncorrected 140-patch RAW
-  extraction to a reference tool at correlation above **0.99999998** with
-  sub-0.4 DN RMSE, then evaluated the corrected linear fit on patches it had
-  not seen during training, reaching **4.134 mean held-out CIEDE2000**.
-- **Measurement judgment:** rejected a ColorChecker grid despite correlations
-  above 0.999 because its center error reached **16.449 px**, and rejected an
-  invalid Stepchart strip model before accepting the measured ring geometry.
-- **CFA flat-field response:** screened **52 sphere captures** from a Fujifilm
-  X-T100 and Fujinon XF 14 mm f/2.8 R integrating-sphere set, retained three
-  usable f/8 frames, and measured center-normalized green and chromatic fields.
-  A **19.65% spread between the brightest and darkest corner blocks**, scaled
-  by their average, exceeded the declared 5% criterion and was
-  inconsistent with a centered radial scalar model for the measured composite
-  field; missing capture controls prevent isolated lens attribution.
-- **Flat-field input screening:** both the ColorChecker correction and the
-  spatial-response analysis inspect the source color-filter-array samples over
-  the full frame and a centered region. That screen rejects a 1/500 s frame
-  whose worst sensor position is **11.63% near ceiling** in the center, while
-  retaining the 1/1000 s flat for correction.
-- **Spectroradiometer ingest:** parsed **89 distinct MATLAB v5 readings** into
-  40 measurement groups, resolved by content hash rather than by filenames that
-  number acquisitions instead of scenes. Across the 37 multi-reading groups,
-  spectral-integral CV was **7.17% median** and **41.65% maximum**; maximum
-  normalized-shape residual was **1.076%**; and maximum recorded-XYZ pair
-  separation was **0.002852 Δu′v′**. These metrics describe different
-  properties, their maxima occur in different groups, and they do not identify
-  a cause. An independent MATLAB R2026a export matched all 89 readings,
-  including source-file identities and exact hashes for **178 numeric vectors**.
-- **Gamut mapping:** on a 125-point synthetic Display-P3 grid, **94 points**
-  began outside sRGB. Changing only the radial coordinates from CIELAB to
-  OkLCh cut P3 yellow, the CIELAB worst case, from **23.928 to 5.523**
-  CIEDE2000 with far more chroma retained, lowering the grid maximum to
-  **9.956** at a new worst point in red, while the grid mean rose from
-  **2.857 to 2.947**: a targeted trade, not a uniform gain. Changing only the
-  OkLCh algorithm to Local MINDE then reduced both the grid mean (**2.947 to
-  2.323**) and the maximum (**9.956 to 7.602**), at a wider IPT-hue 90th
-  percentile. The C++ implementation includes CIELAB and OkLCh
-  mapping, analytic channel-boundary searches, and a dated CSS Color 4
-  Local-MINDE method. No one method wins every statistic; this is a controlled
-  algorithm study, not observer validation.
-- **Color-model equation audit:** CAM16's square-root relation reaches half
-  normalized brightness at lightness `J = 25`, while half lightness is
-  `J = 50`. One background-adaptation factor rises by **2.595×** under the
-  darkest tested background, but the complete coupled expression spans
-  **2.120–2.687×**, proving the isolated term is neither a floor nor a ceiling.
-  The audit also retains the paper's unfavorable result—a LUTCHI colorfulness
-  `R²` drop from **0.81 to 0.71**—alongside its gains.
+*The flagship measurement. Left: centre MTF50 in cycles/pixel against aperture
+for both bodies — the D810 peaks cleanly at f/5.6, while the D800 does not
+reproduce that shape and sits below its own f/16 result wide open. Right:
+centre minus strongest physical corner, where a negative bar means the corner
+outresolved the centre. The two nominally matched systems disagree, which is
+why one acceptance criterion cannot cover both.*
 
 ## Featured case studies
 
@@ -94,6 +44,43 @@ either of them.
 
 The [technical documentation index](docs/README.md) connects these case studies
 to the OECF, noise, demosaic, localization, dataset, and provenance reports.
+
+## Selected results
+
+- **Sharpness is not one number.** Slanted-edge SFR/MTF across **299 chart
+  regions** on two Nikon bodies sharing a 50 mm lens model: the D810 peaked at
+  f/5.6, the D800 peaked later and lower and put its field maximum off-axis.
+  The D800 was manually focused with unverified accuracy, so that result is
+  scoped to the capture session rather than the body.
+- **Walking away from a good-looking number.** A ColorChecker grid was rejected
+  despite RGB correlations above 0.999, because its centre error reached
+  **16.449 px** against a declared 5 px limit — correlation cannot outvote
+  geometry. An invalid Stepchart strip model was rejected the same way.
+- **Spectral colour fidelity.** A Canon 5D2 spectral-sensitivity function was
+  extracted from monochromator RAW sweeps and closed against same-session chart
+  captures at **9.5–13.8% RMS per channel**. Five cameras compared on Luther
+  residual and ISO 17321-style SMI span **90.7 to 88.3** — a stable ordering
+  inside a practically small spread.
+- **A colour matrix evaluated honestly.** A linear 3×3 RGB-to-XYZ fit on 140
+  patches reached **4.134 mean held-out CIEDE2000** against **4.099** training
+  error — a 0.035 gap, so the matrix generalizes. Restricting the fit to
+  lighter patches produced a better-looking 3.221 that left all-patch error
+  unchanged; the honest number is reported instead.
+- **A shading model falsified.** Of **52 integrating-sphere captures**, 49 were
+  too near the sensor ceiling to measure. In the usable frames, four corner
+  blocks at equal distance from centre spread by **19.65%** of their average —
+  a field depending only on radius must give all four the same value, so the
+  centred radial model is excluded for this capture system.
+- **Provenance from content, not filenames.** **89 spectroradiometer readings**
+  stored under filenames that numbered acquisitions rather than scenes were
+  recovered by content hash into 40 measurement groups, then characterized on
+  level, spectral shape, and chromaticity separately — because level moves
+  independently of the other two.
+
+Two further studies are controlled algorithm and equation work rather than
+camera measurements: the [gamut-mapping
+comparison](docs/case-studies/gamut-mapping.md) and the [CAM16 equation
+audit](docs/case-studies/color-model-equation-audit.md).
 
 ![Camera IQ toolkit measurement architecture](docs/figures/architecture.svg)
 
