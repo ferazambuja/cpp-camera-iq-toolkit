@@ -146,3 +146,21 @@ used for the capture. Held-out folds are deterministic patch partitions, not a
 second physical chart session. The corrected evidence is scoped to the f/8
 capture because the available f/9 same-aperture sphere flats were too close to
 sensor ceiling.
+
+## What to take from this
+
+The opening asked how you know a colour-correction matrix that looks good is
+not simply fitted to its own data. Here the answer is measurable: held-out
+error exceeded training error by 0.035 CIEDE2000, so the matrix describes the
+camera rather than the particular patches it was shown.
+
+That test also caught the failure it exists to catch. Restricting the fit to
+lighter patches produced a headline that looked 22% better, and the same
+evaluation showed all-patch error unchanged and dark-patch error slightly
+worse — the improvement was patch selection, not a better model.
+
+Two numbers belong together whenever this result is quoted: the held-out 4.134
+and the reference's own 1.34 mean ΔE76 against manufacturer nominal. The second
+bounds how much of the first can be attributed to the camera at all, and a
+per-unit measurement of the photographed chart is the experiment that would
+separate them.

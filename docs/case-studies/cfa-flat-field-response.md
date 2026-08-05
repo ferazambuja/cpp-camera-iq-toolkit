@@ -155,3 +155,20 @@ The result does not provide a correction gain map, source-uniformity
 calibration, or camera-only color-shading measurement. Those require additional
 capture controls. Applying a correction would also require a separate
 remeasurement loop before the workflow could be called calibration.
+
+## What to take from this
+
+The opening asked whether a camera's response to an evenly illuminated surface
+is symmetric about the image centre, because that assumption is where shading
+correction usually starts. For this capture system it is not. Four blocks at
+equal distance from the centre spread by 19.65% of their average, and a field
+that depends only on radius must give all four the same value, so the model is
+excluded rather than merely strained.
+
+The practical consequence is that a centred radial correction cannot be fitted
+to this system without leaving a known residual — a full per-position map is
+required, which is what the ColorChecker workflow uses. The measurement does
+not say which component caused the asymmetry, and the experiment that would is
+specific and cheap: repeat the capture with the source or camera rotated. If
+the pattern rotates with the sphere it is the source; if it stays with the
+frame it is the camera and lens.

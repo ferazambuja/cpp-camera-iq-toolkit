@@ -8,16 +8,13 @@ decide where those unreachable colors land. Per-channel clipping can shift hue
 and flatten distinctions, while broad compression can unnecessarily change
 colors that were already usable. The decision is an engineering tradeoff.
 
-This study is a controlled comparison on synthetic input, not a camera
-measurement: four mapping methods are run over a deterministic colour grid so
-that the coordinate space and the mapping rule are the only things that vary.
-
-This study makes that normally hidden decision inspectable. Four declared
-methods run over the same colors, changing one design choice at a time, so the
-effect of the coordinate system can be separated from the effect of the mapping
-rule. The question is how to move a color from a wider encoding into a smaller
-destination without shifting hue unnecessarily, crushing distinctions, or
-changing colors that already fit.
+This study makes that normally hidden decision inspectable. It is a controlled
+comparison on synthetic input, not a camera measurement: four declared methods
+run over the same deterministic colour grid, changing one design choice at a
+time, so the effect of the coordinate system can be separated from the effect
+of the mapping rule. The question is how to move a color from a wider encoding
+into a smaller destination without shifting hue unnecessarily, crushing
+distinctions, or changing colors that already fit.
 
 [Detailed report](../reports/GAMUT_MAPPING.md) ·
 [figure](../figures/gamut_mapping_synthetic.svg) ·
@@ -154,3 +151,21 @@ The synthetic cube makes the implementation and tradeoffs inspectable without
 depending on private capture data. The dated CSS method is one algorithm in a
 work-in-progress specification for individual SDR colors; it is not a spatial
 image-rendering evaluation.
+
+## What to take from this
+
+The opening asked how to move a colour from a wider encoding into a smaller
+destination when something has to decide where the unreachable colours land.
+The answer this study supports is that the decision splits into two independent
+choices, and they behave differently. Changing only the coordinate space fixed
+one badly overcompressed colour and left the rest essentially unchanged;
+changing only the algorithm improved both the average and the worst case while
+widening hue shift.
+
+So there is no method to recommend outright, and the study does not pretend
+otherwise: each of the four wins a different column. What transfers is the
+method of choosing. Decide which failure the application cannot tolerate —
+a single ruined saturated colour, a drifting average, or a visible hue
+rotation — and evaluate candidates on the colours actually being shipped
+rather than on a uniform grid, which oversamples the saturated corners where
+methods diverge most.
