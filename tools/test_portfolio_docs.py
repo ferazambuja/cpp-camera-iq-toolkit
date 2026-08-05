@@ -331,6 +331,75 @@ class EvidenceAttributionTests(unittest.TestCase):
                 [], DOCS.evidence_attribution_failures(repo, contracts)
             )
 
+    def test_wrapper_outside_the_tests_body_is_rejected(self) -> None:
+        # Compiling into the registered target is not reaching the assertion.
+        # `harness.hpp` gives every test one entry point, so a wrapper that a
+        # refactor lifted into a helper without a call site -- or left behind
+        # as dead code -- would otherwise keep its claim green while the run
+        # never executes it.
+        with tempfile.TemporaryDirectory() as temp:
+            repo = Path(temp)
+            self.write_valid_fixture(repo)
+            (repo / "tests" / "test_example.cpp").write_text(
+                "namespace { void never_called() {\n"
+                "  CAMERA_IQ_DOC_EVIDENCE(example_threshold, check(value == 1));\n"
+                "} }\n"
+                "void TESTS() {\n"
+                "  check(other == 2);\n"
+                "}\n",
+                encoding="utf-8",
+            )
+            failures = DOCS.evidence_attribution_failures(
+                repo, self.fixture_contracts()
+            )
+            self.assertTrue(
+                any("outside the TESTS() body" in item for item in failures),
+                failures,
+            )
+
+    def test_wrapper_nested_inside_the_tests_body_is_accepted(self) -> None:
+        # The rule is containment, not top-level placement: these assertions
+        # normally sit inside scoped fixture blocks.
+        with tempfile.TemporaryDirectory() as temp:
+            repo = Path(temp)
+            self.write_valid_fixture(repo)
+            (repo / "tests" / "test_example.cpp").write_text(
+                "void TESTS() {\n"
+                "  {\n"
+                "    const char brace = '{';\n"
+                "    // a closing } in a comment must not end the body\n"
+                "    CAMERA_IQ_DOC_EVIDENCE(example_threshold,\n"
+                "                           check(value == 1));\n"
+                "  }\n"
+                "}\n",
+                encoding="utf-8",
+            )
+            self.assertEqual(
+                [],
+                DOCS.evidence_attribution_failures(
+                    repo, self.fixture_contracts()
+                ),
+            )
+
+    def test_registered_sources_execute_their_wrappers(self) -> None:
+        repo_root = SCRIPT.parent.parent
+        for evidence_id, contract in DOCS.EVIDENCE_ATTRIBUTION_CONTRACTS.items():
+            with self.subTest(evidence_id=evidence_id):
+                source = (repo_root / contract.test).read_text(encoding="utf-8")
+                executable = DOCS._mask_cpp_noncode(source)
+                span = DOCS._tests_body_span(executable)
+                self.assertIsNotNone(span, contract.test)
+                wrappers = [
+                    match
+                    for match in DOCS.EXECUTABLE_TEST_EVIDENCE_RE.finditer(
+                        executable
+                    )
+                    if match.group(1) == evidence_id
+                ]
+                self.assertEqual(contract.assertion_count, len(wrappers))
+                for match in wrappers:
+                    self.assertTrue(span[0] <= match.start() < span[1])
+
     def test_non_executable_evidence_text_is_rejected(self) -> None:
         for source in (
             "// CAMERA_IQ_DOC_EVIDENCE(example_threshold, check(true));\n",
