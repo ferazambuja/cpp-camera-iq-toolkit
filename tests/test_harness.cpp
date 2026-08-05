@@ -1,6 +1,7 @@
 #define CAMERA_IQ_TEST_HARNESS_NO_MAIN
 #include "harness.hpp"
 
+#include <cstdlib>
 #include <iostream>
 #include <sstream>
 #include <stdexcept>
@@ -41,6 +42,35 @@ int main() {
   const RunResult clean = run_and_capture([] {
     test::check(true, "passing check");
   });
+
+  setenv("CAMERA_IQ_DOC_EVIDENCE_EXPECT", "harness_runtime_probe=1", 1);
+  const RunResult evidence_reached = run_and_capture([] {
+    test::record_doc_evidence("harness_runtime_probe");
+    test::check(true, "runtime evidence assertion reached");
+  });
+  const RunResult evidence_in_false_branch = run_and_capture([] {
+    volatile bool execute = false;
+    if (execute) {
+      test::record_doc_evidence("harness_runtime_probe");
+      test::check(true, "unreachable false-branch assertion");
+    }
+  });
+  const RunResult evidence_after_return = run_and_capture([] {
+    volatile bool stop = true;
+    if (stop) {
+      return;
+    }
+    test::record_doc_evidence("harness_runtime_probe");
+    test::check(true, "unreachable post-return assertion");
+  });
+  const RunResult evidence_after_caught_throw = run_and_capture([] {
+    try {
+      throw std::runtime_error("assertion argument failed");
+      test::record_doc_evidence("harness_runtime_probe");
+    } catch (const std::runtime_error&) {
+    }
+  });
+  unsetenv("CAMERA_IQ_DOC_EVIDENCE_EXPECT");
   int failures = 0;
   const auto require = [&](bool condition, const char* name) {
     if (!condition) {
@@ -70,6 +100,23 @@ int main() {
           "harness: emits the success summary");
   require(!contains(clean.output, "TESTS FAILED"),
           "harness: does not carry an earlier run's failures forward");
+  require(evidence_reached.exit_code == 0,
+          "harness: reached documentation evidence satisfies its runtime count");
+  require(evidence_in_false_branch.exit_code == 1,
+          "harness: evidence under a false branch is not counted as executed");
+  require(contains(evidence_in_false_branch.output,
+                   "expected 1 execution, observed 0"),
+          "harness: false-branch evidence reports the missing execution");
+  require(evidence_after_return.exit_code == 1,
+          "harness: evidence after an early return is not counted as executed");
+  require(contains(evidence_after_return.output,
+                   "expected 1 execution, observed 0"),
+          "harness: post-return evidence reports the missing execution");
+  require(evidence_after_caught_throw.exit_code == 1,
+          "harness: locally caught assertion failure is not counted as evidence");
+  require(contains(evidence_after_caught_throw.output,
+                   "expected 1 execution, observed 0"),
+          "harness: caught assertion failure reports the missing execution");
 
   return failures == 0 ? 0 : 1;
 }

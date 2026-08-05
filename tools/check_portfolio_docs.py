@@ -21,7 +21,13 @@ EXECUTABLE_TEST_EVIDENCE_RE = re.compile(
     r"(?:(?:test::)?check(?:_near)?)\s*\("
 )
 CMAKE_CPP_TEST_RE = re.compile(
-    r"\bcamera_iq_add_test\s*\(\s*([A-Za-z0-9_-]+)\s+([^\s)]+)\s*\)",
+    r"^[ \t]*camera_iq_add_test\s*\(\s*([A-Za-z0-9_-]+)\s+([^\s)]+)\s*\)"
+    r"[ \t]*$",
+    re.MULTILINE,
+)
+CMAKE_DOC_EVIDENCE_EXPECTATION_RE = re.compile(
+    r"^[ \t]*camera_iq_expect_doc_evidence\s*\(\s*([A-Za-z0-9_-]+)\s+"
+    r"([a-z0-9_=,]+)\s*\)[ \t]*$",
     re.MULTILINE,
 )
 CMAKE_TEST_HELPER_RE = re.compile(
@@ -36,10 +42,38 @@ CMAKE_HELPER_ADD_EXECUTABLE_RE = re.compile(
 CMAKE_HELPER_ADD_TEST_RE = re.compile(
     r"\badd_test\s*\(\s*NAME\s+\$\{name\}\s+COMMAND\s+\$\{name\}\s*\)"
 )
+CMAKE_EVIDENCE_HELPER_RE = re.compile(
+    r"^[ \t]*function\s*\(\s*camera_iq_expect_doc_evidence\s+target\s+"
+    r"expectations\s*\)(?P<body>.*?)"
+    r"^[ \t]*endfunction(?:\s*\([^)]*\))?[ \t]*$",
+    re.DOTALL | re.MULTILINE,
+)
+CMAKE_ANY_EVIDENCE_HELPER_DEFINITION_RE = re.compile(
+    r"^[ \t]*(?:function|macro)\s*\(\s*camera_iq_expect_doc_evidence\b",
+    re.IGNORECASE | re.MULTILINE,
+)
+CMAKE_EVIDENCE_HELPER_ADD_TEST_RE = re.compile(
+    r"^\s*set\s*\(\s*evidence_tmpdir\s+"
+    r"\$\{CAMERA_IQ_TEST_TMPDIR\}/doc-evidence-\$\{target\}\s*\).*?"
+    r"\bfile\s*\(\s*MAKE_DIRECTORY\s+\$\{evidence_tmpdir\}\s*\).*?"
+    r"\badd_test\s*\(\s*NAME\s+check_doc_evidence_\$\{target\}\s+"
+    r"COMMAND\s+\$\{CMAKE_COMMAND\}\s+-E\s+env\s+"
+    r"TMPDIR=\$\{evidence_tmpdir\}\s+"
+    r"TMP=\$\{evidence_tmpdir\}\s+"
+    r"TEMP=\$\{evidence_tmpdir\}\s+"
+    r"CAMERA_IQ_DOC_EVIDENCE_EXPECT=\$\{expectations\}\s+"
+    r"\$<TARGET_FILE:\$\{target\}>\s*\)\s*$",
+    re.DOTALL,
+)
+CMAKE_DIRECT_TEST_PROPERTY_RE = re.compile(
+    r"^[ \t]*(?:set_tests_properties|set_property)\s*\((?P<body>.*?)\)",
+    re.DOTALL | re.MULTILINE,
+)
 EVIDENCE_MACRO_DEFINITION_RE = re.compile(
     r"^[ \t]*#[ \t]*define[ \t]+CAMERA_IQ_DOC_EVIDENCE\("
     r"[ \t]*evidence_id[ \t]*,[ \t]*assertion[ \t]*\)"
-    r"[ \t]+assertion[ \t]*$",
+    r"[ \t]+\(\(\s*assertion\s*\)\s*,\s*"
+    r"::test::record_doc_evidence\(\s*#evidence_id\s*\)\)[ \t]*$",
     re.MULTILINE,
 )
 ANY_EVIDENCE_MACRO_DEFINITION_RE = re.compile(
@@ -50,6 +84,21 @@ EVIDENCE_MACRO_MUTATION_RE = re.compile(
     r"^[ \t]*#[ \t]*(?:define|undef)[ \t]+CAMERA_IQ_DOC_EVIDENCE\b",
     re.MULTILINE,
 )
+HARNESS_ENTRY_POINT_RE = re.compile(
+    r"\bvoid\s+TESTS\s*\(\s*\)\s*;.*?"
+    r"\bint\s+main\s*\(\s*\)\s*\{\s*"
+    r"return\s+test::run\s*\(\s*\[\s*\]\s*\{\s*TESTS\s*\(\s*\)\s*;\s*"
+    r"\}\s*\)\s*;\s*\}",
+    re.DOTALL,
+)
+HARNESS_NO_MAIN_RE = re.compile(
+    r"^[ \t]*#[ \t]*define[ \t]+CAMERA_IQ_TEST_HARNESS_NO_MAIN\b",
+    re.MULTILINE,
+)
+DIRECT_DOC_EVIDENCE_INTERNAL_RE = re.compile(
+    r"\b(?:record_doc_evidence\b|doc_evidence_enabled\b|"
+    r"expected_doc_evidence\b|observed_doc_evidence\b)"
+)
 
 
 class EvidenceAttributionContract(NamedTuple):
@@ -57,6 +106,7 @@ class EvidenceAttributionContract(NamedTuple):
     test: Path
     test_target: str = ""
     assertion_count: int = 1
+    execution_count: int = 0
 
 
 EVIDENCE_ATTRIBUTION_CONTRACTS: dict[str, EvidenceAttributionContract] = {
@@ -113,6 +163,7 @@ EVIDENCE_ATTRIBUTION_CONTRACTS: dict[str, EvidenceAttributionContract] = {
         Path("tests/test_flat_field_gate.cpp"),
         "test_flat_field_gate",
         9,
+        21,
     ),
     "sfr_broad_gaussian_bounds": EvidenceAttributionContract(
         Path("docs/implementation/sfr-mtf.md"),
@@ -131,6 +182,7 @@ EVIDENCE_ATTRIBUTION_CONTRACTS: dict[str, EvidenceAttributionContract] = {
         Path("tests/test_spectral_quality.cpp"),
         "test_spectral_quality",
         3,
+        5,
     ),
     "raw_foundation_row_pitch": EvidenceAttributionContract(
         Path("docs/implementation/raw-foundation.md"),
@@ -864,8 +916,8 @@ def _mask_cpp_noncode(source: str) -> str:
     return _mask_cpp_conditionals(_mask_cpp_comments_and_literals(source))
 
 
-def _mask_cmake_noncode(source: str) -> str:
-    """Blank CMake comments, strings, and conditional registration blocks."""
+def _mask_cmake_comments_and_literals(source: str) -> str:
+    """Blank CMake comments and string/bracket literals."""
     output = list(source)
 
     def blank(start: int, end: int) -> None:
@@ -910,10 +962,15 @@ def _mask_cmake_noncode(source: str) -> str:
             continue
         index += 1
 
-    unconditioned = list("".join(output))
+    return "".join(output)
+
+
+def _mask_cmake_noncode(source: str) -> str:
+    """Blank CMake comments, strings, and conditional registration blocks."""
+    unconditioned = list(_mask_cmake_comments_and_literals(source))
     conditional_depth = 0
     offset = 0
-    for line in "".join(output).splitlines(keepends=True):
+    for line in "".join(unconditioned).splitlines(keepends=True):
         directive = re.match(r"^[ \t]*(if|endif)\s*\(", line, re.IGNORECASE)
         inside = conditional_depth > 0
         if directive is not None:
@@ -931,21 +988,83 @@ def _mask_cmake_noncode(source: str) -> str:
     return "".join(unconditioned)
 
 
+CMAKE_BLOCK_DIRECTIVE_RE = re.compile(
+    r"^[ \t]*(function|macro|foreach|while|block|"
+    r"endfunction|endmacro|endforeach|endwhile|endblock)\s*\(",
+    re.IGNORECASE,
+)
+CMAKE_BLOCK_ENDS = {
+    "endfunction": "function",
+    "endmacro": "macro",
+    "endforeach": "foreach",
+    "endwhile": "while",
+    "endblock": "block",
+}
+
+
+def _mask_cmake_nested_blocks(source: str) -> str:
+    """Blank executable-looking calls nested in CMake block definitions/loops."""
+    output: list[str] = []
+    stack: list[str] = []
+    for line in source.splitlines(keepends=True):
+        directive = CMAKE_BLOCK_DIRECTIVE_RE.match(line)
+        keyword = directive.group(1).lower() if directive is not None else ""
+        inside = bool(stack)
+        if keyword in CMAKE_BLOCK_ENDS:
+            inside = True
+            if stack and stack[-1] == CMAKE_BLOCK_ENDS[keyword]:
+                stack.pop()
+        elif keyword:
+            stack.append(keyword)
+            inside = True
+        if inside:
+            output.append(
+                "".join("\n" if char == "\n" else " " for char in line)
+            )
+        else:
+            output.append(line)
+    return "".join(output)
+
+
+def _parse_doc_evidence_expectations(specification: str) -> dict[str, int] | None:
+    expectations: dict[str, int] = {}
+    for item in specification.split(","):
+        evidence_id, separator, count_text = item.partition("=")
+        if (
+            separator != "="
+            or not re.fullmatch(r"[a-z][a-z0-9_]*", evidence_id)
+            or not count_text.isdigit()
+            or int(count_text) <= 0
+            or evidence_id in expectations
+        ):
+            return None
+        expectations[evidence_id] = int(count_text)
+    return expectations
+
+
 def _evidence_macro_definition_failures(repo_root: Path) -> list[str]:
     header = repo_root / "tests" / "harness.hpp"
     if not header.is_file():
         return [
             "evidence macro must execute its assertion: missing tests/harness.hpp"
         ]
-    executable_text = _mask_cpp_noncode(header.read_text(encoding="utf-8"))
+    source = header.read_text(encoding="utf-8")
+    executable_text = _mask_cpp_noncode(source)
+    structural_text = _mask_cpp_comments_and_literals(source)
     definitions = ANY_EVIDENCE_MACRO_DEFINITION_RE.findall(executable_text)
     if len(definitions) != 1 or EVIDENCE_MACRO_DEFINITION_RE.search(
         executable_text
     ) is None:
         return [
-            "evidence macro must execute its assertion exactly once: "
+            "evidence macro must record and execute its assertion exactly once: "
             "expected '#define CAMERA_IQ_DOC_EVIDENCE(evidence_id, assertion) "
-            "assertion' in tests/harness.hpp"
+            "((assertion), ::test::record_doc_evidence(#evidence_id))' in "
+            "tests/harness.hpp"
+        ]
+    if HARNESS_ENTRY_POINT_RE.search(structural_text) is None:
+        return [
+            "evidence runtime verification requires the default harness entry "
+            "point main() -> test::run() -> TESTS() in tests/harness.hpp"
         ]
     for path in _text_files(repo_root / "tests", {".cpp", ".hpp"}):
         if path.resolve() == header.resolve():
@@ -1023,8 +1142,8 @@ def evidence_attribution_failures(
 
     A regular Markdown link proves only that a test file exists. These selected
     contracts additionally require one stable identifier in the claim's
-    paragraph and an exact number of wrappers around assertions in the
-    registered, CTest-enabled source.
+    paragraph, an exact number of wrappers around assertions in the registered
+    source, and exact runtime hit counts in a dedicated CTest evidence run.
     """
     contracts = EVIDENCE_ATTRIBUTION_CONTRACTS if contracts is None else contracts
     failures: list[str] = []
@@ -1035,9 +1154,11 @@ def evidence_attribution_failures(
         cmake_path.read_text(encoding="utf-8") if cmake_path.is_file() else ""
     )
     active_cmake_text = _mask_cmake_noncode(cmake_text)
+    structural_cmake_text = _mask_cmake_comments_and_literals(cmake_text)
+    top_level_cmake_text = _mask_cmake_nested_blocks(active_cmake_text)
     ctest_sources = {
         (target, Path(source))
-        for target, source in CMAKE_CPP_TEST_RE.findall(active_cmake_text)
+        for target, source in CMAKE_CPP_TEST_RE.findall(top_level_cmake_text)
     }
     if contracts:
         failures.extend(_evidence_macro_definition_failures(repo_root))
@@ -1050,6 +1171,98 @@ def evidence_attribution_failures(
         and CMAKE_HELPER_ADD_EXECUTABLE_RE.search(helper_bodies[0]) is not None
         and CMAKE_HELPER_ADD_TEST_RE.search(helper_bodies[0]) is not None
     )
+    evidence_helper_bodies = [
+        match.group("body")
+        for match in CMAKE_EVIDENCE_HELPER_RE.finditer(active_cmake_text)
+    ]
+    has_evidence_helper = (
+        len(CMAKE_ANY_EVIDENCE_HELPER_DEFINITION_RE.findall(structural_cmake_text))
+        == 1
+        and len(evidence_helper_bodies) == 1
+        and CMAKE_EVIDENCE_HELPER_ADD_TEST_RE.search(evidence_helper_bodies[0])
+        is not None
+    )
+    registered_expectations: dict[str, dict[str, int]] = {}
+    duplicate_expectation_targets: set[str] = set()
+    expectation_matches = list(
+        CMAKE_DOC_EVIDENCE_EXPECTATION_RE.finditer(top_level_cmake_text)
+    )
+    for expectation_match in expectation_matches:
+        target, specification = expectation_match.groups()
+        parsed = _parse_doc_evidence_expectations(specification)
+        if parsed is None or target in registered_expectations:
+            duplicate_expectation_targets.add(target)
+            continue
+        registered_expectations[target] = parsed
+
+    expected_by_target: dict[str, dict[str, int]] = {}
+    for evidence_id, contract in contracts.items():
+        if contract.test_target:
+            expected_by_target.setdefault(contract.test_target, {})[
+                evidence_id
+            ] = contract.execution_count or contract.assertion_count
+    if expected_by_target and not has_evidence_helper:
+        failures.append(
+            "documentation evidence targets do not have dedicated runtime "
+            "checks: camera_iq_expect_doc_evidence must invoke each target "
+            "through CTest with CAMERA_IQ_DOC_EVIDENCE_EXPECT"
+        )
+    for target, expected in expected_by_target.items():
+        if target in duplicate_expectation_targets:
+            failures.append(
+                f"runtime documentation-evidence expectations are invalid or "
+                f"duplicated for {target}"
+            )
+        elif registered_expectations.get(target) != expected:
+            failures.append(
+                f"runtime documentation-evidence expectations for {target} "
+                f"do not match the registered claim counts"
+            )
+    for target in sorted(set(registered_expectations) - set(expected_by_target)):
+        failures.append(
+            f"runtime documentation-evidence expectations target has no "
+            f"registered claims: {target}"
+        )
+    property_matches = list(
+        CMAKE_DIRECT_TEST_PROPERTY_RE.finditer(top_level_cmake_text)
+    )
+    if expectation_matches and any(
+        match.start() > expectation_matches[0].start() for match in property_matches
+    ):
+        failures.append(
+            "runtime documentation-evidence expectations must be installed "
+            "after all direct CTest property assignments so their checks "
+            "cannot be altered"
+        )
+    if expectation_matches:
+        expectation_block_is_contiguous = all(
+            not top_level_cmake_text[
+                previous.end() : following.start()
+            ].strip()
+            for previous, following in zip(
+                expectation_matches, expectation_matches[1:]
+            )
+        )
+        has_later_active_command = bool(
+            top_level_cmake_text[expectation_matches[-1].end() :].strip()
+        )
+        if not expectation_block_is_contiguous or has_later_active_command:
+            failures.append(
+                "runtime documentation-evidence registrations must form the "
+                "final active CMake command block so later commands cannot "
+                "disable, skip, or invert them"
+            )
+    for match in property_matches:
+        body_tokens = set(re.findall(r"[A-Za-z0-9_-]+", match.group("body")))
+        protected_tests = set(expected_by_target) | {
+            f"check_doc_evidence_{target}" for target in expected_by_target
+        }
+        for target in sorted(body_tokens & protected_tests):
+            failures.append(
+                f"registered evidence target {target} has test properties "
+                "outside camera_iq_expect_doc_evidence; disabling, skipping, "
+                "or inverting its runtime check is not allowed"
+            )
 
     document_paths = _text_files(repo_root / "docs", {".md"})
     readme = repo_root / "README.md"
@@ -1082,6 +1295,16 @@ def evidence_attribution_failures(
                 continue
             test_markers.setdefault(match.group(1), []).append(
                 (path, match, executable_text)
+            )
+        if (
+            path.name not in {"harness.hpp", "test_harness.cpp"}
+            and path.suffix in {".cpp", ".hpp"}
+            and DIRECT_DOC_EVIDENCE_INTERNAL_RE.search(executable_text)
+        ):
+            failures.append(
+                "documentation evidence runtime internals must be used only by "
+                f"CAMERA_IQ_DOC_EVIDENCE wrappers: {path.relative_to(repo_root)} "
+                "accesses documentation-evidence runtime internals directly"
             )
 
     for evidence_id in sorted(set(document_markers) - set(contracts)):
@@ -1147,19 +1370,21 @@ def evidence_attribution_failures(
                 f"test marker is not in its registered file: {evidence_id}"
             )
         else:
-            for path, match, executable_text in test_entries:
-                if path.suffix not in {".cpp", ".hpp"}:
-                    continue
-                span = _tests_body_span(executable_text)
-                if span is None:
-                    continue
-                if not span[0] <= match.start() < span[1]:
+            path, _match, executable_text = test_entries[0]
+            if path.suffix in {".cpp", ".hpp"}:
+                if _tests_body_span(executable_text) is None:
                     failures.append(
-                        f"executable assertion for {evidence_id} is outside the "
-                        f"TESTS() body of {contract.test}: an assertion the test "
-                        f"run never reaches is not evidence"
+                        f"registered evidence source {contract.test} does not "
+                        "define TESTS() for the default harness entry point"
                     )
-                    break
+                source_directives = _mask_cpp_comments_and_literals(
+                    path.read_text(encoding="utf-8")
+                )
+                if HARNESS_NO_MAIN_RE.search(source_directives):
+                    failures.append(
+                        f"registered evidence source {contract.test} disables "
+                        "the harness main() that verifies runtime evidence counts"
+                    )
 
     return failures
 

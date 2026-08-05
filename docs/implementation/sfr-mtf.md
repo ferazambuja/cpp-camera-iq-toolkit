@@ -117,9 +117,9 @@ In [`test_sfr.cpp`](../../tests/test_sfr.cpp), the `160 × 144`,
 `0.08°`, both MTF50 and peak-normalized MTF50P within
 `0.018 cycles/pixel` of the analytic value, and a positive Nyquist response
 below `0.01`. That last bound checks suppression, not accuracy: this edge is
-broad enough that its true Nyquist response is nearly zero, so an
-implementation that returned zero — or never computed the value — would satisfy
-it.
+broad enough that its true Nyquist response is nearly zero. The upper bound
+establishes suppression, while the positive lower bound rejects a zero or
+missing-value default; neither establishes accuracy near Nyquist.
 <!-- test-evidence: sfr_broad_gaussian_bounds -->
 
 Nyquist accuracy therefore uses a second fixture in
