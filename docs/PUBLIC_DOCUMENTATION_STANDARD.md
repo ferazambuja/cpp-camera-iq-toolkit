@@ -158,70 +158,26 @@ requirement to wrap every number or test assertion. Archive identities and
 generated-artifact values stay with their owning receipt or freshness guard
 instead of being misrepresented as C++ unit evidence.
 
-Register each selected claim in `EVIDENCE_ATTRIBUTION_CONTRACTS`; keep its
-paragraph limited to one test file; and place this marker immediately after
-that paragraph, inside the companion's verification-evidence section:
+Two writing rules govern such a claim. Keep its paragraph limited to one test
+file, so a citation cannot appear to support a claim that is held somewhere
+else. If the paragraph states an assertion count, describe it as the number
+**registered for this claim**, never as a census of the entire test file; the
+guard compares that stated count against the registered wrappers, so either
+side changing forces a review.
 
-```html
-<!-- test-evidence: identifier -->
-```
+Everything else about registration — marker syntax, assertion wrappers, CTest
+registration, and the supervised evidence run — is tooling, and is documented
+with the tooling in [`tools/README.md`](../tools/README.md).
 
-If the paragraph states an assertion count, describe it as the number
-**registered for this claim**, never as a census of the entire test file. The
-documentation guard compares that stated count with the registered source-
-wrapper count so either side changing forces a review.
-
-In the registered C++ test, wrap every `check()` or `check_near()` assertion
-that constitutes the public claim with
-`CAMERA_IQ_DOC_EVIDENCE(identifier, assertion)`. The harness records the
-identifier only after the assertion returns normally, and evaluates the
-assertion exactly once.
-
-The guard requires exactly one document marker, the registered number of
-assertion wrappers in the registered source, a default-harness `TESTS()` entry
-point, and matching top-level CTest target/source registration. Each registered
-source also receives a dedicated CTest evidence run from
-`camera_iq_expect_doc_evidence`, which invokes the same binary with exact
-identifier/count expectations. The harness compares those expectations with
-the wrappers actually reached during that run. Source-wrapper and runtime counts
-are recorded separately when a fixed loop executes one wrapper more than once.
-A loop-amplified count deliberately proves every declared fixture iteration;
-changing that loop is a review gate, not a reason to weaken the expected count.
-A wrapper moved into a called helper remains valid; one in an uncalled helper,
-a false branch, or code after an early return fails the evidence run.
-
-Evidence targets and their expectation registrations are unconditional: calls
-inside CMake conditionals, function or macro bodies, or loop blocks do not
-satisfy this contract. The dedicated evidence checks are registered after other
-CTest property assignments, and later mutations that could disable, skip, or
-invert them are refused. The static guard ignores wrappers in comments, strings,
-Markdown examples, preprocessor definitions, and conditionally compiled
-regions.
-
-CTest runs each evidence binary through a supervising process. The supervisor
-creates a unique receipt path and random nonce, passes the expectation through
-dedicated harness arguments, and accepts success only when the child exits zero
-and leaves a receipt containing the exact nonce and expectation set. The
-harness writes that receipt only after
-all expected evidence counts verify successfully. A dependency, global
-initializer, or ordinary replacement process that exits zero before completing
-the protocol therefore leaves no valid receipt and fails the CTest. This is a
-freshness and reachability check, not a security boundary against deliberately
-hostile test code: the child necessarily receives the receipt path and nonce.
-Registered test sources
-may not start a nested harness run, reset failure state, invoke process
-termination directly, or access the recorder and run state except through
-`CAMERA_IQ_DOC_EVIDENCE`. The harness self-test exercises those mechanics but
-cannot be registered as scientific evidence.
-
-This protects registered claims from silent wrapper deletion, ID mix-ups, and
-assertions that compile without being reached by the registered CTest run. It
-reaches no further. The mechanism does not prove that the prose interprets or
-scopes the assertion correctly or that the assertion itself expresses the
-right scientific property. Human review must still verify the assertion,
-bound, fixture, and operating conditions. Facts outside the eligibility rule
-remain protected by ordinary source-navigation links, artifact guards, and
-scientific review; they do not need this annotation.
+What that machinery establishes is bounded, and public prose must not imply
+more. It protects registered claims from silent wrapper deletion, identifier
+mix-ups, and assertions that compile without being reached by the test run. It
+does not show that the prose interprets or scopes the assertion correctly, or
+that the assertion expresses the right scientific property. Human review must
+still verify the assertion, bound, fixture, and operating conditions. Facts
+outside the eligibility rule remain protected by ordinary source-navigation
+links, artifact guards, and scientific review; they do not need this
+annotation.
 
 ### 4. Evidence reference: identity and provenance
 
