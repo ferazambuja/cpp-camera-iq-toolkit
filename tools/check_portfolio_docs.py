@@ -961,6 +961,34 @@ def _evidence_macro_definition_failures(repo_root: Path) -> list[str]:
     return []
 
 
+TESTS_FUNCTION_RE = re.compile(r"\bvoid\s+TESTS\s*\(\s*\)\s*\{")
+
+
+def _tests_body_span(executable_text: str) -> tuple[int, int] | None:
+    """Locate the body of TESTS(), the only function the harness main() calls.
+
+    Counting a wrapper that sits outside it would accept an assertion the test
+    run never reaches: a block extracted into a helper that lost its call site,
+    or dead code left behind by a refactor, still compiles into the registered
+    target. Returns None when the source defines no TESTS(), which a linked
+    CTest target cannot do -- `tests/harness.hpp` declares it and calls it from
+    main() -- so the rule only relaxes for sources that are not real tests.
+    """
+    match = TESTS_FUNCTION_RE.search(executable_text)
+    if match is None:
+        return None
+    depth = 0
+    for index in range(match.end() - 1, len(executable_text)):
+        character = executable_text[index]
+        if character == "{":
+            depth += 1
+        elif character == "}":
+            depth -= 1
+            if depth == 0:
+                return match.end(), index
+    return None
+
+
 def _paragraph_links_to(document: Path, paragraph: str, expected: Path) -> bool:
     expected = expected.resolve()
     for match in LINK_RE.finditer(paragraph):
@@ -1118,6 +1146,20 @@ def evidence_attribution_failures(
             failures.append(
                 f"test marker is not in its registered file: {evidence_id}"
             )
+        else:
+            for path, match, executable_text in test_entries:
+                if path.suffix not in {".cpp", ".hpp"}:
+                    continue
+                span = _tests_body_span(executable_text)
+                if span is None:
+                    continue
+                if not span[0] <= match.start() < span[1]:
+                    failures.append(
+                        f"executable assertion for {evidence_id} is outside the "
+                        f"TESTS() body of {contract.test}: an assertion the test "
+                        f"run never reaches is not evidence"
+                    )
+                    break
 
     return failures
 

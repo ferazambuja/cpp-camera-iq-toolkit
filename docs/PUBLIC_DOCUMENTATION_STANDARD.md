@@ -163,18 +163,22 @@ expand the second argument unchanged so the wrapper cannot turn the assertion
 into a no-op.
 
 The guard requires exactly one document marker, the registered number of
-executable assertion wrappers in the registered source, and a matching CTest
-target/source registration through the active `camera_iq_add_test` helper.
-Evidence targets are unconditional: a call inside a CMake conditional does not
-satisfy this contract. The guard ignores wrappers in comments, strings,
-Markdown examples, preprocessor definitions, and conditionally compiled
-regions. This protects registered claims from silent wrapper deletion and ID
-mix-ups; it does not prove that the prose interprets or scopes the assertion
-correctly, detect every meaningful relocation inside the registered source, or
-claim that every documented fact has a dedicated wrapper. Human review must
-still verify the assertion, bound, fixture, and operating conditions. Ordinary
-source-navigation links and generated-artifact checks do not need this
-annotation.
+executable assertion wrappers inside the registered source's `TESTS()` body,
+and a matching CTest target/source registration through the active
+`camera_iq_add_test` helper. Evidence targets are unconditional: a call inside
+a CMake conditional does not satisfy this contract. The guard ignores wrappers
+in comments, strings, Markdown examples, preprocessor definitions, and
+conditionally compiled regions, and rejects one placed outside `TESTS()`, since
+`tests/harness.hpp` reaches an assertion only through that entry point.
+
+This protects registered claims from silent wrapper deletion, ID mix-ups, and
+assertions that compile without running. It reaches no further. The guard does
+not prove that the prose interprets or scopes the assertion correctly, that a
+wrapper inside `TESTS()` is reachable rather than dead under a false condition
+or an early return, or that every documented fact has a dedicated wrapper.
+Human review must still verify the assertion, bound, fixture, and operating
+conditions. Ordinary source-navigation links and generated-artifact checks do
+not need this annotation.
 
 ### 4. Evidence reference: identity and provenance
 
