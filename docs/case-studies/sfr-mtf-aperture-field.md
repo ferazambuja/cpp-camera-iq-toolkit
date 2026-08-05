@@ -38,8 +38,11 @@ diffraction, but this archive does not isolate that cause; the D800 curve does
 not follow it. Panel B: paired bars for the f/4–f/11 field-map apertures, blue
 for D810 and orange for D800. Each bar is center minus strongest physical
 corner, so a positive value means the center outresolves the corner. Where that
-margin goes negative, the corner is sharper than the center — which is why a
-center-only number cannot describe either system.*
+margin goes negative, the corner is sharper than the center. The two systems
+behave differently: the D810 center held its margin at f/5.6, f/8, and f/11,
+while the D800 margin went negative at f/4. A center-only number described the
+D810 adequately and the D800 not at all, which is the finding — one criterion
+cannot cover two nominally matched systems.*
 
 ## Method
 
@@ -130,7 +133,15 @@ The two sweeps do not support one universal aperture conclusion:
 - D810 center exceeded the strongest physical corner at f/5.6, f/8, and f/11;
   f/4 was a near tie/slight corner win.
 - D800 did **not** reproduce the D810 aperture trend. Both this analysis and
-  the advisory results keep f/4 below f/16 at center.
+  the advisory results keep f/4 below f/16 at center — an inversion of the
+  normal ordering, since f/16 should be diffraction-limited and f/4 should not.
+- The D800 anomalies — a soft center wide open, the field maximum off-axis, and
+  an upper/lower imbalance that weakens on stopping down — are individually
+  consistent with lens behavior and jointly consistent with one mundane
+  alternative: a focus error combined with field curvature. The D800 set was
+  manually focused and its focus accuracy is unverified, while the D810 set used
+  AF-S. This archive cannot separate the two explanations, so the D800 result is
+  reported as a property of that capture session, not of the body or the lens.
 - The D800 field maximum moved away from center through the mid apertures; the
   toolkit and advisory source agreed on the dominant location at f/4 through
   f/11. At f/4 the toolkit's strongest physical corner exceeds its center by
@@ -147,13 +158,21 @@ such a reflection preserves both distance from center and the mixture of radial
 and tangential response. A centered, rotationally symmetric system should
 therefore give nearly equal MTF50 at the two sites, even if it is astigmatic.
 
-| Pair | Difference in radius | Difference in orientation mixture | MTF50 upper | MTF50 lower |
-|---|---:|---:|---:|---:|
-| N=14 / N=16 (f/4) | 0.54% | 0.80% | 0.1403 | 0.1054 |
-| N=2 / N=4 | 0.76% | 1.24% | 0.1647 | 0.0945 |
-| N=18 / N=20 | 4.06% | 3.78% | 0.1878 | 0.1055 |
+| Pair | Difference in radius | Difference in `\|x\|/r` mixture | f/4 MTF50 upper / lower | f/8 MTF50 upper / lower |
+|---|---:|---:|---|---|
+| N=14 / N=16 | 0.54% | 0.80% | 0.1403 / 0.1054 (1.33×) | 0.1566 / 0.1399 (1.12×) |
+| N=2 / N=4 | 0.76% | 1.24% | 0.1647 / 0.0945 (1.74×) | 0.1618 / 0.1365 (1.19×) |
+| N=18 / N=20 | 4.06% | 3.78% | 0.1878 / 0.1055 (1.78×) | 0.1889 / 0.1507 (1.25×) |
 
-All three pairs favor the upper field, across three radii and two apertures. In
+MTF50 is in cycles/pixel; the mixture column is the mismatch in `|x|/r`, which
+sets how much of each measurement is sagittal versus tangential.
+
+All three pairs favor the upper field at both apertures, but the imbalance is
+much weaker stopped down — falling from 1.78× to 1.25× on the widest pair. That
+falloff does not identify a cause: stopping down reduces coma, astigmatism,
+spherical aberration and decentering signatures while also widening
+depth-of-field tolerance, so it is equally consistent with an aberration and
+with a focus or tilt error. In
 every pair, the stronger upper site is also slightly farther from center—the
 opposite ordering from a centered response that simply falls with radius. In
 the closest pair, MTF50 changes by 33% while radius and orientation mixture
@@ -163,8 +182,12 @@ This is strong evidence against centered rotational symmetry, but not a formal
 exclusion. Every archived edge is near-vertical, so a response that depends on
 both radius and edge orientation remains possible. Controlled radial and
 tangential targets would close that alternative. The responsible component is
-also unresolved: tilt, decentering, and alignment can all produce an upper/lower
-imbalance, and stopping down can reduce several of those effects at once.
+also unresolved: chart tilt, sensor or focus-plane tilt, decentering, and
+capture alignment all produce an upper/lower imbalance, and stopping down
+reduces several of those effects at once. Chart tilt deserves first mention
+because it is categorically different from the others — a setup artifact rather
+than a property of the camera or lens — and this archive retains no measurement
+that would bound it.
 
 Center agreement with the advisory analysis stayed within ±0.015 cycles/pixel
 on D800, while off-axis differences were larger—consistent with comparing a

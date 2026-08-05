@@ -8,6 +8,10 @@ decide where those unreachable colors land. Per-channel clipping can shift hue
 and flatten distinctions, while broad compression can unnecessarily change
 colors that were already usable. The decision is an engineering tradeoff.
 
+This study is a controlled comparison on synthetic input, not a camera
+measurement: four mapping methods are run over a deterministic colour grid so
+that the coordinate space and the mapping rule are the only things that vary.
+
 This study makes that normally hidden decision inspectable. Four declared
 methods run over the same colors, changing one design choice at a time, so the
 effect of the coordinate system can be separated from the effect of the mapping
@@ -26,11 +30,15 @@ changing colors that already fit.
 ## Headline results
 
 Changing only the radial coordinates from CIELAB to OkLCh — the cylindrical
-lightness, chroma, and hue form of OkLab — retained much more
-P3-yellow chroma (`0.211` versus `0.058`) and reduced that sample's CIEDE2000
-color difference from `23.928` to `5.523`, where lower is better. The grid mean
-rose from `2.857` to `2.947` and the worst point moved from yellow to red, so
-the coordinate change is a targeted trade rather than a universal improvement.
+lightness, chroma, and hue form of OkLab — retained much more P3-yellow **OkLCh
+chroma** (`0.211` versus `0.058`) and reduced that sample's CIEDE2000 distance
+from the original P3 color from `23.928` to `5.523`, where lower means the
+mapped color sits closer to the one that could not be shown. The mean over all
+125 grid points — including the 31 that are already inside sRGB and that no
+method changes — rose from `2.857` to `2.947`. That 0.09 rise is far below any
+visible threshold, so the yellow sample carries the argument: the coordinate
+change is a targeted trade rather than a universal improvement, and the worst
+point moved from yellow to red.
 Changing only the OkLCh algorithm to CSS Local MINDE, a local
 minimum-color-difference search, then reduced the complete-grid
 mean from `2.947` to `2.323` and the maximum from `9.956` to `7.602`, while
@@ -67,10 +75,7 @@ stakes are neutrality and tonal separation surviving the move from screen to
 print. Those stakes are what make the mapping decision worth specifying rather
 than delegating, and they are why this study reports hue behavior and preserved
 distinctions alongside color difference instead of ranking methods on a single
-displacement number. The earlier workflow included an Ansel Adams *Moonrise*
-print; that recognizable example explains why opaque rendering choices mattered
-in the print workflow, but it is historical context rather than an input to the
-current synthetic study.
+displacement number.
 
 ## Why the boundary search is not a simple bisection
 

@@ -56,9 +56,12 @@ assigned to a display technology.
 
 The audit also pins the corrected Equation 23 coefficient `43` and retains the
 paper's unfavorable result: its proposed colorfulness relation reduced the
-reported `R²` against the published LUTCHI colorfulness data from `0.81` to
-`0.71`, even while brightness and Munsell chroma improved. Retaining that result
-prevents the paper from being summarized only by its favorable outcomes.
+reported coefficient of determination `R²` against the published LUTCHI
+colorfulness data from `0.81` to `0.71`, even while brightness rose from `0.86`
+to `0.95` and Munsell chroma from `0.87` to `0.96`. Two of the three fits
+improved. Carrying all three prevents the paper from being summarized only by
+its favorable outcomes — and prevents this audit from being summarized only by
+the unfavorable one.
 
 ![CAM16 equation audit](../figures/cam16_equation_audit.svg)
 
@@ -70,9 +73,11 @@ the background-dependent factor as the background darkens. The isolated
 `N_cb^0.9` term is drawn against a band spanning the complete chroma expression
 across reference-condition lightness `J₀ = 10` to `90`; because the band
 crosses the line, the isolated term is neither a floor nor a ceiling. Right:
-the paper's reported fits before and after the proposed change. Brightness and
-Munsell chroma improved, while colorfulness against the LUTCHI data fell from
-`0.81` to `0.71`.*
+the paper's reported coefficients of determination `R²` before and after the
+proposed change, for all three fits it reports: brightness `0.86` to `0.95`,
+Munsell chroma `0.87` to `0.96`, and colorfulness against the LUTCHI data
+`0.81` to `0.71`. Two rise and one falls, which is why the change is presented
+as a tradeoff rather than an improvement.*
 
 ## Connection to earlier work
 

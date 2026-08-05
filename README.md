@@ -10,6 +10,17 @@ measurements, and independent reference comparisons.
 
 **C++20 · LibRaw · CMake · numerical methods · color science · JSON/CSV**
 
+**Start here:** [case studies and reports](docs/README.md) ·
+[source](src/) · [public headers](include/camera_iq/) ·
+[implementation companions](docs/implementation/README.md) ·
+[validation decisions](docs/README.md#validation-decisions)
+
+New to the project? The
+[SFR aperture and field study](docs/case-studies/sfr-mtf-aperture-field.md) is
+the best single entry point: it measures two camera bodies with the same lens
+model and shows why one center-of-frame sharpness number does not describe
+either of them.
+
 ## Selected results and engineering decisions
 
 - **Sharpness across the frame:** slanted-edge spatial frequency response and
