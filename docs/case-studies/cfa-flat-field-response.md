@@ -35,9 +35,11 @@ would have understated the very thing being measured.
 In the primary usable frame the green response is uneven between corners:
 comparing the brightest and darkest of the four corner blocks, and scaling that
 spread by their average, gives 19.65% — nearly four times the 5% the project
-treats as acceptable. No model in which response depends only on distance from
-the centre can produce that, because such a model gives every corner the same
-value by construction. What the measurement cannot say is which
+treats as acceptable. Those four blocks are positioned at equal distance from
+the frame centre, which is what makes the number an argument rather than an
+observation: a response that depends only on distance from the centre must give
+all four the same value, so any spread at all falsifies that model. A spread of
+19.65% is not a marginal failure of it. What the measurement cannot say is which
 component is responsible, because these captures do not separate the sphere's
 own unevenness from the lens, the alignment, or the sensor's response to
 off-axis light.
@@ -58,9 +60,10 @@ centre. **The three maps use different colour scales** — the green map spans
 colour in the left map means a change roughly ten times larger than the same
 colour on the right. That contrast is the finding: brightness falls to about
 half at the worst corner while colour balance moves by a few percent. Four
-separately measured 400 × 400 px corner blocks spread by 19.65% of their own
-average, which a centred radial model cannot produce. The matched repeat
-measured 19.996%, closely
+separately measured 400 × 400 px corner blocks, inset to sit at equal distance
+from the centre, spread by 19.65% of their own average — which a centred radial
+model cannot produce, since it would assign all four the same value. The
+matched repeat measured 19.996%, closely
 repeating the large asymmetry; two frames do not validate the 5% threshold, and
 nothing here identifies which component caused it.*
 
