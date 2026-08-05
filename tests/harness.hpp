@@ -6,6 +6,7 @@
 #include <cmath>
 #include <cstdlib>
 #include <exception>
+#include <fstream>
 #include <iomanip>
 #include <iostream>
 #include <map>
@@ -143,7 +144,9 @@ inline void record_doc_evidence(const char* evidence_id) {
 }
 
 template <typename TestBody>
-int run(TestBody body, const char* raw_expectations = nullptr) {
+int run(TestBody body, const char* raw_expectations = nullptr,
+        const char* completion_receipt_path = nullptr,
+        const char* completion_nonce = nullptr) {
   if (detail::active_doc_evidence_run_state != nullptr) {
     check(false, "nested test::run is not supported");
     return 1;
@@ -158,6 +161,22 @@ int run(TestBody body, const char* raw_expectations = nullptr) {
     check(false, "uncaught non-standard exception");
   }
   state.verify();
+  if ((completion_receipt_path == nullptr) != (completion_nonce == nullptr) ||
+      (completion_receipt_path != nullptr && raw_expectations == nullptr)) {
+    state.fail("documentation evidence completion receipt is incomplete");
+  } else if (state.failures() == 0 && completion_receipt_path != nullptr) {
+    std::ofstream receipt(completion_receipt_path,
+                          std::ios::out | std::ios::trunc);
+    if (!receipt.is_open()) {
+      state.fail("documentation evidence completion receipt could not be opened");
+    } else {
+      receipt << completion_nonce << '\n' << raw_expectations << '\n';
+      receipt.close();
+      if (!receipt) {
+        state.fail("documentation evidence completion receipt could not be written");
+      }
+    }
+  }
   detail::active_doc_evidence_run_state = nullptr;
   std::cout << (state.failures() == 0 ? "all tests passed\n" : "TESTS FAILED\n");
   return state.failures() == 0 ? 0 : 1;
@@ -177,15 +196,22 @@ void TESTS();
 #ifndef CAMERA_IQ_TEST_HARNESS_NO_MAIN
 int main(int argc, char* argv[]) {
   const bool has_evidence_expectation =
-      argc == 3 &&
+      argc == 7 &&
       std::string(argv[1]) == "--camera-iq-doc-evidence-expect" &&
-      argv[2][0] != '\0';
+      argv[2][0] != '\0' &&
+      std::string(argv[3]) == "--camera-iq-doc-evidence-receipt" &&
+      argv[4][0] != '\0' &&
+      std::string(argv[5]) == "--camera-iq-doc-evidence-nonce" &&
+      argv[6][0] != '\0';
   if (argc != 1 && !has_evidence_expectation) {
     std::cerr << "[fail] test harness: expected no arguments or "
-                 "--camera-iq-doc-evidence-expect <id=count,...>\n";
+                 "the complete documentation-evidence supervisor argument "
+                 "set\n";
     return 1;
   }
   return test::run([] { TESTS(); },
-                   has_evidence_expectation ? argv[2] : nullptr);
+                   has_evidence_expectation ? argv[2] : nullptr,
+                   has_evidence_expectation ? argv[4] : nullptr,
+                   has_evidence_expectation ? argv[6] : nullptr);
 }
 #endif

@@ -28,6 +28,9 @@
   coverage, project-centered language, and
   the report-layer provenance relationships needed to interpret public case
   studies without forcing capture dates into their summaries.
+- [`run_doc_evidence_test.py`](run_doc_evidence_test.py) supervises the
+  dedicated claim-evidence CTest runs and requires a fresh nonce receipt that
+  the C++ harness writes only after all registered execution counts verify.
 - [`check_public_paths.sh`](check_public_paths.sh) scans tracked public files
   for machine-specific path leakage.
 - [`check_sample_fixtures.sh`](check_sample_fixtures.sh) keeps committed fixtures

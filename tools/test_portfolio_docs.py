@@ -286,11 +286,17 @@ class EvidenceAttributionTests(unittest.TestCase):
             "#ifndef CAMERA_IQ_TEST_HARNESS_NO_MAIN\n"
             "int main(int argc, char* argv[]) {\n"
             "  const bool has_evidence_expectation =\n"
-            "      argc == 3 && std::string(argv[1]) == "
-            "\"--camera-iq-doc-evidence-expect\" && argv[2][0] != '\\0';\n"
+            "      argc == 7 && std::string(argv[1]) == "
+            "\"--camera-iq-doc-evidence-expect\" && argv[2][0] != '\\0' &&\n"
+            "      std::string(argv[3]) == \"--camera-iq-doc-evidence-receipt\" "
+            "&& argv[4][0] != '\\0' &&\n"
+            "      std::string(argv[5]) == \"--camera-iq-doc-evidence-nonce\" "
+            "&& argv[6][0] != '\\0';\n"
             "  if (argc != 1 && !has_evidence_expectation) return 1;\n"
             "  return test::run([] { TESTS(); },\n"
-            "                   has_evidence_expectation ? argv[2] : nullptr);\n"
+            "                   has_evidence_expectation ? argv[2] : nullptr,\n"
+            "                   has_evidence_expectation ? argv[4] : nullptr,\n"
+            "                   has_evidence_expectation ? argv[6] : nullptr);\n"
             "}\n"
             "#endif\n",
             encoding="utf-8",
@@ -311,9 +317,13 @@ class EvidenceAttributionTests(unittest.TestCase):
             "      TMPDIR=${evidence_tmpdir}\n"
             "      TMP=${evidence_tmpdir}\n"
             "      TEMP=${evidence_tmpdir}\n"
-            "      $<TARGET_FILE:${target}>\n"
-            "      --camera-iq-doc-evidence-expect ${expectations})\n"
+            "      python3 ${CMAKE_SOURCE_DIR}/tools/run_doc_evidence_test.py\n"
+            "      --binary $<TARGET_FILE:${target}>\n"
+            "      --expectations ${expectations})\n"
             "endfunction()\n"
+            "add_test(NAME test_run_doc_evidence_test\n"
+            "  COMMAND python3 "
+            "${CMAKE_SOURCE_DIR}/tools/test_run_doc_evidence_test.py)\n"
             "camera_iq_add_test(test_example tests/test_example.cpp)\n"
             "camera_iq_expect_doc_evidence(test_example example_threshold=1)\n",
             encoding="utf-8",
@@ -439,7 +449,9 @@ class EvidenceAttributionTests(unittest.TestCase):
             header.write_text(
                 header.read_text(encoding="utf-8").replace(
                     "  return test::run([] { TESTS(); },\n"
-                    "                   has_evidence_expectation ? argv[2] : nullptr);",
+                    "                   has_evidence_expectation ? argv[2] : nullptr,\n"
+                    "                   has_evidence_expectation ? argv[4] : nullptr,\n"
+                    "                   has_evidence_expectation ? argv[6] : nullptr);",
                     "  return 0;",
                 ),
                 encoding="utf-8",
@@ -1112,6 +1124,124 @@ class EvidenceAttributionTests(unittest.TestCase):
                 failures,
             )
 
+    def test_runtime_helper_must_use_completion_supervisor(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            repo = Path(temp)
+            self.write_valid_fixture(repo)
+            self.write_cmake_registration(repo)
+            cmake = repo / "CMakeLists.txt"
+            cmake.write_text(
+                cmake.read_text(encoding="utf-8").replace(
+                    "      python3 ${CMAKE_SOURCE_DIR}/tools/"
+                    "run_doc_evidence_test.py\n"
+                    "      --binary $<TARGET_FILE:${target}>\n"
+                    "      --expectations ${expectations})",
+                    "      $<TARGET_FILE:${target}>\n"
+                    "      --camera-iq-doc-evidence-expect ${expectations})",
+                ),
+                encoding="utf-8",
+            )
+            contract = DOCS.EvidenceAttributionContract(
+                document=Path("docs/implementation/example.md"),
+                test=Path("tests/test_example.cpp"),
+                test_target="test_example",
+            )
+            failures = DOCS.evidence_attribution_failures(
+                repo, {"example_threshold": contract}
+            )
+            self.assertTrue(
+                any("do not have dedicated runtime checks" in item
+                    for item in failures),
+                failures,
+            )
+
+    def test_completion_supervisor_behavior_test_must_be_registered(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            repo = Path(temp)
+            self.write_valid_fixture(repo)
+            self.write_cmake_registration(repo)
+            cmake = repo / "CMakeLists.txt"
+            cmake.write_text(
+                cmake.read_text(encoding="utf-8").replace(
+                    "add_test(NAME test_run_doc_evidence_test\n"
+                    "  COMMAND python3 ${CMAKE_SOURCE_DIR}/tools/"
+                    "test_run_doc_evidence_test.py)\n",
+                    "",
+                ),
+                encoding="utf-8",
+            )
+            contract = DOCS.EvidenceAttributionContract(
+                document=Path("docs/implementation/example.md"),
+                test=Path("tests/test_example.cpp"),
+                test_target="test_example",
+            )
+            failures = DOCS.evidence_attribution_failures(
+                repo, {"example_threshold": contract}
+            )
+            self.assertTrue(
+                any("supervisor behavior test is not registered" in item
+                    for item in failures),
+                failures,
+            )
+
+    def test_completion_supervisor_behavior_test_cannot_be_disabled(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            repo = Path(temp)
+            self.write_valid_fixture(repo)
+            self.write_cmake_registration(repo)
+            cmake = repo / "CMakeLists.txt"
+            cmake.write_text(
+                cmake.read_text(encoding="utf-8").replace(
+                    "camera_iq_expect_doc_evidence(test_example",
+                    "set_tests_properties(test_run_doc_evidence_test "
+                    "PROPERTIES DISABLED TRUE)\n"
+                    "camera_iq_expect_doc_evidence(test_example",
+                ),
+                encoding="utf-8",
+            )
+            contract = DOCS.EvidenceAttributionContract(
+                document=Path("docs/implementation/example.md"),
+                test=Path("tests/test_example.cpp"),
+                test_target="test_example",
+            )
+            failures = DOCS.evidence_attribution_failures(
+                repo, {"example_threshold": contract}
+            )
+            self.assertTrue(
+                any("test_run_doc_evidence_test has test properties outside"
+                    in item for item in failures),
+                failures,
+            )
+
+    def test_completion_supervisor_follows_indirect_property_assignments(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            repo = Path(temp)
+            self.write_valid_fixture(repo)
+            self.write_cmake_registration(repo)
+            cmake = repo / "CMakeLists.txt"
+            cmake.write_text(
+                cmake.read_text(encoding="utf-8").replace(
+                    "camera_iq_expect_doc_evidence(test_example",
+                    "set_tests_properties(${ALL_TESTS} PROPERTIES "
+                    "DISABLED TRUE)\n"
+                    "camera_iq_expect_doc_evidence(test_example",
+                ),
+                encoding="utf-8",
+            )
+            contract = DOCS.EvidenceAttributionContract(
+                document=Path("docs/implementation/example.md"),
+                test=Path("tests/test_example.cpp"),
+                test_target="test_example",
+            )
+            failures = DOCS.evidence_attribution_failures(
+                repo, {"example_threshold": contract}
+            )
+            self.assertTrue(
+                any("supervisor behavior test must be registered after" in item
+                    for item in failures),
+                failures,
+            )
+
     def test_registered_target_cannot_override_runtime_properties(self) -> None:
         with tempfile.TemporaryDirectory() as temp:
             repo = Path(temp)
@@ -1445,6 +1575,75 @@ class EvidenceAttributionTests(unittest.TestCase):
             self.assertTrue(
                 any("mixes multiple test files" in item for item in failures),
                 failures,
+            )
+
+    def test_claim_bound_count_cannot_read_as_test_file_census(self) -> None:
+        phrasings = (
+            "The one numeric assertion in",
+            "There is one numeric assertion in",
+            "One numeric assertion in",
+        )
+        for wording in phrasings:
+            with self.subTest(wording=wording):
+                with tempfile.TemporaryDirectory() as temp:
+                    repo = Path(temp)
+                    self.write_valid_fixture(repo)
+                    document = repo / "docs" / "implementation" / "example.md"
+                    document.write_text(
+                        "## Verification evidence\n\n"
+                        f"{wording} "
+                        "[`test_example.cpp`](../../tests/test_example.cpp) "
+                        "pins the threshold.\n"
+                        "<!-- test-evidence: example_threshold -->\n",
+                        encoding="utf-8",
+                    )
+                    failures = DOCS.evidence_attribution_failures(
+                        repo, self.fixture_contracts()
+                    )
+                    self.assertTrue(
+                        any("count is not scoped to the claim" in item
+                            for item in failures),
+                        failures,
+                    )
+
+    def test_claim_bound_count_must_match_registered_wrapper_count(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            repo = Path(temp)
+            self.write_valid_fixture(repo)
+            document = repo / "docs" / "implementation" / "example.md"
+            document.write_text(
+                "## Verification evidence\n\n"
+                "Two numeric assertions registered for this claim in "
+                "[`test_example.cpp`](../../tests/test_example.cpp) pin the "
+                "threshold.\n"
+                "<!-- test-evidence: example_threshold -->\n",
+                encoding="utf-8",
+            )
+            failures = DOCS.evidence_attribution_failures(
+                repo, self.fixture_contracts()
+            )
+            self.assertTrue(
+                any("states 2 registered assertions; expected 1" in item
+                    for item in failures),
+                failures,
+            )
+
+    def test_correct_claim_bound_count_is_accepted(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            repo = Path(temp)
+            self.write_valid_fixture(repo)
+            document = repo / "docs" / "implementation" / "example.md"
+            document.write_text(
+                "## Verification evidence\n\n"
+                "One numeric assertion registered for this claim in "
+                "[`test_example.cpp`](../../tests/test_example.cpp) pins the "
+                "threshold.\n"
+                "<!-- test-evidence: example_threshold -->\n",
+                encoding="utf-8",
+            )
+            self.assertEqual(
+                [],
+                DOCS.evidence_attribution_failures(repo, self.fixture_contracts()),
             )
 
     def test_marker_in_wrong_test_file_is_rejected(self) -> None:

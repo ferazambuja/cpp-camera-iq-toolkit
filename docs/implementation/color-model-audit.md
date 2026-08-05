@@ -78,7 +78,7 @@ does not recover the missing original tool settings or full-precision input.
 ## Verification evidence
 
 At the library/unit layer, the published curves are test oracles rather than
-unchecked outputs. Eleven numeric assertions in
+unchecked outputs. Eleven numeric assertions registered for this claim in
 [`test_cam16_equation_audit.cpp`](../../tests/test_cam16_equation_audit.cpp)
 pin both brightness relations at their midpoint consequences to `1e-15`:
 CAM16's square-root relation reaches half normalized brightness at `J = 25`,

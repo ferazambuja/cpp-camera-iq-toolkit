@@ -61,9 +61,16 @@ CMAKE_EVIDENCE_HELPER_ADD_TEST_RE = re.compile(
     r"TMPDIR=\$\{evidence_tmpdir\}\s+"
     r"TMP=\$\{evidence_tmpdir\}\s+"
     r"TEMP=\$\{evidence_tmpdir\}\s+"
-    r"\$<TARGET_FILE:\$\{target\}>\s+"
-    r"--camera-iq-doc-evidence-expect\s+\$\{expectations\}\s*\)\s*$",
+    r"python3\s+\$\{CMAKE_SOURCE_DIR\}/tools/run_doc_evidence_test\.py\s+"
+    r"--binary\s+\$<TARGET_FILE:\$\{target\}>\s+"
+    r"--expectations\s+\$\{expectations\}\s*\)\s*$",
     re.DOTALL,
+)
+CMAKE_EVIDENCE_SUPERVISOR_TEST_RE = re.compile(
+    r"^[ \t]*add_test\s*\(\s*NAME\s+test_run_doc_evidence_test\s+"
+    r"COMMAND\s+python3\s+"
+    r"\$\{CMAKE_SOURCE_DIR\}/tools/test_run_doc_evidence_test\.py\s*\)\s*$",
+    re.MULTILINE,
 )
 CMAKE_DIRECT_TEST_PROPERTY_RE = re.compile(
     r"^[ \t]*(?:set_tests_properties|set_property)\s*\((?P<body>.*?)\)",
@@ -90,6 +97,8 @@ HARNESS_ENTRY_POINT_RE = re.compile(
     r"\s*\{.*?\bhas_evidence_expectation\b.*?"
     r"return\s+test::run\s*\(\s*\[\s*\]\s*\{\s*TESTS\s*\(\s*\)\s*;\s*"
     r"\}\s*,\s*has_evidence_expectation\s*\?\s*argv\s*\[\s*2\s*\]\s*"
+    r":\s*nullptr\s*,\s*has_evidence_expectation\s*\?\s*argv\s*\[\s*4\s*\]\s*"
+    r":\s*nullptr\s*,\s*has_evidence_expectation\s*\?\s*argv\s*\[\s*6\s*\]\s*"
     r":\s*nullptr\s*\)\s*;\s*\}",
     re.DOTALL,
 )
@@ -110,6 +119,41 @@ REGISTERED_TEST_EVIDENCE_CONTROL_RE = re.compile(
 REGISTERED_TEST_PROCESS_TERMINATION_RE = re.compile(
     r"(?<![A-Za-z0-9_.:>])(?:(?:std\s*::)|(?:::))?"
     r"(?:exit|quick_exit|_Exit|_exit)\s*\("
+)
+
+EXPLICIT_ASSERTION_COUNT_WORDS = {
+    "one": 1,
+    "two": 2,
+    "three": 3,
+    "four": 4,
+    "five": 5,
+    "six": 6,
+    "seven": 7,
+    "eight": 8,
+    "nine": 9,
+    "ten": 10,
+    "eleven": 11,
+    "twelve": 12,
+    "thirteen": 13,
+    "fourteen": 14,
+    "fifteen": 15,
+    "sixteen": 16,
+    "seventeen": 17,
+    "eighteen": 18,
+    "nineteen": 19,
+    "twenty": 20,
+}
+EXPLICIT_ASSERTION_COUNT = (
+    r"(?:\d+|" + "|".join(EXPLICIT_ASSERTION_COUNT_WORDS) + r")"
+)
+EXPLICIT_ASSERTION_COUNT_MENTION_RE = re.compile(
+    rf"\b({EXPLICIT_ASSERTION_COUNT})\s+"
+    r"(?:[a-z][a-z-]*\s+){0,4}assertions?\b",
+    re.IGNORECASE,
+)
+CLAIM_BOUND_ASSERTION_COUNT_SUFFIX_RE = re.compile(
+    r"^\s+registered\s+for\s+this\s+claim\b",
+    re.IGNORECASE,
 )
 
 
@@ -1085,6 +1129,15 @@ def _parse_doc_evidence_expectations(specification: str) -> dict[str, int] | Non
     return expectations
 
 
+def _explicit_assertion_count(value: str) -> int:
+    lowered = value.lower()
+    return (
+        int(lowered)
+        if lowered.isdigit()
+        else EXPLICIT_ASSERTION_COUNT_WORDS[lowered]
+    )
+
+
 def _evidence_macro_definition_failures(repo_root: Path) -> list[str]:
     header = repo_root / "tests" / "harness.hpp"
     if not header.is_file():
@@ -1249,6 +1302,14 @@ def evidence_attribution_failures(
             "checks: camera_iq_expect_doc_evidence must invoke each target "
             "through CTest with --camera-iq-doc-evidence-expect"
         )
+    supervisor_test_match = CMAKE_EVIDENCE_SUPERVISOR_TEST_RE.search(
+        top_level_cmake_text
+    )
+    if expected_by_target and supervisor_test_match is None:
+        failures.append(
+            "documentation evidence supervisor behavior test is not registered "
+            "with CTest: test_run_doc_evidence_test"
+        )
     for target, expected in expected_by_target.items():
         if target in duplicate_expectation_targets:
             failures.append(
@@ -1276,6 +1337,14 @@ def evidence_attribution_failures(
             "after all direct CTest property assignments so their checks "
             "cannot be altered"
         )
+    if supervisor_test_match is not None and any(
+        match.start() > supervisor_test_match.start() for match in property_matches
+    ):
+        failures.append(
+            "documentation evidence supervisor behavior test must be registered "
+            "after all direct CTest property assignments so indirect test-list "
+            "properties cannot disable it"
+        )
     if expectation_matches:
         expectation_block_is_contiguous = all(
             not top_level_cmake_text[
@@ -1298,7 +1367,7 @@ def evidence_attribution_failures(
         body_tokens = set(re.findall(r"[A-Za-z0-9_-]+", match.group("body")))
         protected_tests = set(expected_by_target) | {
             f"check_doc_evidence_{target}" for target in expected_by_target
-        }
+        } | {"test_run_doc_evidence_test"}
         for target in sorted(body_tokens & protected_tests):
             failures.append(
                 f"registered evidence target {target} has test properties "
@@ -1412,6 +1481,26 @@ def evidence_attribution_failures(
                     f"{evidence_id} in {contract.document} — split each "
                     f"evidence cluster into its own paragraph"
                 )
+            normalized_paragraph = normalize_markdown(paragraph)
+            for count_match in EXPLICIT_ASSERTION_COUNT_MENTION_RE.finditer(
+                normalized_paragraph
+            ):
+                count_suffix = normalized_paragraph[count_match.end() :]
+                if CLAIM_BOUND_ASSERTION_COUNT_SUFFIX_RE.match(count_suffix) is None:
+                    failures.append(
+                        f"registered claim assertion count is not scoped to the "
+                        f"claim: {evidence_id} in {contract.document} — use "
+                        "'<count> assertions registered for this claim' rather "
+                        "than presenting a test-file census"
+                    )
+                    continue
+                stated_count = _explicit_assertion_count(count_match.group(1))
+                if stated_count != contract.assertion_count:
+                    failures.append(
+                        f"registered claim {evidence_id} states {stated_count} "
+                        f"registered assertions; expected "
+                        f"{contract.assertion_count} from its source wrappers"
+                    )
 
         if len(test_entries) != contract.assertion_count:
             failures.append(

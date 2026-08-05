@@ -98,7 +98,7 @@ has been established; it is not the mapping algorithm.
 
 ## Verification evidence
 
-At the library/unit layer, ten aggregate assertions in
+At the library/unit layer, ten aggregate assertions registered for this claim in
 [`test_gamut_mapping.cpp`](../../tests/test_gamut_mapping.cpp) pin the
 deterministic set at 3,229 inputs; require every legal input to map without an
 exception to a finite, destination-gamut output; enforce the scoped CIELAB
