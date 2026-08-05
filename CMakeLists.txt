@@ -130,8 +130,8 @@ function(camera_iq_expect_doc_evidence target expectations)
             TMPDIR=${evidence_tmpdir}
             TMP=${evidence_tmpdir}
             TEMP=${evidence_tmpdir}
-            CAMERA_IQ_DOC_EVIDENCE_EXPECT=${expectations}
-            $<TARGET_FILE:${target}>)
+            $<TARGET_FILE:${target}>
+            --camera-iq-doc-evidence-expect ${expectations})
 endfunction()
 
 camera_iq_add_test(camera_iq_tests tests/test_cli_basic.cpp)
@@ -302,10 +302,16 @@ camera_iq_expect_doc_evidence(test_sfr
 camera_iq_expect_doc_evidence(test_cmd_ccm_fit
   color_characterization_ccm_external_labels=2,color_characterization_ccm_provenance=3,color_characterization_ccm_refusals=6)
 camera_iq_expect_doc_evidence(test_patches
-  color_characterization_localization_shifted=3,color_characterization_localization_offset=3,color_characterization_localization_verdict=2)
+  color_characterization_localization_shifted=5,color_characterization_localization_offset=5,color_characterization_localization_verdict=2)
 camera_iq_expect_doc_evidence(test_spectral_quality
   spectral_fidelity_luther_scale_invariance=5)
 camera_iq_expect_doc_evidence(test_flat_field_gate
   flat_field_cfa_balanced_roi=4,flat_field_threshold_boundaries=21)
 camera_iq_expect_doc_evidence(test_shading
-  flat_field_radial_asymmetry=2)
+  flat_field_radial_asymmetry=3)
+camera_iq_expect_doc_evidence(test_gamut_mapping
+  gamut_mapping_adversarial_contract=10)
+camera_iq_expect_doc_evidence(test_cam16_equation_audit
+  color_model_audit_numeric_oracles=11)
+camera_iq_expect_doc_evidence(test_spectro_analysis
+  spectroradiometer_scale_separation=5)

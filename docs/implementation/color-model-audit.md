@@ -77,11 +77,10 @@ does not recover the missing original tool settings or full-precision input.
 
 ## Verification evidence
 
-The equation-audit assertions are in
-[`test_cam16_equation_audit.cpp`](../../tests/test_cam16_equation_audit.cpp).
-
-The published curves are test oracles rather than unchecked outputs. Both
-brightness relations are pinned at their midpoint consequences to `1e-15`:
+At the library/unit layer, the published curves are test oracles rather than
+unchecked outputs. The eleven numeric assertions in
+[`test_cam16_equation_audit.cpp`](../../tests/test_cam16_equation_audit.cpp)
+pin both brightness relations at their midpoint consequences to `1e-15`:
 CAM16's square-root relation reaches half normalized brightness at `J = 25`,
 and the proposed linear relation reaches it at `J = 50`. The background factor
 is pinned at the reference condition and at selected darker backgrounds
@@ -92,6 +91,7 @@ is pinned at the reference condition and at selected darker backgrounds
 that the isolated `2.595287047166021` term is neither a floor nor a ceiling. A
 literal 3-4-5 opponent vector with `N_c = e_t = 1` must return `215` to `1e-12`,
 which pins the corrected Equation 23 coefficient `43`.
+<!-- test-evidence: color_model_audit_numeric_oracles -->
 
 The implementation enforces these domains: normalized brightness accepts `J`
 only in `[0,100]`; relative and reference backgrounds only in `(0,100]`; the

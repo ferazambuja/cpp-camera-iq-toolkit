@@ -61,8 +61,8 @@ CMAKE_EVIDENCE_HELPER_ADD_TEST_RE = re.compile(
     r"TMPDIR=\$\{evidence_tmpdir\}\s+"
     r"TMP=\$\{evidence_tmpdir\}\s+"
     r"TEMP=\$\{evidence_tmpdir\}\s+"
-    r"CAMERA_IQ_DOC_EVIDENCE_EXPECT=\$\{expectations\}\s+"
-    r"\$<TARGET_FILE:\$\{target\}>\s*\)\s*$",
+    r"\$<TARGET_FILE:\$\{target\}>\s+"
+    r"--camera-iq-doc-evidence-expect\s+\$\{expectations\}\s*\)\s*$",
     re.DOTALL,
 )
 CMAKE_DIRECT_TEST_PROPERTY_RE = re.compile(
@@ -86,9 +86,11 @@ EVIDENCE_MACRO_MUTATION_RE = re.compile(
 )
 HARNESS_ENTRY_POINT_RE = re.compile(
     r"\bvoid\s+TESTS\s*\(\s*\)\s*;.*?"
-    r"\bint\s+main\s*\(\s*\)\s*\{\s*"
+    r"\bint\s+main\s*\(\s*int\s+argc\s*,\s*char\s*\*\s*argv\s*\[\s*\]\s*\)"
+    r"\s*\{.*?\bhas_evidence_expectation\b.*?"
     r"return\s+test::run\s*\(\s*\[\s*\]\s*\{\s*TESTS\s*\(\s*\)\s*;\s*"
-    r"\}\s*\)\s*;\s*\}",
+    r"\}\s*,\s*has_evidence_expectation\s*\?\s*argv\s*\[\s*2\s*\]\s*"
+    r":\s*nullptr\s*\)\s*;\s*\}",
     re.DOTALL,
 )
 HARNESS_NO_MAIN_RE = re.compile(
@@ -96,8 +98,18 @@ HARNESS_NO_MAIN_RE = re.compile(
     re.MULTILINE,
 )
 DIRECT_DOC_EVIDENCE_INTERNAL_RE = re.compile(
-    r"\b(?:record_doc_evidence\b|doc_evidence_enabled\b|"
-    r"expected_doc_evidence\b|observed_doc_evidence\b)"
+    r"\b(?:record_doc_evidence\b|DocEvidenceRunState\b|"
+    r"active_doc_evidence_run_state\b|current_doc_evidence_run\b|"
+    r"configure_doc_evidence\b|verify_doc_evidence\b|"
+    r"doc_evidence_enabled\b|expected_doc_evidence\b|"
+    r"observed_doc_evidence\b|test\s*::\s*failures\b)"
+)
+REGISTERED_TEST_EVIDENCE_CONTROL_RE = re.compile(
+    r"\btest::run\s*\("
+)
+REGISTERED_TEST_PROCESS_TERMINATION_RE = re.compile(
+    r"(?<![A-Za-z0-9_.:>])(?:(?:std\s*::)|(?:::))?"
+    r"(?:exit|quick_exit|_Exit|_exit)\s*\("
 )
 
 
@@ -114,13 +126,13 @@ EVIDENCE_ATTRIBUTION_CONTRACTS: dict[str, EvidenceAttributionContract] = {
         Path("docs/implementation/color-characterization.md"),
         Path("tests/test_patches.cpp"),
         "test_patches",
-        3,
+        5,
     ),
     "color_characterization_localization_offset": EvidenceAttributionContract(
         Path("docs/implementation/color-characterization.md"),
         Path("tests/test_patches.cpp"),
         "test_patches",
-        3,
+        5,
     ),
     "color_characterization_localization_verdict": EvidenceAttributionContract(
         Path("docs/implementation/color-characterization.md"),
@@ -150,7 +162,7 @@ EVIDENCE_ATTRIBUTION_CONTRACTS: dict[str, EvidenceAttributionContract] = {
         Path("docs/implementation/flat-field.md"),
         Path("tests/test_shading.cpp"),
         "test_shading",
-        2,
+        3,
     ),
     "flat_field_cfa_balanced_roi": EvidenceAttributionContract(
         Path("docs/implementation/flat-field.md"),
@@ -202,11 +214,26 @@ EVIDENCE_ATTRIBUTION_CONTRACTS: dict[str, EvidenceAttributionContract] = {
         "test_raw_meta",
         6,
     ),
+    "gamut_mapping_adversarial_contract": EvidenceAttributionContract(
+        Path("docs/implementation/gamut-mapping.md"),
+        Path("tests/test_gamut_mapping.cpp"),
+        "test_gamut_mapping",
+        10,
+    ),
+    "color_model_audit_numeric_oracles": EvidenceAttributionContract(
+        Path("docs/implementation/color-model-audit.md"),
+        Path("tests/test_cam16_equation_audit.cpp"),
+        "test_cam16_equation_audit",
+        11,
+    ),
+    "spectroradiometer_scale_separation": EvidenceAttributionContract(
+        Path("docs/implementation/spectroradiometer.md"),
+        Path("tests/test_spectro_analysis.cpp"),
+        "test_spectro_analysis",
+        5,
+    ),
 }
-REQUIRED_PROJECT_DOCUMENTS = (
-    Path("docs/README.md"),
-    Path("docs/PUBLIC_DOCUMENTATION_STANDARD.md"),
-    Path("docs/implementation/README.md"),
+REQUIRED_IMPLEMENTATION_COMPANIONS = (
     Path("docs/implementation/raw-foundation.md"),
     Path("docs/implementation/sfr-mtf.md"),
     Path("docs/implementation/color-characterization.md"),
@@ -215,6 +242,12 @@ REQUIRED_PROJECT_DOCUMENTS = (
     Path("docs/implementation/spectroradiometer.md"),
     Path("docs/implementation/gamut-mapping.md"),
     Path("docs/implementation/color-model-audit.md"),
+)
+REQUIRED_PROJECT_DOCUMENTS = (
+    Path("docs/README.md"),
+    Path("docs/PUBLIC_DOCUMENTATION_STANDARD.md"),
+    Path("docs/implementation/README.md"),
+    *REQUIRED_IMPLEMENTATION_COMPANIONS,
     Path("docs/case-studies/sfr-mtf-aperture-field.md"),
     Path("docs/case-studies/spectral-color-fidelity.md"),
     Path("docs/case-studies/colorchecker-ccm.md"),
@@ -275,6 +308,27 @@ IMPLEMENTATION_EVIDENCE_ASSERTION_RE = re.compile(
     r"preserv(?:e|es|ed)|round[- ]trip(?:s|ped)?|mutation)\b",
     re.IGNORECASE,
 )
+
+
+def _implementation_evidence_section_spans(text: str) -> list[tuple[int, int]]:
+    """Return content spans for dedicated implementation-evidence sections."""
+    spans: list[tuple[int, int]] = []
+    heading_text = _mask_markdown_fences(text)
+    for heading in IMPLEMENTATION_EVIDENCE_SECTION_RE.finditer(heading_text):
+        heading_level = len(heading.group(0)) - len(
+            heading.group(0).lstrip("#")
+        )
+        tail = heading_text[heading.end():]
+        next_peer_or_parent = re.search(
+            rf"^#{{1,{heading_level}}}\s+", tail, re.MULTILINE
+        )
+        end = (
+            heading.end() + next_peer_or_parent.start()
+            if next_peer_or_parent
+            else len(text)
+        )
+        spans.append((heading.end(), end))
+    return spans
 
 # Every public study and report must route implementation detail to one named
 # companion. Exact links are intentional: a generic implementation index does
@@ -701,26 +755,15 @@ def implementation_evidence_failures_for_text(
     # live inside that section. Otherwise an empty heading plus a stray mention
     # of tests elsewhere would satisfy the guard while the evidence itself was
     # still missing.
-    evidence_headings = list(IMPLEMENTATION_EVIDENCE_SECTION_RE.finditer(text))
-    if not evidence_headings:
+    evidence_spans = _implementation_evidence_section_spans(text)
+    if not evidence_spans:
         failures.append(
             f"implementation companion missing a verification-evidence section: "
             f"{relative} — give the evidence its own heading so removing it is "
             f"visible in review"
         )
 
-    evidence_sections = []
-    for evidence_heading in evidence_headings:
-        heading_level = len(evidence_heading.group(0)) - len(
-            evidence_heading.group(0).lstrip("#")
-        )
-        tail = text[evidence_heading.end():]
-        next_peer_or_parent = re.search(
-            rf"^#{{1,{heading_level}}}\s+", tail, re.MULTILINE
-        )
-        evidence_sections.append(
-            tail[: next_peer_or_parent.start()] if next_peer_or_parent else tail
-        )
+    evidence_sections = [text[start:end] for start, end in evidence_spans]
 
     if evidence_sections and not any(
         IMPLEMENTATION_TEST_LINK_RE.search(section)
@@ -1084,14 +1127,12 @@ TESTS_FUNCTION_RE = re.compile(r"\bvoid\s+TESTS\s*\(\s*\)\s*\{")
 
 
 def _tests_body_span(executable_text: str) -> tuple[int, int] | None:
-    """Locate the body of TESTS(), the only function the harness main() calls.
+    """Locate TESTS(), proving use of the default harness entry point.
 
-    Counting a wrapper that sits outside it would accept an assertion the test
-    run never reaches: a block extracted into a helper that lost its call site,
-    or dead code left behind by a refactor, still compiles into the registered
-    target. Returns None when the source defines no TESTS(), which a linked
-    CTest target cannot do -- `tests/harness.hpp` declares it and calls it from
-    main() -- so the rule only relaxes for sources that are not real tests.
+    Evidence wrappers may live in called helpers. Runtime execution counts,
+    rather than lexical placement, establish that those helpers are reached.
+    A registered default-harness source must still define TESTS() because the
+    supplied main() declares and calls it.
     """
     match = TESTS_FUNCTION_RE.search(executable_text)
     if match is None:
@@ -1145,6 +1186,7 @@ def evidence_attribution_failures(
     paragraph, an exact number of wrappers around assertions in the registered
     source, and exact runtime hit counts in a dedicated CTest evidence run.
     """
+    enforce_portfolio_coverage = contracts is None
     contracts = EVIDENCE_ATTRIBUTION_CONTRACTS if contracts is None else contracts
     failures: list[str] = []
     document_markers: dict[str, list[tuple[Path, re.Match[str], str]]] = {}
@@ -1205,7 +1247,7 @@ def evidence_attribution_failures(
         failures.append(
             "documentation evidence targets do not have dedicated runtime "
             "checks: camera_iq_expect_doc_evidence must invoke each target "
-            "through CTest with CAMERA_IQ_DOC_EVIDENCE_EXPECT"
+            "through CTest with --camera-iq-doc-evidence-expect"
         )
     for target, expected in expected_by_target.items():
         if target in duplicate_expectation_targets:
@@ -1279,6 +1321,8 @@ def evidence_attribution_failures(
                 (path, match, text)
             )
 
+    harness_header = (repo_root / "tests" / "harness.hpp").resolve()
+    harness_self_test = (repo_root / "tests" / "test_harness.cpp").resolve()
     for path in _text_files(repo_root / "tests", {".cpp", ".hpp", ".py"}):
         text = path.read_text(encoding="utf-8")
         executable_text = (
@@ -1286,7 +1330,12 @@ def evidence_attribution_failures(
             if path.suffix in {".cpp", ".hpp"}
             else text
         )
-        for match in EXECUTABLE_TEST_EVIDENCE_RE.finditer(executable_text):
+        marker_matches = (
+            ()
+            if path.resolve() == harness_self_test
+            else EXECUTABLE_TEST_EVIDENCE_RE.finditer(executable_text)
+        )
+        for match in marker_matches:
             line_start = executable_text.rfind("\n", 0, match.start()) + 1
             if re.match(
                 r"\s*#\s*define\b",
@@ -1296,11 +1345,9 @@ def evidence_attribution_failures(
             test_markers.setdefault(match.group(1), []).append(
                 (path, match, executable_text)
             )
-        if (
-            path.name not in {"harness.hpp", "test_harness.cpp"}
-            and path.suffix in {".cpp", ".hpp"}
-            and DIRECT_DOC_EVIDENCE_INTERNAL_RE.search(executable_text)
-        ):
+        if (path.resolve() != harness_header and
+                path.suffix in {".cpp", ".hpp"} and
+                DIRECT_DOC_EVIDENCE_INTERNAL_RE.search(executable_text)):
             failures.append(
                 "documentation evidence runtime internals must be used only by "
                 f"CAMERA_IQ_DOC_EVIDENCE wrappers: {path.relative_to(repo_root)} "
@@ -1345,6 +1392,13 @@ def evidence_attribution_failures(
             )
         else:
             path, match, text = document_entries[0]
+            evidence_spans = _implementation_evidence_section_spans(text)
+            if not any(start <= match.start() < end
+                       for start, end in evidence_spans):
+                failures.append(
+                    f"document marker is outside its verification-evidence "
+                    f"section: {evidence_id} in {contract.document}"
+                )
             paragraph = _preceding_paragraph(text, match.start())
             if not _paragraph_links_to(path, paragraph, expected_test):
                 failures.append(
@@ -1385,6 +1439,49 @@ def evidence_attribution_failures(
                         f"registered evidence source {contract.test} disables "
                         "the harness main() that verifies runtime evidence counts"
                     )
+                if REGISTERED_TEST_EVIDENCE_CONTROL_RE.search(executable_text):
+                    failures.append(
+                        f"registered evidence source {contract.test} may not "
+                        "start a nested test run"
+                    )
+                if REGISTERED_TEST_PROCESS_TERMINATION_RE.search(executable_text):
+                    failures.append(
+                        f"registered evidence source {contract.test} may not "
+                        "invoke process termination before runtime evidence is "
+                        "verified"
+                    )
+        if expected_test == harness_self_test or contract.test_target == "test_harness":
+            failures.append(
+                f"documentation claim {evidence_id} may not use the harness "
+                "self-test as scientific evidence"
+            )
+
+    if enforce_portfolio_coverage:
+        anchored_documents: set[Path] = set()
+        for evidence_id, contract in contracts.items():
+            entries = document_markers.get(evidence_id, [])
+            if len(entries) != 1:
+                continue
+            path, match, text = entries[0]
+            if path.resolve() != (repo_root / contract.document).resolve():
+                continue
+            if any(
+                start <= match.start() < end
+                for start, end in _implementation_evidence_section_spans(text)
+            ):
+                anchored_documents.add(contract.document)
+        implementation_dir = repo_root / "docs" / "implementation"
+        public_companions = sorted(
+            path.relative_to(repo_root)
+            for path in implementation_dir.glob("*.md")
+            if path.name != "README.md"
+        )
+        for companion in public_companions:
+            if companion not in anchored_documents:
+                failures.append(
+                    "implementation companion has no runtime-backed claim in "
+                    f"its verification-evidence section: {companion}"
+                )
 
     return failures
 

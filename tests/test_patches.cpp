@@ -1,5 +1,6 @@
 #include "camera_iq/patches.hpp"
 
+#include <algorithm>
 #include <cmath>
 #include <filesystem>
 #include <fstream>
@@ -254,6 +255,14 @@ void TESTS() {
       shifted, oracle, localization_thresholds);
   CAMERA_IQ_DOC_EVIDENCE(
       color_characterization_localization_shifted,
+      check_near(localization.thresholds.max_center_error_px, 5.0, 0.0,
+                 "localization validation: declared center limit is 5 px"));
+  CAMERA_IQ_DOC_EVIDENCE(
+      color_characterization_localization_shifted,
+      check_near(localization.max_center_error_px, 6.0, 1e-12,
+                 "localization validation: shifted grid exceeds center limit"));
+  CAMERA_IQ_DOC_EVIDENCE(
+      color_characterization_localization_shifted,
       check(!localization.passes,
             "localization validation: shifted grid fails despite perfect RGB"));
   check_near(localization.center_residuals[0].dx_px, 6.0, 1e-12,
@@ -279,6 +288,20 @@ void TESTS() {
   }
   localization = validate_patch_localization_against_oracle(
       offset, oracle, localization_thresholds);
+  CAMERA_IQ_DOC_EVIDENCE(
+      color_characterization_localization_offset,
+      check_near(localization.thresholds.max_abs_mean_error_dn, 25.0, 0.0,
+                 "localization validation: declared patch-mean error limit is 25 DN"));
+  CAMERA_IQ_DOC_EVIDENCE(
+      color_characterization_localization_offset,
+      check(std::all_of(
+                localization.rgb_comparison.channels.begin(),
+                localization.rgb_comparison.channels.end(),
+                [](const PatchChannelComparison& channel) {
+                  return std::abs(channel.max_abs_error_before_affine - 30.0) <=
+                         1e-12;
+                }),
+            "localization validation: uniform offset produces 30 DN in R, G, and B"));
   CAMERA_IQ_DOC_EVIDENCE(
       color_characterization_localization_offset,
       check(!localization.passes,

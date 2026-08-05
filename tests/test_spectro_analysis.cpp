@@ -29,24 +29,35 @@ void TESTS() {
         "spectro analysis: the declared grid and group size are retained");
   check(same_shape.sample_weighting == "uniform_equal_weight",
         "spectro analysis: the integration rule is explicit");
-  check_near(same_shape.readings[0].spectral_integral, 8.0, 1e-12,
-             "spectro analysis: integral includes the 2 nm sample width");
-  check_near(same_shape.mean_spectral_integral, 12.0, 1e-12,
-             "spectro analysis: absolute level is summarized separately");
+  CAMERA_IQ_DOC_EVIDENCE(
+      spectroradiometer_scale_separation,
+      check_near(same_shape.readings[0].spectral_integral, 8.0, 1e-12,
+                 "spectro analysis: integral includes the 2 nm sample width"));
+  CAMERA_IQ_DOC_EVIDENCE(
+      spectroradiometer_scale_separation,
+      check_near(same_shape.mean_spectral_integral, 12.0, 1e-12,
+                 "spectro analysis: absolute level is summarized separately"));
   check(same_shape.sample_stddev_spectral_integral.has_value() &&
             same_shape.coefficient_of_variation.has_value(),
         "spectro analysis: repeated measurements carry level variation");
-  check_near(*same_shape.coefficient_of_variation, std::sqrt(32.0) / 12.0,
-             1e-12, "spectro analysis: level CV uses the n-1 sample deviation");
+  CAMERA_IQ_DOC_EVIDENCE(
+      spectroradiometer_scale_separation,
+      check_near(*same_shape.coefficient_of_variation,
+                 std::sqrt(32.0) / 12.0, 1e-12,
+                 "spectro analysis: level CV uses the n-1 sample deviation"));
   check(same_shape.mean_normalized_spectrum ==
             std::vector<double>({0.125, 0.25, 0.125}),
         "spectro analysis: every spectrum is normalized before averaging");
-  check(same_shape.max_shape_relative_l2.has_value() &&
-            *same_shape.max_shape_relative_l2 == 0.0,
-        "spectro analysis: pure level scaling has zero shape residual");
-  check(same_shape.max_pair_delta_u_prime_v_prime.has_value() &&
-            *same_shape.max_pair_delta_u_prime_v_prime == 0.0,
-        "spectro analysis: proportional XYZ has zero chromaticity separation");
+  CAMERA_IQ_DOC_EVIDENCE(
+      spectroradiometer_scale_separation,
+      check(same_shape.max_shape_relative_l2.has_value() &&
+                *same_shape.max_shape_relative_l2 == 0.0,
+            "spectro analysis: pure level scaling has zero shape residual"));
+  CAMERA_IQ_DOC_EVIDENCE(
+      spectroradiometer_scale_separation,
+      check(same_shape.max_pair_delta_u_prime_v_prime.has_value() &&
+                *same_shape.max_pair_delta_u_prime_v_prime == 0.0,
+            "spectro analysis: proportional XYZ has zero chromaticity separation"));
 
   const auto singleton = analyze_spectro_group({reading(1.0)});
   check(!singleton.sample_stddev_spectral_integral.has_value() &&
