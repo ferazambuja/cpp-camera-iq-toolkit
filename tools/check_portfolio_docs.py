@@ -14,68 +14,141 @@ from urllib.parse import unquote
 
 LINK_RE = re.compile(r"!?\[[^\]]*\]\(([^)]+)\)")
 DOCUMENT_EVIDENCE_RE = re.compile(
-    r"<!--\s*test-evidence:\s*([a-z0-9][a-z0-9.-]*)\s*-->"
+    r"<!--\s*test-evidence:\s*([a-z0-9][a-z0-9._-]*)\s*-->"
 )
-TEST_EVIDENCE_RE = re.compile(
-    r"^\s*(?://|#)\s*DOC-EVIDENCE:\s*([a-z0-9][a-z0-9.-]*)\s*$",
+EXECUTABLE_TEST_EVIDENCE_RE = re.compile(
+    r"\bCAMERA_IQ_DOC_EVIDENCE\(\s*([a-z][a-z0-9_]*)\s*,\s*"
+    r"(?:(?:test::)?check(?:_near)?)\s*\("
+)
+CMAKE_CPP_TEST_RE = re.compile(
+    r"\bcamera_iq_add_test\s*\(\s*([A-Za-z0-9_-]+)\s+([^\s)]+)\s*\)",
     re.MULTILINE,
 )
-# A marker only attributes evidence if an assertion actually follows it. Being
-# somewhere in the right file is not enough: deleting the assertion a marker
-# describes, or moving blocks around it during a refactor, would otherwise
-# leave the marker floating at file scope with the guard still green.
-TEST_ASSERTION_RE = re.compile(
-    r"(?:^|[^A-Za-z0-9_])(?:test::)?check(?:_near)?\s*\(|"
-    r"^\s*(?:self\.)?assert[A-Za-z]*\s*[\(\s]|"
-    r"\bassertRaises\b"
+CMAKE_TEST_HELPER_RE = re.compile(
+    r"^[ \t]*function\s*\(\s*camera_iq_add_test\s+name\s+source\s*\)"
+    r"(?P<body>.*?)"
+    r"^[ \t]*endfunction(?:\s*\([^)]*\))?[ \t]*$",
+    re.DOTALL | re.MULTILINE,
 )
-# Comments must be removed before that pattern runs. These markers introduce
-# blocks that open with prose explaining what is being checked, so a sentence
-# such as "we check (elsewhere) that ..." matches the assertion pattern as
-# readily as executable code. Deleting the assertions and leaving the prose is
-# the realistic form of the drift this window exists to catch, so the window
-# has to look at code only.
-BLOCK_COMMENT_RE = re.compile(r"/\*.*?(?:\*/|\Z)", re.DOTALL)
-LINE_COMMENT_RE = re.compile(r"(?://|#).*$", re.MULTILINE)
-# The registered markers precede their first assertion by 1 to 16 lines, since
-# a marker introduces a block that may set a fixture up first. Thirty lines
-# keeps that headroom while still rejecting a marker parked at file scope.
-TEST_ASSERTION_WINDOW_LINES = 30
+CMAKE_HELPER_ADD_EXECUTABLE_RE = re.compile(
+    r"\badd_executable\s*\(\s*\$\{name\}\s+\$\{source\}\s*\)"
+)
+CMAKE_HELPER_ADD_TEST_RE = re.compile(
+    r"\badd_test\s*\(\s*NAME\s+\$\{name\}\s+COMMAND\s+\$\{name\}\s*\)"
+)
+EVIDENCE_MACRO_DEFINITION_RE = re.compile(
+    r"^[ \t]*#[ \t]*define[ \t]+CAMERA_IQ_DOC_EVIDENCE\("
+    r"[ \t]*evidence_id[ \t]*,[ \t]*assertion[ \t]*\)"
+    r"[ \t]+assertion[ \t]*$",
+    re.MULTILINE,
+)
+ANY_EVIDENCE_MACRO_DEFINITION_RE = re.compile(
+    r"^[ \t]*#[ \t]*define[ \t]+CAMERA_IQ_DOC_EVIDENCE\b",
+    re.MULTILINE,
+)
+EVIDENCE_MACRO_MUTATION_RE = re.compile(
+    r"^[ \t]*#[ \t]*(?:define|undef)[ \t]+CAMERA_IQ_DOC_EVIDENCE\b",
+    re.MULTILINE,
+)
 
 
 class EvidenceAttributionContract(NamedTuple):
     document: Path
     test: Path
+    test_target: str = ""
+    assertion_count: int = 1
 
 
 EVIDENCE_ATTRIBUTION_CONTRACTS: dict[str, EvidenceAttributionContract] = {
-    "color-characterization.localization-gates": EvidenceAttributionContract(
+    "color_characterization_localization_shifted": EvidenceAttributionContract(
         Path("docs/implementation/color-characterization.md"),
         Path("tests/test_patches.cpp"),
+        "test_patches",
+        3,
     ),
-    "color-characterization.localization-verdict": EvidenceAttributionContract(
+    "color_characterization_localization_offset": EvidenceAttributionContract(
         Path("docs/implementation/color-characterization.md"),
         Path("tests/test_patches.cpp"),
+        "test_patches",
+        3,
     ),
-    "color-characterization.ccm-provenance": EvidenceAttributionContract(
+    "color_characterization_localization_verdict": EvidenceAttributionContract(
+        Path("docs/implementation/color-characterization.md"),
+        Path("tests/test_patches.cpp"),
+        "test_patches",
+        2,
+    ),
+    "color_characterization_ccm_external_labels": EvidenceAttributionContract(
         Path("docs/implementation/color-characterization.md"),
         Path("tests/test_cmd_ccm_fit.cpp"),
+        "test_cmd_ccm_fit",
+        2,
     ),
-    "flat-field.threshold-boundaries": EvidenceAttributionContract(
+    "color_characterization_ccm_provenance": EvidenceAttributionContract(
+        Path("docs/implementation/color-characterization.md"),
+        Path("tests/test_cmd_ccm_fit.cpp"),
+        "test_cmd_ccm_fit",
+        3,
+    ),
+    "color_characterization_ccm_refusals": EvidenceAttributionContract(
+        Path("docs/implementation/color-characterization.md"),
+        Path("tests/test_cmd_ccm_fit.cpp"),
+        "test_cmd_ccm_fit",
+        6,
+    ),
+    "flat_field_radial_asymmetry": EvidenceAttributionContract(
+        Path("docs/implementation/flat-field.md"),
+        Path("tests/test_shading.cpp"),
+        "test_shading",
+        2,
+    ),
+    "flat_field_cfa_balanced_roi": EvidenceAttributionContract(
         Path("docs/implementation/flat-field.md"),
         Path("tests/test_flat_field_gate.cpp"),
+        "test_flat_field_gate",
+        4,
     ),
-    "sfr.nyquist-accuracy": EvidenceAttributionContract(
+    "flat_field_threshold_boundaries": EvidenceAttributionContract(
+        Path("docs/implementation/flat-field.md"),
+        Path("tests/test_flat_field_gate.cpp"),
+        "test_flat_field_gate",
+        9,
+    ),
+    "sfr_broad_gaussian_bounds": EvidenceAttributionContract(
         Path("docs/implementation/sfr-mtf.md"),
         Path("tests/test_sfr.cpp"),
+        "test_sfr",
+        4,
     ),
-    "spectral-fidelity.luther-scale-invariance": EvidenceAttributionContract(
+    "sfr_nyquist_accuracy": EvidenceAttributionContract(
+        Path("docs/implementation/sfr-mtf.md"),
+        Path("tests/test_sfr.cpp"),
+        "test_sfr",
+        1,
+    ),
+    "spectral_fidelity_luther_scale_invariance": EvidenceAttributionContract(
         Path("docs/implementation/spectral-fidelity.md"),
         Path("tests/test_spectral_quality.cpp"),
+        "test_spectral_quality",
+        3,
     ),
-    "raw-foundation.black-repeat-periodicity": EvidenceAttributionContract(
+    "raw_foundation_row_pitch": EvidenceAttributionContract(
         Path("docs/implementation/raw-foundation.md"),
         Path("tests/test_raw_meta.cpp"),
+        "test_raw_meta",
+        2,
+    ),
+    "raw_foundation_black_2x2": EvidenceAttributionContract(
+        Path("docs/implementation/raw-foundation.md"),
+        Path("tests/test_raw_meta.cpp"),
+        "test_raw_meta",
+        4,
+    ),
+    "raw_foundation_black_repeat_periodicity": EvidenceAttributionContract(
+        Path("docs/implementation/raw-foundation.md"),
+        Path("tests/test_raw_meta.cpp"),
+        "test_raw_meta",
+        6,
     ),
 }
 REQUIRED_PROJECT_DOCUMENTS = (
@@ -674,14 +747,218 @@ def _preceding_paragraph(text: str, marker_start: int) -> str:
     return re.split(r"\n[ \t]*\n", prefix)[-1]
 
 
-def _strip_comments(window: str) -> str:
-    return LINE_COMMENT_RE.sub("", BLOCK_COMMENT_RE.sub("", window))
+def _mask_markdown_fences(text: str) -> str:
+    """Blank fenced examples so example markers cannot become live claims."""
+    output: list[str] = []
+    fence_character = ""
+    fence_length = 0
+    for line in text.splitlines(keepends=True):
+        match = re.match(r"^[ \t]{0,3}(`{3,}|~{3,})", line)
+        if not fence_character:
+            if match is None:
+                output.append(line)
+                continue
+            fence_character = match.group(1)[0]
+            fence_length = len(match.group(1))
+        elif (
+            match is not None
+            and match.group(1)[0] == fence_character
+            and len(match.group(1)) >= fence_length
+            and re.fullmatch(
+                r"[ \t]{0,3}(?:`{%d,}|~{%d,})[ \t]*(?:\r?\n)?"
+                % (fence_length, fence_length),
+                line,
+            )
+            is not None
+        ):
+            fence_character = ""
+            fence_length = 0
+        output.append("".join("\n" if char == "\n" else " " for char in line))
+    return "".join(output)
 
 
-def _marker_precedes_assertion(text: str, marker_end: int) -> bool:
-    following = text[marker_end:].splitlines()[:TEST_ASSERTION_WINDOW_LINES]
-    code = _strip_comments("\n".join(following))
-    return any(TEST_ASSERTION_RE.search(line) for line in code.splitlines())
+def _splice_cpp_lines(source: str) -> str:
+    """Apply C++ translation-phase backslash-newline deletion."""
+    return re.sub(r"\\(?:\r\n|\n)", "", source)
+
+
+def _mask_cpp_conditionals(source: str) -> str:
+    """Blank conditionally compiled regions from executable evidence scans."""
+    output: list[str] = []
+    conditional_depth = 0
+    for line in source.splitlines(keepends=True):
+        directive = re.match(
+            r"^[ \t]*#[ \t]*(if|ifdef|ifndef|endif)\b", line
+        )
+        inside = conditional_depth > 0
+        if directive is not None:
+            keyword = directive.group(1)
+            if keyword == "endif":
+                inside = True
+                conditional_depth = max(0, conditional_depth - 1)
+            else:
+                conditional_depth += 1
+                inside = True
+        if inside:
+            output.append(
+                "".join("\n" if char == "\n" else " " for char in line)
+            )
+        else:
+            output.append(line)
+    return "".join(output)
+
+
+def _mask_cpp_comments_and_literals(source: str) -> str:
+    """Apply line splicing, then blank C++ comments and literals."""
+    source = _splice_cpp_lines(source)
+    output = list(source)
+
+    def blank(start: int, end: int) -> None:
+        for position in range(start, end):
+            if output[position] != "\n":
+                output[position] = " "
+
+    index = 0
+    while index < len(source):
+        raw = re.match(r'(?:u8|u|U|L)?R"([^\s\\()]*)\(', source[index:])
+        if raw is not None:
+            terminator = ")" + raw.group(1) + '"'
+            end = source.find(terminator, index + raw.end())
+            end = len(source) if end < 0 else end + len(terminator)
+            blank(index, end)
+            index = end
+            continue
+        current = source[index]
+        following = source[index + 1] if index + 1 < len(source) else ""
+        if current == "/" and following == "/":
+            end = source.find("\n", index + 2)
+            end = len(source) if end < 0 else end
+            blank(index, end)
+            index = end
+            continue
+        if current == "/" and following == "*":
+            end = source.find("*/", index + 2)
+            end = len(source) if end < 0 else end + 2
+            blank(index, end)
+            index = end
+            continue
+        if current in {'"', "'"}:
+            quote = current
+            end = index + 1
+            while end < len(source):
+                if source[end] == "\\" and end + 1 < len(source):
+                    end += 2
+                    continue
+                end += 1
+                if source[end - 1] == quote:
+                    break
+            blank(index, end)
+            index = end
+            continue
+        index += 1
+    return "".join(output)
+
+
+def _mask_cpp_noncode(source: str) -> str:
+    """Blank non-executable C++ text and conditionally compiled regions."""
+    return _mask_cpp_conditionals(_mask_cpp_comments_and_literals(source))
+
+
+def _mask_cmake_noncode(source: str) -> str:
+    """Blank CMake comments, strings, and conditional registration blocks."""
+    output = list(source)
+
+    def blank(start: int, end: int) -> None:
+        for position in range(start, end):
+            if output[position] != "\n":
+                output[position] = " "
+
+    index = 0
+    while index < len(source):
+        if source[index] == "#":
+            bracket = re.match(r"#\[(=*)\[", source[index:])
+            if bracket is not None:
+                terminator = "]" + bracket.group(1) + "]"
+                end = source.find(terminator, index + bracket.end())
+                end = len(source) if end < 0 else end + len(terminator)
+            else:
+                end = source.find("\n", index + 1)
+                end = len(source) if end < 0 else end
+            blank(index, end)
+            index = end
+            continue
+        if source[index] == "[":
+            bracket = re.match(r"\[(=*)\[", source[index:])
+            if bracket is not None:
+                terminator = "]" + bracket.group(1) + "]"
+                end = source.find(terminator, index + bracket.end())
+                end = len(source) if end < 0 else end + len(terminator)
+                blank(index, end)
+                index = end
+                continue
+        if source[index] == '"':
+            end = index + 1
+            while end < len(source):
+                if source[end] == "\\" and end + 1 < len(source):
+                    end += 2
+                    continue
+                end += 1
+                if source[end - 1] == '"':
+                    break
+            blank(index, end)
+            index = end
+            continue
+        index += 1
+
+    unconditioned = list("".join(output))
+    conditional_depth = 0
+    offset = 0
+    for line in "".join(output).splitlines(keepends=True):
+        directive = re.match(r"^[ \t]*(if|endif)\s*\(", line, re.IGNORECASE)
+        inside = conditional_depth > 0
+        if directive is not None:
+            if directive.group(1).lower() == "endif":
+                inside = True
+                conditional_depth = max(0, conditional_depth - 1)
+            else:
+                conditional_depth += 1
+                inside = True
+        if inside:
+            for position in range(offset, offset + len(line)):
+                if unconditioned[position] != "\n":
+                    unconditioned[position] = " "
+        offset += len(line)
+    return "".join(unconditioned)
+
+
+def _evidence_macro_definition_failures(repo_root: Path) -> list[str]:
+    header = repo_root / "tests" / "harness.hpp"
+    if not header.is_file():
+        return [
+            "evidence macro must execute its assertion: missing tests/harness.hpp"
+        ]
+    executable_text = _mask_cpp_noncode(header.read_text(encoding="utf-8"))
+    definitions = ANY_EVIDENCE_MACRO_DEFINITION_RE.findall(executable_text)
+    if len(definitions) != 1 or EVIDENCE_MACRO_DEFINITION_RE.search(
+        executable_text
+    ) is None:
+        return [
+            "evidence macro must execute its assertion exactly once: "
+            "expected '#define CAMERA_IQ_DOC_EVIDENCE(evidence_id, assertion) "
+            "assertion' in tests/harness.hpp"
+        ]
+    for path in _text_files(repo_root / "tests", {".cpp", ".hpp"}):
+        if path.resolve() == header.resolve():
+            continue
+        directives = _mask_cpp_comments_and_literals(
+            path.read_text(encoding="utf-8")
+        )
+        if EVIDENCE_MACRO_MUTATION_RE.search(directives):
+            return [
+                "evidence macro must not be redefined or undefined outside "
+                f"tests/harness.hpp: {path.relative_to(repo_root)}"
+            ]
+    return []
 
 
 def _paragraph_links_to(document: Path, paragraph: str, expected: Path) -> bool:
@@ -696,20 +973,55 @@ def _paragraph_links_to(document: Path, paragraph: str, expected: Path) -> bool:
     return False
 
 
+def _paragraph_test_links(document: Path, paragraph: str) -> set[Path]:
+    links: set[Path] = set()
+    for match in LINK_RE.finditer(paragraph):
+        target = link_target(match.group(1))
+        if not target or target.startswith(("#", "http://", "https://", "mailto:")):
+            continue
+        target_path = unquote(target.split("#", 1)[0])
+        parts = Path(target_path).parts
+        if "tests" not in parts and not Path(target_path).name.startswith("test_"):
+            continue
+        links.add((document.parent / target_path).resolve())
+    return links
+
+
 def evidence_attribution_failures(
     repo_root: Path,
     contracts: dict[str, EvidenceAttributionContract] | None = None,
 ) -> list[str]:
-    """Bind selected documentation claims to markers beside executable tests.
+    """Bind selected documentation claims to executable test assertions.
 
-    A regular Markdown link proves only that a test file exists. These opt-in
+    A regular Markdown link proves only that a test file exists. These selected
     contracts additionally require one stable identifier in the claim's
-    paragraph and one beside the assertions in the registered test file.
+    paragraph and an exact number of wrappers around assertions in the
+    registered, CTest-enabled source.
     """
     contracts = EVIDENCE_ATTRIBUTION_CONTRACTS if contracts is None else contracts
     failures: list[str] = []
     document_markers: dict[str, list[tuple[Path, re.Match[str], str]]] = {}
     test_markers: dict[str, list[tuple[Path, re.Match[str], str]]] = {}
+    cmake_path = repo_root / "CMakeLists.txt"
+    cmake_text = (
+        cmake_path.read_text(encoding="utf-8") if cmake_path.is_file() else ""
+    )
+    active_cmake_text = _mask_cmake_noncode(cmake_text)
+    ctest_sources = {
+        (target, Path(source))
+        for target, source in CMAKE_CPP_TEST_RE.findall(active_cmake_text)
+    }
+    if contracts:
+        failures.extend(_evidence_macro_definition_failures(repo_root))
+    helper_bodies = [
+        match.group("body")
+        for match in CMAKE_TEST_HELPER_RE.finditer(active_cmake_text)
+    ]
+    has_ctest_helper = (
+        len(helper_bodies) == 1
+        and CMAKE_HELPER_ADD_EXECUTABLE_RE.search(helper_bodies[0]) is not None
+        and CMAKE_HELPER_ADD_TEST_RE.search(helper_bodies[0]) is not None
+    )
 
     document_paths = _text_files(repo_root / "docs", {".md"})
     readme = repo_root / "README.md"
@@ -717,16 +1029,31 @@ def evidence_attribution_failures(
         document_paths.append(readme)
     for path in document_paths:
         text = path.read_text(encoding="utf-8")
-        for match in DOCUMENT_EVIDENCE_RE.finditer(text):
+        marker_text = _mask_markdown_fences(text)
+        for match in DOCUMENT_EVIDENCE_RE.finditer(marker_text):
+            line_start = marker_text.rfind("\n", 0, match.start()) + 1
+            if match.start() != line_start:
+                continue
             document_markers.setdefault(match.group(1), []).append(
                 (path, match, text)
             )
 
     for path in _text_files(repo_root / "tests", {".cpp", ".hpp", ".py"}):
         text = path.read_text(encoding="utf-8")
-        for match in TEST_EVIDENCE_RE.finditer(text):
+        executable_text = (
+            _mask_cpp_noncode(text)
+            if path.suffix in {".cpp", ".hpp"}
+            else text
+        )
+        for match in EXECUTABLE_TEST_EVIDENCE_RE.finditer(executable_text):
+            line_start = executable_text.rfind("\n", 0, match.start()) + 1
+            if re.match(
+                r"\s*#\s*define\b",
+                executable_text[line_start:match.start()],
+            ):
+                continue
             test_markers.setdefault(match.group(1), []).append(
-                (path, match, text)
+                (path, match, executable_text)
             )
 
     for evidence_id in sorted(set(document_markers) - set(contracts)):
@@ -741,6 +1068,20 @@ def evidence_attribution_failures(
         expected_test = (repo_root / contract.test).resolve()
         document_entries = document_markers.get(evidence_id, [])
         test_entries = test_markers.get(evidence_id, [])
+
+        if contract.test_target and (
+            contract.test_target, contract.test
+        ) not in ctest_sources:
+            failures.append(
+                f"test target {contract.test_target} for {evidence_id} is not "
+                f"registered with CTest from {contract.test}"
+            )
+        elif contract.test_target and not has_ctest_helper:
+            failures.append(
+                f"test target {contract.test_target} for {evidence_id} is not "
+                "registered with CTest: camera_iq_add_test does not have active "
+                "add_executable target/source and add_test bodies"
+            )
 
         if len(document_entries) != 1:
             failures.append(
@@ -759,23 +1100,24 @@ def evidence_attribution_failures(
                     f"claim paragraph does not link its registered test: "
                     f"{evidence_id} -> {contract.test}"
                 )
+            paragraph_tests = _paragraph_test_links(path, paragraph)
+            if paragraph_tests - {expected_test}:
+                failures.append(
+                    f"registered claim paragraph mixes multiple test files: "
+                    f"{evidence_id} in {contract.document} — split each "
+                    f"evidence cluster into its own paragraph"
+                )
 
-        if len(test_entries) != 1:
+        if len(test_entries) != contract.assertion_count:
             failures.append(
-                f"test marker count is {len(test_entries)} for {evidence_id}; "
-                f"expected exactly 1 in {contract.test}"
+                f"executable assertion count is {len(test_entries)} for "
+                f"{evidence_id}; expected exactly {contract.assertion_count} "
+                f"in {contract.test}"
             )
-        elif test_entries[0][0].resolve() != expected_test:
+        elif any(entry[0].resolve() != expected_test for entry in test_entries):
             failures.append(
                 f"test marker is not in its registered file: {evidence_id}"
             )
-        else:
-            _, match, text = test_entries[0]
-            if not _marker_precedes_assertion(text, match.end()):
-                failures.append(
-                    f"test marker is not beside an assertion: {evidence_id} "
-                    f"in {contract.test}"
-                )
 
     return failures
 

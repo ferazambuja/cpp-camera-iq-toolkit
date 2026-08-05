@@ -391,14 +391,23 @@ void TESTS() {
     test::check(result.accepted, "synthetic horizontal green edge accepted");
     test::check(result.orientation == "horizontal",
                 "horizontal edge orientation detected");
-    test::check_near(result.edge_angle_deg, -6.0, 0.08,
-                     "synthetic horizontal edge angle recovered");
-    test::check_near(result.mtf50_cy_per_px, 0.18739 / sigma, 0.018,
-                     "Gaussian point-sampled edge MTF50 recovered");
-    test::check_near(result.mtf50p_cy_per_px, 0.18739 / sigma, 0.018,
-                     "Gaussian point-sampled edge MTF50P recovered");
-    test::check(result.mtf_at_nyquist > 0.0 && result.mtf_at_nyquist < 0.01,
-                "broad Gaussian strongly suppresses Nyquist response");
+    CAMERA_IQ_DOC_EVIDENCE(
+        sfr_broad_gaussian_bounds,
+        test::check_near(result.edge_angle_deg, -6.0, 0.08,
+                         "synthetic horizontal edge angle recovered"));
+    CAMERA_IQ_DOC_EVIDENCE(
+        sfr_broad_gaussian_bounds,
+        test::check_near(result.mtf50_cy_per_px, 0.18739 / sigma, 0.018,
+                         "Gaussian point-sampled edge MTF50 recovered"));
+    CAMERA_IQ_DOC_EVIDENCE(
+        sfr_broad_gaussian_bounds,
+        test::check_near(result.mtf50p_cy_per_px, 0.18739 / sigma, 0.018,
+                         "Gaussian point-sampled edge MTF50P recovered"));
+    CAMERA_IQ_DOC_EVIDENCE(
+        sfr_broad_gaussian_bounds,
+        test::check(result.mtf_at_nyquist > 0.0 &&
+                        result.mtf_at_nyquist < 0.01,
+                    "broad Gaussian strongly suppresses Nyquist response"));
   }
 
   {
@@ -412,7 +421,6 @@ void TESTS() {
                      "synthetic vertical edge angle recovered");
   }
 
-  // DOC-EVIDENCE: sfr.nyquist-accuracy
   {
     // Use a narrower Gaussian for Nyquist: its analytic value is far enough
     // from zero that a zero/default result cannot pass the tolerance.
@@ -424,8 +432,10 @@ void TESTS() {
                                      std::numbers::pi * sigma * sigma * 0.25);
     test::check(result.accepted,
                 "narrow Gaussian edge for Nyquist validation is accepted");
-    test::check_near(result.mtf_at_nyquist, expected, 0.03,
-                     "narrow Gaussian Nyquist MTF recovered numerically");
+    CAMERA_IQ_DOC_EVIDENCE(
+        sfr_nyquist_accuracy,
+        test::check_near(result.mtf_at_nyquist, expected, 0.03,
+                         "narrow Gaussian Nyquist MTF recovered numerically"));
   }
 
   {

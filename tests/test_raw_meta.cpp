@@ -99,10 +99,14 @@ void TESTS() {
 
   check(effective_raw_stride_pixels(0, 6016) == 6016,
         "stride: missing raw_pitch falls back to raw_width");
-  check(effective_raw_stride_pixels(12032, 6016) == 6016,
-        "stride: byte pitch converted to uint16 pixels");
-  check(effective_raw_stride_pixels(12033, 6016) == 0,
-        "stride: odd byte pitch rejected");
+  CAMERA_IQ_DOC_EVIDENCE(
+      raw_foundation_row_pitch,
+      check(effective_raw_stride_pixels(12032, 6016) == 6016,
+            "stride: byte pitch converted to uint16 pixels"));
+  CAMERA_IQ_DOC_EVIDENCE(
+      raw_foundation_row_pitch,
+      check(effective_raw_stride_pixels(12033, 6016) == 0,
+            "stride: odd byte pitch rejected"));
 
   {
     camera_iq::RawCfaReport report;
@@ -128,8 +132,10 @@ void TESTS() {
     cb[5] = 2;  // tile cols
     cb[6] = cb[7] = cb[8] = cb[9] = 1024;
     const auto b = effective_black_levels(0, cb, 16, {0, 1, 3, 2});
-    check(b[0] == 1024 && b[1] == 1024 && b[2] == 1024 && b[3] == 1024,
-          "black: tile pedestal recovered (1024, not 0)");
+    CAMERA_IQ_DOC_EVIDENCE(
+        raw_foundation_black_2x2,
+        check(b[0] == 1024 && b[1] == 1024 && b[2] == 1024 && b[3] == 1024,
+              "black: tile pedestal recovered (1024, not 0)"));
   }
   // Scalar + per-channel offsets, no tile (bh=bw=0).
   {
@@ -171,20 +177,25 @@ void TESTS() {
     cb[8] = 510;
     cb[9] = 511;
     const auto meta = raw_meta_from_processor(processor);
-    check(meta.black_per_channel[0] == 500 &&
-              meta.black_per_channel[1] == 501 &&
-              meta.black_per_channel[2] == 510 &&
-              meta.black_per_channel[3] == 511,
-          "black: odd raw margins do not shift active-area tile phase");
-    check(meta.black_repeat_is_cfa_periodic,
-          "black: ordinary 2x2 repeat is representable per CFA position");
+    CAMERA_IQ_DOC_EVIDENCE(
+        raw_foundation_black_2x2,
+        check(meta.black_per_channel[0] == 500 &&
+                  meta.black_per_channel[1] == 501 &&
+                  meta.black_per_channel[2] == 510 &&
+                  meta.black_per_channel[3] == 511,
+              "black: odd raw margins do not shift active-area tile phase"));
+    CAMERA_IQ_DOC_EVIDENCE(
+        raw_foundation_black_2x2,
+        check(meta.black_repeat_is_cfa_periodic,
+              "black: ordinary 2x2 repeat is representable per CFA position"));
     const auto measurement_meta =
         measurement_raw_meta_from_processor(processor);
-    check(measurement_meta.has_value() &&
-              measurement_meta->black_per_channel == meta.black_per_channel,
-          "black: post-unpack measurement metadata accepts a 2x2 repeat");
+    CAMERA_IQ_DOC_EVIDENCE(
+        raw_foundation_black_2x2,
+        check(measurement_meta.has_value() &&
+                  measurement_meta->black_per_channel == meta.black_per_channel,
+              "black: post-unpack measurement metadata accepts a 2x2 repeat"));
   }
-  // DOC-EVIDENCE: raw-foundation.black-repeat-periodicity
   // A larger repeat can be represented by four CFA-position values only when
   // every same-parity entry agrees. Otherwise the RAW path must reject rather
   // than subtract the top-left 2x2 across the entire image.
@@ -200,13 +211,19 @@ void TESTS() {
             static_cast<unsigned>(500 + (row % 2) * 10 + (col % 2));
       }
     }
-    check(black_repeat_is_cfa_periodic(cb, 24),
-          "black: larger tile repeating by CFA parity is supported");
+    CAMERA_IQ_DOC_EVIDENCE(
+        raw_foundation_black_repeat_periodicity,
+        check(black_repeat_is_cfa_periodic(cb, 24),
+              "black: larger tile repeating by CFA parity is supported"));
     cb[6 + 2 * 4 + 2] = 999;
-    check(!black_repeat_is_cfa_periodic(cb, 24),
-          "black: same-parity variation in a larger tile is rejected");
-    check(!black_repeat_is_cfa_periodic(cb, 20),
-          "black: incomplete repeat tile is rejected");
+    CAMERA_IQ_DOC_EVIDENCE(
+        raw_foundation_black_repeat_periodicity,
+        check(!black_repeat_is_cfa_periodic(cb, 24),
+              "black: same-parity variation in a larger tile is rejected"));
+    CAMERA_IQ_DOC_EVIDENCE(
+        raw_foundation_black_repeat_periodicity,
+        check(!black_repeat_is_cfa_periodic(cb, 20),
+              "black: incomplete repeat tile is rejected"));
 
     unsigned odd_cb[9] = {0};
     odd_cb[4] = 3;
@@ -214,11 +231,15 @@ void TESTS() {
     odd_cb[6] = 5;
     odd_cb[7] = 6;
     odd_cb[8] = 5;
-    check(!black_repeat_is_cfa_periodic(odd_cb, 9),
-          "black: odd repeat period is checked over its full CFA phase cycle");
+    CAMERA_IQ_DOC_EVIDENCE(
+        raw_foundation_black_repeat_periodicity,
+        check(!black_repeat_is_cfa_periodic(odd_cb, 9),
+              "black: odd repeat period is checked over its full CFA phase cycle"));
     odd_cb[7] = 5;
-    check(black_repeat_is_cfa_periodic(odd_cb, 9),
-          "black: constant odd repeat period remains representable");
+    CAMERA_IQ_DOC_EVIDENCE(
+        raw_foundation_black_repeat_periodicity,
+        check(black_repeat_is_cfa_periodic(odd_cb, 9),
+              "black: constant odd repeat period remains representable"));
 
     LibRaw processor;
     auto& processor_cb = processor.imgdata.color.cblack;
@@ -229,8 +250,10 @@ void TESTS() {
     }
     check(!raw_meta_from_processor(processor).black_repeat_is_cfa_periodic,
           "black: LibRaw bridge exposes an unsupported spatial repeat");
-    check(!measurement_raw_meta_from_processor(processor).has_value(),
-          "black: post-unpack measurement metadata refuses spatial repeats");
+    CAMERA_IQ_DOC_EVIDENCE(
+        raw_foundation_black_repeat_periodicity,
+        check(!measurement_raw_meta_from_processor(processor).has_value(),
+              "black: post-unpack measurement metadata refuses spatial repeats"));
   }
   // Out-of-range tile dimensions must not read past the buffer.
   {

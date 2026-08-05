@@ -246,25 +246,30 @@ void TESTS() {
             wide.center_residuals[14].column == 0,
         "localization validation: index 14 crosses to row 1 column 0 (A2)");
 
-  // DOC-EVIDENCE: color-characterization.localization-gates
   std::vector<PatchMean> shifted = localized;
   for (auto& patch : shifted) {
     patch.source_coord.x += 6.0;
   }
   localization = validate_patch_localization_against_oracle(
       shifted, oracle, localization_thresholds);
-  check(!localization.passes,
-        "localization validation: shifted grid fails despite perfect RGB");
+  CAMERA_IQ_DOC_EVIDENCE(
+      color_characterization_localization_shifted,
+      check(!localization.passes,
+            "localization validation: shifted grid fails despite perfect RGB"));
   check_near(localization.center_residuals[0].dx_px, 6.0, 1e-12,
              "localization validation: residual dx records shifted grid");
   check_near(localization.center_residuals[0].dy_px, 0.0, 1e-12,
              "localization validation: residual dy records shifted grid");
   check_near(localization.center_residuals[0].distance_px, 6.0, 1e-12,
              "localization validation: residual distance records shifted grid");
-  check(!localization.center_gate_passes,
-        "localization validation: shifted grid fails center gate");
-  check(localization.correlation_gate_passes,
-        "localization validation: shifted grid still passes correlation");
+  CAMERA_IQ_DOC_EVIDENCE(
+      color_characterization_localization_shifted,
+      check(!localization.center_gate_passes,
+            "localization validation: shifted grid fails center gate"));
+  CAMERA_IQ_DOC_EVIDENCE(
+      color_characterization_localization_shifted,
+      check(localization.correlation_gate_passes,
+            "localization validation: shifted grid still passes correlation"));
 
   std::vector<PatchMean> offset = localized;
   for (auto& patch : offset) {
@@ -274,12 +279,18 @@ void TESTS() {
   }
   localization = validate_patch_localization_against_oracle(
       offset, oracle, localization_thresholds);
-  check(!localization.passes,
-        "localization validation: DN offset fails despite high correlation");
-  check(localization.correlation_gate_passes,
-        "localization validation: DN offset still passes correlation");
-  check(!localization.mean_error_gate_passes,
-        "localization validation: DN offset fails absolute mean gate");
+  CAMERA_IQ_DOC_EVIDENCE(
+      color_characterization_localization_offset,
+      check(!localization.passes,
+            "localization validation: DN offset fails despite high correlation"));
+  CAMERA_IQ_DOC_EVIDENCE(
+      color_characterization_localization_offset,
+      check(localization.correlation_gate_passes,
+            "localization validation: DN offset still passes correlation"));
+  CAMERA_IQ_DOC_EVIDENCE(
+      color_characterization_localization_offset,
+      check(!localization.mean_error_gate_passes,
+            "localization validation: DN offset fails absolute mean gate"));
 
   const std::vector<camera_iq::RgbPixel> flat_image = {
       {10, 100, 1000},
@@ -476,21 +487,24 @@ void TESTS() {
   check(localization_doc.find("\"max_abs_mean_error_dn\":25") !=
             std::string::npos,
         "localization report: predeclared DN gate emitted");
-  // DOC-EVIDENCE: color-characterization.localization-verdict
   // Pin the machine-readable verdict for a FAILING run. The `passes` boolean is
   // the downstream contract an audit/thesis script reads to decide whether the
   // grid replaced RawDigger; a serialization regression flipping it to true on a
   // real center-gate failure would ship a false claim that no numeric-field
   // check above would catch. The shifted grid must serialize the failing center
   // gate while still reporting correlation passing.
-  check(localization_doc.find("\"passes\":false") != std::string::npos,
-        "localization report: overall failure verdict serialized");
+  CAMERA_IQ_DOC_EVIDENCE(
+      color_characterization_localization_verdict,
+      check(localization_doc.find("\"passes\":false") != std::string::npos,
+            "localization report: overall failure verdict serialized"));
   check(localization_doc.find("\"center_gate_passes\":false") !=
             std::string::npos,
         "localization report: failing center gate serialized");
-  check(localization_doc.find("\"correlation_gate_passes\":true") !=
-            std::string::npos,
-        "localization report: correlation still passes in failing run");
+  CAMERA_IQ_DOC_EVIDENCE(
+      color_characterization_localization_verdict,
+      check(localization_doc.find("\"correlation_gate_passes\":true") !=
+                std::string::npos,
+            "localization report: correlation still passes in failing run"));
   check(localization_doc.find("\"center_residuals\"") != std::string::npos,
         "localization report: residual block emitted");
   check(localization_doc.find("\"reference_patch_id\":\"A1\"") !=

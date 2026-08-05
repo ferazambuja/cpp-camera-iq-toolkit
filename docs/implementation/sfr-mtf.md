@@ -119,11 +119,14 @@ In [`test_sfr.cpp`](../../tests/test_sfr.cpp), the `160 × 144`,
 below `0.01`. That last bound checks suppression, not accuracy: this edge is
 broad enough that its true Nyquist response is nearly zero, so an
 implementation that returned zero — or never computed the value — would satisfy
-it. Nyquist accuracy therefore needs a second fixture whose analytic value sits
-well away from zero. On a separate `sigma = 0.5` fixture with the same
-geometry, the measured Nyquist response must agree with its analytic value
-within `0.03`.
-<!-- test-evidence: sfr.nyquist-accuracy -->
+it.
+<!-- test-evidence: sfr_broad_gaussian_bounds -->
+
+Nyquist accuracy therefore uses a second fixture in
+[`test_sfr.cpp`](../../tests/test_sfr.cpp) whose analytic value sits well away
+from zero. On that `sigma = 0.5` fixture with the same geometry, the measured
+Nyquist response must agree with its analytic value within `0.03`.
+<!-- test-evidence: sfr_nyquist_accuracy -->
 
 A separate `-6°` hard edge built with `8 × 8`
 pixel-area supersampling must recover `0.6034 ± 0.03 cycles/pixel`, including

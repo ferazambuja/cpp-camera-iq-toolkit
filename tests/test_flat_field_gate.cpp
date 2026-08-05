@@ -66,30 +66,38 @@ void TESTS() {
     // corrected but never screened.
     const std::vector<double> odd_w(static_cast<std::size_t>(7) * kHeight,
                                     50.0);
-    check(!measure_cfa_near_ceiling(odd_w.data(), 7, kHeight, 7, gate,
-                                    kCeilings, kFlatFieldNearCeilingLevel)
-               .has_value(),
-          "gate: odd active width is rejected, not trimmed out of screening");
+    CAMERA_IQ_DOC_EVIDENCE(
+        flat_field_cfa_balanced_roi,
+        check(!measure_cfa_near_ceiling(odd_w.data(), 7, kHeight, 7, gate,
+                                        kCeilings, kFlatFieldNearCeilingLevel)
+                   .has_value(),
+              "gate: odd active width is rejected, not trimmed out of screening"));
 
     const std::vector<double> odd_h(static_cast<std::size_t>(kWidth) * 5, 50.0);
-    check(!measure_cfa_near_ceiling(odd_h.data(), kWidth, 5, kWidth, gate,
-                                    kCeilings, kFlatFieldNearCeilingLevel)
-               .has_value(),
-          "gate: odd active height is rejected, not trimmed out of screening");
+    CAMERA_IQ_DOC_EVIDENCE(
+        flat_field_cfa_balanced_roi,
+        check(!measure_cfa_near_ceiling(odd_h.data(), kWidth, 5, kWidth, gate,
+                                        kCeilings, kFlatFieldNearCeilingLevel)
+                   .has_value(),
+              "gate: odd active height is rejected, not trimmed out of screening"));
 
     // The caller's declared gate is a separate matter: an unbalanced or
     // out-of-frame gate is rejected rather than quietly re-aligned.
     const auto frame = flat_frame(50.0);
-    check(!measure_cfa_near_ceiling(frame.data(), kWidth, kHeight, kWidth,
-                                    RoiRect{1, 2, 4, 2}, kCeilings,
-                                    kFlatFieldNearCeilingLevel)
-               .has_value(),
-          "gate: an odd-origin gate is rejected, not re-aligned");
-    check(!measure_cfa_near_ceiling(frame.data(), kWidth, kHeight, kWidth,
-                                    RoiRect{6, 2, 4, 2}, kCeilings,
-                                    kFlatFieldNearCeilingLevel)
-               .has_value(),
-          "gate: a gate escaping the frame is rejected");
+    CAMERA_IQ_DOC_EVIDENCE(
+        flat_field_cfa_balanced_roi,
+        check(!measure_cfa_near_ceiling(frame.data(), kWidth, kHeight, kWidth,
+                                        RoiRect{1, 2, 4, 2}, kCeilings,
+                                        kFlatFieldNearCeilingLevel)
+                   .has_value(),
+              "gate: an odd-origin gate is rejected, not re-aligned"));
+    CAMERA_IQ_DOC_EVIDENCE(
+        flat_field_cfa_balanced_roi,
+        check(!measure_cfa_near_ceiling(frame.data(), kWidth, kHeight, kWidth,
+                                        RoiRect{6, 2, 4, 2}, kCeilings,
+                                        kFlatFieldNearCeilingLevel)
+                   .has_value(),
+              "gate: a gate escaping the frame is rejected"));
   }
 
   {
@@ -207,7 +215,6 @@ void TESTS() {
     }
   }
 
-  // DOC-EVIDENCE: flat-field.threshold-boundaries
   {
     // Measure the declared inclusive threshold rather than injecting a ratio.
     // A 20x20 mosaic has exactly 100 samples per CFA position.
@@ -225,13 +232,18 @@ void TESTS() {
                                  kCeilings, kFlatFieldNearCeilingLevel);
     check(measurement.has_value(), "gate: exact one-percent fixture measures");
     for (std::size_t p = 0; p < 4; ++p) {
-      check_near(measurement->fraction_frame[p], 0.01, 1e-12,
-                 "gate: one of 100 samples measures exactly one percent");
-      check(flat_field_near_ceiling_passes(
-                measurement->fraction_frame[p], measurement->fraction_gate[p],
-                measurement->finite_fraction_frame[p],
-                measurement->finite_fraction_gate[p], 0.01, 0.9),
-            "gate: measured one-percent plane is accepted inclusively");
+      CAMERA_IQ_DOC_EVIDENCE(
+          flat_field_threshold_boundaries,
+          check_near(measurement->fraction_frame[p], 0.01, 1e-12,
+                     "gate: one of 100 samples measures exactly one percent"));
+      CAMERA_IQ_DOC_EVIDENCE(
+          flat_field_threshold_boundaries,
+          check(flat_field_near_ceiling_passes(
+                    measurement->fraction_frame[p],
+                    measurement->fraction_gate[p],
+                    measurement->finite_fraction_frame[p],
+                    measurement->finite_fraction_gate[p], 0.01, 0.9),
+                "gate: measured one-percent plane is accepted inclusively"));
     }
 
     for (int y = 2; y < 4; ++y) {
@@ -244,13 +256,18 @@ void TESTS() {
                                  kCeilings, kFlatFieldNearCeilingLevel);
     check(measurement.has_value(), "gate: two-percent fixture measures");
     for (std::size_t p = 0; p < 4; ++p) {
-      check_near(measurement->fraction_frame[p], 0.02, 1e-12,
-                 "gate: two of 100 samples measures exactly two percent");
-      check(!flat_field_near_ceiling_passes(
-                measurement->fraction_frame[p], measurement->fraction_gate[p],
-                measurement->finite_fraction_frame[p],
-                measurement->finite_fraction_gate[p], 0.01, 0.9),
-            "gate: measured two-percent plane is rejected");
+      CAMERA_IQ_DOC_EVIDENCE(
+          flat_field_threshold_boundaries,
+          check_near(measurement->fraction_frame[p], 0.02, 1e-12,
+                     "gate: two of 100 samples measures exactly two percent"));
+      CAMERA_IQ_DOC_EVIDENCE(
+          flat_field_threshold_boundaries,
+          check(!flat_field_near_ceiling_passes(
+                    measurement->fraction_frame[p],
+                    measurement->fraction_gate[p],
+                    measurement->finite_fraction_frame[p],
+                    measurement->finite_fraction_gate[p], 0.01, 0.9),
+                "gate: measured two-percent plane is rejected"));
     }
   }
 
@@ -264,18 +281,28 @@ void TESTS() {
           "gate: an out-of-range policy rejects");
     check(!flat_field_near_ceiling_passes(-0.1, 0.0, 1.0, 1.0, 0.01, 0.9),
           "gate: a negative fraction rejects");
-    check(flat_field_near_ceiling_passes(0.01, 0.01, 1.0, 1.0, 0.01, 0.9),
-          "gate: exactly at policy is not a rejection");
-    check(!flat_field_near_ceiling_passes(std::nextafter(0.01, 1.0), 0.01, 1.0,
-                                          1.0, 0.01, 0.9),
-          "gate: frame fraction immediately above policy is rejected");
-    check(!flat_field_near_ceiling_passes(0.01, std::nextafter(0.01, 1.0), 1.0,
-                                          1.0, 0.01, 0.9),
-          "gate: center fraction immediately above policy is rejected");
-    check(flat_field_near_ceiling_passes(0.0, 0.0, 0.9, 0.9, 0.01, 0.9),
-          "gate: coverage exactly at policy is accepted");
-    check(!flat_field_near_ceiling_passes(0.0, 0.0, std::nextafter(0.9, 0.0),
-                                          0.9, 0.01, 0.9),
-          "gate: coverage immediately below policy is rejected");
+    CAMERA_IQ_DOC_EVIDENCE(
+        flat_field_threshold_boundaries,
+        check(flat_field_near_ceiling_passes(0.01, 0.01, 1.0, 1.0, 0.01, 0.9),
+              "gate: exactly at policy is not a rejection"));
+    CAMERA_IQ_DOC_EVIDENCE(
+        flat_field_threshold_boundaries,
+        check(!flat_field_near_ceiling_passes(std::nextafter(0.01, 1.0), 0.01,
+                                              1.0, 1.0, 0.01, 0.9),
+              "gate: frame fraction immediately above policy is rejected"));
+    CAMERA_IQ_DOC_EVIDENCE(
+        flat_field_threshold_boundaries,
+        check(!flat_field_near_ceiling_passes(0.01, std::nextafter(0.01, 1.0),
+                                              1.0, 1.0, 0.01, 0.9),
+              "gate: center fraction immediately above policy is rejected"));
+    CAMERA_IQ_DOC_EVIDENCE(
+        flat_field_threshold_boundaries,
+        check(flat_field_near_ceiling_passes(0.0, 0.0, 0.9, 0.9, 0.01, 0.9),
+              "gate: coverage exactly at policy is accepted"));
+    CAMERA_IQ_DOC_EVIDENCE(
+        flat_field_threshold_boundaries,
+        check(!flat_field_near_ceiling_passes(
+                  0.0, 0.0, std::nextafter(0.9, 0.0), 0.9, 0.01, 0.9),
+              "gate: coverage immediately below policy is rejected"));
   }
 }

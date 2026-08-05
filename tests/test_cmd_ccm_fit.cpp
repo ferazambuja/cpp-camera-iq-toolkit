@@ -142,15 +142,19 @@ void TESTS() {
                               out.string()});
   check(rc == 0, "ccm-fit command: exclusion run succeeds");
   const std::string json = read_file(out);
-  check(json.find("\"reference_path\":\"external:reference.csv\"") !=
-                std::string::npos &&
-            json.find("\"camera_rgb_path\":\"external:camera_rgb.csv\"") !=
-                std::string::npos &&
-            json.find("\"illuminant_spd_path\":\"external:illuminant.csv\"") !=
-                std::string::npos,
-        "ccm-fit JSON: local inputs publish external scoped basenames");
-  check(json.find(root.string()) == std::string::npos,
-        "ccm-fit JSON: local absolute directory is not published");
+  CAMERA_IQ_DOC_EVIDENCE(
+      color_characterization_ccm_external_labels,
+      check(json.find("\"reference_path\":\"external:reference.csv\"") !=
+                    std::string::npos &&
+                json.find("\"camera_rgb_path\":\"external:camera_rgb.csv\"") !=
+                    std::string::npos &&
+                json.find("\"illuminant_spd_path\":\"external:illuminant.csv\"") !=
+                    std::string::npos,
+            "ccm-fit JSON: local inputs publish external scoped basenames"));
+  CAMERA_IQ_DOC_EVIDENCE(
+      color_characterization_ccm_external_labels,
+      check(json.find(root.string()) == std::string::npos,
+            "ccm-fit JSON: local absolute directory is not published"));
   check(json.find("\"timeline_provenance\"") != std::string::npos,
         "ccm-fit JSON: timeline provenance emitted");
   check(json.find("\"capture_project\":\"Synthetic capture\"") !=
@@ -158,23 +162,28 @@ void TESTS() {
         "ccm-fit JSON: capture project emitted");
   check(json.find("\"reference_year\":\"2025\"") != std::string::npos,
         "ccm-fit JSON: reference year emitted");
-  // DOC-EVIDENCE: color-characterization.ccm-provenance
-  check(json.find("\"physical_chart_identity\":"
-                  "\"compatible_reference_not_proven_same_physical_chart\"") !=
-            std::string::npos,
-        "ccm-fit JSON: physical chart identity emitted");
+  CAMERA_IQ_DOC_EVIDENCE(
+      color_characterization_ccm_provenance,
+      check(json.find("\"physical_chart_identity\":"
+                      "\"compatible_reference_not_proven_same_physical_chart\"") !=
+                std::string::npos,
+            "ccm-fit JSON: physical chart identity emitted"));
   check(json.find("\"reference_numbering_order\":"
                   "\"synthetic_reference_order\"") != std::string::npos,
         "ccm-fit JSON: numbering order emitted");
-  check(json.find("\"reference_scope\":"
-                  "\"compatible_sg_spectral_not_exact_per_unit\"") !=
-            std::string::npos,
-        "ccm-fit JSON: compatible-reference scope emitted");
-  check(json.find("\"reference_role\":\"compatible_sg_spectral\","
-                  "\"reference_scope\":"
-                  "\"compatible_sg_spectral_not_exact_per_unit\"") !=
-            std::string::npos,
-        "ccm-fit JSON: accepted role and scientific scope stay paired");
+  CAMERA_IQ_DOC_EVIDENCE(
+      color_characterization_ccm_provenance,
+      check(json.find("\"reference_scope\":"
+                      "\"compatible_sg_spectral_not_exact_per_unit\"") !=
+                std::string::npos,
+            "ccm-fit JSON: compatible-reference scope emitted"));
+  CAMERA_IQ_DOC_EVIDENCE(
+      color_characterization_ccm_provenance,
+      check(json.find("\"reference_role\":\"compatible_sg_spectral\","
+                      "\"reference_scope\":"
+                      "\"compatible_sg_spectral_not_exact_per_unit\"") !=
+                std::string::npos,
+            "ccm-fit JSON: accepted role and scientific scope stay paired"));
   check(json.find("\"lightness_exclusion\":{\"enabled\":true") !=
             std::string::npos,
         "ccm-fit JSON: lightness exclusion enabled");
@@ -240,19 +249,25 @@ void TESTS() {
       {"fixture", "--config", unsupported_role_config.string(),
        "--illuminant-spd", illuminant.string(), "--out",
        (root / "unsupported-role.json").string()});
-  check(unsupported_rc == 1,
-        "ccm-fit command: unsupported reference role rejected");
-  check(unsupported_error.find(
-            "supported role is 'compatible_sg_spectral' with "
-            "reference_scope "
-            "'compatible_sg_spectral_not_exact_per_unit'") !=
-            std::string::npos,
-        "ccm-fit command: unsupported role names the accepted role and scope");
-  check(unsupported_error.find(
-            "adding another role requires an explicit "
-            "role/scope/identity contract") !=
-            std::string::npos,
-        "ccm-fit command: unsupported role explains the extension contract");
+  CAMERA_IQ_DOC_EVIDENCE(
+      color_characterization_ccm_refusals,
+      check(unsupported_rc == 1,
+            "ccm-fit command: unsupported reference role rejected"));
+  CAMERA_IQ_DOC_EVIDENCE(
+      color_characterization_ccm_refusals,
+      check(unsupported_error.find(
+                "supported role is 'compatible_sg_spectral' with "
+                "reference_scope "
+                "'compatible_sg_spectral_not_exact_per_unit'") !=
+                std::string::npos,
+            "ccm-fit command: unsupported role names the accepted role and scope"));
+  CAMERA_IQ_DOC_EVIDENCE(
+      color_characterization_ccm_refusals,
+      check(unsupported_error.find(
+                "adding another role requires an explicit "
+                "role/scope/identity contract") !=
+                std::string::npos,
+            "ccm-fit command: unsupported role explains the extension contract"));
 
   const fs::path contradictory_identity_config =
       root / "contradictory-identity.local.json";
@@ -272,19 +287,25 @@ void TESTS() {
           {"fixture", "--config", contradictory_identity_config.string(),
            "--illuminant-spd", illuminant.string(), "--out",
            (root / "contradictory-identity.json").string()});
-  check(contradictory_rc == 1,
-        "ccm-fit command: contradictory physical identity rejected");
-  check(contradictory_error.find(
-            "role 'compatible_sg_spectral' requires "
-            "physical_chart_identity "
-            "'compatible_reference_not_proven_same_physical_chart'") !=
-            std::string::npos,
-        "ccm-fit command: physical-identity error names the accepted contract");
-  check(contradictory_error.find(
-            "adding another identity interpretation requires an explicit "
-            "role/scope/identity contract") != std::string::npos,
-        "ccm-fit command: physical-identity error explains the extension "
-        "contract");
+  CAMERA_IQ_DOC_EVIDENCE(
+      color_characterization_ccm_refusals,
+      check(contradictory_rc == 1,
+            "ccm-fit command: contradictory physical identity rejected"));
+  CAMERA_IQ_DOC_EVIDENCE(
+      color_characterization_ccm_refusals,
+      check(contradictory_error.find(
+                "role 'compatible_sg_spectral' requires "
+                "physical_chart_identity "
+                "'compatible_reference_not_proven_same_physical_chart'") !=
+                std::string::npos,
+            "ccm-fit command: physical-identity error names the accepted contract"));
+  CAMERA_IQ_DOC_EVIDENCE(
+      color_characterization_ccm_refusals,
+      check(contradictory_error.find(
+                "adding another identity interpretation requires an explicit "
+                "role/scope/identity contract") != std::string::npos,
+            "ccm-fit command: physical-identity error explains the extension "
+            "contract"));
 
   fs::remove_all(root);
 }
