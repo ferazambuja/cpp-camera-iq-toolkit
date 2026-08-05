@@ -197,8 +197,14 @@ A = (max corner G - min corner G) / mean corner G = 0.196484
 ```
 
 `A` exceeds the declared 0.05 project policy and is inconsistent with a
-centered radial scalar model for the measured composite. It neither identifies
-the source of the asymmetry nor decides whether a lens contribution is present.
+centered radial scalar model for the measured composite. That inference rests
+on a geometric precondition: the four corner blocks are inset to sit at equal
+distance from the frame centre, so any field that depends on radius alone
+assigns them the same value and drives `A` to zero analytically. A nonzero `A`
+therefore falsifies radius-only dependence rather than merely reporting corner
+variation. The precondition is enforced in code rather than assumed. `A`
+neither identifies the source of the asymmetry nor decides whether a lens
+contribution is present.
 
 The threshold is a declared project policy, not an industry standard and not a
 value derived from this pair. The two frames measure `A` at 0.196484 and
