@@ -19,10 +19,10 @@ struct RunResult {
 };
 
 template <typename TestBody>
-RunResult run_and_capture(TestBody body) {
+RunResult run_and_capture(TestBody body, const char* expectations = nullptr) {
   std::ostringstream captured;
   std::streambuf* original = std::cout.rdbuf(captured.rdbuf());
-  const int exit_code = test::run(body);
+  const int exit_code = test::run(body, expectations);
   std::cout.rdbuf(original);
   return {exit_code, captured.str()};
 }
@@ -43,34 +43,49 @@ int main() {
     test::check(true, "passing check");
   });
 
-  setenv("CAMERA_IQ_DOC_EVIDENCE_EXPECT", "harness_runtime_probe=1", 1);
   const RunResult evidence_reached = run_and_capture([] {
-    test::record_doc_evidence("harness_runtime_probe");
-    test::check(true, "runtime evidence assertion reached");
-  });
+    CAMERA_IQ_DOC_EVIDENCE(
+        harness_runtime_probe,
+        test::check(true, "runtime evidence assertion reached"));
+  }, "harness_runtime_probe=1");
+  const RunResult evidence_from_argument = run_and_capture([] {
+    CAMERA_IQ_DOC_EVIDENCE(
+        harness_runtime_probe,
+        test::check(true, "runtime expectation came from the run argument"));
+  }, "harness_runtime_probe=1");
   const RunResult evidence_in_false_branch = run_and_capture([] {
     volatile bool execute = false;
     if (execute) {
-      test::record_doc_evidence("harness_runtime_probe");
-      test::check(true, "unreachable false-branch assertion");
+      CAMERA_IQ_DOC_EVIDENCE(
+          harness_runtime_probe,
+          test::check(true, "unreachable false-branch assertion"));
     }
-  });
+  }, "harness_runtime_probe=1");
   const RunResult evidence_after_return = run_and_capture([] {
     volatile bool stop = true;
     if (stop) {
       return;
     }
-    test::record_doc_evidence("harness_runtime_probe");
-    test::check(true, "unreachable post-return assertion");
-  });
+    CAMERA_IQ_DOC_EVIDENCE(
+        harness_runtime_probe,
+        test::check(true, "unreachable post-return assertion"));
+  }, "harness_runtime_probe=1");
   const RunResult evidence_after_caught_throw = run_and_capture([] {
     try {
-      throw std::runtime_error("assertion argument failed");
-      test::record_doc_evidence("harness_runtime_probe");
+      CAMERA_IQ_DOC_EVIDENCE(
+          harness_runtime_probe,
+          ([] { throw std::runtime_error("assertion argument failed"); }()));
     } catch (const std::runtime_error&) {
     }
+  }, "harness_runtime_probe=1");
+  const RunResult evidence_failed_assertion = run_and_capture([] {
+    CAMERA_IQ_DOC_EVIDENCE(
+        harness_runtime_probe,
+        test::check(false, "wrapped assertion failure remains a test failure"));
+  }, "harness_runtime_probe=1");
+  const RunResult nested_run = run_and_capture([] {
+    (void)test::run([] { test::check(true, "nested body must not execute"); });
   });
-  unsetenv("CAMERA_IQ_DOC_EVIDENCE_EXPECT");
   int failures = 0;
   const auto require = [&](bool condition, const char* name) {
     if (!condition) {
@@ -102,6 +117,8 @@ int main() {
           "harness: does not carry an earlier run's failures forward");
   require(evidence_reached.exit_code == 0,
           "harness: reached documentation evidence satisfies its runtime count");
+  require(evidence_from_argument.exit_code == 0,
+          "harness: an explicit run argument enables evidence verification");
   require(evidence_in_false_branch.exit_code == 1,
           "harness: evidence under a false branch is not counted as executed");
   require(contains(evidence_in_false_branch.output,
@@ -117,6 +134,15 @@ int main() {
   require(contains(evidence_after_caught_throw.output,
                    "expected 1 execution, observed 0"),
           "harness: caught assertion failure reports the missing execution");
+  require(evidence_failed_assertion.exit_code == 1,
+          "harness: a reached wrapper cannot erase its failed assertion");
+  require(contains(evidence_failed_assertion.output,
+                   "[fail] wrapped assertion failure remains a test failure"),
+          "harness: a wrapped assertion preserves its failure");
+  require(nested_run.exit_code == 1,
+          "harness: a nested run is rejected without resetting outer state");
+  require(contains(nested_run.output, "[fail] nested test::run is not supported"),
+          "harness: nested-run refusal is diagnostic");
 
   return failures == 0 ? 0 : 1;
 }

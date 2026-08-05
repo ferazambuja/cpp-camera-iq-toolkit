@@ -129,12 +129,16 @@ traversal, malformed hashes, gaps, and silent regrouping. Ingest tests in
 bytes to SHA-256, distinguish readings from aliases, refuse symlinks and
 byte-limit violations, and verify alias bytes when requested.
 
-A two-reading fixture in
+At the library/unit layer, a two-reading fixture in
 [`test_spectro_analysis.cpp`](../../tests/test_spectro_analysis.cpp) pins
 spectral integral `8`, mean level `12`, and
 coefficient of variation `sqrt(32) / 12`, each to `1e-12`; a pure scale change
-must produce zero normalized-shape and chromaticity separation. The closure
-fixture in
+must produce zero normalized-shape and chromaticity separation. Together these
+assertions show that level, normalized spectral shape, and chromaticity remain
+separate outputs rather than collapsing into one score.
+<!-- test-evidence: spectroradiometer_scale_separation -->
+
+The closure fixture in
 [`test_spectro_colorimetry.cpp`](../../tests/test_spectro_colorimetry.cpp)
 recovers one global scale `10` and zero maximum relative residual to
 `1e-12`. High-range, cancellation, subnormal, and overflow-refusal cases keep

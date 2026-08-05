@@ -147,10 +147,20 @@ Do not promote coverage from one layer to another. A library assertion is not a
 command success path, a synthetic exporter corpus is not an archive rerun, and
 an artifact-freshness check is not a new physical measurement.
 
-Selected regression-prone quantitative bounds, refusals, and serialized
-contracts receive an additional machine-checked attribution. Register the
-claim in `EVIDENCE_ATTRIBUTION_CONTRACTS`; keep its paragraph limited to one
-test file; and place this marker immediately after that paragraph:
+Every implementation companion backed by a default-harness C++ test must
+register at least one representative machine-checked claim. Choose it from the
+document's interpretation-bearing numeric bounds, scientific refusals or
+provenance contracts, or conditions whose loss would change a public
+conclusion. Add separate anchors for selected downstream serialization/
+provenance contracts and decision-changing acceptance bounds when they carry a
+different reader-facing conclusion. This is representative protection, not a
+requirement to wrap every number or test assertion. Archive identities and
+generated-artifact values stay with their owning receipt or freshness guard
+instead of being misrepresented as C++ unit evidence.
+
+Register each selected claim in `EVIDENCE_ATTRIBUTION_CONTRACTS`; keep its
+paragraph limited to one test file; and place this marker immediately after
+that paragraph, inside the companion's verification-evidence section:
 
 ```html
 <!-- test-evidence: identifier -->
@@ -170,6 +180,8 @@ source also receives a dedicated CTest evidence run from
 identifier/count expectations. The harness compares those expectations with
 the wrappers actually reached during that run. Source-wrapper and runtime counts
 are recorded separately when a fixed loop executes one wrapper more than once.
+A loop-amplified count deliberately proves every declared fixture iteration;
+changing that loop is a review gate, not a reason to weaken the expected count.
 A wrapper moved into a called helper remains valid; one in an uncalled helper,
 a false branch, or code after an early return fails the evidence run.
 
@@ -181,14 +193,22 @@ invert them are refused. The static guard ignores wrappers in comments, strings,
 Markdown examples, preprocessor definitions, and conditionally compiled
 regions.
 
+CTest passes the expectation as a dedicated harness argument, so global
+initializers and test bodies cannot suppress it by mutating process state.
+Registered test sources may not start a nested harness run, reset failure
+state, terminate successfully before verification, or access the recorder and
+run state except through
+`CAMERA_IQ_DOC_EVIDENCE`. The harness self-test exercises those mechanics but
+cannot be registered as scientific evidence.
+
 This protects registered claims from silent wrapper deletion, ID mix-ups, and
 assertions that compile without being reached by the registered CTest run. It
 reaches no further. The mechanism does not prove that the prose interprets or
-scopes the assertion correctly, that the assertion itself expresses the right
-scientific property, or that every documented fact has a dedicated wrapper.
-Human review must still verify the assertion, bound, fixture, and operating
-conditions. Ordinary source-navigation links and generated-artifact checks do
-not need this annotation.
+scopes the assertion correctly or that the assertion itself expresses the
+right scientific property. Human review must still verify the assertion,
+bound, fixture, and operating conditions. Facts outside the eligibility rule
+remain protected by ordinary source-navigation links, artifact guards, and
+scientific review; they do not need this annotation.
 
 ### 4. Evidence reference: identity and provenance
 
@@ -308,9 +328,10 @@ Before publishing or materially revising a public portfolio document, verify:
 - [ ] Verification prose labels library/unit, command/integration,
       generated-artifact, and archive-backed runtime evidence where those
       layers are present, without promoting one layer's coverage into another.
-- [ ] Selected regression-prone quantitative, refusal, or serialization claims
-      use a registered claim-to-test evidence wrapper; unregistered claims
-      remain subject to direct technical review.
+- [ ] Each implementation companion has a representative runtime-backed claim;
+      selected additional decision-changing numeric, refusal, provenance, or
+      serialization claims use their own wrappers, while other claims remain
+      subject to direct technical review.
 - [ ] Its verification section links the relevant executable assertion and
       retains a numeric bound/count or exact semantic contract with every
       precondition needed to interpret it.

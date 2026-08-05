@@ -8,6 +8,7 @@ import subprocess
 import tempfile
 import unittest
 from pathlib import Path
+from unittest import mock
 
 
 SCRIPT = Path(__file__).with_name("check_portfolio_docs.py")
@@ -283,7 +284,14 @@ class EvidenceAttributionTests(unittest.TestCase):
             f"{expansion}\n"
             "void TESTS();\n"
             "#ifndef CAMERA_IQ_TEST_HARNESS_NO_MAIN\n"
-            "int main() { return test::run([] { TESTS(); }); }\n"
+            "int main(int argc, char* argv[]) {\n"
+            "  const bool has_evidence_expectation =\n"
+            "      argc == 3 && std::string(argv[1]) == "
+            "\"--camera-iq-doc-evidence-expect\" && argv[2][0] != '\\0';\n"
+            "  if (argc != 1 && !has_evidence_expectation) return 1;\n"
+            "  return test::run([] { TESTS(); },\n"
+            "                   has_evidence_expectation ? argv[2] : nullptr);\n"
+            "}\n"
             "#endif\n",
             encoding="utf-8",
         )
@@ -303,8 +311,8 @@ class EvidenceAttributionTests(unittest.TestCase):
             "      TMPDIR=${evidence_tmpdir}\n"
             "      TMP=${evidence_tmpdir}\n"
             "      TEMP=${evidence_tmpdir}\n"
-            "      CAMERA_IQ_DOC_EVIDENCE_EXPECT=${expectations}\n"
-            "      $<TARGET_FILE:${target}>)\n"
+            "      $<TARGET_FILE:${target}>\n"
+            "      --camera-iq-doc-evidence-expect ${expectations})\n"
             "endfunction()\n"
             "camera_iq_add_test(test_example tests/test_example.cpp)\n"
             "camera_iq_expect_doc_evidence(test_example example_threshold=1)\n",
@@ -315,6 +323,7 @@ class EvidenceAttributionTests(unittest.TestCase):
         document = repo / "docs" / "implementation" / "example.md"
         document.parent.mkdir(parents=True)
         document.write_text(
+            "## Verification evidence\n\n"
             "The threshold is pinned by "
             "[`test_example.cpp`](../../tests/test_example.cpp).\n"
             "<!-- test-evidence: example_threshold -->\n",
@@ -337,6 +346,7 @@ class EvidenceAttributionTests(unittest.TestCase):
             document = repo / "docs" / "implementation" / "example.md"
             document.parent.mkdir(parents=True)
             document.write_text(
+                "## Verification evidence\n\n"
                 "The threshold is pinned by "
                 "[`test_example.cpp`](../../tests/test_example.cpp).\n"
                 "<!-- test-evidence: example_threshold -->\n",
@@ -428,8 +438,9 @@ class EvidenceAttributionTests(unittest.TestCase):
             header = repo / "tests" / "harness.hpp"
             header.write_text(
                 header.read_text(encoding="utf-8").replace(
-                    "int main() { return test::run([] { TESTS(); }); }",
-                    "int main() { return 0; }",
+                    "  return test::run([] { TESTS(); },\n"
+                    "                   has_evidence_expectation ? argv[2] : nullptr);",
+                    "  return 0;",
                 ),
                 encoding="utf-8",
             )
@@ -495,6 +506,7 @@ class EvidenceAttributionTests(unittest.TestCase):
                     document = repo / "docs" / "implementation" / "example.md"
                     document.parent.mkdir(parents=True)
                     document.write_text(
+                        "## Verification evidence\n\n"
                         "The threshold is pinned by "
                         "[`test_example.cpp`](../../tests/test_example.cpp).\n"
                         "<!-- test-evidence: example_threshold -->\n",
@@ -607,7 +619,7 @@ class EvidenceAttributionTests(unittest.TestCase):
             source = repo / "tests" / "test_example.cpp"
             source.write_text(
                 "void TESTS() {\n"
-                '  test::observed_doc_evidence["example_threshold"]++;\n'
+                "  test::detail::active_doc_evidence_run_state = nullptr;\n"
                 "}\n",
                 encoding="utf-8",
             )
@@ -617,6 +629,27 @@ class EvidenceAttributionTests(unittest.TestCase):
             self.assertTrue(
                 any("accesses documentation-evidence runtime internals directly" in item
                     for item in failures),
+                failures,
+            )
+
+    def test_nested_same_named_header_has_no_harness_exemption(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            repo = Path(temp)
+            self.write_valid_fixture(repo)
+            nested = repo / "tests" / "nested" / "harness.hpp"
+            nested.parent.mkdir(parents=True)
+            nested.write_text(
+                "inline void bypass() {\n"
+                '  test::record_doc_evidence("example_threshold");\n'
+                "}\n",
+                encoding="utf-8",
+            )
+            failures = DOCS.evidence_attribution_failures(
+                repo, self.fixture_contracts()
+            )
+            self.assertTrue(
+                any("tests/nested/harness.hpp" in item and
+                    "runtime internals" in item for item in failures),
                 failures,
             )
 
@@ -852,6 +885,7 @@ class EvidenceAttributionTests(unittest.TestCase):
             document = repo / "docs" / "implementation" / "example.md"
             document.parent.mkdir(parents=True)
             document.write_text(
+                "## Verification evidence\n\n"
                 "Two boundaries are pinned by "
                 "[`test_example.cpp`](../../tests/test_example.cpp).\n"
                 "<!-- test-evidence: example_threshold -->\n",
@@ -894,6 +928,7 @@ class EvidenceAttributionTests(unittest.TestCase):
             document = repo / "docs" / "implementation" / "example.md"
             document.parent.mkdir(parents=True)
             document.write_text(
+                "## Verification evidence\n\n"
                 "The threshold is pinned by "
                 "[`test_example.cpp`](../../tests/test_example.cpp).\n"
                 "<!-- test-evidence: example_threshold -->\n",
@@ -1101,7 +1136,7 @@ class EvidenceAttributionTests(unittest.TestCase):
                 failures,
             )
 
-    def test_later_global_environment_cannot_erase_runtime_expectations(self) -> None:
+    def test_later_global_property_cannot_follow_evidence_registrations(self) -> None:
         with tempfile.TemporaryDirectory() as temp:
             repo = Path(temp)
             self.write_valid_fixture(repo)
@@ -1204,6 +1239,166 @@ class EvidenceAttributionTests(unittest.TestCase):
                 DOCS.evidence_attribution_failures(
                     repo, self.fixture_contracts()
                 ),
+            )
+
+    def test_marker_must_remain_inside_verification_section(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            repo = Path(temp)
+            self.write_valid_fixture(repo)
+            document = repo / "docs" / "implementation" / "example.md"
+            document.write_text(
+                "## Verification evidence\n\n"
+                "The tests establish a numeric contract.\n\n"
+                "## Source and tests\n\n"
+                "The threshold is pinned by "
+                "[`test_example.cpp`](../../tests/test_example.cpp).\n"
+                "<!-- test-evidence: example_threshold -->\n",
+                encoding="utf-8",
+            )
+            failures = DOCS.evidence_attribution_failures(
+                repo, self.fixture_contracts()
+            )
+            self.assertTrue(
+                any("outside its verification-evidence section" in item
+                    for item in failures),
+                failures,
+            )
+
+    def test_fenced_heading_cannot_create_an_evidence_section(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            repo = Path(temp)
+            self.write_valid_fixture(repo)
+            document = repo / "docs" / "implementation" / "example.md"
+            document.write_text(
+                "```markdown\n"
+                "## Verification evidence\n"
+                "```\n\n"
+                "The threshold is pinned by "
+                "[`test_example.cpp`](../../tests/test_example.cpp).\n"
+                "<!-- test-evidence: example_threshold -->\n",
+                encoding="utf-8",
+            )
+            failures = DOCS.evidence_attribution_failures(
+                repo, self.fixture_contracts()
+            )
+            self.assertTrue(
+                any("outside its verification-evidence section" in item
+                    for item in failures),
+                failures,
+            )
+
+    def test_every_implementation_companion_requires_a_runtime_anchor(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            repo = Path(temp)
+            self.write_valid_fixture(repo)
+            (repo / "docs" / "implementation" / "unanchored.md").write_text(
+                "## Verification evidence\n\n"
+                "A test link exists, but no runtime claim is anchored.\n",
+                encoding="utf-8",
+            )
+            with mock.patch.object(
+                DOCS,
+                "EVIDENCE_ATTRIBUTION_CONTRACTS",
+                self.fixture_contracts(),
+            ):
+                failures = DOCS.evidence_attribution_failures(repo)
+            self.assertTrue(
+                any("unanchored.md" in item and "no runtime-backed claim" in item
+                    for item in failures),
+                failures,
+            )
+
+    def test_registered_source_cannot_reset_evidence_run_state(self) -> None:
+        mutations = (
+            ("(void)test::run([] {});", "may not start a nested test run"),
+            (
+                "(void)test::detail::current_doc_evidence_run();",
+                "accesses documentation-evidence runtime internals",
+            ),
+            ("std::exit(false);", "may not invoke process termination"),
+        )
+        for mutation, expected in mutations:
+            with self.subTest(mutation=mutation):
+                with tempfile.TemporaryDirectory() as temp:
+                    repo = Path(temp)
+                    self.write_valid_fixture(repo)
+                    (repo / "tests" / "test_example.cpp").write_text(
+                        "void TESTS() {\n"
+                        f"  {mutation}\n"
+                        "  CAMERA_IQ_DOC_EVIDENCE(example_threshold, "
+                        "check(value == 1));\n"
+                        "}\n",
+                        encoding="utf-8",
+                    )
+                    failures = DOCS.evidence_attribution_failures(
+                        repo, self.fixture_contracts()
+                    )
+                    self.assertTrue(
+                        any(expected in item for item in failures), failures
+                    )
+
+    def test_nested_run_text_in_a_literal_is_not_executable_control(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            repo = Path(temp)
+            self.write_valid_fixture(repo)
+            (repo / "tests" / "test_example.cpp").write_text(
+                "void TESTS() {\n"
+                '  const char* diagnostic = "test::run(";\n'
+                "  CAMERA_IQ_DOC_EVIDENCE(example_threshold, "
+                "check(value == 1));\n"
+                "}\n",
+                encoding="utf-8",
+            )
+            self.assertEqual(
+                [],
+                DOCS.evidence_attribution_failures(
+                    repo, self.fixture_contracts()
+                ),
+            )
+
+    def test_unrelated_exit_member_is_not_process_termination(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            repo = Path(temp)
+            self.write_valid_fixture(repo)
+            (repo / "tests" / "test_example.cpp").write_text(
+                "void TESTS() {\n"
+                "  runner.exit(0);\n"
+                "  CAMERA_IQ_DOC_EVIDENCE(example_threshold, "
+                "check(value == 1));\n"
+                "}\n",
+                encoding="utf-8",
+            )
+            self.assertEqual(
+                [],
+                DOCS.evidence_attribution_failures(
+                    repo, self.fixture_contracts()
+                ),
+            )
+
+    def test_harness_self_test_cannot_back_a_public_claim(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            repo = Path(temp)
+            self.write_valid_fixture(repo)
+            self_test = repo / "tests" / "test_harness.cpp"
+            self_test.write_text(
+                "void TESTS() {\n"
+                "  CAMERA_IQ_DOC_EVIDENCE(example_threshold, "
+                "check(value == 1));\n"
+                "}\n",
+                encoding="utf-8",
+            )
+            contract = DOCS.EvidenceAttributionContract(
+                document=Path("docs/implementation/example.md"),
+                test=Path("tests/test_harness.cpp"),
+                test_target="test_harness",
+            )
+            failures = DOCS.evidence_attribution_failures(
+                repo, {"example_threshold": contract}
+            )
+            self.assertTrue(
+                any("may not use the harness self-test" in item
+                    for item in failures),
+                failures,
             )
 
     def test_wrong_but_existing_test_link_is_rejected(self) -> None:
@@ -1327,6 +1522,9 @@ class EvidenceAttributionTests(unittest.TestCase):
                 "raw_foundation_row_pitch",
                 "raw_foundation_black_2x2",
                 "raw_foundation_black_repeat_periodicity",
+                "gamut_mapping_adversarial_contract",
+                "color_model_audit_numeric_oracles",
+                "spectroradiometer_scale_separation",
             },
             set(contracts),
         )

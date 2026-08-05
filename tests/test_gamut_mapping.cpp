@@ -682,21 +682,42 @@ void TESTS() {
                          std::clamp(center - offset, 0.0, 1.0)});
   }
 
-  check(stress_count == 3229, "stress: deterministic sample count is pinned");
-  check(stress_no_throw, "stress: every legal encoded input maps");
-  check(stress_finite, "stress: every mapped output is finite");
-  check(stress_in_gamut,
-        "stress: every mapped output is independently in destination");
-  check(stress_chroma_nonincreasing,
-        "stress: mapped chroma never increases");
-  check(stress_lightness_preserved,
-        "stress: fixed-Lstar contract holds");
-  check(stress_radial_identity,
-        "stress: radial intent preserves destination-in-gamut inputs");
-  check(stress_oklch_radial_contract,
-        "stress: OkLCh radial intent preserves L/h and never increases mapping chroma");
-  check(stress_css_identity,
-        "stress: CSS relative-colorimetric intent preserves in-gamut inputs");
-  check(stress_hue_preserved && maximum_hue_shift <= 2e-7,
-        "stress: Lab hue is preserved away from the neutral singularity");
+  CAMERA_IQ_DOC_EVIDENCE(
+      gamut_mapping_adversarial_contract,
+      check(stress_count == 3229,
+            "stress: deterministic sample count is pinned"));
+  CAMERA_IQ_DOC_EVIDENCE(
+      gamut_mapping_adversarial_contract,
+      check(stress_no_throw, "stress: every legal encoded input maps"));
+  CAMERA_IQ_DOC_EVIDENCE(
+      gamut_mapping_adversarial_contract,
+      check(stress_finite, "stress: every mapped output is finite"));
+  CAMERA_IQ_DOC_EVIDENCE(
+      gamut_mapping_adversarial_contract,
+      check(stress_in_gamut,
+            "stress: every mapped output is independently in destination"));
+  CAMERA_IQ_DOC_EVIDENCE(
+      gamut_mapping_adversarial_contract,
+      check(stress_chroma_nonincreasing,
+            "stress: mapped chroma never increases"));
+  CAMERA_IQ_DOC_EVIDENCE(
+      gamut_mapping_adversarial_contract,
+      check(stress_lightness_preserved,
+            "stress: fixed-Lstar contract holds"));
+  CAMERA_IQ_DOC_EVIDENCE(
+      gamut_mapping_adversarial_contract,
+      check(stress_radial_identity,
+            "stress: radial intent preserves destination-in-gamut inputs"));
+  CAMERA_IQ_DOC_EVIDENCE(
+      gamut_mapping_adversarial_contract,
+      check(stress_oklch_radial_contract,
+            "stress: OkLCh radial intent preserves L/h and never increases mapping chroma"));
+  CAMERA_IQ_DOC_EVIDENCE(
+      gamut_mapping_adversarial_contract,
+      check(stress_css_identity,
+            "stress: CSS relative-colorimetric intent preserves in-gamut inputs"));
+  CAMERA_IQ_DOC_EVIDENCE(
+      gamut_mapping_adversarial_contract,
+      check(stress_hue_preserved && maximum_hue_shift <= 2e-7,
+            "stress: Lab hue is preserved away from the neutral singularity"));
 }

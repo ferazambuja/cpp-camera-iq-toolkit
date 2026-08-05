@@ -1131,6 +1131,10 @@ void TESTS() {
     // fixture's measured residual and remains well below the 0.05 policy.
     CAMERA_IQ_DOC_EVIDENCE(
         flat_field_radial_asymmetry,
+        check_near(opts.asymmetry_policy, 0.05, 0.0,
+                   "asymmetry: fixture uses the declared 0.05 policy"));
+    CAMERA_IQ_DOC_EVIDENCE(
+        flat_field_radial_asymmetry,
         check(sym_c.asymmetry_valid && sym_c.green_asymmetry < 1e-3,
               "asymmetry: radial fixture stays below its discretization bound"));
     CAMERA_IQ_DOC_EVIDENCE(

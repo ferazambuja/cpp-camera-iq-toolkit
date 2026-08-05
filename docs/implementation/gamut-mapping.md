@@ -98,8 +98,13 @@ has been established; it is not the mapping algorithm.
 
 ## Verification evidence
 
-The core mapping assertions are in
-[`test_gamut_mapping.cpp`](../../tests/test_gamut_mapping.cpp).
+At the library/unit layer, ten aggregate assertions in
+[`test_gamut_mapping.cpp`](../../tests/test_gamut_mapping.cpp) pin the
+deterministic set at 3,229 inputs; require every legal input to map without an
+exception to a finite, destination-gamut output; enforce the scoped CIELAB
+chroma, lightness, and hue conditions plus the OkLCh radial contract; and
+require all three hard mapping intents to preserve destination-in-gamut input.
+<!-- test-evidence: gamut_mapping_adversarial_contract -->
 
 The test suite challenges broad algorithm contracts, while the artifact check
 separately regenerates the published 125-point JSON, CSV, and SVG outputs from

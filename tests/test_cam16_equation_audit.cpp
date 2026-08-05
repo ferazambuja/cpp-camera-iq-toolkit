@@ -19,37 +19,59 @@ using test::check;
 using test::check_near;
 
 void TESTS() {
-  check_near(cam16_normalized_brightness(25.0), 0.5, 1e-15,
-             "CAM16 audit: half normalized brightness occurs at J=25");
-  check_near(cam16_normalized_brightness(50.0), std::sqrt(0.5), 1e-15,
-             "CAM16 audit: middle lightness is not middle brightness");
-  check_near(hellwig_2022_normalized_brightness(50.0), 0.5, 1e-15,
-             "Hellwig audit: proposed normalized brightness is linear in J");
+  CAMERA_IQ_DOC_EVIDENCE(
+      color_model_audit_numeric_oracles,
+      check_near(cam16_normalized_brightness(25.0), 0.5, 1e-15,
+                 "CAM16 audit: half normalized brightness occurs at J=25"));
+  CAMERA_IQ_DOC_EVIDENCE(
+      color_model_audit_numeric_oracles,
+      check_near(cam16_normalized_brightness(50.0), std::sqrt(0.5), 1e-15,
+                 "CAM16 audit: middle lightness is not middle brightness"));
+  CAMERA_IQ_DOC_EVIDENCE(
+      color_model_audit_numeric_oracles,
+      check_near(hellwig_2022_normalized_brightness(50.0), 0.5, 1e-15,
+                 "Hellwig audit: proposed normalized brightness is linear in J"));
 
-  check_near(cam16_isolated_ncb_chroma_factor(20.0), 1.0, 1e-15,
-             "CAM16 audit: mid-gray background is the factor reference");
-  check_near(cam16_isolated_ncb_chroma_factor(5.0),
-             1.2834258975629043, 1e-15,
-             "CAM16 audit: isolated Ncb factor at Yb=5");
-  check_near(cam16_isolated_ncb_chroma_factor(1.0),
-             1.7146891477615709, 1e-15,
-             "CAM16 audit: isolated Ncb factor at Yb=1");
-  check_near(cam16_isolated_ncb_chroma_factor(0.1),
-             2.595287047166021, 1e-15,
-             "CAM16 audit: isolated Ncb factor at Yb=0.1");
+  CAMERA_IQ_DOC_EVIDENCE(
+      color_model_audit_numeric_oracles,
+      check_near(cam16_isolated_ncb_chroma_factor(20.0), 1.0, 1e-15,
+                 "CAM16 audit: mid-gray background is the factor reference"));
+  CAMERA_IQ_DOC_EVIDENCE(
+      color_model_audit_numeric_oracles,
+      check_near(cam16_isolated_ncb_chroma_factor(5.0),
+                 1.2834258975629043, 1e-15,
+                 "CAM16 audit: isolated Ncb factor at Yb=5"));
+  CAMERA_IQ_DOC_EVIDENCE(
+      color_model_audit_numeric_oracles,
+      check_near(cam16_isolated_ncb_chroma_factor(1.0),
+                 1.7146891477615709, 1e-15,
+                 "CAM16 audit: isolated Ncb factor at Yb=1"));
+  CAMERA_IQ_DOC_EVIDENCE(
+      color_model_audit_numeric_oracles,
+      check_near(cam16_isolated_ncb_chroma_factor(0.1),
+                 2.595287047166021, 1e-15,
+                 "CAM16 audit: isolated Ncb factor at Yb=0.1"));
 
-  check_near(cam16_relative_chroma_fixed_adapted_response(20.0, 10.0),
-             1.0, 1e-15,
-             "CAM16 audit: coupled expression is normalized at Yb=20");
-  check_near(cam16_relative_chroma_fixed_adapted_response(0.1, 10.0),
-             2.6865933941337503, 1e-12,
-             "CAM16 audit: low-J coupled expression can exceed isolated Ncb");
-  check_near(cam16_relative_chroma_fixed_adapted_response(0.1, 90.0),
-             2.1198928552563943, 1e-12,
-             "CAM16 audit: high-J coupled expression can fall below isolated Ncb");
-  check_near(hellwig_2022_colorfulness(1.0, 1.0, 3.0, 4.0), 215.0,
-             1e-12,
-             "Hellwig audit: corrected Equation 23 uses coefficient 43");
+  CAMERA_IQ_DOC_EVIDENCE(
+      color_model_audit_numeric_oracles,
+      check_near(cam16_relative_chroma_fixed_adapted_response(20.0, 10.0),
+                 1.0, 1e-15,
+                 "CAM16 audit: coupled expression is normalized at Yb=20"));
+  CAMERA_IQ_DOC_EVIDENCE(
+      color_model_audit_numeric_oracles,
+      check_near(cam16_relative_chroma_fixed_adapted_response(0.1, 10.0),
+                 2.6865933941337503, 1e-12,
+                 "CAM16 audit: low-J coupled expression can exceed isolated Ncb"));
+  CAMERA_IQ_DOC_EVIDENCE(
+      color_model_audit_numeric_oracles,
+      check_near(cam16_relative_chroma_fixed_adapted_response(0.1, 90.0),
+                 2.1198928552563943, 1e-12,
+                 "CAM16 audit: high-J coupled expression can fall below isolated Ncb"));
+  CAMERA_IQ_DOC_EVIDENCE(
+      color_model_audit_numeric_oracles,
+      check_near(hellwig_2022_colorfulness(1.0, 1.0, 3.0, 4.0), 215.0,
+                 1e-12,
+                 "Hellwig audit: corrected Equation 23 uses coefficient 43"));
 
   bool zero_background_threw = false;
   try {
