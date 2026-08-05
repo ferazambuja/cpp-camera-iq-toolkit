@@ -148,3 +148,19 @@ bandwidth, wavelength accuracy, and stray-light behavior uncharacterized. See th
 The shared four-camera rig improves within-set comparability but does not make
 relative ordering immune to those systematics; the separate Phase One IQ3
 session is a cross-rig comparison.
+
+## What to take from this
+
+The opening asked how faithfully these sensors could reproduce colour, given
+that the answer is bounded before any processing. Across five measured
+sensitivity sets the ordering was stable, but the spread was small: SMI 90.7 to
+88.3, every camera inside roughly one just-noticeable difference. On this axis
+the five cameras are closer to each other than a specification sheet would
+suggest, and sensor choice among them is not the decisive colour-fidelity
+variable.
+
+The comparison is only as sharp as the method behind it. Closure predicted the
+chart captures to 9.5–13.8% RMS per channel, which is the resolution at which
+this evidence can separate cameras at all — comfortably enough for the Canon's
+position within the shared rig, and not enough to defend a cross-rig endpoint.
+Anyone reusing these curves should carry the rig and session with them.

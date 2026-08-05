@@ -8,6 +8,15 @@ and principal results. The
 those layers stay readable and technically complete without mixing scientific
 narrative with source-code detail.
 
+**Jump to:** [featured case studies](#featured-case-studies) ·
+[implementation architecture](#implementation-architecture) ·
+[validation decisions](#validation-decisions) ·
+[technical reports](#technical-reports) ·
+[reproducibility and data access](#reproducibility-and-data-access)
+
+Looking for a specific report rather than a study? The
+[technical reports](#technical-reports) section indexes all 21 by subject.
+
 ## Featured case studies
 
 ### Nikon D800/D810 + 50 mm f/1.4G SFR aperture and field analysis
@@ -74,7 +83,7 @@ they can estimate standard color coordinates. This study builds that transform
 — a color-correction matrix — from a photographed 140-patch chart, then grades
 it on patches deliberately withheld from the fit so training error cannot
 masquerade as generalization. A chart-locating shortcut that looked accurate by
-correlation was rejected after it missed patch centers by 16 px.
+correlation was rejected after it missed patch centers by 16.449 px.
 The corrected workflow reached a five-fold held-out mean CIEDE2000 of 4.134
 against a compatible spectral chart reference.
 
@@ -111,7 +120,7 @@ or rendering engine whose mapping is not exposed to the user. This study makes
 that decision inspectable in four different ways and changes one variable at a
 time to find out what each choice
 costs. Switching the coordinate space alone rescued a badly overcompressed
-saturated yellow, cutting its error from 23.9 to 5.5, while very slightly
+saturated yellow, cutting its error from 23.928 to 5.523, while very slightly
 worsening the average across the rest — a targeted trade, not a free
 improvement.
 

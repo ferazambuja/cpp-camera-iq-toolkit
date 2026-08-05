@@ -120,3 +120,20 @@ certainty from incomplete records.
 The curves are equation-level diagnostics with fixed adapted responses. They do
 not replace a general CAM16 forward model, viewing-condition validation,
 observer data, or a validated image-rendering study.
+
+## What to take from this
+
+The audit set out to turn published appearance equations into small tests that
+show how they actually behave. The result worth carrying is a specific one: an
+isolated term from a model cannot be read as a bound on the expression it
+belongs to. The background factor reaches `2.595×` on its own, and the complete
+coupled expression spans `2.120–2.687×` — crossing that value from both sides
+rather than being capped by it.
+
+That matters because isolated factors are exactly what gets quoted. A summary
+that cited the `2.595×` term as a worst case would be wrong in both directions,
+and nothing about the isolated equation reveals it — only evaluating the
+coupled form over its declared range does. The same discipline is why this
+audit reports the paper's colorfulness `R²` falling from `0.81` to `0.71`
+alongside the two fits that improved: a change to a published model is a
+tradeoff until someone checks every attribute it touches.

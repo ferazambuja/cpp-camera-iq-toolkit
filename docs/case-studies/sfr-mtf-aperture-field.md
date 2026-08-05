@@ -213,3 +213,19 @@ accuracy also differ. The common lens-model label does not establish a shared
 lens sample, and the unsynchronized camera clocks add no physical-identity
 evidence. The result therefore does not rank lens, body, or setup
 contributions.
+
+## What to take from this
+
+The opening asked where centre sharpness peaks and whether one centre number
+describes a camera and lens. For the D810 it does: the centre peaked cleanly at
+f/5.6 and stayed the strongest measured point at f/5.6, f/8, and f/11. For the
+D800 it does not, and the two bodies carried the same lens model through the
+same chart.
+
+The practical consequence is that a sharpness acceptance threshold has to be
+set per capture system, not per camera model. A single limit wide enough to
+pass both of these would have accepted a system whose field maximum sat
+off-axis and whose widest aperture fell below its own f/16 result. Whether that
+D800 behaviour is optical or a focus error is exactly the question this archive
+cannot answer, which is itself the argument for measuring the field rather than
+the centre: the centre number was the one that looked normal.

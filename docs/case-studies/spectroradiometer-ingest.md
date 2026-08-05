@@ -115,3 +115,18 @@ repeatability.
 
 Three singletons remain in the output with null variation metrics. A single
 measurement establishes a level and shape, not a spread.
+
+## What to take from this
+
+The opening asked what changes between repeat measurements of the same source:
+the amount of light, the shape of its spectrum, or its colour. The answer is
+that they change separately. The group with the largest level variation is not
+the group with the largest shape or chromaticity variation, so a source can
+hold its spectrum and its colour while its output drifts.
+
+The consequence for anyone reusing this archive is that a single stability
+number would be a lossy summary of a measurement that is not one-dimensional.
+Each group carries level, normalized shape, and chromaticity separately in the
+published table, and they should be read that way — a group that is stable in
+colour may still be unusable as a radiometric reference, and a group with
+modest level drift may still be a valid one.
