@@ -158,24 +158,34 @@ test file; and place this marker immediately after that paragraph:
 
 In the registered C++ test, wrap every `check()` or `check_near()` assertion
 that constitutes the public claim with
-`CAMERA_IQ_DOC_EVIDENCE(identifier, assertion)`. The harness definition must
-expand the second argument unchanged so the wrapper cannot turn the assertion
-into a no-op.
+`CAMERA_IQ_DOC_EVIDENCE(identifier, assertion)`. The harness records the
+identifier only after the assertion returns normally, and evaluates the
+assertion exactly once.
 
 The guard requires exactly one document marker, the registered number of
-executable assertion wrappers inside the registered source's `TESTS()` body,
-and a matching CTest target/source registration through the active
-`camera_iq_add_test` helper. Evidence targets are unconditional: a call inside
-a CMake conditional does not satisfy this contract. The guard ignores wrappers
-in comments, strings, Markdown examples, preprocessor definitions, and
-conditionally compiled regions, and rejects one placed outside `TESTS()`, since
-`tests/harness.hpp` reaches an assertion only through that entry point.
+assertion wrappers in the registered source, a default-harness `TESTS()` entry
+point, and matching top-level CTest target/source registration. Each registered
+source also receives a dedicated CTest evidence run from
+`camera_iq_expect_doc_evidence`, which invokes the same binary with exact
+identifier/count expectations. The harness compares those expectations with
+the wrappers actually reached during that run. Source-wrapper and runtime counts
+are recorded separately when a fixed loop executes one wrapper more than once.
+A wrapper moved into a called helper remains valid; one in an uncalled helper,
+a false branch, or code after an early return fails the evidence run.
+
+Evidence targets and their expectation registrations are unconditional: calls
+inside CMake conditionals, function or macro bodies, or loop blocks do not
+satisfy this contract. The dedicated evidence checks are registered after other
+CTest property assignments, and later mutations that could disable, skip, or
+invert them are refused. The static guard ignores wrappers in comments, strings,
+Markdown examples, preprocessor definitions, and conditionally compiled
+regions.
 
 This protects registered claims from silent wrapper deletion, ID mix-ups, and
-assertions that compile without running. It reaches no further. The guard does
-not prove that the prose interprets or scopes the assertion correctly, that a
-wrapper inside `TESTS()` is reachable rather than dead under a false condition
-or an early return, or that every documented fact has a dedicated wrapper.
+assertions that compile without being reached by the registered CTest run. It
+reaches no further. The mechanism does not prove that the prose interprets or
+scopes the assertion correctly, that the assertion itself expresses the right
+scientific property, or that every documented fact has a dedicated wrapper.
 Human review must still verify the assertion, bound, fixture, and operating
 conditions. Ordinary source-navigation links and generated-artifact checks do
 not need this annotation.

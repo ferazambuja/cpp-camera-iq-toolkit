@@ -122,6 +122,18 @@ function(camera_iq_add_test name source)
   add_test(NAME ${name} COMMAND ${name})
 endfunction()
 
+function(camera_iq_expect_doc_evidence target expectations)
+  set(evidence_tmpdir ${CAMERA_IQ_TEST_TMPDIR}/doc-evidence-${target})
+  file(MAKE_DIRECTORY ${evidence_tmpdir})
+  add_test(NAME check_doc_evidence_${target}
+    COMMAND ${CMAKE_COMMAND} -E env
+            TMPDIR=${evidence_tmpdir}
+            TMP=${evidence_tmpdir}
+            TEMP=${evidence_tmpdir}
+            CAMERA_IQ_DOC_EVIDENCE_EXPECT=${expectations}
+            $<TARGET_FILE:${target}>)
+endfunction()
+
 camera_iq_add_test(camera_iq_tests tests/test_cli_basic.cpp)
 camera_iq_add_test(test_harness tests/test_harness.cpp)
 camera_iq_add_test(test_filename_meta tests/test_filename_meta.cpp)
@@ -280,3 +292,20 @@ get_property(CAMERA_IQ_REGISTERED_TESTS DIRECTORY PROPERTY TESTS)
 set_tests_properties(${CAMERA_IQ_REGISTERED_TESTS} PROPERTIES
   ENVIRONMENT
     "TMPDIR=${CAMERA_IQ_TEST_TMPDIR};TMP=${CAMERA_IQ_TEST_TMPDIR};TEMP=${CAMERA_IQ_TEST_TMPDIR}")
+
+# Register dedicated runtime evidence checks after shared test properties are
+# complete, so a later property assignment cannot disable or rewrite them.
+camera_iq_expect_doc_evidence(test_raw_meta
+  raw_foundation_row_pitch=2,raw_foundation_black_2x2=4,raw_foundation_black_repeat_periodicity=6)
+camera_iq_expect_doc_evidence(test_sfr
+  sfr_broad_gaussian_bounds=4,sfr_nyquist_accuracy=1)
+camera_iq_expect_doc_evidence(test_cmd_ccm_fit
+  color_characterization_ccm_external_labels=2,color_characterization_ccm_provenance=3,color_characterization_ccm_refusals=6)
+camera_iq_expect_doc_evidence(test_patches
+  color_characterization_localization_shifted=3,color_characterization_localization_offset=3,color_characterization_localization_verdict=2)
+camera_iq_expect_doc_evidence(test_spectral_quality
+  spectral_fidelity_luther_scale_invariance=5)
+camera_iq_expect_doc_evidence(test_flat_field_gate
+  flat_field_cfa_balanced_roi=4,flat_field_threshold_boundaries=21)
+camera_iq_expect_doc_evidence(test_shading
+  flat_field_radial_asymmetry=2)
