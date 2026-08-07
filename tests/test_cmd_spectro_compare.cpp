@@ -66,10 +66,19 @@ void TESTS() {
             0,
         "spectro compare cmd: explicit comparison succeeds");
   const std::string json_text = read_file(json);
-  check(json_text.find("\"relative_l2_denominator\":\"reference_l2_norm\"") !=
+  check(json_text.find("\"schema_version\":2") != std::string::npos &&
+            json_text.find(
+                "\"relative_l2_denominator\":\"reference_l2_norm\"") !=
                 std::string::npos &&
-            json_text.find("\"zero_offset_directional_relative_l2\":") !=
+            json_text.find(
+                "\"offset_objective_scope\":\"per_offset_equal_weight_integral_normalization_on_fixed_common_grid\"") !=
                 std::string::npos &&
+            json_text.find("\"offset_common_grid_sample_count\":") !=
+                std::string::npos &&
+            json_text.find("\"zero_offset_objective\":") !=
+                std::string::npos &&
+            json_text.find("\"residual_l2_norm\":") != std::string::npos &&
+            json_text.find("\"reference_l2_norm\":") != std::string::npos &&
             json_text.find("\"reference_id\":\"reference\"") !=
                 std::string::npos &&
             json_text.find("\"candidate_id\":\"candidate\"") !=

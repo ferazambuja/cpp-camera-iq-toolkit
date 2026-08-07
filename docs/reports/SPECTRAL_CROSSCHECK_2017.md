@@ -115,8 +115,13 @@ retained bands without changing the original normalization.
 The relative-axis sweep uses the convention
 `reference nominal wavelength + δ = actual wavelength`. It evaluates a family
 of re-registrations over −2 to +2 nm in 0.05 nm increments on the common
-interior supported by every shift. It is a sensitivity analysis: a best-fitting
-offset selected from the same spectra is not a wavelength calibration.
+interior supported by every shift. Both spectra are resampled and normalized
+again for every `δ`, so the reference L2 denominator can change across the
+sweep. A ratio of two directional-relative-L2 values therefore must not be
+interpreted as a residual-energy survival fraction. It is a sensitivity
+analysis: a best-fitting offset selected from the same spectra is not a
+wavelength calibration or evidence of a registration error, bandpass error, or
+other physical cause.
 
 ### Recompute source-application colorimetry
 

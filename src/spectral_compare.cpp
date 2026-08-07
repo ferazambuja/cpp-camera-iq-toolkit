@@ -86,9 +86,10 @@ double interpolate(const std::vector<double>& axis,
   return result;
 }
 
-double directional_relative_l2(const std::vector<double>& reference,
-                               const std::vector<double>& candidate,
-                               const std::vector<bool>* retained = nullptr) {
+SpectralL2Objective l2_objective(
+    const std::vector<double>& reference,
+    const std::vector<double>& candidate,
+    const std::vector<bool>* retained = nullptr) {
   double residual = 0.0;
   double reference_norm = 0.0;
   std::size_t count = 0;
@@ -104,12 +105,12 @@ double directional_relative_l2(const std::vector<double>& reference,
     throw std::runtime_error(
         "spectral compare: reference L2 norm must be finite and positive");
   }
-  const double result = residual / reference_norm;
-  if (!std::isfinite(result)) {
+  const double directional_relative_l2 = residual / reference_norm;
+  if (!std::isfinite(directional_relative_l2)) {
     throw std::runtime_error(
         "spectral compare: relative L2 result is not representable");
   }
-  return result;
+  return {residual, reference_norm, directional_relative_l2};
 }
 
 std::vector<double> resample(const std::vector<double>& source_axis,
@@ -243,8 +244,10 @@ SpectralComparison compare_spectral_groups(
                     options.common_wavelength_nm);
   normalize_on_grid(result.candidate_on_common_grid,
                     options.common_wavelength_nm);
-  result.directional_relative_l2 = directional_relative_l2(
-      result.reference_on_common_grid, result.candidate_on_common_grid);
+  result.directional_relative_l2 =
+      l2_objective(result.reference_on_common_grid,
+                   result.candidate_on_common_grid)
+          .directional_relative_l2;
 
   result.bands = comparison_bands(options.common_wavelength_nm,
                                   result.reference_on_common_grid,
@@ -268,8 +271,9 @@ SpectralComparison compare_spectral_groups(
         std::count(retained.begin(), retained.end(), true));
     result.exclusion_results.push_back(SpectralExclusionResult{
         options.excluded_wavelength_nm, retained_count,
-        directional_relative_l2(result.reference_on_common_grid,
-                                result.candidate_on_common_grid, &retained)});
+        l2_objective(result.reference_on_common_grid,
+                     result.candidate_on_common_grid, &retained)
+            .directional_relative_l2});
   }
 
   if (options.offset_step_nm != 0.0) {
@@ -294,7 +298,7 @@ SpectralComparison compare_spectral_groups(
       throw std::runtime_error(
           "spectral compare: offset sweep requires at least two common supported samples");
     }
-    result.offset_sensitivity_sample_count = sweep_grid.size();
+    result.offset_common_grid_sample_count = sweep_grid.size();
     auto zero_reference = resample(
         reference.front().wavelength_nm,
         result.reference_group.mean_normalized_spectrum, sweep_grid);
@@ -303,8 +307,7 @@ SpectralComparison compare_spectral_groups(
         result.candidate_group.mean_normalized_spectrum, sweep_grid);
     normalize_on_grid(zero_reference, sweep_grid);
     normalize_on_grid(zero_candidate, sweep_grid);
-    result.zero_offset_directional_relative_l2 =
-        directional_relative_l2(zero_reference, zero_candidate);
+    result.zero_offset_objective = l2_objective(zero_reference, zero_candidate);
     result.best_offset_directional_relative_l2 =
         std::numeric_limits<double>::infinity();
     const double raw_interval_count =
@@ -340,11 +343,12 @@ SpectralComparison compare_spectral_groups(
                                                                     : 0.0);
       normalize_on_grid(reference_sweep, sweep_grid);
       normalize_on_grid(candidate_sweep, sweep_grid);
-      const double residual =
-          directional_relative_l2(reference_sweep, candidate_sweep);
-      result.offset_sensitivity.push_back({offset, residual});
-      if (residual < result.best_offset_directional_relative_l2) {
-        result.best_offset_directional_relative_l2 = residual;
+      const auto objective = l2_objective(reference_sweep, candidate_sweep);
+      result.offset_sensitivity.push_back({offset, objective});
+      if (objective.directional_relative_l2 <
+          result.best_offset_directional_relative_l2) {
+        result.best_offset_directional_relative_l2 =
+            objective.directional_relative_l2;
         result.best_wavelength_offset_nm = offset;
       }
     }

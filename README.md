@@ -79,10 +79,10 @@ to the OECF, noise, demosaic, localization, dataset, and provenance reports.
   independently of the other two.
 - **Localized spectral disagreement.** Two eight-reading
   HID series differ by **4.327% directional relative L2**, with **75.9%** of the
-  squared residual at 530 and 540 nm. On the fixed 35-band sweep support, a
-  fitted offset lowers the objective by **28.7%** without identifying a
-  registration error; the report keeps bandwidth, source, and acquisition
-  effects open rather than assigning an unsupported cause.
+  squared residual at 530 and 540 nm. On the fixed 35-band sweep support,
+  fitting a reference-axis offset to those same spectra lowers the objective by
+  **28.7%**. It is a sensitivity result, not evidence of a registration error
+  or other physical cause.
 
 Two further studies are controlled algorithm and equation work rather than
 camera measurements: the [gamut-mapping

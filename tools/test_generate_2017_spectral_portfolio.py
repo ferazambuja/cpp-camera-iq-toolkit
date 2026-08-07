@@ -215,6 +215,7 @@ def main() -> int:
         "40.1% of 35-band post-shift squared residual",
         "35-band zero-offset baseline 4.33%",
         "best fitted shift -0.95 nm: 3.08% (28.7% lower)",
+        "no cause identified",
         "Observer metadata changes the answer",
         "One measurement, four serializations",
         "two SpectraShop files declare 38 fields but carry 41",

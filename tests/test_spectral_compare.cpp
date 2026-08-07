@@ -38,13 +38,15 @@ void TESTS() {
   options.common_wavelength_nm = {0.0, 1.0, 2.0};
   options.excluded_wavelength_nm = {1.0};
   const auto compared = compare_spectral_groups(reference, candidate, options);
-  check(!compared.zero_offset_directional_relative_l2.has_value(),
+  check(!compared.zero_offset_objective.has_value(),
         "spectral compare: zero-offset baseline is absent without a sweep");
   CAMERA_IQ_DOC_EVIDENCE(
       spectral_crosscheck_common_grid,
       check(compared.normalization == "common_grid_equal_weight_integral" &&
                 compared.interpolation == "linear" &&
-                compared.relative_l2_denominator == "reference_l2_norm",
+                compared.relative_l2_denominator == "reference_l2_norm" &&
+                compared.offset_objective_scope ==
+                    "per_offset_equal_weight_integral_normalization_on_fixed_common_grid",
             "spectral compare: method choices are serialized concepts"));
   CAMERA_IQ_DOC_EVIDENCE(
       spectral_crosscheck_common_grid,
@@ -79,14 +81,21 @@ void TESTS() {
       {{0.0, 1.0, 2.0, 3.0, 4.0}, {1.0, 1.0, 1.0, 3.0, 1.0}}};
   const auto sweep = compare_spectral_groups(centred, displaced, shifted);
   check(sweep.offset_sensitivity.size() == 3 &&
-            sweep.offset_sensitivity_sample_count == 3,
+            sweep.offset_common_grid_sample_count == 3,
         "spectral compare: offset sweep uses one common supported interior");
-  check(sweep.zero_offset_directional_relative_l2.has_value(),
+  check(sweep.zero_offset_objective.has_value(),
         "spectral compare: sweep reports a zero-offset baseline on its fixed grid");
-  check_near(*sweep.zero_offset_directional_relative_l2,
-             sweep.offset_sensitivity[1].directional_relative_l2, 0.0,
+  check_near(sweep.zero_offset_objective->directional_relative_l2,
+             sweep.offset_sensitivity[1].objective.directional_relative_l2,
+             0.0,
              "spectral compare: zero-offset baseline matches the sampled zero row");
-  check(std::abs(*sweep.zero_offset_directional_relative_l2 -
+  check_near(sweep.zero_offset_objective->residual_l2_norm,
+             std::sqrt(8.0) / 5.0, 1e-12,
+             "spectral compare: zero offset exposes the residual norm");
+  check_near(sweep.zero_offset_objective->reference_l2_norm,
+             std::sqrt(11.0) / 5.0, 1e-12,
+             "spectral compare: zero offset exposes the moving denominator");
+  check(std::abs(sweep.zero_offset_objective->directional_relative_l2 -
                  sweep.directional_relative_l2) > 1e-6,
         "spectral compare: trimmed sweep baseline is distinct from the full-grid result");
   check_near(sweep.best_wavelength_offset_nm, -1.0, 1e-12,
@@ -108,19 +117,42 @@ void TESTS() {
                      1.0) < 1e-12,
         "spectral compare: reference-axis sensitivity has a named sign convention");
 
+  auto zero_to_positive = shifted;
+  zero_to_positive.offset_min_nm = 0.0;
+  zero_to_positive.offset_max_nm = 1.0;
+  zero_to_positive.offset_step_nm = 0.5;
+  const auto zero_to_positive_sweep =
+      compare_spectral_groups(centred, displaced, zero_to_positive);
   auto positive_only = shifted;
   positive_only.offset_min_nm = 0.5;
   positive_only.offset_max_nm = 1.0;
   positive_only.offset_step_nm = 0.5;
   const auto positive_only_sweep =
       compare_spectral_groups(centred, displaced, positive_only);
-  check(positive_only_sweep.zero_offset_directional_relative_l2.has_value() &&
+  check(positive_only_sweep.zero_offset_objective.has_value() &&
             std::none_of(positive_only_sweep.offset_sensitivity.begin(),
                          positive_only_sweep.offset_sensitivity.end(),
                          [](const auto& item) {
                            return item.wavelength_offset_nm == 0.0;
                          }),
         "spectral compare: zero baseline is available outside the requested sweep range");
+  check_near(
+      positive_only_sweep.zero_offset_objective->directional_relative_l2,
+      zero_to_positive_sweep.zero_offset_objective->directional_relative_l2,
+      0.0,
+      "spectral compare: outside-range zero baseline uses the same fixed support");
+
+  zero_to_positive.offset_series = SpectralOffsetSeries::Candidate;
+  positive_only.offset_series = SpectralOffsetSeries::Candidate;
+  const auto candidate_zero_to_positive =
+      compare_spectral_groups(centred, displaced, zero_to_positive);
+  const auto candidate_positive_only =
+      compare_spectral_groups(centred, displaced, positive_only);
+  check_near(
+      candidate_positive_only.zero_offset_objective->directional_relative_l2,
+      candidate_zero_to_positive.zero_offset_objective->directional_relative_l2,
+      0.0,
+      "spectral compare: candidate-axis outside-range baseline uses the fixed support");
 
   auto one_sweep_sample = shifted;
   one_sweep_sample.offset_min_nm = -2.0;

@@ -592,7 +592,20 @@ NORMALIZED_STALE_PATTERNS = {
 # must retain the evidence relationships needed to interpret the measurements.
 # These checks protect source classification and session identity rather than
 # treating the presence of date-shaped text as proof of provenance.
+SAME_DATA_OFFSET_BOUNDARY = re.compile(
+    r"(?:fitt(?:ed|ing).{0,80})?offset.{0,80}"
+    r"(?:selected from|to)\s+(?:the|those)?\s*same spectra.{0,200}"
+    r"(?=.{0,500}(?:(?:rather than|not) evidence of a registration error|"
+    r"does not identify a registration error))"
+    r".{0,600}(?:physical cause|bandpass|spectral bandwidth|source change|"
+    r"acquisition)",
+    re.IGNORECASE,
+)
+
 PROVENANCE_CONTRACTS = {
+    Path("README.md"): (
+        ("same-data fitted-offset boundary", SAME_DATA_OFFSET_BOUNDARY),
+    ),
     Path("docs/case-studies/sfr-mtf-aperture-field.md"): (
         (
             "case-study cross-body clock boundary",
@@ -683,6 +696,12 @@ PROVENANCE_CONTRACTS = {
                 re.IGNORECASE,
             ),
         ),
+    ),
+    Path("docs/reports/SPECTRAL_CROSSCHECK_2017.md"): (
+        ("same-data fitted-offset boundary", SAME_DATA_OFFSET_BOUNDARY),
+    ),
+    Path("docs/case-studies/spectral-archive-crosscheck.md"): (
+        ("same-data fitted-offset boundary", SAME_DATA_OFFSET_BOUNDARY),
     ),
     Path("docs/implementation/color-characterization.md"): (
         (

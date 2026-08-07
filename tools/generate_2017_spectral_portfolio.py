@@ -402,14 +402,21 @@ def render_svg(comparison_csv: Path, comparison: dict,
         raise ValueError("HID comparison normalization differs")
     if comparison.get("relative_l2_denominator") != "reference_l2_norm":
         raise ValueError("HID comparison denominator differs")
+    if comparison.get("schema_version") != 2:
+        raise ValueError("HID comparison schema differs")
+    if comparison.get("offset_objective_scope") != (
+        "per_offset_equal_weight_integral_normalization_on_fixed_common_grid"
+    ):
+        raise ValueError("HID offset objective scope differs")
     if comparison.get("reference_group", {}).get("reading_count") != 8 or \
        comparison.get("candidate_group", {}).get("reading_count") != 8:
         raise ValueError("HID repeat counts differ")
     residual = float(comparison["directional_relative_l2"])
     excluded = float(comparison["diagnostic_exclusions"][0]["directional_relative_l2"])
-    sweep_sample_count = int(comparison["offset_sensitivity_sample_count"])
+    sweep_sample_count = int(comparison["offset_common_grid_sample_count"])
+    zero_offset_objective = comparison["zero_offset_objective"]
     zero_offset_residual = float(
-        comparison["zero_offset_directional_relative_l2"]
+        zero_offset_objective["directional_relative_l2"]
     )
     zero_offset_rows = [
         row for row in comparison.get("offset_sensitivity", [])
@@ -417,7 +424,19 @@ def render_svg(comparison_csv: Path, comparison: dict,
     ]
     offset = float(comparison["best_wavelength_offset_nm"])
     offset_residual = float(comparison["best_offset_directional_relative_l2"])
+    best_offset_rows = [
+        row for row in comparison.get("offset_sensitivity", [])
+        if float(row["wavelength_offset_nm"]) == offset
+    ]
+    if len(best_offset_rows) != 1:
+        raise ValueError("HID comparison best offset row differs")
+    best_offset_objective = best_offset_rows[0]
     offset_relative_l2_reduction = 1.0 - offset_residual / zero_offset_residual
+    squared_objective_ratio = (offset_residual / zero_offset_residual) ** 2
+    squared_residual_ratio = (
+        float(best_offset_objective["residual_l2_norm"])
+        / float(zero_offset_objective["residual_l2_norm"])
+    ) ** 2
     contribution = sum(
         row["squared_residual_fraction"]
         for row in bands if row["wavelength_nm"] in (530.0, 540.0)
@@ -439,6 +458,26 @@ def render_svg(comparison_csv: Path, comparison: dict,
             and math.isclose(offset, -0.95, rel_tol=0, abs_tol=1e-12)
             and math.isclose(offset_residual, 0.0308414328745,
                              rel_tol=0, abs_tol=1e-12)
+            and math.isclose(
+                float(best_offset_objective["directional_relative_l2"]),
+                offset_residual, rel_tol=0, abs_tol=1e-15)
+            and math.isclose(
+                float(zero_offset_objective["residual_l2_norm"]),
+                0.000807579465693, rel_tol=0, abs_tol=1e-15)
+            and math.isclose(
+                float(zero_offset_objective["reference_l2_norm"]),
+                0.0186619327894, rel_tol=0, abs_tol=1e-13)
+            and math.isclose(
+                float(best_offset_objective["residual_l2_norm"]),
+                0.000574647192582, rel_tol=0, abs_tol=1e-15)
+            and math.isclose(
+                float(best_offset_objective["reference_l2_norm"]),
+                0.0186323117645, rel_tol=0, abs_tol=1e-13)
+            and math.isclose(squared_objective_ratio, 0.507939281814,
+                             rel_tol=0, abs_tol=1e-12)
+            and math.isclose(squared_residual_ratio, 0.506328115199,
+                             rel_tol=0, abs_tol=1e-12)
+            and abs(squared_objective_ratio - squared_residual_ratio) > 1e-3
             and math.isclose(offset_relative_l2_reduction,
                              0.287301408860, rel_tol=0, abs_tol=1e-12)
             and math.isclose(shifted_contribution, 0.400816293758,

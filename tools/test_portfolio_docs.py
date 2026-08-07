@@ -189,6 +189,49 @@ class PublicationLanguageTests(unittest.TestCase):
 
 
 class ProvenanceContractTests(unittest.TestCase):
+    def test_same_data_offset_contract_rejects_causal_reinterpretation(self) -> None:
+        paths = (
+            Path("README.md"),
+            Path("docs/reports/SPECTRAL_CROSSCHECK_2017.md"),
+            Path("docs/case-studies/spectral-archive-crosscheck.md"),
+        )
+        safe = (
+            "Because the offset is selected from the same spectra, this is a "
+            "sensitivity result rather than evidence of a registration error "
+            "or physical cause."
+        )
+        missing_cause_boundary = (
+            "Because the offset is selected from the same spectra, this is a "
+            "sensitivity result rather than evidence of a registration error."
+        )
+        causal = "The fitted offset accounts for some of the difference."
+        for relative in paths:
+            with self.subTest(path=relative):
+                self.assertIn(relative, DOCS.PROVENANCE_CONTRACTS)
+                self.assertEqual(
+                    [],
+                    DOCS.provenance_contract_failures_for_text(relative, safe),
+                )
+                missing_cause_failures = (
+                    DOCS.provenance_contract_failures_for_text(
+                        relative, missing_cause_boundary
+                    )
+                )
+                self.assertTrue(
+                    any(
+                        "same-data fitted-offset boundary" in item
+                        for item in missing_cause_failures
+                    ),
+                    missing_cause_failures,
+                )
+                failures = DOCS.provenance_contract_failures_for_text(
+                    relative, causal
+                )
+                self.assertTrue(
+                    any("same-data fitted-offset boundary" in item for item in failures),
+                    failures,
+                )
+
     def test_current_reports_satisfy_contracts(self) -> None:
         repo_root = SCRIPT.parent.parent
         self.assertEqual([], DOCS.provenance_contract_failures(repo_root))

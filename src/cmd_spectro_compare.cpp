@@ -140,13 +140,25 @@ void write_group(JsonWriter& writer, const SampledSpectrumGroupAnalysis& group,
   writer.end_object();
 }
 
+void write_l2_objective(JsonWriter& writer,
+                        const SpectralL2Objective& objective) {
+  writer.begin_object();
+  writer.key("residual_l2_norm");
+  writer.value(objective.residual_l2_norm);
+  writer.key("reference_l2_norm");
+  writer.value(objective.reference_l2_norm);
+  writer.key("directional_relative_l2");
+  writer.value(objective.directional_relative_l2);
+  writer.end_object();
+}
+
 void write_json(std::ostream& output, const SpectralComparison& comparison,
                 const SpectralSeries& reference,
                 const SpectralSeries& candidate) {
   JsonWriter writer(output);
   writer.begin_object();
   writer.key("schema_version");
-  writer.value(1);
+  writer.value(2);
   writer.key("reference_id");
   writer.value(reference.id);
   writer.key("candidate_id");
@@ -159,6 +171,8 @@ void write_json(std::ostream& output, const SpectralComparison& comparison,
   writer.value(comparison.relative_l2_denominator);
   writer.key("offset_convention");
   writer.value(comparison.offset_convention);
+  writer.key("offset_objective_scope");
+  writer.value(comparison.offset_objective_scope);
   writer.key("reference_group");
   write_group(writer, comparison.reference_group, reference.readings.front());
   writer.key("candidate_group");
@@ -195,19 +209,27 @@ void write_json(std::ostream& output, const SpectralComparison& comparison,
     writer.end_object();
   }
   writer.end_array();
-  writer.key("offset_sensitivity_sample_count");
+  writer.key("offset_common_grid_sample_count");
   writer.value(static_cast<std::int64_t>(
-      comparison.offset_sensitivity_sample_count));
-  writer.key("zero_offset_directional_relative_l2");
-  optional_number(writer, comparison.zero_offset_directional_relative_l2);
+      comparison.offset_common_grid_sample_count));
+  writer.key("zero_offset_objective");
+  if (comparison.zero_offset_objective.has_value()) {
+    write_l2_objective(writer, *comparison.zero_offset_objective);
+  } else {
+    writer.null();
+  }
   writer.key("offset_sensitivity");
   writer.begin_array();
   for (const auto& item : comparison.offset_sensitivity) {
     writer.begin_object();
     writer.key("wavelength_offset_nm");
     writer.value(item.wavelength_offset_nm);
+    writer.key("residual_l2_norm");
+    writer.value(item.objective.residual_l2_norm);
+    writer.key("reference_l2_norm");
+    writer.value(item.objective.reference_l2_norm);
     writer.key("directional_relative_l2");
-    writer.value(item.directional_relative_l2);
+    writer.value(item.objective.directional_relative_l2);
     writer.end_object();
   }
   writer.end_array();

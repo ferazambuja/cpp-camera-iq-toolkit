@@ -58,12 +58,20 @@ not silently remove samples from the primary result. The offset sweep uses an
 explicit source-series and sign convention, restricts evaluation to the
 interior supported for every requested shift, and generates its coordinates by
 integer index so decimal step accumulation cannot skip zero or overrun an
-endpoint. It reports the zero-offset result on that same fixed sweep grid even
-when zero is outside the requested offset range, preventing the best fitted
-value from being compared with a differently supported headline grid. The
-aggregate result also retains per-band residual evidence at the best offset, so
-post-shift localization claims do not depend on an unpublished scratch
-calculation.
+endpoint. Each offset re-resamples and equal-weight-integral-normalizes both
+spectra, then recomputes the reference L2 denominator. The JSON therefore
+retains the residual norm, reference norm, and their directional-relative-L2
+ratio for zero and every evaluated offset. Squaring a ratio of two directional
+relative-L2 values does not measure surviving residual energy when those
+reference norms differ.
+
+The command reports the zero-offset objective on that same fixed sweep grid
+even when zero is outside the requested offset range, preventing the best
+fitted value from being compared with a differently supported headline grid.
+`offset_common_grid_sample_count` names the number of wavelengths in that
+support rather than the number of evaluated offsets. The aggregate result also
+retains per-band residual evidence at the best offset, so post-shift
+localization claims do not depend on an unpublished scratch calculation.
 
 ## CGATS identity and schema diagnostics
 
