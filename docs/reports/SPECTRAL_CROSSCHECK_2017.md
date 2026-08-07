@@ -211,6 +211,10 @@ Selected privately retained, unredistributed method sources, both surviving
 spectral-power input forms, the derived artifacts, and the complete recursive
 NEF inventory are bound by filename, byte count, and SHA-256 in the
 [legacy-method receipt](../../data/samples/spectral_2017/d800_legacy_method_receipt.json).
+The receipt assigns this evidence to the path-free
+`full_2017_coursework_tree` scope and records every archive-relative route for
+selected evidence, including duplicate routes with identical content. This is
+distinct from the `spectral_yes_subset` used for the primary cross-check.
 The script accepted either XLSX or CSV input; the retained files do not prove
 which pathname produced the retained response table.
 

@@ -152,6 +152,7 @@ def import_archive(archive: Path, output: Path) -> None:
     summary = {
         "schema_version": 1,
         "archive_label": "retained_2017_coursework_archive",
+        "archive_scope_id": "spectral_yes_subset",
         "hid_series": [
             {
                 "id": "pr655",
@@ -180,6 +181,7 @@ def import_archive(archive: Path, output: Path) -> None:
     receipt = {
         "schema_version": 1,
         "archive_label": "retained_2017_coursework_archive",
+        "archive_scope_id": "spectral_yes_subset",
         "sources": [
             {"file": name, "sha256": sha256(archive / name)}
             for name in ALL_NAMES

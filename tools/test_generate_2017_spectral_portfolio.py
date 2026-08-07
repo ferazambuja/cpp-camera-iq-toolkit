@@ -65,6 +65,14 @@ def main() -> int:
         )
         expect_receipt_error(
             source_dir,
+            root / "reused-scope",
+            lambda receipt: receipt.__setitem__(
+                "archive_scope_id", "full_2017_coursework_tree"
+            ),
+            "archive scope",
+        )
+        expect_receipt_error(
+            source_dir,
             root / "missing-output",
             lambda receipt: receipt["outputs"].pop(0),
             "output manifest",
@@ -109,6 +117,19 @@ def main() -> int:
         legacy_manifest = json.loads(
             (source_dir / "d800_legacy_method_receipt.json").read_text()
         )
+        if legacy_manifest.get("archive_scope_id") != "full_2017_coursework_tree":
+            raise SystemExit("D800 receipt lacks a distinct archive scope ID")
+        for group in (
+            "source_files",
+            "acquisition_inputs",
+            "derived_artifacts",
+            "retained_nef_inventory",
+        ):
+            if not all(item.get("archive_relative_routes")
+                       for item in legacy_manifest[group]):
+                raise SystemExit(
+                    f"D800 receipt {group} lacks archive-relative routes"
+                )
         legacy_manifest["acquisition_inputs"].pop(0)
         try:
             PORTFOLIO.validate_legacy_method_receipt(legacy_manifest)
@@ -117,6 +138,18 @@ def main() -> int:
                 raise
         else:
             raise SystemExit("incomplete D800 acquisition-input manifest was accepted")
+
+        reused_scope = json.loads(
+            (source_dir / "d800_legacy_method_receipt.json").read_text()
+        )
+        reused_scope["archive_scope_id"] = "spectral_yes_subset"
+        try:
+            PORTFOLIO.validate_legacy_method_receipt(reused_scope)
+        except ValueError as error:
+            if "scope" not in str(error):
+                raise
+        else:
+            raise SystemExit("reused archive scope ID was accepted for D800")
 
         numeric_left = root / "numeric-left.json"
         numeric_right = root / "numeric-right.json"

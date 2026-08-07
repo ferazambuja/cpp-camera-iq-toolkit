@@ -1,6 +1,7 @@
 {
   "schema_version": 1,
   "archive_label": "retained_2017_coursework_archive",
+  "archive_scope_id": "spectral_yes_subset",
   "sources": [
     {
       "file": "PR655_HID.txt",
@@ -66,7 +67,7 @@
     },
     {
       "file": "archive_summary.json",
-      "sha256": "eeaa85839757d1904129b55cc2b0a1d0792ed4c040e0b658730db9f9e907fe7e"
+      "sha256": "466bf0c9b71b4247d94ee710dfebc648ff02cf3df80c42c8e719c952ce050f4d"
     }
   ]
 }

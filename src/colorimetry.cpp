@@ -329,12 +329,20 @@ std::vector<double> read_spectrum_csv_interpolated(
   std::vector<double> wavelengths;
   std::vector<double> values;
   std::string line;
+  std::size_t line_number = 0;
+  bool numeric_data_started = false;
   while (std::getline(is, line)) {
+    ++line_number;
     line = trim_cr(line);
     if (line.empty()) continue;
     double wavelength_nm = 0;
     double value = 0;
-    if (!parse_numeric_pair(line, wavelength_nm, value)) continue;
+    if (!parse_numeric_pair(line, wavelength_nm, value)) {
+      if (!numeric_data_started) continue;
+      throw std::runtime_error("spectrum CSV: malformed numeric row " +
+                               std::to_string(line_number));
+    }
+    numeric_data_started = true;
     if (!wavelengths.empty() && wavelength_nm <= wavelengths.back()) {
       throw std::runtime_error(
           "spectrum CSV: wavelengths must be strictly increasing");

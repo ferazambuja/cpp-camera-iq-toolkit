@@ -34,22 +34,27 @@ EXPECTED_OUTPUT_HASHES = {
     "CC4_4.txt": "a20ea31e925f63c1f875ac1216cce0d76d095a6e5aa8083addd222091a77001f",
     "CC4_CGATS_M0.txt": "8a5450b737202606936a726a9e795672119fb7cc678c2ab8a9f1ebc3bd611bbb",
     "CC4_4_M0.txt": "ffc4a35022458a5fef2a930d825bec33d040424773d98c6f0ba261aa33417488",
-    "archive_summary.json": "eeaa85839757d1904129b55cc2b0a1d0792ed4c040e0b658730db9f9e907fe7e",
+    "archive_summary.json": "466bf0c9b71b4247d94ee710dfebc648ff02cf3df80c42c8e719c952ce050f4d",
 }
 
 EXPECTED_LEGACY_METHOD_RECEIPT_HASH = (
-    "5db6477fd35b92586760b1ac0b5aa2dd0b5af8c8d8432c58b8ac19726d8f2b18"
+    "a213a9602f758760b03098e4d114aba322bec7a6e55c0f70b9645aa244c0b378"
 )
 
 EXPECTED_LEGACY_SOURCE_FILES = [
     {
         "file": "spectral_v2_1.py",
+        "archive_relative_routes": ["Bobby's Programs/folders/spectral_v2_1.py"],
         "bytes": 10027,
         "sha256": "7efbcda44ce9c36ad0328649f85a6520daa3cbfcaa75d85362bb829970538317",
         "line_count": 317,
     },
     {
         "file": "raw2tiff.py",
+        "archive_relative_routes": [
+            "Bobby's Programs/folders/raw2tiff.py",
+            "Bobby's Programs/raw2tiff.py",
+        ],
         "bytes": 2674,
         "sha256": "072849dfae68d45de853ac9c596bdfbaac2e4f4f32683282278270f05ec45e18",
         "line_count": 84,
@@ -58,12 +63,17 @@ EXPECTED_LEGACY_SOURCE_FILES = [
 EXPECTED_LEGACY_ACQUISITION_INPUTS = [
     {
         "file": "spd.csv",
+        "archive_relative_routes": [
+            "Bobby's Programs/folders/spd.csv",
+            "Bobby's Programs/spd.csv",
+        ],
         "bytes": 787,
         "sha256": "f36fe548364f98c079c364a6c9a300be2f78f7f970208b92133b649ea23f0fcf",
         "spectral_row_count": 35,
     },
     {
         "file": "SPD.xlsx",
+        "archive_relative_routes": ["Bobby's Programs/folders/SPD.xlsx"],
         "bytes": 10288,
         "sha256": "d5f44c1996245d1ef3e60f993865448673a954f110fd1762b09d417a4a9fad73",
     },
@@ -71,12 +81,18 @@ EXPECTED_LEGACY_ACQUISITION_INPUTS = [
 EXPECTED_LEGACY_DERIVED_ARTIFACTS = [
     {
         "file": "Nikon D800_Spectral_Sensitivity_Data.csv",
+        "archive_relative_routes": [
+            "Bobby's Programs/folders/Nikon D800_Spectral_Sensitivity_Data.csv"
+        ],
         "bytes": 2311,
         "sha256": "b5b0102a03617b51e049368e1b12daf7568559245722202536e799a450dfa5a8",
         "spectral_row_count": 35,
     },
     {
         "file": "SpectralResponseGraph.pdf",
+        "archive_relative_routes": [
+            "Bobby's Programs/folders/SpectralResponseGraph.pdf"
+        ],
         "bytes": 14200,
         "sha256": "480d1f451ca96f21fc29ffbf730faea2435f737924b679f82b578c92501ce71a",
     },
@@ -84,11 +100,13 @@ EXPECTED_LEGACY_DERIVED_ARTIFACTS = [
 EXPECTED_LEGACY_NEF_INVENTORY = [
     {
         "file": "red.NEF",
+        "archive_relative_routes": ["Bobby's Programs/red.NEF"],
         "bytes": 31367485,
         "sha256": "18a6b559a23e796c1a68b209ff7f938ed18084037a90bf9f840b6c581a8dadf7",
     },
     {
         "file": "darkframe.NEF",
+        "archive_relative_routes": ["Bobby's Programs/folders/darkframe.NEF"],
         "bytes": 31043684,
         "sha256": "a8ef0496dc3e9d115e6dd1b57a3565f9bdefc9b5a05d5078bd31cd89dc5f2166",
     },
@@ -262,12 +280,13 @@ def validate_legacy_method_receipt(receipt: dict) -> None:
     expected_scalars = {
         "schema_version": 1,
         "archive_label": "retained_2017_coursework_archive",
+        "archive_scope_id": "full_2017_coursework_tree",
         "audit_scope": "code_level_method_audit_not_empirical_reprocessing",
         "method_evidence_scope": (
             "selected_method_sources_inputs_and_outputs_not_complete_directory_inventory"
         ),
         "retained_nef_inventory_scope": (
-            "all_nef_files_case_insensitively_and_recursively_below_the_retained_2017_coursework_archive"
+            "all_nef_files_case_insensitively_and_recursively_below_the_full_2017_coursework_tree_scope"
         ),
         "source_availability": (
             "private_not_redistributed_no_redistribution_license_identified"
@@ -292,6 +311,8 @@ def validate_source_receipt(source_dir: Path) -> None:
         raise ValueError("source receipt schema version is not supported")
     if receipt.get("archive_label") != "retained_2017_coursework_archive":
         raise ValueError("source receipt archive label is not the expected path-free identifier")
+    if receipt.get("archive_scope_id") != "spectral_yes_subset":
+        raise ValueError("source receipt archive scope is not the expected subset")
     source_entries = receipt.get("sources")
     if not isinstance(source_entries, list) or not all(
         isinstance(item, dict) for item in source_entries

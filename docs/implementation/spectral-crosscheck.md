@@ -154,5 +154,7 @@ temporary directory and compares it with the committed public output.
 The D800 comparison is a bounded code audit rather than a reproducible
 reprocessing lane. Its private source scripts and surviving artifacts are
 [hash-bound](../../data/samples/spectral_2017/d800_legacy_method_receipt.json)
-with line-scoped observations; the scripts are not redistributed because no
+with line-scoped observations and archive-relative routes under the path-free
+`full_2017_coursework_tree` scope. The primary cross-check uses the distinct
+`spectral_yes_subset` scope. The scripts are not redistributed because no
 redistribution license was identified.

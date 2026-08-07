@@ -155,6 +155,26 @@ void TESTS() {
   }
   check(negative_threw, "spectrum: negative target value rejected");
 
+  {
+    std::ofstream os(root / "malformed_illuminant.csv", std::ios::binary);
+    os << "Wavelength (nm),W/m2-um-sr\n"
+       << "380,1\n"
+       << "400,not-a-number\n"
+       << "420,3\n";
+  }
+  bool malformed_row_threw = false;
+  try {
+    (void)read_spectrum_csv_interpolated(
+        root / "malformed_illuminant.csv",
+        std::vector<double>{380, 390, 400, 410, 420});
+  } catch (const std::runtime_error& error) {
+    malformed_row_threw =
+        std::string(error.what()).find("malformed numeric row") !=
+        std::string::npos;
+  }
+  check(malformed_row_threw,
+        "spectrum: malformed row after numeric data begins is rejected");
+
   const auto ref = flat_reference();
   const std::vector<double> illuminant(ref.wavelengths_nm.size(), 1.0);
   const auto rendered = render_reference_xyz(ref, illuminant);
