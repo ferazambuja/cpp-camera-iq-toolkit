@@ -87,6 +87,23 @@ class PublicationLanguageTests(unittest.TestCase):
             with self.subTest(phrase=phrase):
                 self.assertFalse(matched(phrase))
 
+    def test_rejects_causal_language_for_same_data_offset_fit(self) -> None:
+        phrases = [
+            "A relative-axis sweep explains part of the difference.",
+            "Wavelength registration can explain part of the difference.",
+            "The fitted wavelength shift explains only part of the difference.",
+        ]
+        for phrase in phrases:
+            with self.subTest(phrase=phrase):
+                self.assertTrue(matched(phrase))
+
+        self.assertFalse(
+            matched(
+                "A fitted reference-axis offset reduces the 35-band sweep "
+                "residual but does not identify a registration error or cause."
+            )
+        )
+
     def test_rejects_audience_strategy_and_self_promotional_language(self) -> None:
         phrases = [
             "**Hiring-manager summary:** The D810 showed a strong f/5.6 peak.",

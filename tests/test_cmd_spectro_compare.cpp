@@ -2,7 +2,10 @@
 
 #include <filesystem>
 #include <fstream>
+#include <iostream>
+#include <sstream>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "harness.hpp"
@@ -30,6 +33,15 @@ int run_compare(const std::vector<std::string>& args) {
                                         argv.data());
 }
 
+std::pair<int, std::string> run_compare_with_stdout(
+    const std::vector<std::string>& args) {
+  std::ostringstream captured;
+  auto* previous = std::cout.rdbuf(captured.rdbuf());
+  const int result = run_compare(args);
+  std::cout.rdbuf(previous);
+  return {result, captured.str()};
+}
+
 }  // namespace
 
 void TESTS() {
@@ -55,6 +67,8 @@ void TESTS() {
         "spectro compare cmd: explicit comparison succeeds");
   const std::string json_text = read_file(json);
   check(json_text.find("\"relative_l2_denominator\":\"reference_l2_norm\"") !=
+                std::string::npos &&
+            json_text.find("\"zero_offset_directional_relative_l2\":") !=
                 std::string::npos &&
             json_text.find("\"reference_id\":\"reference\"") !=
                 std::string::npos &&
@@ -105,8 +119,13 @@ void TESTS() {
                      invalid_sweep_json.string()}) == 1 &&
             !fs::exists(invalid_sweep_json),
         "spectro compare cmd: impractical offset sweep is refused without output");
-  check(run_compare({"--help"}) == 0,
-        "spectro compare cmd: help succeeds");
+  const auto [help_result, help_text] = run_compare_with_stdout({"--help"});
+  check(help_result == 0 &&
+            help_text.find("Minimum selected-series wavelength offset") !=
+                std::string::npos &&
+            help_text.find("Maximum selected-series wavelength offset") !=
+                std::string::npos,
+        "spectro compare cmd: help names the offset series selected by the caller");
 
   fs::remove_all(root);
 }

@@ -58,9 +58,12 @@ not silently remove samples from the primary result. The offset sweep uses an
 explicit source-series and sign convention, restricts evaluation to the
 interior supported for every requested shift, and generates its coordinates by
 integer index so decimal step accumulation cannot skip zero or overrun an
-endpoint. The aggregate result also retains per-band residual evidence at the
-best offset, so post-shift localization claims do not depend on an unpublished
-scratch calculation.
+endpoint. It reports the zero-offset result on that same fixed sweep grid even
+when zero is outside the requested offset range, preventing the best fitted
+value from being compared with a differently supported headline grid. The
+aggregate result also retains per-band residual evidence at the best offset, so
+post-shift localization claims do not depend on an unpublished scratch
+calculation.
 
 ## CGATS identity and schema diagnostics
 

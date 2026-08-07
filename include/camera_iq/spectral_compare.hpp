@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstddef>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -54,6 +55,7 @@ struct SpectralComparison {
   std::vector<SpectralComparisonBand> bands;
   std::vector<SpectralExclusionResult> exclusion_results;
   std::size_t offset_sensitivity_sample_count = 0;
+  std::optional<double> zero_offset_directional_relative_l2;
   std::vector<SpectralOffsetResult> offset_sensitivity;
   double best_wavelength_offset_nm = 0.0;
   double best_offset_directional_relative_l2 = 0.0;

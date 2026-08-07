@@ -407,8 +407,17 @@ def render_svg(comparison_csv: Path, comparison: dict,
         raise ValueError("HID repeat counts differ")
     residual = float(comparison["directional_relative_l2"])
     excluded = float(comparison["diagnostic_exclusions"][0]["directional_relative_l2"])
+    sweep_sample_count = int(comparison["offset_sensitivity_sample_count"])
+    zero_offset_residual = float(
+        comparison["zero_offset_directional_relative_l2"]
+    )
+    zero_offset_rows = [
+        row for row in comparison.get("offset_sensitivity", [])
+        if float(row["wavelength_offset_nm"]) == 0.0
+    ]
     offset = float(comparison["best_wavelength_offset_nm"])
     offset_residual = float(comparison["best_offset_directional_relative_l2"])
+    offset_relative_l2_reduction = 1.0 - offset_residual / zero_offset_residual
     contribution = sum(
         row["squared_residual_fraction"]
         for row in bands if row["wavelength_nm"] in (530.0, 540.0)
@@ -420,9 +429,18 @@ def render_svg(comparison_csv: Path, comparison: dict,
     )
     if not (math.isclose(residual, 0.0432733790086, rel_tol=0, abs_tol=1e-12)
             and math.isclose(excluded, 0.0227615491516, rel_tol=0, abs_tol=1e-12)
+            and sweep_sample_count == 35
+            and len(zero_offset_rows) == 1
+            and math.isclose(zero_offset_residual, 0.0432741600137,
+                             rel_tol=0, abs_tol=1e-12)
+            and math.isclose(
+                float(zero_offset_rows[0]["directional_relative_l2"]),
+                zero_offset_residual, rel_tol=0, abs_tol=1e-15)
             and math.isclose(offset, -0.95, rel_tol=0, abs_tol=1e-12)
             and math.isclose(offset_residual, 0.0308414328745,
                              rel_tol=0, abs_tol=1e-12)
+            and math.isclose(offset_relative_l2_reduction,
+                             0.287301408860, rel_tol=0, abs_tol=1e-12)
             and math.isclose(shifted_contribution, 0.400816293758,
                              rel_tol=0, abs_tol=1e-12)):
         raise ValueError("HID comparison headline metrics differ")
@@ -523,8 +541,8 @@ def render_svg(comparison_csv: Path, comparison: dict,
 {''.join(bars)}
 <text class="metric" x="74" y="716">{100*residual:.2f}%</text>
 <text class="body" x="190" y="712">directional relative-L2 difference</text>
-<text class="body" x="74" y="741">530 + 540 nm: {100*contribution:.1f}% original / {100*shifted_contribution:.1f}% after best shift; omission leaves {100*excluded:.2f}%.</text>
-<text class="small" x="74" y="760">Reference-axis offset {offset:+.2f} nm (nominal + offset = actual) lowers the residual to {100*offset_residual:.2f}%; it does not identify a cause.</text>
+<text class="body" x="74" y="741">530 + 540 nm: {100*contribution:.1f}% of 36-band original / {100*shifted_contribution:.1f}% of 35-band post-shift squared residual.</text>
+<text class="small" x="74" y="760">35-band zero-offset baseline {100*zero_offset_residual:.2f}% → best fitted shift {offset:+.2f} nm: {100*offset_residual:.2f}% ({100*offset_relative_l2_reduction:.1f}% lower); no cause identified.</text>
 
 <rect class="panel" x="786" y="108" width="372" height="200" rx="14"/>
 <text class="head" x="812" y="142">Observer metadata changes the answer</text>

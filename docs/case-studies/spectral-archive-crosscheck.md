@@ -13,11 +13,13 @@ cross-series difference is localized: 530 and 540 nm account for **75.9% of
 the squared residual**, and omitting those two diagnostic bands reduces the
 comparison to **2.276%**.
 
-That pattern narrows the investigation without naming a cause. A relative-axis
-sweep reaches **3.084%** at −0.95 nm, showing that wavelength registration can
-explain part of the difference. It does not prove either instrument is
-miscalibrated, and it does not exclude spectral bandwidth, source change, or
-unrecorded acquisition differences.
+That pattern narrows the investigation without naming a cause. On the fixed
+35-band sweep support, a fitted reference-axis offset reduces directional
+relative L2 from **4.327416%** at zero offset to **3.084143%** at −0.95 nm, a
+**28.7% reduction**. Because the offset is selected from the same spectra, it
+does not identify a registration error, prove either instrument is
+miscalibrated, or exclude spectral bandwidth, source change, and unrecorded
+acquisition differences.
 
 [Documentation index](../README.md) ·
 [detailed report](../reports/SPECTRAL_CROSSCHECK_2017.md) ·

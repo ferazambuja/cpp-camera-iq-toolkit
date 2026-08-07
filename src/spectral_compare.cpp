@@ -295,6 +295,16 @@ SpectralComparison compare_spectral_groups(
           "spectral compare: offset sweep requires at least two common supported samples");
     }
     result.offset_sensitivity_sample_count = sweep_grid.size();
+    auto zero_reference = resample(
+        reference.front().wavelength_nm,
+        result.reference_group.mean_normalized_spectrum, sweep_grid);
+    auto zero_candidate = resample(
+        candidate.front().wavelength_nm,
+        result.candidate_group.mean_normalized_spectrum, sweep_grid);
+    normalize_on_grid(zero_reference, sweep_grid);
+    normalize_on_grid(zero_candidate, sweep_grid);
+    result.zero_offset_directional_relative_l2 =
+        directional_relative_l2(zero_reference, zero_candidate);
     result.best_offset_directional_relative_l2 =
         std::numeric_limits<double>::infinity();
     const double raw_interval_count =

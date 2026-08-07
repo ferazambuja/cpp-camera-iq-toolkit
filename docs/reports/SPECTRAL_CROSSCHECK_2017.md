@@ -16,10 +16,11 @@ differ by **4.327% directional relative L2** after comparison on a shared
 380–730 nm, 10 nm grid, while the maximum within-series shape residuals are
 **0.307%** and **0.207%**. Two neighboring bands, 530 and 540 nm, account for
 **75.9% of the squared residual**. Removing those bands reduces the comparison
-to **2.276%**; a relative-axis sensitivity sweep reaches **3.084%** at
-**−0.95 nm**. Neither diagnostic identifies whether wavelength registration,
-spectral bandwidth, source variation, or another acquisition difference caused
-the disagreement.
+to **2.276%**. On the sweep's fixed 35-band support, the zero-offset result is
+**4.327%** and the best fitted value is **3.084%** at **−0.95 nm**, a
+**28.7% reduction in the directional-relative-L2 objective**. Neither
+diagnostic identifies a wavelength-registration error or any other physical
+cause for the disagreement.
 
 [Documentation index](../README.md) ·
 [case study](../case-studies/spectral-archive-crosscheck.md) ·
@@ -163,12 +164,13 @@ observed within-series shape spread alone. Bands 530 and 540 nm contribute
 **25.8%** and **50.1%** of the squared residual, respectively. Omitting both
 leaves **2.276%**.
 
-The best value in the relative-axis sensitivity sweep is **−0.95 nm**, where
-the residual is **3.084%**. Registration sensitivity removes part of the
-difference but not all of it. At that best offset, 530 and 540 nm still carry
-**40.1% of the squared residual**, so neither wavelength registration nor
-a single wavelength-axis shift explains the remaining difference. The residual
-localization does not identify whether bandpass or another factor is responsible.
+On the fixed 35-band sweep support, the zero-offset residual is **4.327416%**.
+The best fitted value is **3.084143%** at **−0.95 nm**, a **28.7% reduction**
+in the directional-relative-L2 objective. Because the offset is selected from
+the same spectra, this is a sensitivity result rather than evidence of a
+registration error. At that fitted offset, 530 and 540 nm carry **40.1% of the
+post-shift squared residual**. The remaining localization does not identify
+bandpass or any other physical cause.
 
 ### CGATS interchange and observer selection
 

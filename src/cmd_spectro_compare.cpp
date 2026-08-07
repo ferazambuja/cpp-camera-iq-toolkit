@@ -37,8 +37,8 @@ void usage(std::ostream& output) {
       "  --common-step NM     Common-grid increment\n\n"
       "Optional:\n"
       "  --exclude NM[,NM]    Report a residual excluding diagnostic bands\n"
-      "  --offset-min NM      Minimum candidate wavelength offset\n"
-      "  --offset-max NM      Maximum candidate wavelength offset\n"
+      "  --offset-min NM      Minimum selected-series wavelength offset\n"
+      "  --offset-max NM      Maximum selected-series wavelength offset\n"
       "  --offset-step NM     Offset sweep step; zero disables the sweep\n"
       "  --offset-series NAME reference or candidate (default candidate)\n"
       "  --out-json FILE      Write structured comparison JSON\n"
@@ -198,6 +198,8 @@ void write_json(std::ostream& output, const SpectralComparison& comparison,
   writer.key("offset_sensitivity_sample_count");
   writer.value(static_cast<std::int64_t>(
       comparison.offset_sensitivity_sample_count));
+  writer.key("zero_offset_directional_relative_l2");
+  optional_number(writer, comparison.zero_offset_directional_relative_l2);
   writer.key("offset_sensitivity");
   writer.begin_array();
   for (const auto& item : comparison.offset_sensitivity) {

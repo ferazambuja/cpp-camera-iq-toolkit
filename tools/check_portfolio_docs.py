@@ -565,6 +565,12 @@ INTERNAL_PATTERNS = {
 # Markdown wrapping cannot hide a known semantic regression. Heading, table,
 # and line-structure checks remain in STALE_PATTERNS and are not normalized.
 NORMALIZED_STALE_PATTERNS = {
+    "same-data offset presented as a causal explanation": re.compile(
+        r"\b(?:relative-axis sweep|wavelength registration|"
+        r"fitted wavelength shift)\s+(?:can\s+)?"
+        r"explain(?:s|ed)?\s+(?:only\s+)?part\b",
+        re.IGNORECASE,
+    ),
     "unsupported cross-camera time-to-lens inference": re.compile(
         r"(?:"
         r"\b(?:captures?|sweeps?)\b.{0,80}"
