@@ -21,11 +21,20 @@ FILES = (
     Path("data/third_party/CIE_xyz_1931_2deg.csv"),
     Path("data/third_party/CIE_std_illum_D50.csv"),
     Path("data/third_party/CIE_illum_D55.csv"),
+    Path("data/third_party/CIE_std_illum_D65.csv"),
+    Path("data/third_party/CIE_xyz_1964_10deg.csv"),
     Path("data/cie1931_2deg_cmf_1nm.csv"),
     Path("data/cie1931_2deg_cmf.csv"),
     Path("data/cie_d50.csv"),
     Path("data/cie_d55.csv"),
+    Path("data/cie_d65.csv"),
+    Path("data/cie1964_10deg_cmf.csv"),
 )
+
+
+def expect_catalog_entry(catalog: dict, key: str) -> None:
+    if key not in catalog:
+        raise SystemExit(f"CIE guard is missing required catalog entry {key!r}")
 
 
 def staged(temp: Path) -> Path:
@@ -50,6 +59,11 @@ def replace_once(path: Path, old: str, new: str) -> None:
 
 
 def main() -> int:
+    for key in ("D65", "observer10"):
+        expect_catalog_entry(CHECK.OFFICIAL_FILES, key)
+    for key in ("D65 subset", "10-degree observer"):
+        expect_catalog_entry(CHECK.DERIVED_FILES, key)
+
     errors = CHECK.check(ROOT)
     if errors:
         raise SystemExit(f"committed CIE data should validate: {errors}")
@@ -72,6 +86,16 @@ def main() -> int:
         expect_error(root, "official D55 copy SHA-256")
 
         root = staged(Path(raw))
+        official_d65 = root / "data/third_party/CIE_std_illum_D65.csv"
+        replace_once(official_d65, "300,0.0341", "300,0.0342")
+        expect_error(root, "official D65 copy SHA-256")
+
+        root = staged(Path(raw))
+        official_observer10 = root / "data/third_party/CIE_xyz_1964_10deg.csv"
+        replace_once(official_observer10, "360,0.0000001222", "360,0.0000001223")
+        expect_error(root, "official observer10 copy SHA-256")
+
+        root = staged(Path(raw))
         fine = root / "data/cie1931_2deg_cmf_1nm.csv"
         replace_once(fine, "360,0.0001299", "360,0.0001298")
         expect_error(root, "1 nm observer SHA-256")
@@ -90,6 +114,16 @@ def main() -> int:
         d55 = root / "data/cie_d55.csv"
         replace_once(d55, "380,32.584", "380,32.585")
         expect_error(root, "D55 subset")
+
+        root = staged(Path(raw))
+        d65 = root / "data/cie_d65.csv"
+        replace_once(d65, "380,49.9755", "380,49.9756")
+        expect_error(root, "D65 subset")
+
+        root = staged(Path(raw))
+        observer10 = root / "data/cie1964_10deg_cmf.csv"
+        replace_once(observer10, "380,0.000159952", "380,0.000159953")
+        expect_error(root, "10-degree observer")
 
     print("CIE reference-data negative paths ok")
     return 0

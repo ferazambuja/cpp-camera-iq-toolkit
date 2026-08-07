@@ -4,7 +4,7 @@ The project source code and original documentation are licensed under the MIT
 License. The CIE standard datasets listed here are not relicensed under MIT.
 They are published by the International Commission on Illumination (CIE) under
 the Creative Commons Attribution-ShareAlike 4.0 International license. The
-committed source copies and the four project tables derived from them retain
+committed source copies and the six project tables derived from them retain
 those terms.
 
 License: <https://creativecommons.org/licenses/by-sa/4.0/>
@@ -52,3 +52,39 @@ rounding difference is `0.0005`.
 
 `data/cie_d55.csv` selects 380–730 nm at 10 nm from the official 300–780 nm,
 5 nm table without interpolation or numeric modification.
+
+## CIE standard illuminant D65
+
+- Publisher: International Commission on Illumination (CIE), Vienna, Austria
+- DOI: <https://doi.org/10.25039/CIE.DS.hjfjmt59>
+- Source file: <https://files.cie.co.at/CIE_std_illum_D65.csv>
+- Published source MD5: `03d4eb9b837c60671627c946fb534deb`
+- Published metadata SHA-256: `e76f21bffff3d552ef7113025da5f325d5dfec200dd4b878b1a2f3a507032cb`
+- Committed source copy: `data/third_party/CIE_std_illum_D65.csv`
+- Modification: none
+- Committed-copy SHA-256: `e76f210bffff3d552ef7113025da5f325d5dfec200dd4b878b1a2f3a507032cb`
+
+The published MD5 matches the downloaded and committed file. The SHA-256 text
+in the source metadata differs from the file's computed SHA-256 by one
+character (`...21b...` versus `...210b...`), so the guard pins the actual file
+digest and this notice preserves both values rather than silently correcting
+the publisher's metadata.
+
+`data/cie_d65.csv` selects 380–730 nm at 10 nm from the official 300–830 nm,
+1 nm table without interpolation or numeric modification.
+
+## CIE 1964 colour-matching functions, 10-degree observer
+
+- Publisher: International Commission on Illumination (CIE), Vienna, Austria
+- DOI: <https://doi.org/10.25039/CIE.DS.sqksu2n5>
+- Source file: <https://files.cie.co.at/CIE_xyz_1964_10deg.csv>
+- Published source MD5: `6140e032f9326d88c5a0959b29b4d8f3`
+- Published source SHA-256: `1b27fd4e8ca1167b47c3a6aee3aafe56abc57eae51fa20032cb83704224a27dc`
+- Committed source copy: `data/third_party/CIE_xyz_1964_10deg.csv`
+- Modification: none
+- Committed-copy SHA-256: `1b27fd4e8ca1167b47c3a6aee3aafe56abc57eae51fa20032cb83704224a27dc`
+
+`data/cie1964_10deg_cmf.csv` selects 380–730 nm at 10 nm from the official
+360–830 nm, 1 nm table. The source encodes unavailable long-wavelength
+`z`-bar values as `NaN`; the dataset metadata declares zero extrapolation, so
+the derived table writes those selected values as zero.

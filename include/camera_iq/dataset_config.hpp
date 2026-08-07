@@ -81,7 +81,7 @@ std::string dataset_root_label(std::string_view dataset_id);
 std::string dataset_file_label(std::string_view dataset_id,
                                const std::filesystem::path& relative_path);
 
-// Publication-safe label for an input that is not attributed to a configured
+// Source-relative label for an input that is not attributed to a configured
 // dataset. The scope remains explicit while local directory structure is
 // reduced to the basename.
 std::string public_file_label(const std::filesystem::path& path,

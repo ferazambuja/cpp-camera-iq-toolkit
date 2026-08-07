@@ -96,7 +96,18 @@ for that reason cannot itself be registered as evidence.
 
 - [`check_cie_cmf_1nm.py`](check_cie_cmf_1nm.py) verifies the official CIE
   source-copy hashes and the declared selection/rounding transformations in all
-  four project tables.
+  six project tables, including D65 and the CIE 1964 10-degree observer.
+- [`gen_cie_d65_10deg.py`](gen_cie_d65_10deg.py) regenerates the committed
+  380–730 nm, 10 nm D65 and CIE 1964 observer subsets directly from the official
+  source copies.
+- [`import_2017_spectral_archive.py`](import_2017_spectral_archive.py)
+  normalizes retained spectral text blocks into strict series/reference CSVs,
+  copies the CGATS evidence byte-for-byte, and writes a path-free SHA-256
+  receipt.
+- [`generate_2017_spectral_portfolio.py`](generate_2017_spectral_portfolio.py)
+  validates that receipt, runs the compiled spectral comparison and reference
+  audit, and regenerates the committed JSON, CSV, and SVG artifacts. Its
+  `--check` mode verifies freshness without the private archive.
 - [`generate_spectro_identity_ledger.py`](generate_spectro_identity_ledger.py)
   hashes the private CLRS-589 MAT files and derives an explicit, source-relative
   measurement-group ledger; `--check` validates the committed ledger without claiming

@@ -1724,6 +1724,8 @@ class EvidenceAttributionTests(unittest.TestCase):
                 "gamut_mapping_adversarial_contract",
                 "color_model_audit_numeric_oracles",
                 "spectroradiometer_scale_separation",
+                "spectral_crosscheck_common_grid",
+                "spectral_reference_observer_oracle",
             },
             set(contracts),
         )

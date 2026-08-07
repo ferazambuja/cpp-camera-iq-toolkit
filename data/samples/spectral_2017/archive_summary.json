@@ -1,0 +1,24 @@
+{
+  "schema_version": 1,
+  "archive_label": "retained_2017_coursework_archive",
+  "hid_series": [
+    {
+      "id": "pr655",
+      "reading_count": 8,
+      "sample_count": 101,
+      "first_wavelength_nm": 380.0,
+      "last_wavelength_nm": 780.0
+    },
+    {
+      "id": "i1pro",
+      "reading_count": 8,
+      "sample_count": 36,
+      "first_wavelength_nm": 380.0,
+      "last_wavelength_nm": 730.0
+    }
+  ],
+  "colorchecker_patch_count": 24,
+  "colorchecker_measurement_count": 2,
+  "cgats_export_count": 4,
+  "cgats_evidence_scope": "one_measurement_reserialized"
+}

@@ -37,6 +37,7 @@ why one acceptance criterion cannot cover both.*
 | [Nikon D800/D810 + 50 mm f/1.4G SFR aperture and field analysis](docs/case-studies/sfr-mtf-aperture-field.md) | Slanted-edge algorithm, field behavior, advisory cross-checks, failure transfer | 299 accepted field ROIs; capture-system-specific trend and field findings |
 | [Spectral sensitivity and color fidelity](docs/case-studies/spectral-color-fidelity.md) | RAW monochromator extraction, physical closure, Luther/SMI comparison | Four-camera closure; stable five-camera endpoint ordering |
 | [Spectroradiometer archive ingest](docs/case-studies/spectroradiometer-ingest.md) | Exact-byte identity, MATLAB v5 parsing, absolute/normalized group analysis, XYZ closure | 89 readings; level variation separated from shape and chromaticity |
+| [Spectral measurement and reference-data cross-check](docs/case-studies/spectral-archive-crosscheck.md) | Native/common-grid spectral analysis, residual localization, CGATS identity, explicit observers | 4.327% HID-series difference; 75.9% of squared residual at 530/540 nm; observer conflict resolved numerically |
 | [ColorChecker extraction and CCM validation](docs/case-studies/colorchecker-ccm.md) | RAW patch extraction, flat field/WB, linear CCM, held-out Delta E | 140-patch pipeline with explicit dark-patch diagnostics |
 | [CFA flat-field response](docs/case-studies/cfa-flat-field-response.md) | Black-subtracted Bayer grids, center normalization, near-ceiling/dark/pair checks | 3/52 usable sphere frames; green-field asymmetry separated from smaller R/G and B/G variation |
 | [Display-P3 to sRGB gamut mapping](docs/case-studies/gamut-mapping.md) | D65 RGB/XYZ/Lab/OkLab transforms, analytic radial boundaries, dated Local MINDE, soft-knee experiment | P3-yellow overcompression reduced; coordinate and algorithm effects separated |
@@ -76,6 +77,11 @@ to the OECF, noise, demosaic, localization, dataset, and provenance reports.
   recovered by content hash into 40 measurement groups, then characterized on
   level, spectral shape, and chromaticity separately — because level moves
   independently of the other two.
+- **Localized spectral disagreement.** Two eight-reading
+  HID series differ by **4.327% directional relative L2**, with **75.9%** of the
+  squared residual at 530 and 540 nm. A relative-axis sweep explains part, not
+  all, of the difference; the report keeps registration, bandwidth, source,
+  and acquisition effects open rather than assigning an unsupported cause.
 
 Two further studies are controlled algorithm and equation work rather than
 camera measurements: the [gamut-mapping
@@ -97,8 +103,8 @@ captures remain outside the repository.*
 | RAW/CFA | LibRaw unpack, active-area handling, tiled black subtraction, Bayer-plane statistics, bilinear demosaic |
 | Color | ColorChecker-SG extraction, flat-field and WB policies, RGB-to-XYZ CCM fitting, Delta E 76/2000, directional CIE94 plus a separately named historical variant, held-out diagnostics |
 | Color management | sRGB/Display-P3 transfer and matrix transforms, D65 CIELAB and OkLab/OkLCh, analytic gamut boundaries, radial, dated Local-MINDE, and soft-knee methods; bounded CAM16 equation audit |
-| Spectral | Monochromator RAW extraction, physical closure, Luther-condition residuals, ISO 17321-style SMI approximation |
-| Spectroradiometry | Exact-byte MATLAB v5 ingest, measurement-group absolute/normalized spectra, chromaticity, and same-record XYZ closure |
+| Spectral | Monochromator RAW extraction, physical closure, Luther-condition residuals, ISO 17321-style SMI approximation, explicit-observer reflectance colorimetry |
+| Spectroradiometry | Exact-byte MATLAB v5 ingest, measurement-group absolute/normalized spectra, cross-grid repeated-series comparison, residual localization, chromaticity, and same-record XYZ closure |
 | Tone and noise | Exposure grouping, relative OECF, Stepchart oracle/ring extraction, dark temporal noise, DSNU, DN-referred variance |
 | Sharpness | Green-linear slanted-edge SFR, MTF50/MTF50P, aperture sweeps, 23-ROI field maps |
 | Spatial response | Per-CFA flat-field maps, center-normalized R/G and B/G fields, corner-field asymmetry, bounded dark-control checks, and one capture-pair delta |
@@ -109,17 +115,17 @@ Implemented commands:
 `manifest`, `raw-stats`, `demosaic`, `dark-calibration`, `noise`, `sfr`,
 `exposure-response`, `oecf-fit`, `oecf-stepchart`, `reference-info`,
 `ccm-fit`, `patches`, `spectral-response`, `spectral-closure`,
-`spectral-quality`, `spectral-smi`, `spectro-ingest`, `shading`, `gamut-map`,
-and `cam16-equation-audit`.
+`spectral-quality`, `spectral-smi`, `spectro-ingest`, `spectro-compare`,
+`spectral-reference-audit`, `shading`, `gamut-map`, and
+`cam16-equation-audit`.
 
 ## Reproducibility and data access
 
-The source RAW datasets are intentionally outside Git. What is committed
-therefore supports checking results rather than re-deriving them: aggregate
-result tables, deterministic SVG generation from those tables, fixtures covering
-the parser and CLI paths, and the test suite all run without the archives.
-Re-measuring from RAW, or reproducing an archive-backed before/after comparison,
-requires the private captures.
+Bulk source RAW datasets are intentionally outside Git. Those studies are
+supported by aggregate result tables, deterministic figures, parser and CLI
+fixtures, and archive receipts; re-measuring them still requires the private
+captures. The compact spectral coursework tables used by the cross-check are
+committed with source hashes, so that study regenerates from its public inputs.
 
 ```bash
 cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
@@ -130,6 +136,8 @@ ctest --test-dir build --output-on-failure
 python3 tools/generate_portfolio_figures.py
 python3 tools/generate_portfolio_figures.py --check
 python3 tools/generate_spectro_report_figure.py --check
+python3 tools/generate_2017_spectral_portfolio.py \
+  --camera-iq build/camera_iq --check
 python3 tools/generate_gamut_portfolio.py --camera-iq build/camera_iq --check
 python3 tools/generate_cam16_equation_audit.py \
   --camera-iq build/camera_iq --check
@@ -191,10 +199,11 @@ Real-data commands use a dataset ID and paths relative to that dataset:
 ```
 
 Copy `configs/datasets.example.json` to the gitignored
-`configs/datasets.local.json` to configure local roots. Bulk RAW captures,
-measured references, and commercial-tool exports remain outside the public
-repository; the reports retain safe aggregates and enough provenance to
-interpret them.
+`configs/datasets.local.json` to configure local roots. Bulk RAW captures and
+some measured references remain outside the public repository. The small 2017
+spectral text set is committed with source hashes because it is required to
+reproduce that cross-check; the corresponding report identifies its incomplete
+acquisition metadata.
 
 ## Interpretation boundaries
 

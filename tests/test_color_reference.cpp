@@ -15,6 +15,7 @@ using camera_iq::SpectralReference;
 using camera_iq::SpectralReferencePatch;
 using camera_iq::read_spectral_reference_csv;
 using camera_iq::read_spectral_reference_cgats;
+using camera_iq::compare_spectral_reference_interchange;
 using camera_iq::read_camera_rgb_csv;
 using camera_iq::evaluate_reference_orientation_controls;
 using camera_iq::evaluate_reference_pairing;
@@ -199,14 +200,15 @@ void TESTS() {
              "MEASUREMENT_SOURCE \"Illumination=D50 ObserverAngle=2 WhiteBase=Abs Filter=no\"\n"
              "ILLUMINATION_NAME \"D50\"\n"
              "OBSERVER_ANGLE \"2\"\n"
+             "WEIGHTING_FUNCTION \"OBSERVER,10 degree\"\n"
              "NUMBER_OF_FIELDS 8\n"
              "BEGIN_DATA_FORMAT\n"
-             "SAMPLE_ID SAMPLE_NAME LAB_L LAB_A LAB_B SPECTRAL_NM380 SPECTRAL_NM390 SPECTRAL_NM400\n"
+             "SAMPLE_ID SAMPLE_NAME LAB_L LAB_A LAB_B XYZ_X XYZ_Y XYZ_Z SPECTRAL_NM380 SPECTRAL_NM390 SPECTRAL_NM400\n"
              "END_DATA_FORMAT\n"
-             "NUMBER_OF_SETS 2\n"
+             "NUMBER_OF_SETS 3\n"
              "BEGIN_DATA\n"
-             "1 A1 94.0 0.0 0.0 0.11 0.12 0.13\n"
-             "2 A2 50.0 0.0 0.0 0.21 0.22 0.23\n"
+             "1 A1 94.0 0.0 0.0 90.0 94.0 100.0 0.11 0.12 0.13\n"
+             "2 A2 50.0 1.0 -2.0 20.0 18.0 15.0 0.21 0.22 0.23\n"
              "END_DATA\n");
   const auto cgats_ref = read_spectral_reference_cgats(cgats, "sg_2016");
   check(cgats_ref.source_label == "sg_2016", "cgats: source label");
@@ -219,8 +221,67 @@ void TESTS() {
   check(cgats_ref.wavelengths_nm.size() == 3, "cgats: wavelength count");
   check(cgats_ref.patches.size() == 2, "cgats: patch count");
   check(cgats_ref.patches[0].id == "A1", "cgats: sample name used");
+  check(cgats_ref.patches[0].sample_id == "1" &&
+            cgats_ref.patches[0].sample_name == "A1",
+        "cgats: stable sequence id and layout label are both retained");
+  check(cgats_ref.patches[1].declared_lab.has_value() &&
+            (*cgats_ref.patches[1].declared_lab)[1] == 1.0 &&
+            cgats_ref.patches[1].declared_xyz.has_value() &&
+            (*cgats_ref.patches[1].declared_xyz)[2] == 15.0,
+        "cgats: embedded Lab and XYZ are retained");
   check(cgats_ref.patches[1].reflectance[2] == 0.23,
         "cgats: spectral values parsed");
+  check(cgats_ref.cgats_schema.has_value() &&
+            cgats_ref.cgats_schema->declared_field_count == 8 &&
+            cgats_ref.cgats_schema->actual_field_count == 11 &&
+            !cgats_ref.cgats_schema->field_count_matches &&
+            cgats_ref.cgats_schema->declared_set_count == 3 &&
+            cgats_ref.cgats_schema->actual_set_count == 2 &&
+            !cgats_ref.cgats_schema->set_count_matches,
+        "cgats: parseable declared-count mismatches are typed diagnostics");
+  check(cgats_ref.cgats_schema->observer_declarations.size() == 2 &&
+            cgats_ref.cgats_schema->observer_declarations_conflict,
+        "cgats: contradictory observer declarations are preserved");
+
+  const fs::path compatible_observer = root / "compatible_observer.txt";
+  write_file(compatible_observer,
+             "CGATS.17\n"
+             "ILLUMINATION_NAME \"D65\"\n"
+             "OBSERVER_ANGLE \"10\"\n"
+             "WEIGHTING_FUNCTION \"ILLUMINANT,D65\"\n"
+             "WEIGHTING_FUNCTION \"OBSERVER,CIE 1964 10 degree\"\n"
+             "NUMBER_OF_FIELDS 4\n"
+             "BEGIN_DATA_FORMAT\n"
+             "SAMPLE_ID SPECTRAL_NM380 SPECTRAL_NM390 SPECTRAL_NM400\n"
+             "END_DATA_FORMAT\n"
+             "NUMBER_OF_SETS 1\n"
+             "BEGIN_DATA\n"
+             "1 0.11 0.12 0.13\n"
+             "END_DATA\n");
+  const auto compatible_ref =
+      read_spectral_reference_cgats(compatible_observer, "compatible");
+  check(compatible_ref.cgats_schema->observer_declarations.size() == 2 &&
+            !compatible_ref.cgats_schema->observer_declarations_conflict,
+        "cgats: illuminant and model years are not misread as observer angles");
+
+  auto interchange_left = cgats_ref;
+  auto interchange_right = cgats_ref;
+  interchange_right.patches = {interchange_left.patches[1],
+                               interchange_left.patches[0]};
+  interchange_right.patches[0].sample_name = "B1";
+  interchange_right.patches[0].id = "B1";
+  interchange_right.patches[1].sample_name = "B2";
+  interchange_right.patches[1].id = "B2";
+  const auto interchange = compare_spectral_reference_interchange(
+      interchange_left, interchange_right);
+  check(interchange.stable_id_set_matches &&
+            interchange.spectra_match_by_stable_id &&
+            interchange.exact_spectral_multiset_identity,
+        "cgats interchange: one spectral content set survives reordering");
+  check(!interchange.layout_labels_match_by_stable_id &&
+            interchange.right_index_by_left ==
+                std::vector<std::size_t>({1, 0}),
+        "cgats interchange: layout labels are not used as physical identity");
 
   const fs::path pair_ref = root / "pair_ref.csv";
   write_file(pair_ref,

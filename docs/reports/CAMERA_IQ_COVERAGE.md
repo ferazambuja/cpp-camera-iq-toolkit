@@ -23,7 +23,8 @@ supported by the available image archives:
 - Directional CIE94 plus a separately named historical convention, and a
   bounded CIECAM02/CAM16 equation audit.
 - Camera spectral sensitivity, physical closure, Luther/SMI color-fidelity
-  ranking, and archive provenance.
+  ranking, archive provenance, repeated-spectrum cross-grid comparison, and
+  explicit-observer reference audits.
 - Tone/OECF/linearity from CLRS exposure series and Nikon D800 Stepchart oracle
   data.
 - Dark-frame noise, DSNU, and DN-referred per-pixel temporal variance
@@ -61,6 +62,7 @@ turning this scientific coverage map into a software inventory.
 | Spectral physical closure | Covered | [Spectral report](SPECTRAL_SENSITIVITY.md), [archive map](SPECTRAL_ARCHIVE_INVENTORY.md) | SG-140 and CC-24 physical closure for Canon/Nikon/Sony 2016 cameras using measured illuminant and reflectance. | Phase One IQ3 has SSF but no same-session broadband closure target. |
 | Spectral color-fidelity ranking | Covered | [Spectral report](SPECTRAL_SENSITIVITY.md) | Luther residuals and ISO-style SMI over SG-140, CC-24, and CC-18; D55 primary; white-preserving sensitivity bound. | Not claimed bit-exact to ISO 17321 Annex B. |
 | Spectroradiometer archive ingest | Covered as record characterization | [Spectroradiometer ingest](SPECTRORADIOMETER_INGEST.md), [SG provenance](SG_REFERENCE_PROVENANCE.md) | Content-identity binding, bounded MATLAB v5 recovery, 40 measurement groups, absolute/normalized spectra, recorded-XYZ chromaticity, and same-record closure. | Source files do not record enough physical controls to assign within-group variation to source, geometry, settings, or instrument repeatability. |
+| Spectral measurement and reference cross-check | Covered as bounded comparison | [Spectral cross-check](SPECTRAL_CROSSCHECK_2017.md) | Native-grid repeat summaries, explicit common-grid comparison, per-band residual localization, relative-axis sensitivity, CGATS interchange, and D65 observer alternatives. | Retained settings and source controls do not support instrument-accuracy, bandpass, wavelength-calibration, or causal claims. |
 | Exposure response readiness | Covered | [Exposure response](EXPOSURE_RESPONSE.md) | Exposure-series grouping and black-subtracted CFA response summaries. | Readiness/response summary, not final ISO OECF/PTC. |
 | Relative OECF / linearity | Covered | [OECF fit](OECF_FIT.md) | Relative-exposure linearity over usable OECF points. | Assumes constant illumination; not ISO 14524. |
 | Stepchart OECF oracle | Covered | [OECF Stepchart](OECF_STEPCHART.md) | Primary Imatest response tables, archive joins, run-window gates, D800 advisory summaries, and cross-ISO luma spread. | Rendered-luma advisory path; no chart-density traceability or measured ISO speed. |
@@ -81,6 +83,7 @@ turning this scientific coverage map into a software inventory.
 | CLRS-589 Project Camera | Manifest, RAW stats, demosaic, dark calibration, dark-frame noise/DSNU, exposure-response readiness, OECF fit, SG reference handling, patch extraction, CCM fit, raw chart localization diagnostics, and relative CFA flat-field response. |
 | 2016 monochromator / ColorChecker target sessions | Canon/Nikon/Sony SSF extraction, physical closure, SMI/Luther ranking, CC-24 and SG-140 target-set evidence. |
 | 2017 camSPECS / Phase One IQ3 | IQ3 SSF and color-fidelity ranking; closure blocked by missing same-session target/reflectance. |
+| Retained coursework spectral text set | Two repeated HID series, four ColorChecker interchange exports (created in 2016 and retained under the 2017 archive grouping), explicit-observer colorimetry, and one candidate paired chart comparison. |
 | 2016 esensi D810/D800 SFR | Center and field SFR/MTF, aperture trend gates, Imatest `_Y_multi.csv` oracle comparisons. |
 | 2016 D800 OECF Stepchart | Imatest oracle parsing, raw ring-zone extraction, DN-referred per-pixel temporal variance diagnostics. |
 
@@ -106,9 +109,10 @@ implementation and validation project, not a certified ISO laboratory suite.
    multi-aperture controls are insufficient for component attribution.
 3. **Automatic Stepchart and SG localization** is incomplete. The validated
    workflows use measured ring geometry or supplied chart coordinates.
-4. **Spectral repeatability and instrument comparison** would require a
-   PR-655/i1Pro illuminant comparison and analysis of the repeated
-   monochromator sessions.
+4. **Calibration-backed instrument comparison** would require simultaneous or
+   interleaved measurements of a monitored source with recorded geometry,
+   settings, calibration state, wavelength accuracy, and bandpass. The current
+   HID comparison localizes a difference but cannot assign it to an instrument.
 5. **Rendered-luma Imatest parity** is not implemented. Current SFR results use
    sensor-linear green measurements and treat Imatest values as advisory.
 

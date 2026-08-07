@@ -13,6 +13,8 @@ source and documentation, not the contents of the tables below.
 | `cie1931_2deg_cmf.csv` | same observer, 380–730 nm at 10 nm | wavelength subset with legacy reduced precision; maximum absolute numeric difference `4.0e-5` |
 | `cie_d50.csv` | CIE D50 relative SPD, 380–730 nm at 10 nm | subset of the official 300–830 nm, 1 nm table, rounded to three decimals; maximum absolute difference `0.0005` |
 | `cie_d55.csv` | CIE D55 relative SPD, 380–730 nm at 10 nm | subset of the official 300–780 nm, 5 nm table; values unchanged |
+| `cie_d65.csv` | CIE D65 relative SPD, 380–730 nm at 10 nm | subset of the official 300–830 nm, 1 nm table; values unchanged |
+| `cie1964_10deg_cmf.csv` | CIE 1964 10-degree colour-matching functions, 380–730 nm at 10 nm | subset of the official 360–830 nm, 1 nm table; source `NaN` z-bar values replaced by the metadata-declared zero extrapolation |
 
 The exact official tables are committed under `data/third_party/` with line
 endings normalized to LF. DOI, published and committed-copy SHA-256 values,
@@ -29,12 +31,22 @@ Interpolating the 10 nm table up to a 2 nm spectroradiometer axis under-resolves
 the short-wavelength `z` lobe, which is a property of the table rather than of
 the measurement.
 
+`cie1964_10deg_cmf.csv` is used only when the retained reference or experiment
+declares the CIE 1964 10-degree observer. Observer choice is an experimental
+condition, not a parser default: the retained ColorChecker audit evaluates both
+observers explicitly because one source file contains contradictory observer
+metadata.
+
 ## Verification
 
-`tools/check_cie_cmf_1nm.py` runs in CTest and pins the three official source
-copies and four derived tables by SHA-256. It also verifies each declared grid,
-selection, and decimal-rounding bound, plus the observer's 555 nm peak and
-equal-energy white point.
+`tools/check_cie_cmf_1nm.py` runs in CTest and pins the five official source
+copies and six derived tables by SHA-256. It also verifies each declared grid,
+selection, and decimal-rounding bound, the observer equal-energy white points,
+the 2° observer's 555 nm peak, and the published D65 chromaticities under both
+observers.
+
+`tools/gen_cie_d65_10deg.py` regenerates the two 10 nm tables by exact
+selection from the committed official source copies.
 
 `tools/gen_cie_d50.py` and `tools/gen_cie_d55.py` each assert that the
 illuminant they emit lands on its published white point when integrated against
@@ -54,3 +66,14 @@ This avoids treating directory order as measurement identity. The CTest check
 validates the committed ledger's schema, counts, unique declared digests,
 source-relative path roles, and group membership. Re-hashing the source files
 and confirming byte identity requires the private archive.
+
+## Retained coursework spectral measurements
+
+[`samples/spectral_2017/`](samples/spectral_2017/) contains the small text
+measurements used by the spectral cross-check: two eight-reading HID series,
+four 24-patch CGATS exports, and one candidate pair of 24-patch reflectance
+tables. These are measurement tables rather than bulk RAW captures. Their
+source/output hashes and evidence roles are recorded in the directory receipt;
+the [scientific report](../docs/reports/SPECTRAL_CROSSCHECK_2017.md) defines the
+interpretation limits. The directory name follows the coursework archive; the
+CGATS headers themselves record November 2016.

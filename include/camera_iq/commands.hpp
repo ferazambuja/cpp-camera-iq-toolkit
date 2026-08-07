@@ -24,5 +24,7 @@ int cmd_spectral_smi(int argc, char** argv);
 int cmd_patches(int argc, char** argv);
 int cmd_shading(int argc, char** argv);
 int cmd_spectro_ingest(int argc, char** argv);
+int cmd_spectro_compare(int argc, char** argv);
+int cmd_spectral_reference_audit(int argc, char** argv);
 
 }  // namespace camera_iq

@@ -156,7 +156,7 @@ controls, and matched comparison geometry.
 
 At the command/serialization layer,
 [`test_cmd_shading.cpp`](../../tests/test_cmd_shading.cpp) checks
-publication-safe labels, output collisions, pedestal fields, and the JSON/CSV
+source-relative labels, output collisions, pedestal fields, and the JSON/CSV
 rejection states described above. Those checks exercise the adapter and output
 contract; they do not rerun an archive capture.
 

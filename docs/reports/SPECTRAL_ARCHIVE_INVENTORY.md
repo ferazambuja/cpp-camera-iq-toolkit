@@ -25,6 +25,7 @@ no absolute mount paths are recorded.
 | `archive:2016_Monochromator/` | 2016-11-18..22 monochromator + camSPECS + Target sessions for the four 35 mm cameras |
 | `archive:2016_Monochromator/Data_Collected/` | **Curated, authoritative** per-camera outputs + shared illuminant + chart reflectances |
 | `archive:2017_camspec/` | 2017-04-16 Phase One IQ3 camSPECS session (separate rig/timeline) |
+| `archive:2017_coursework_spectral_text/` | Separate retained HID and ColorChecker text measurements used by the spectral cross-check |
 | `out:` | gitignored generated toolkit artifacts under `out/` |
 
 **Canonical input selection:** `Data_Collected/` is the source of truth. Each
@@ -148,7 +149,7 @@ day (11-21). The closure illuminant and SG reflectance are the authoritative
 | Data | Location | Why unused / potential use |
 |---|---|---|
 | CC ROI sidecars (target RGB) | `Data_Collected/<camera>/Target/*_CC.txt` | ColorChecker-24 ROI RGB from the broadband Target captures, used by the CC-24 closure. The 11-22 Target set 2 `_CC.txt` remain available for a repeat. |
-| i1Pro illuminant | `Data_Collected/Light Source/i1Pro_HID_avg.txt` | A second-instrument measurement of the same HID lamp; usable as a cross-check against PR-655. |
+| i1Pro illuminant | `Data_Collected/Light Source/i1Pro_HID_avg.txt` | A second named series for the HID lamp. The retained repeated-series comparison is reported separately in [Spectral measurement and reference-data cross-check](SPECTRAL_CROSSCHECK_2017.md). |
 | Other-day SSFs (11-18/19/20 + II) | `Data_Collected/<camera>/Monochromator/*.csv` | Repeatability set; could quantify day-to-day SSF stability. Not needed for closure (11-21 is canonical). |
 | Excel spectral workbooks | `2016_11_21_<cam>.xlsx` (per mono session); `2017_camspec/.../spectral.xlsx` | Excel form of data already available as CSV; no new information. |
 | 2017 lamp SPD | `archive:2017_camspec/Capture/Lamp_SPD_Data_Run{1,2}.xlsx` | The only measured illuminant for the IQ3 session. Would be required for any IQ3 closure, but the 2017 session has **no** broadband Target capture or chart reflectance, so IQ3 stays SSF-only. |
@@ -185,9 +186,11 @@ alongside the 2016 cameras is valid; a closure comparison would not be.
 
 ## Possible follow-up measurements
 
-- Compare the PR-655 and i1Pro measurements of the closure illuminant.
 - Quantify day-to-day SSF stability across each camera's 11-18 through 11-21
   monochromator runs.
+- Re-measure the HID source with both instruments interleaved and preserve
+  geometry, settings, calibration state, and source monitoring so the observed
+  cross-series difference can be assigned rather than only localized.
 
 ## Engineering companion
 

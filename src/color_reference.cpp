@@ -10,6 +10,7 @@
 #include <limits>
 #include <map>
 #include <optional>
+#include <set>
 #include <stdexcept>
 #include <string>
 #include <string_view>
@@ -151,6 +152,103 @@ std::string header_value(const std::map<std::string, std::string>& headers,
   const auto it = headers.find(key);
   if (it == headers.end()) return {};
   return it->second;
+}
+
+std::optional<std::size_t> header_count(
+    const std::map<std::string, std::string>& headers,
+    const std::string& key) {
+  const auto value = header_value(headers, key);
+  if (value.empty()) return std::nullopt;
+  try {
+    std::size_t consumed = 0;
+    const unsigned long long parsed = std::stoull(value, &consumed);
+    if (consumed != value.size() ||
+        parsed > std::numeric_limits<std::size_t>::max()) {
+      throw std::runtime_error("");
+    }
+    return static_cast<std::size_t>(parsed);
+  } catch (...) {
+    throw std::runtime_error("spectral reference CGATS: " + key +
+                             " must be a non-negative integer");
+  }
+}
+
+std::optional<int> declared_observer_degrees(std::string_view value) {
+  struct NumberToken {
+    int value = 0;
+    std::size_t end = 0;
+  };
+  std::vector<NumberToken> numbers;
+  for (std::size_t index = 0; index < value.size(); ++index) {
+    if (!std::isdigit(static_cast<unsigned char>(value[index]))) continue;
+    std::size_t end = index + 1;
+    while (end < value.size() &&
+           std::isdigit(static_cast<unsigned char>(value[end]))) {
+      ++end;
+    }
+    if (end - index <= 9) {
+      numbers.push_back(
+          {std::stoi(std::string(value.substr(index, end - index))), end});
+    }
+    index = end - 1;
+  }
+
+  for (const auto& number : numbers) {
+    std::size_t suffix = number.end;
+    while (suffix < value.size() &&
+           std::isspace(static_cast<unsigned char>(value[suffix]))) {
+      ++suffix;
+    }
+    constexpr std::string_view degree = "degree";
+    if (suffix + degree.size() <= value.size() &&
+        std::equal(degree.begin(), degree.end(), value.begin() + suffix,
+                   [](char left, char right) {
+                     return std::toupper(static_cast<unsigned char>(left)) ==
+                            std::toupper(static_cast<unsigned char>(right));
+                   })) {
+      return number.value;
+    }
+  }
+  for (auto number = numbers.rbegin(); number != numbers.rend(); ++number) {
+    if (number->value == 2 || number->value == 10) return number->value;
+  }
+  return std::nullopt;
+}
+
+bool contains_ascii_case_insensitive(std::string_view text,
+                                     std::string_view needle) {
+  if (needle.empty()) return true;
+  return std::search(
+             text.begin(), text.end(), needle.begin(), needle.end(),
+             [](char left, char right) {
+               return std::toupper(static_cast<unsigned char>(left)) ==
+                      std::toupper(static_cast<unsigned char>(right));
+             }) != text.end();
+}
+
+std::optional<std::size_t> field_index(
+    const std::vector<std::string>& fields, std::string_view name) {
+  const auto found = std::find(fields.begin(), fields.end(), name);
+  if (found == fields.end()) return std::nullopt;
+  return static_cast<std::size_t>(found - fields.begin());
+}
+
+std::optional<std::array<std::size_t, 3>> component_indices(
+    const std::vector<std::string>& fields,
+    const std::array<std::string_view, 3>& names,
+    std::string_view label) {
+  std::array<std::optional<std::size_t>, 3> found = {
+      field_index(fields, names[0]), field_index(fields, names[1]),
+      field_index(fields, names[2])};
+  const std::size_t count = static_cast<std::size_t>(found[0].has_value()) +
+                            static_cast<std::size_t>(found[1].has_value()) +
+                            static_cast<std::size_t>(found[2].has_value());
+  if (count == 0) return std::nullopt;
+  if (count != 3) {
+    throw std::runtime_error("spectral reference CGATS: incomplete " +
+                             std::string(label) + " fields");
+  }
+  return std::array<std::size_t, 3>{*found[0], *found[1], *found[2]};
 }
 
 bool near_equal(double a, double b) {
@@ -343,6 +441,7 @@ SpectralReference read_spectral_reference_cgats(
 
   std::vector<std::string> fields;
   std::map<std::string, std::string> headers;
+  std::vector<std::pair<std::string, std::string>> header_entries;
   std::size_t data_format_end = lines.size();
   bool in_format = false;
   for (std::size_t i = 0; i < lines.size(); ++i) {
@@ -361,33 +460,62 @@ SpectralReference read_spectral_reference_cgats(
       fields.insert(fields.end(), tokens.begin(), tokens.end());
     } else {
       const auto tokens = split_cgats_fields(clean);
-      if (tokens.size() >= 2) headers.emplace(tokens[0], tokens[1]);
+      if (tokens.size() >= 2) {
+        headers.emplace(tokens[0], tokens[1]);
+        header_entries.emplace_back(tokens[0], tokens[1]);
+      }
     }
   }
   if (fields.empty() || data_format_end == lines.size()) {
     throw std::runtime_error(
         "spectral reference CGATS: missing DATA_FORMAT block");
   }
+  // CGATS places NUMBER_OF_SETS between END_DATA_FORMAT and BEGIN_DATA. Keep
+  // parsing metadata in that interval instead of treating END_DATA_FORMAT as
+  // the end of the header.
+  for (std::size_t i = data_format_end + 1; i < lines.size(); ++i) {
+    const std::string clean = trim(lines[i]);
+    if (clean.empty() || clean[0] == '#') continue;
+    if (clean == "BEGIN_DATA") break;
+    const auto tokens = split_cgats_fields(clean);
+    if (tokens.size() >= 2) {
+      headers.emplace(tokens[0], tokens[1]);
+      header_entries.emplace_back(tokens[0], tokens[1]);
+    }
+  }
 
-  std::size_t id_index = fields.size();
-  for (std::size_t i = 0; i < fields.size(); ++i) {
-    if (fields[i] == "SAMPLE_NAME") {
-      id_index = i;
-      break;
-    }
-  }
-  if (id_index == fields.size()) {
-    for (std::size_t i = 0; i < fields.size(); ++i) {
-      if (fields[i] == "SAMPLE_ID") {
-        id_index = i;
-        break;
-      }
-    }
-  }
-  if (id_index == fields.size()) {
+  const auto sample_id_index = field_index(fields, "SAMPLE_ID");
+  const auto sample_name_index = field_index(fields, "SAMPLE_NAME");
+  if (!sample_id_index && !sample_name_index) {
     throw std::runtime_error(
         "spectral reference CGATS: DATA_FORMAT lacks SAMPLE_NAME/SAMPLE_ID");
   }
+  const std::size_t id_index =
+      sample_name_index ? *sample_name_index : *sample_id_index;
+  const auto lab_indices = component_indices(
+      fields, {"LAB_L", "LAB_A", "LAB_B"}, "Lab");
+  const auto xyz_indices = component_indices(
+      fields, {"XYZ_X", "XYZ_Y", "XYZ_Z"}, "XYZ");
+
+  CgatsSchemaDiagnostics schema;
+  schema.declared_field_count = header_count(headers, "NUMBER_OF_FIELDS");
+  schema.actual_field_count = fields.size();
+  schema.field_count_matches = !schema.declared_field_count ||
+                               *schema.declared_field_count == fields.size();
+  schema.declared_set_count = header_count(headers, "NUMBER_OF_SETS");
+  std::set<int> declared_observers;
+  for (const auto& [key, value] : header_entries) {
+    const bool observer_declaration =
+        key == "OBSERVER_ANGLE" ||
+        (key == "WEIGHTING_FUNCTION" &&
+         contains_ascii_case_insensitive(value, "OBSERVER"));
+    if (!observer_declaration) continue;
+    schema.observer_declarations.push_back(key + "=" + value);
+    if (const auto degrees = declared_observer_degrees(value)) {
+      declared_observers.insert(*degrees);
+    }
+  }
+  schema.observer_declarations_conflict = declared_observers.size() > 1;
 
   std::vector<std::size_t> spectral_indices;
   double previous = -std::numeric_limits<double>::infinity();
@@ -435,10 +563,10 @@ SpectralReference read_spectral_reference_cgats(
     if (!in_data) continue;
 
     const auto values = split_cgats_fields(clean);
-    if (values.size() < fields.size()) {
+    if (values.size() != fields.size()) {
       throw std::runtime_error("spectral reference CGATS: data row " +
                                std::to_string(i + 1) +
-                               " has too few fields");
+                               " does not match DATA_FORMAT field count");
     }
     if (values[id_index].empty()) {
       throw std::runtime_error("spectral reference CGATS: data row " +
@@ -448,6 +576,26 @@ SpectralReference read_spectral_reference_cgats(
 
     SpectralReferencePatch patch;
     patch.id = values[id_index];
+    if (sample_id_index) patch.sample_id = values[*sample_id_index];
+    if (sample_name_index) patch.sample_name = values[*sample_name_index];
+    if (lab_indices) {
+      std::array<double, 3> declared{};
+      for (std::size_t component = 0; component < declared.size(); ++component) {
+        declared[component] = parse_double_field(
+            values[(*lab_indices)[component]],
+            "row " + std::to_string(i + 1), "spectral reference CGATS");
+      }
+      patch.declared_lab = declared;
+    }
+    if (xyz_indices) {
+      std::array<double, 3> declared{};
+      for (std::size_t component = 0; component < declared.size(); ++component) {
+        declared[component] = parse_double_field(
+            values[(*xyz_indices)[component]],
+            "row " + std::to_string(i + 1), "spectral reference CGATS");
+      }
+      patch.declared_xyz = declared;
+    }
     patch.reflectance.reserve(spectral_indices.size());
     for (const std::size_t idx : spectral_indices) {
       patch.reflectance.push_back(
@@ -466,6 +614,10 @@ SpectralReference read_spectral_reference_cgats(
   if (ref.patches.empty()) {
     throw std::runtime_error("spectral reference CGATS: no patch rows");
   }
+  schema.actual_set_count = ref.patches.size();
+  schema.set_count_matches = !schema.declared_set_count ||
+                             *schema.declared_set_count == ref.patches.size();
+  ref.cgats_schema = std::move(schema);
   return ref;
 }
 
@@ -496,6 +648,77 @@ SpectralReferenceSummary summarize_spectral_reference(
   if (std::isfinite(min_v)) s.min_reflectance = min_v;
   if (std::isfinite(max_v)) s.max_reflectance = max_v;
   return s;
+}
+
+SpectralReferenceInterchangeComparison
+compare_spectral_reference_interchange(const SpectralReference& left,
+                                       const SpectralReference& right) {
+  SpectralReferenceInterchangeComparison result;
+  std::map<std::string, std::size_t> left_by_id;
+  std::map<std::string, std::size_t> right_by_id;
+  const auto index_stable_ids = [](const SpectralReference& reference,
+                                   std::map<std::string, std::size_t>& index) {
+    for (std::size_t patch = 0; patch < reference.patches.size(); ++patch) {
+      const auto& stable_id = reference.patches[patch].sample_id;
+      if (stable_id.empty()) {
+        throw std::runtime_error(
+            "spectral reference interchange: SAMPLE_ID is required");
+      }
+      if (!index.emplace(stable_id, patch).second) {
+        throw std::runtime_error(
+            "spectral reference interchange: duplicate SAMPLE_ID");
+      }
+    }
+  };
+  index_stable_ids(left, left_by_id);
+  index_stable_ids(right, right_by_id);
+
+  result.stable_id_set_matches = left_by_id.size() == right_by_id.size();
+  if (result.stable_id_set_matches) {
+    for (const auto& [id, index] : left_by_id) {
+      (void)index;
+      if (!right_by_id.contains(id)) {
+        result.stable_id_set_matches = false;
+        break;
+      }
+    }
+  }
+  if (result.stable_id_set_matches) {
+    result.spectra_match_by_stable_id =
+        left.wavelengths_nm == right.wavelengths_nm;
+    result.layout_labels_match_by_stable_id = true;
+    result.right_index_by_left.reserve(left.patches.size());
+    for (const auto& patch : left.patches) {
+      const std::size_t right_index = right_by_id.at(patch.sample_id);
+      result.right_index_by_left.push_back(right_index);
+      const auto& other = right.patches[right_index];
+      result.spectra_match_by_stable_id =
+          result.spectra_match_by_stable_id &&
+          patch.reflectance == other.reflectance;
+      result.layout_labels_match_by_stable_id =
+          result.layout_labels_match_by_stable_id &&
+          patch.sample_name == other.sample_name;
+    }
+  }
+
+  if (left.wavelengths_nm == right.wavelengths_nm &&
+      left.patches.size() == right.patches.size()) {
+    std::vector<std::vector<double>> left_spectra;
+    std::vector<std::vector<double>> right_spectra;
+    left_spectra.reserve(left.patches.size());
+    right_spectra.reserve(right.patches.size());
+    for (const auto& patch : left.patches) {
+      left_spectra.push_back(patch.reflectance);
+    }
+    for (const auto& patch : right.patches) {
+      right_spectra.push_back(patch.reflectance);
+    }
+    std::sort(left_spectra.begin(), left_spectra.end());
+    std::sort(right_spectra.begin(), right_spectra.end());
+    result.exact_spectral_multiset_identity =
+        left_spectra == right_spectra;
+  }
+  return result;
 }
 
 void validate_spectral_reference(const SpectralReference& ref,

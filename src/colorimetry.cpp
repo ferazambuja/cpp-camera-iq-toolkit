@@ -1,5 +1,7 @@
 #include "camera_iq/colorimetry.hpp"
 
+#include "camera_iq/spectro_colorimetry.hpp"
+
 #include <algorithm>
 #include <array>
 #include <cmath>
@@ -137,11 +139,20 @@ double lab_f_inverse(double t) {
   return 3.0 * delta * delta * (t - 4.0 / 29.0);
 }
 
-double delta_e_76(const Lab& a, const Lab& b) {
+double delta_e_76_impl(const Lab& a, const Lab& b) {
+  const std::array<double, 6> components = {a.l, a.a, a.b, b.l, b.a, b.b};
+  if (!std::all_of(components.begin(), components.end(),
+                   [](double value) { return std::isfinite(value); })) {
+    throw std::runtime_error("dE76: Lab values must be finite");
+  }
   const double dl = a.l - b.l;
   const double da = a.a - b.a;
   const double db = a.b - b.b;
-  return std::sqrt(dl * dl + da * da + db * db);
+  const double result = std::hypot(dl, da, db);
+  if (!std::isfinite(result)) {
+    throw std::runtime_error("dE76: distance is not representable");
+  }
+  return result;
 }
 
 double degrees_to_radians(double degrees) {
@@ -178,7 +189,7 @@ struct DeltaAccumulator {
 
 void add_delta(DeltaAccumulator& acc, const Lab& target_lab,
                const Lab& predicted_lab) {
-  const double de76 = delta_e_76(target_lab, predicted_lab);
+  const double de76 = delta_e_76_impl(target_lab, predicted_lab);
   const double de2000 = delta_e_2000(target_lab, predicted_lab);
   ++acc.count;
   acc.sum_76 += de76;
@@ -303,6 +314,10 @@ bool parse_numeric_pair(std::string_view line, double& a, double& b) {
 
 }  // namespace
 
+double delta_e_76(const Lab& first, const Lab& second) {
+  return delta_e_76_impl(first, second);
+}
+
 std::vector<double> read_spectrum_csv_interpolated(
     const std::filesystem::path& path,
     const std::vector<double>& target_wavelengths_nm) {
@@ -410,6 +425,67 @@ RenderedReference render_reference_xyz(const SpectralReference& ref,
         integrate_xyz(ref, illuminant, weights, patch.reflectance, scale));
   }
   return out;
+}
+
+RenderedReference render_reference_xyz(const SpectralReference& ref,
+                                       const std::vector<double>& illuminant,
+                                       const SpectroCmfTable& observer) {
+  if (ref.wavelengths_nm.size() != illuminant.size()) {
+    throw std::runtime_error(
+        "colorimetry: illuminant and reference wavelength counts differ");
+  }
+  if (observer.wavelength_nm != ref.wavelengths_nm) {
+    throw std::runtime_error(
+        "colorimetry: observer and reference wavelength axes differ");
+  }
+  for (std::size_t channel = 0; channel < observer.xyz_bar.size(); ++channel) {
+    if (observer.xyz_bar[channel].size() != ref.wavelengths_nm.size()) {
+      throw std::runtime_error("colorimetry: observer component width mismatch");
+    }
+  }
+  for (const double value : illuminant) {
+    if (!std::isfinite(value) || value < 0.0) {
+      throw std::runtime_error(
+          "colorimetry: illuminant values must be finite and non-negative");
+    }
+  }
+  const auto weights = integration_weights(ref.wavelengths_nm);
+  const auto integrate = [&](const std::vector<double>& reflectance,
+                             double scale) {
+    Xyz xyz;
+    for (std::size_t index = 0; index < ref.wavelengths_nm.size(); ++index) {
+      if (!std::isfinite(reflectance[index])) {
+        throw std::runtime_error(
+            "colorimetry: reflectance values must be finite");
+      }
+      const double weighted =
+          reflectance[index] * illuminant[index] * weights[index] * scale;
+      xyz.x += weighted * observer.xyz_bar[0][index];
+      xyz.y += weighted * observer.xyz_bar[1][index];
+      xyz.z += weighted * observer.xyz_bar[2][index];
+    }
+    if (!std::isfinite(xyz.x) || !std::isfinite(xyz.y) ||
+        !std::isfinite(xyz.z)) {
+      throw std::runtime_error("colorimetry: integrated XYZ is not finite");
+    }
+    return xyz;
+  };
+  const std::vector<double> perfect(ref.wavelengths_nm.size(), 1.0);
+  const Xyz unscaled_white = integrate(perfect, 1.0);
+  if (unscaled_white.y <= 0.0) {
+    throw std::runtime_error("colorimetry: illuminant has zero Y response");
+  }
+  const double scale = 100.0 / unscaled_white.y;
+  RenderedReference result;
+  result.white_xyz = integrate(perfect, scale);
+  result.patch_xyz.reserve(ref.patches.size());
+  for (const auto& patch : ref.patches) {
+    if (patch.reflectance.size() != ref.wavelengths_nm.size()) {
+      throw std::runtime_error("colorimetry: patch reflectance width mismatch");
+    }
+    result.patch_xyz.push_back(integrate(patch.reflectance, scale));
+  }
+  return result;
 }
 
 Lab xyz_to_lab(const Xyz& xyz, const Xyz& white) {

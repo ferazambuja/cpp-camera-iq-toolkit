@@ -16,6 +16,11 @@ alias bytes against their canonical source,
 and computes level, normalized-shape, chromaticity, and same-record XYZ closure
 as separate outputs.
 
+The level/shape calculation is shared with the
+[spectral cross-check](spectral-crosscheck.md) through the unit-neutral
+`SampledSpectrum` layer. The MAT-file path adds recorded XYZ and archive fields
+after that common calculation rather than maintaining a second implementation.
+
 ## Code-level data flow
 
 ```text

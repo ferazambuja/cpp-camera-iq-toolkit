@@ -145,9 +145,9 @@ int cmd_spectral_response(int argc, char** argv) {
       return 1;
     }
 
-    // Emit the TOOLKIT-extracted SSF (dark-subtracted, saturation-guarded,
-    // CFA-direct) as a Wavelength,R,G,B CSV so the closure and quality slices
-    // can consume our own extraction instead of the legacy curve.
+    // Emit the toolkit-derived SSF (dark-subtracted, saturation-guarded, and
+    // CFA-direct) as Wavelength,R,G,B for downstream closure and quality
+    // analysis without substituting the legacy curve.
     if (!args.ssf_csv_out.empty()) {
       if (!raw_extraction) {
         std::cerr << "camera_iq spectral-response: --ssf-csv-out requires "

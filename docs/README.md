@@ -15,7 +15,7 @@ narrative with source-code detail.
 [reproducibility and data access](#reproducibility-and-data-access)
 
 Looking for a specific report rather than a study? The
-[technical reports](#technical-reports) section indexes all 21 by subject.
+[technical reports](#technical-reports) section indexes them by subject.
 
 ## Featured case studies
 
@@ -68,6 +68,23 @@ each group of repeats. They disagree by different amounts in different groups,
 which is why collapsing them into a single stability figure would be
 misleading. Typical within-group level variation was 7.17%; the most variable
 group reached 41.65%, without establishing why the source or measurement changed.
+
+### Spectral measurement and reference-data cross-check
+
+[Case study](case-studies/spectral-archive-crosscheck.md) ·
+[HID comparison data](data/hid_spectral_comparison.json) ·
+[reference audit data](data/spectral_reference_audit.json) ·
+[detailed report](reports/SPECTRAL_CROSSCHECK_2017.md) ·
+[implementation companion](implementation/spectral-crosscheck.md)
+
+Comparing spectra from different instruments requires more than placing two
+curves on one graph. This study separates native-grid repeat variation from a
+shared-grid comparison, localizes the wavelengths driving the difference, and
+audits the colorimetric metadata embedded in ColorChecker exports. The HID
+series differ by 4.327% relative L2 while their within-series shape residuals
+stay below 0.307%; 530 and 540 nm carry 75.9% of the squared discrepancy. A
+separate observer check reproduces the retained SpectraShop Lab values at
+0.0119 mean ΔE76 under D65/10°, versus 3.909 under the conflicting 2° reading.
 
 ### ColorChecker extraction and CCM validation
 
@@ -201,6 +218,7 @@ details.
 | [Spectral sensitivity](reports/SPECTRAL_SENSITIVITY.md) | RAW extraction, physical closure, Luther residuals, and SMI-style analysis |
 | [Spectral archive inventory](reports/SPECTRAL_ARCHIVE_INVENTORY.md) | Camera/session/file-role map and measurement hazards |
 | [Spectroradiometer ingest](reports/SPECTRORADIOMETER_INGEST.md) | Content-bound measurement recovery, group analysis, chromaticity, and same-record XYZ closure |
+| [Spectral measurement and reference-data cross-check](reports/SPECTRAL_CROSSCHECK_2017.md) | Repeated HID series, cross-grid residual localization, CGATS interchange, and observer selection |
 
 ### Exposure, tone, and noise
 
@@ -227,10 +245,12 @@ details.
 
 ## Reproducibility and data access
 
-Source captures and measured references remain outside Git. Public inspection is
-supported by safe aggregate CSVs, deterministic figures, method reports, and
-the public implementation. Build and artifact-regeneration instructions are
-kept in the [implementation companion index](implementation/README.md#artifact-generation-and-freshness-checks)
+Bulk source captures and some measured references remain outside Git. Public
+inspection is supported by aggregate CSVs, deterministic figures, method
+reports, and the implementation. The compact spectral coursework tables used
+by the cross-check are committed with source hashes and regenerate completely
+in CI. Build and artifact-regeneration instructions are kept in the
+[implementation companion index](implementation/README.md#artifact-generation-and-freshness-checks)
 so this scientific index remains focused on the studies.
 
 Selected method pages also include

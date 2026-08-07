@@ -1,0 +1,6 @@
+# Preserve exact third-party and archive exports. Their source line endings and
+# whitespace are evidence, so Git must neither normalize nor whitespace-check
+# them as authored text.
+data/third_party/CIE_std_illum_D65.csv -diff -text
+data/third_party/CIE_xyz_1964_10deg.csv -diff -text
+data/samples/spectral_2017/*.txt -diff -text

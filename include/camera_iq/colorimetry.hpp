@@ -9,6 +9,8 @@
 
 namespace camera_iq {
 
+struct SpectroCmfTable;
+
 struct Xyz {
   double x = 0;
   double y = 0;
@@ -105,6 +107,13 @@ struct CcmDarkPatchDiagnostics {
 RenderedReference render_reference_xyz(const SpectralReference& ref,
                                        const std::vector<double>& illuminant);
 
+// Explicit-observer overload for archive audits. The observer and illuminant
+// must match the reference wavelength axis exactly; the function never guesses
+// an observer from conflicting CGATS metadata or interpolates implicitly.
+RenderedReference render_reference_xyz(const SpectralReference& ref,
+                                       const std::vector<double>& illuminant,
+                                       const SpectroCmfTable& observer);
+
 std::vector<double> read_spectrum_csv_interpolated(
     const std::filesystem::path& path,
     const std::vector<double>& target_wavelengths_nm);
@@ -113,6 +122,8 @@ std::vector<double> read_spectrum_csv_interpolated(
 // both Y=100). Finite negative XYZ is supported as an extended mathematical
 // domain for intermediate color transforms; the reference white is positive.
 Lab xyz_to_lab(const Xyz& xyz, const Xyz& white);
+
+double delta_e_76(const Lab& first, const Lab& second);
 
 Xyz lab_to_xyz(const Lab& lab, const Xyz& white);
 

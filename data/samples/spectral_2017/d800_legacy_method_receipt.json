@@ -1,0 +1,92 @@
+{
+  "schema_version": 1,
+  "archive_label": "retained_2017_coursework_archive",
+  "audit_scope": "code_level_method_audit_not_empirical_reprocessing",
+  "method_evidence_scope": "selected_method_sources_inputs_and_outputs_not_complete_directory_inventory",
+  "retained_nef_inventory_scope": "all_nef_files_case_insensitively_and_recursively_below_the_retained_2017_coursework_archive",
+  "source_availability": "private_not_redistributed_no_redistribution_license_identified",
+  "source_files": [
+    {
+      "file": "spectral_v2_1.py",
+      "bytes": 10027,
+      "sha256": "7efbcda44ce9c36ad0328649f85a6520daa3cbfcaa75d85362bb829970538317",
+      "line_count": 317
+    },
+    {
+      "file": "raw2tiff.py",
+      "bytes": 2674,
+      "sha256": "072849dfae68d45de853ac9c596bdfbaac2e4f4f32683282278270f05ec45e18",
+      "line_count": 84
+    }
+  ],
+  "acquisition_inputs": [
+    {
+      "file": "spd.csv",
+      "bytes": 787,
+      "sha256": "f36fe548364f98c079c364a6c9a300be2f78f7f970208b92133b649ea23f0fcf",
+      "spectral_row_count": 35
+    },
+    {
+      "file": "SPD.xlsx",
+      "bytes": 10288,
+      "sha256": "d5f44c1996245d1ef3e60f993865448673a954f110fd1762b09d417a4a9fad73"
+    }
+  ],
+  "derived_artifacts": [
+    {
+      "file": "Nikon D800_Spectral_Sensitivity_Data.csv",
+      "bytes": 2311,
+      "sha256": "b5b0102a03617b51e049368e1b12daf7568559245722202536e799a450dfa5a8",
+      "spectral_row_count": 35
+    },
+    {
+      "file": "SpectralResponseGraph.pdf",
+      "bytes": 14200,
+      "sha256": "480d1f451ca96f21fc29ffbf730faea2435f737924b679f82b578c92501ce71a"
+    }
+  ],
+  "retained_nef_inventory": [
+    {
+      "file": "red.NEF",
+      "bytes": 31367485,
+      "sha256": "18a6b559a23e796c1a68b209ff7f938ed18084037a90bf9f840b6c581a8dadf7"
+    },
+    {
+      "file": "darkframe.NEF",
+      "bytes": 31043684,
+      "sha256": "a8ef0496dc3e9d115e6dd1b57a3565f9bdefc9b5a05d5078bd31cd89dc5f2166"
+    }
+  ],
+  "source_observations": [
+    {
+      "file": "spectral_v2_1.py",
+      "lines": "2-9",
+      "fact": "Bobby Gold is named as original author; Fernando Voltolini de Azambuja is named for version 0.2 changes."
+    },
+    {
+      "file": "spectral_v2_1.py",
+      "lines": "40-44",
+      "fact": "The measurement mask is a 10-pixel-thick rectangle outline."
+    },
+    {
+      "file": "spectral_v2_1.py",
+      "lines": "96-106,204-212",
+      "fact": "The spectral-power input is selected at runtime; an XLSX input is converted to spd.csv, while a CSV input is loaded directly. Both retained input forms are bound, but the archive does not prove which pathname produced the retained response table."
+    },
+    {
+      "file": "spectral_v2_1.py",
+      "lines": "252,284-300",
+      "fact": "Spectral power rows are paired positionally with an unsorted glob of image files."
+    },
+    {
+      "file": "raw2tiff.py",
+      "lines": "45-53,58-64",
+      "fact": "RAW files are enumerated without sorting and converted through dcraw with q=0 interpolation before the ROI stage."
+    },
+    {
+      "file": "raw2tiff.py",
+      "lines": "45-47",
+      "fact": "The dark-frame-name branch exits the conversion loop instead of skipping that entry."
+    }
+  ]
+}

@@ -169,7 +169,7 @@ At the generated-artifact layer, the registered CIE table guard and its
 mutation test—
 [`check_cie_cmf_1nm.py`](../../tools/check_cie_cmf_1nm.py) and
 [`test_check_cie_cmf_1nm.py`](../../tools/test_check_cie_cmf_1nm.py)—pin all
-seven official and derived hashes, the 360–830 nm
+eleven official and derived hashes, the 360–830 nm
 observer extent, the `ȳ` peak of `1.0` at 555 nm to `1e-9`, and declared
 observer/illuminant subset tolerances; each registered table is mutated in turn
 and required to fail. At the command/integration layer, command tests exercise

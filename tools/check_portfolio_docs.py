@@ -276,6 +276,18 @@ EVIDENCE_ATTRIBUTION_CONTRACTS: dict[str, EvidenceAttributionContract] = {
         "test_spectro_analysis",
         5,
     ),
+    "spectral_crosscheck_common_grid": EvidenceAttributionContract(
+        Path("docs/implementation/spectral-crosscheck.md"),
+        Path("tests/test_spectral_compare.cpp"),
+        "test_spectral_compare",
+        3,
+    ),
+    "spectral_reference_observer_oracle": EvidenceAttributionContract(
+        Path("docs/implementation/spectral-crosscheck.md"),
+        Path("tests/test_spectral_reference_audit.cpp"),
+        "test_spectral_reference_audit",
+        4,
+    ),
 }
 REQUIRED_IMPLEMENTATION_COMPANIONS = (
     Path("docs/implementation/raw-foundation.md"),
@@ -284,6 +296,7 @@ REQUIRED_IMPLEMENTATION_COMPANIONS = (
     Path("docs/implementation/flat-field.md"),
     Path("docs/implementation/spectral-fidelity.md"),
     Path("docs/implementation/spectroradiometer.md"),
+    Path("docs/implementation/spectral-crosscheck.md"),
     Path("docs/implementation/gamut-mapping.md"),
     Path("docs/implementation/color-model-audit.md"),
 )
@@ -297,6 +310,7 @@ REQUIRED_PROJECT_DOCUMENTS = (
     Path("docs/case-studies/colorchecker-ccm.md"),
     Path("docs/case-studies/cfa-flat-field-response.md"),
     Path("docs/case-studies/spectroradiometer-ingest.md"),
+    Path("docs/case-studies/spectral-archive-crosscheck.md"),
     Path("docs/case-studies/gamut-mapping.md"),
     Path("docs/case-studies/color-model-equation-audit.md"),
 )
@@ -383,6 +397,7 @@ IMPLEMENTATION_COMPANION_LINKS = {
     Path("docs/case-studies/colorchecker-ccm.md"): "../implementation/color-characterization.md",
     Path("docs/case-studies/cfa-flat-field-response.md"): "../implementation/flat-field.md",
     Path("docs/case-studies/spectroradiometer-ingest.md"): "../implementation/spectroradiometer.md",
+    Path("docs/case-studies/spectral-archive-crosscheck.md"): "../implementation/spectral-crosscheck.md",
     Path("docs/case-studies/gamut-mapping.md"): "../implementation/gamut-mapping.md",
     Path("docs/case-studies/color-model-equation-audit.md"): "../implementation/color-model-audit.md",
     Path("docs/reports/BILINEAR_DEMOSAIC.md"): "../implementation/raw-foundation.md",
@@ -406,6 +421,7 @@ IMPLEMENTATION_COMPANION_LINKS = {
     Path("docs/reports/SPECTRAL_ARCHIVE_INVENTORY.md"): "../implementation/spectral-fidelity.md",
     Path("docs/reports/SPECTRAL_SENSITIVITY.md"): "../implementation/spectral-fidelity.md",
     Path("docs/reports/SPECTRORADIOMETER_INGEST.md"): "../implementation/spectroradiometer.md",
+    Path("docs/reports/SPECTRAL_CROSSCHECK_2017.md"): "../implementation/spectral-crosscheck.md",
 }
 
 REPORT_LAYER_PATTERNS = {

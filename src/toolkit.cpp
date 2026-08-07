@@ -59,6 +59,10 @@ void print_usage() {
       " capture\n"
       "  spectro-ingest\n"
       "              Verify and summarize a spectroradiometer archive\n"
+      "  spectro-compare\n"
+      "              Compare repeated spectral series on an explicit grid\n"
+      "  spectral-reference-audit\n"
+      "              Audit CGATS identity, metadata, and colorimetry\n"
       "\n"
       "Options:\n"
       "  -h, --help       Show this help\n"
@@ -141,6 +145,12 @@ int run(int argc, char** argv) {
   }
   if (arg == "spectro-ingest") {
     return cmd_spectro_ingest(argc - 2, argv + 2);
+  }
+  if (arg == "spectro-compare") {
+    return cmd_spectro_compare(argc - 2, argv + 2);
+  }
+  if (arg == "spectral-reference-audit") {
+    return cmd_spectral_reference_audit(argc - 2, argv + 2);
   }
 
   std::cerr << "camera_iq: command '" << arg

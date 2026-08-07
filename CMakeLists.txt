@@ -58,6 +58,10 @@ add_library(camera_iq_core STATIC
   src/spectro_ledger.cpp
   src/spectro_ingest.cpp
   src/spectro_analysis.cpp
+  src/sampled_spectrum.cpp
+  src/spectral_series.cpp
+  src/spectral_compare.cpp
+  src/spectral_reference_audit.cpp
   src/spectro_colorimetry.cpp
   src/roi.cpp
   src/flat_field_gate.cpp
@@ -102,7 +106,9 @@ add_library(camera_iq_core STATIC
   src/cmd_patches.cpp
   src/shading.cpp
   src/cmd_shading.cpp
-  src/cmd_spectro_ingest.cpp)
+  src/cmd_spectro_ingest.cpp
+  src/cmd_spectro_compare.cpp
+  src/cmd_spectral_reference_audit.cpp)
 
 target_include_directories(camera_iq_core PUBLIC include)
 target_compile_definitions(camera_iq_core PUBLIC
@@ -152,8 +158,16 @@ camera_iq_add_test(test_spectro_measurement tests/test_spectro_measurement.cpp)
 camera_iq_add_test(test_spectro_ledger tests/test_spectro_ledger.cpp)
 camera_iq_add_test(test_spectro_ingest tests/test_spectro_ingest.cpp)
 camera_iq_add_test(test_spectro_analysis tests/test_spectro_analysis.cpp)
+camera_iq_add_test(test_sampled_spectrum tests/test_sampled_spectrum.cpp)
+camera_iq_add_test(test_spectral_series tests/test_spectral_series.cpp)
+camera_iq_add_test(test_spectral_compare tests/test_spectral_compare.cpp)
 camera_iq_add_test(test_spectro_colorimetry tests/test_spectro_colorimetry.cpp)
 camera_iq_add_test(test_cmd_spectro_ingest tests/test_cmd_spectro_ingest.cpp)
+camera_iq_add_test(test_cmd_spectro_compare tests/test_cmd_spectro_compare.cpp)
+camera_iq_add_test(test_cmd_spectral_reference_audit
+  tests/test_cmd_spectral_reference_audit.cpp)
+target_compile_definitions(test_cmd_spectral_reference_audit PRIVATE
+  CAMERA_IQ_SOURCE_DIR="${CMAKE_SOURCE_DIR}")
 camera_iq_add_test(test_roi tests/test_roi.cpp)
 camera_iq_add_test(test_demosaic tests/test_demosaic.cpp)
 camera_iq_add_test(test_dark_calibration tests/test_dark_calibration.cpp)
@@ -170,6 +184,9 @@ camera_iq_add_test(test_cmd_oecf_stepchart tests/test_cmd_oecf_stepchart.cpp)
 camera_iq_add_test(test_stepchart_raw tests/test_stepchart_raw.cpp)
 camera_iq_add_test(test_color_reference tests/test_color_reference.cpp)
 camera_iq_add_test(test_colorimetry tests/test_colorimetry.cpp)
+camera_iq_add_test(test_spectral_reference_audit tests/test_spectral_reference_audit.cpp)
+target_compile_definitions(test_spectral_reference_audit PRIVATE
+  CAMERA_IQ_SOURCE_DIR="${CMAKE_SOURCE_DIR}")
 camera_iq_add_test(test_gamut_mapping tests/test_gamut_mapping.cpp)
 camera_iq_add_test(test_gamut_mapping_report tests/test_gamut_mapping_report.cpp)
 camera_iq_add_test(test_cmd_gamut_map tests/test_cmd_gamut_map.cpp)
@@ -231,6 +248,13 @@ add_test(NAME check_cie_cmf_1nm
           --repo-root ${CMAKE_SOURCE_DIR})
 add_test(NAME test_check_cie_cmf_1nm
   COMMAND python3 ${CMAKE_SOURCE_DIR}/tools/test_check_cie_cmf_1nm.py)
+add_test(NAME test_import_2017_spectral_archive
+  COMMAND python3 ${CMAKE_SOURCE_DIR}/tools/test_import_2017_spectral_archive.py)
+add_test(NAME test_generate_2017_spectral_portfolio
+  COMMAND python3 ${CMAKE_SOURCE_DIR}/tools/test_generate_2017_spectral_portfolio.py)
+add_test(NAME check_2017_spectral_portfolio
+  COMMAND python3 ${CMAKE_SOURCE_DIR}/tools/generate_2017_spectral_portfolio.py
+          --camera-iq $<TARGET_FILE:camera_iq> --check)
 add_test(NAME check_spectro_identity_ledger
   COMMAND python3 ${CMAKE_SOURCE_DIR}/tools/generate_spectro_identity_ledger.py
           --check ${CMAKE_SOURCE_DIR}/data/spectro_identity_ledger.csv)
@@ -321,3 +345,7 @@ camera_iq_expect_doc_evidence(test_cam16_equation_audit
   color_model_audit_numeric_oracles=11)
 camera_iq_expect_doc_evidence(test_spectro_analysis
   spectroradiometer_scale_separation=5)
+camera_iq_expect_doc_evidence(test_spectral_compare
+  spectral_crosscheck_common_grid=3)
+camera_iq_expect_doc_evidence(test_spectral_reference_audit
+  spectral_reference_observer_oracle=4)

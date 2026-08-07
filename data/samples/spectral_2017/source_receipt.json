@@ -1,0 +1,72 @@
+{
+  "schema_version": 1,
+  "archive_label": "retained_2017_coursework_archive",
+  "sources": [
+    {
+      "file": "PR655_HID.txt",
+      "sha256": "9fc63adc1f2a4161b78077590d74aadf5c8eda61dca9c0f706ca15754ae22271"
+    },
+    {
+      "file": "i1Pro_HID.txt",
+      "sha256": "2ad8fb2bbdad78b3e8401eb64d909fdcc26459638892b56d1493b732d3226ebc"
+    },
+    {
+      "file": "CC4.txt",
+      "sha256": "21649841724d6cdac863bfe20f6702169d4a8998436446579a46eb8e74b17ad5"
+    },
+    {
+      "file": "CC_Measurement_1.txt",
+      "sha256": "40883066432c86d720ff65c5ffa02a5c98d5e3af7f5805d44e96f2ff37564b04"
+    },
+    {
+      "file": "CC4_CGATS.txt",
+      "sha256": "4bae51849b714a403f1b788c50dac3444a4705ab62589e760f71b3d96305c00c"
+    },
+    {
+      "file": "CC4_4.txt",
+      "sha256": "a20ea31e925f63c1f875ac1216cce0d76d095a6e5aa8083addd222091a77001f"
+    },
+    {
+      "file": "CC4_CGATS_M0.txt",
+      "sha256": "8a5450b737202606936a726a9e795672119fb7cc678c2ab8a9f1ebc3bd611bbb"
+    },
+    {
+      "file": "CC4_4_M0.txt",
+      "sha256": "ffc4a35022458a5fef2a930d825bec33d040424773d98c6f0ba261aa33417488"
+    }
+  ],
+  "outputs": [
+    {
+      "file": "hid_repeats.csv",
+      "sha256": "5127d06aff3be9cf67f81717a41f9ba23c73bbf9bf59a8f314d2b1cb0dfc62a7"
+    },
+    {
+      "file": "colorchecker_measurement_01.csv",
+      "sha256": "201a41dcca6ea5d6c371f02e956d595ade6c17638a73a6ff4dbf1f35ac55fc1a"
+    },
+    {
+      "file": "colorchecker_measurement_02.csv",
+      "sha256": "3a3e1a369b75a0f72c6e7c19453f814a73a570293cac19136e0e0c2fbded7d0b"
+    },
+    {
+      "file": "CC4_CGATS.txt",
+      "sha256": "4bae51849b714a403f1b788c50dac3444a4705ab62589e760f71b3d96305c00c"
+    },
+    {
+      "file": "CC4_4.txt",
+      "sha256": "a20ea31e925f63c1f875ac1216cce0d76d095a6e5aa8083addd222091a77001f"
+    },
+    {
+      "file": "CC4_CGATS_M0.txt",
+      "sha256": "8a5450b737202606936a726a9e795672119fb7cc678c2ab8a9f1ebc3bd611bbb"
+    },
+    {
+      "file": "CC4_4_M0.txt",
+      "sha256": "ffc4a35022458a5fef2a930d825bec33d040424773d98c6f0ba261aa33417488"
+    },
+    {
+      "file": "archive_summary.json",
+      "sha256": "eeaa85839757d1904129b55cc2b0a1d0792ed4c040e0b658730db9f9e907fe7e"
+    }
+  ]
+}

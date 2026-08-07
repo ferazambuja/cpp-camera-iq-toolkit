@@ -17,6 +17,7 @@ The governing separation is defined in the
 | [CFA flat-field response](flat-field.md) | Frame gates, block maps, normalization, chromatic ratios, asymmetry, dark controls, comparison mode, and serialization |
 | [Spectral sensitivity and color fidelity](spectral-fidelity.md) | Monochromator sweep extraction, physical closure, Luther-condition fit, and SMI-style color simulation |
 | [Spectroradiometer recovery and analysis](spectroradiometer.md) | MATLAB v5 parsing, content identity, grouping, level/shape/chromaticity statistics, and XYZ closure |
+| [Spectral measurement cross-check](spectral-crosscheck.md) | Generic repeated-spectrum analysis, common-grid comparison, CGATS interchange diagnostics, and explicit-observer colorimetry |
 | [Gamut mapping](gamut-mapping.md) | Typed RGB/XYZ/perceptual transforms, analytic boundary search, four mapping intents, diagnostics, and artifacts |
 | [Color-model equation audit](color-model-audit.md) | Bounded CAM16/Hellwig equation sweeps, CIE94 conventions, serialization, and generated figure |
 
@@ -40,17 +41,19 @@ ctest --test-dir build --output-on-failure
 python3 tools/generate_portfolio_figures.py
 python3 tools/generate_portfolio_figures.py --check
 python3 tools/generate_spectro_report_figure.py --check
+python3 tools/generate_2017_spectral_portfolio.py \
+  --camera-iq build/camera_iq --check
 python3 tools/generate_gamut_portfolio.py --camera-iq build/camera_iq --check
 python3 tools/generate_cam16_equation_audit.py \
   --camera-iq build/camera_iq --check
 ```
 
-`check_portfolio_figures` protects the aggregate-table SVGs. The gamut and
-equation-audit checks execute the compiled C++ producer and compare the complete
-committed JSON, CSV, and SVG artifacts. Numeric checks use `1e-12` relative or
-absolute tolerance except for gamut angular diagnostics, which allow `1e-5`
-degrees for platform math-library variation while still reconciling every JSON
-sample with its CSV row.
+`check_portfolio_figures` protects the aggregate-table SVGs. The spectral
+cross-check, gamut, and equation-audit checks execute the compiled C++ producer
+and compare the complete committed JSON, CSV, and SVG artifacts. Numeric checks
+use `1e-12` relative or absolute tolerance except for gamut angular diagnostics,
+which allow `1e-5` degrees for platform math-library variation while still
+reconciling every JSON sample with its CSV row.
 
 Large archive-backed measurements additionally require locally configured
 dataset roots. Their reports retain the scientific input selection and result;
