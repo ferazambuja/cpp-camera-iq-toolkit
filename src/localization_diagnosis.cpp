@@ -439,6 +439,12 @@ LocalizationMetricSummary summarize_residuals(
   double cosine_sum = 0;
   std::size_t cosine_count = 0;
   auto add_cosine = [&](std::size_t a, std::size_t b) {
+    // The caller derives b from a row-major position, but the loop guards on
+    // the residual's own row/column fields. Those agree only when the input is
+    // exactly kRows x kColumns in order, and the entry contract admits any
+    // count at or above that, so bound the pair here rather than trusting the
+    // layout.
+    if (a >= remaining.size() || b >= remaining.size()) return;
     if (!selected[a] || !selected[b]) return;
     const double la = vector_length(remaining[a].dx, remaining[a].dy);
     const double lb = vector_length(remaining[b].dx, remaining[b].dy);
