@@ -127,6 +127,16 @@ void TESTS() {
   check(json.find("white-preserving sensitivity") != std::string::npos,
         "spectral-smi JSON: interpretation explains constrained-fit bound");
 
+  const std::string reflectance_before = read_file(refl);
+  check(run_smi(
+            {"--ssf-csv", ssf.string(), "--cmf", cmf.string(),
+             "--illuminant-csv", illum.string(), "--reflectance-csv",
+             refl.string(), "--camera-model", "Luther Reference", "--out",
+             refl.string()}) == 2,
+        "spectral-smi command: output cannot alias reflectance input");
+  check(read_file(refl) == reflectance_before,
+        "spectral-smi command: alias refusal preserves reflectance bytes");
+
   // Luther camera (SSF == CMF) scores essentially 100.
   const std::size_t k = json.find("\"smi\":");
   double smi = 0.0;

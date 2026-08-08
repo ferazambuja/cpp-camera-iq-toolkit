@@ -45,6 +45,15 @@ CFA-balanced ROI directly from the mosaic, subtracts a measured dark residual
 per CFA position, combines the two greens only at the channel-summary stage,
 and records saturation and below-dark fractions for every wavelength.
 
+The nonnegative response is the curve used by later physical calculations: a
+negative sensitivity would not be meaningful. Fidelity reporting keeps two
+scopes distinct. The full-axis comparison includes every zero-floored sample
+for backward continuity. The detection-qualified comparison is channel-specific
+and excludes a wavelength whenever any CFA position contributing to that
+channel was at or below the measured dark estimate. Each channel's retained
+sample count is serialized with its RMS and correlation, so the smaller tail
+support cannot be hidden behind one aggregate score.
+
 The response curves are normalized by a declared scalar convention. The
 normalization changes scale, not shape; the original diagnostic values remain
 available in the extraction object.

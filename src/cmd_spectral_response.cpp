@@ -122,11 +122,22 @@ int cmd_spectral_response(int argc, char** argv) {
   }
 
   try {
+    if (!args.ssf_csv_out.empty() &&
+        output_path_aliases_input(args.out, args.ssf_csv_out)) {
+      std::cerr << "camera_iq spectral-response: JSON and SSF CSV outputs "
+                   "must be different paths\n";
+      return 2;
+    }
     for (const auto& output : {args.out, args.ssf_csv_out}) {
       if (output.empty()) continue;
       if (reject_output_aliasing_inputs(
               output, {args.response_csv, args.spd_csv, args.dark_raw},
               "spectral-response", std::cerr)) {
+        return 2;
+      }
+      if (!args.raw_dir.empty() && reject_output_within_input_directory(
+                                       output, args.raw_dir,
+                                       "spectral-response", std::cerr)) {
         return 2;
       }
     }

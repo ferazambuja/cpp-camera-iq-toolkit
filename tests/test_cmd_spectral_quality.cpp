@@ -61,6 +61,14 @@ void TESTS() {
   check(json.find("\"quality_index\":1") != std::string::npos,
         "quality cmd: an SSF that spans the CMFs scores quality index 1");
 
+  const std::string ssf_before = read(root / "ssf.csv");
+  check(run({"--ssf-csv", (root / "ssf.csv").string(), "--cmf",
+             (root / "cmf_perfect.csv").string(), "--camera-model", "Ideal",
+             "--out", (root / "ssf.csv").string()}) == 2,
+        "quality cmd: output cannot alias measured SSF input");
+  check(read(root / "ssf.csv") == ssf_before,
+        "quality cmd: alias refusal preserves measured SSF bytes");
+
   // CMF Y on an axis the SSF cannot reach -> that fit residual is 1.
   const std::string cmf_gap =
       "Wavelength (nm),X,Y,Z\n500,1,0,0\n510,0,0,0\n520,0,0,1\n530,0,1,0\n"

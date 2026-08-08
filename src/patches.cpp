@@ -591,8 +591,8 @@ void write_localization_validation(
   w.value(localization->thresholds.max_center_error_px);
   w.key("min_channel_correlation");
   w.value(localization->thresholds.min_channel_correlation);
-  w.key("max_abs_mean_error_dn");
-  w.value(localization->thresholds.max_abs_mean_error_dn);
+  w.key("max_abs_patch_mean_error_dn");
+  w.value(localization->thresholds.max_abs_patch_mean_error_dn);
   w.end_object();
   w.key("max_center_error_px");
   w.value(localization->max_center_error_px);
@@ -604,8 +604,8 @@ void write_localization_validation(
   w.value(localization->center_gate_passes);
   w.key("correlation_gate_passes");
   w.value(localization->correlation_gate_passes);
-  w.key("mean_error_gate_passes");
-  w.value(localization->mean_error_gate_passes);
+  w.key("patch_mean_error_gate_passes");
+  w.value(localization->patch_mean_error_gate_passes);
   w.key("passes");
   w.value(localization->passes);
   w.key("channels");
@@ -625,9 +625,9 @@ void write_localization_validation(
     w.key("correlation_gate_passes");
     w.value(c.correlation >=
             localization->thresholds.min_channel_correlation);
-    w.key("mean_error_gate_passes");
+    w.key("patch_mean_error_gate_passes");
     w.value(c.max_abs_error_before_affine <=
-            localization->thresholds.max_abs_mean_error_dn);
+            localization->thresholds.max_abs_patch_mean_error_dn);
     w.end_object();
   }
   w.end_array();
@@ -1036,8 +1036,8 @@ PatchLocalizationValidation validate_patch_localization_against_oracle(
   if (!std::isfinite(thresholds.max_center_error_px) ||
       thresholds.max_center_error_px < 0 ||
       !std::isfinite(thresholds.min_channel_correlation) ||
-      !std::isfinite(thresholds.max_abs_mean_error_dn) ||
-      thresholds.max_abs_mean_error_dn < 0) {
+      !std::isfinite(thresholds.max_abs_patch_mean_error_dn) ||
+      thresholds.max_abs_patch_mean_error_dn < 0) {
     throw std::runtime_error(
         "localization validation: invalid threshold");
   }
@@ -1079,18 +1079,19 @@ PatchLocalizationValidation validate_patch_localization_against_oracle(
 
   out.rgb_comparison = compare_patch_means_to_rgb(patches, oracle.reference_rgb);
   out.correlation_gate_passes = true;
-  out.mean_error_gate_passes = true;
+  out.patch_mean_error_gate_passes = true;
   for (const auto& channel : out.rgb_comparison.channels) {
     if (channel.correlation < thresholds.min_channel_correlation) {
       out.correlation_gate_passes = false;
     }
     if (channel.max_abs_error_before_affine >
-        thresholds.max_abs_mean_error_dn) {
-      out.mean_error_gate_passes = false;
+        thresholds.max_abs_patch_mean_error_dn) {
+      out.patch_mean_error_gate_passes = false;
     }
   }
   out.passes = out.patch_count_gate_passes && out.center_gate_passes &&
-               out.correlation_gate_passes && out.mean_error_gate_passes;
+               out.correlation_gate_passes &&
+               out.patch_mean_error_gate_passes;
   return out;
 }
 

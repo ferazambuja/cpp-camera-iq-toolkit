@@ -1,8 +1,8 @@
 #pragma once
 
+#include <array>
 #include <filesystem>
 #include <iosfwd>
-#include <array>
 #include <string>
 #include <vector>
 
@@ -32,12 +32,15 @@ struct SpectralResponse {
 };
 
 struct SpectralFidelityChannel {
+  bool available = false;
+  std::size_t sample_count = 0;
   double rms = 0;
   double correlation = 0;
 };
 
 struct SpectralFidelityComparison {
   std::string validation_tier = "legacy_fidelity_only";
+  std::string sample_scope = "all_wavelengths_after_nonnegative_floor";
   SpectralFidelityChannel r;
   SpectralFidelityChannel g;
   SpectralFidelityChannel b;
@@ -72,6 +75,7 @@ struct SpectralRawExtraction {
   double max_below_dark_fraction = 0;
   std::vector<SpectralSampleDiagnostics> samples;
   SpectralFidelityComparison tier1_legacy_fidelity;
+  SpectralFidelityComparison detection_qualified_legacy_fidelity;
 };
 
 // Parses legacy monochromator outputs and the corresponding line-SPD

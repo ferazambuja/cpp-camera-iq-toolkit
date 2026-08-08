@@ -309,6 +309,13 @@ void TESTS() {
              "raw spectral response: red fidelity RMS");
   check_near(extraction.tier1_legacy_fidelity.g.correlation, 1.0, 1e-12,
              "raw spectral response: green fidelity correlation");
+  check(extraction.tier1_legacy_fidelity.r.sample_count == 48 &&
+            extraction.detection_qualified_legacy_fidelity.r.sample_count ==
+                48,
+        "raw spectral response: clean extraction uses all 48 wavelengths in "
+        "both fidelity summaries");
+  check(extraction.detection_qualified_legacy_fidelity.r.available,
+        "raw spectral response: clean qualified fidelity is available");
 
   std::vector<fs::path> private_paths;
   private_paths.reserve(48);
@@ -390,6 +397,45 @@ void TESTS() {
         "sample");
   check_near(below_dark.max_below_dark_fraction, 1.0, 1e-12,
              "raw spectral response: max below-dark fraction rollup is exposed");
+  check(below_dark.tier1_legacy_fidelity.r.sample_count == 48 &&
+            below_dark.detection_qualified_legacy_fidelity.r.sample_count ==
+                47,
+        "raw spectral response: red fidelity excludes its below-dark "
+        "wavelength only from the detection-qualified comparison");
+  check(below_dark.detection_qualified_legacy_fidelity.g.sample_count == 48 &&
+            below_dark.detection_qualified_legacy_fidelity.b.sample_count ==
+                48,
+        "raw spectral response: detection qualification remains channel-specific");
+  std::ostringstream below_dark_json;
+  write_spectral_raw_extraction_json(below_dark_json, legacy, below_dark);
+  check(below_dark_json.str().find(
+            "\"sample_scope\":\"channel_wavelengths_with_no_below_dark_samples\"") !=
+            std::string::npos &&
+            below_dark_json.str().find("\"sample_count\":47") !=
+                std::string::npos,
+        "raw spectral response JSON: qualified scope and retained count are explicit");
+
+  auto one_detected_sweep = synthetic_sweep(dark_residuals);
+  for (std::size_t i = 0; i + 1 < one_detected_sweep.size(); ++i) {
+    for (int row : {1, 3}) {
+      for (int col : {0, 2}) {
+        one_detected_sweep[i].samples[static_cast<std::size_t>(row * 4 + col)] =
+            dark_residuals[2];
+      }
+    }
+  }
+  const auto one_detected = extract_raw_spectral_response(
+      legacy, one_detected_sweep, dark, RoiRect{0, 0, 4, 4});
+  check(!one_detected.detection_qualified_legacy_fidelity.r.available &&
+            one_detected.detection_qualified_legacy_fidelity.r.sample_count ==
+                1,
+        "raw spectral response: one detected wavelength makes qualified correlation unavailable without rejecting extraction");
+  std::ostringstream one_detected_json;
+  write_spectral_raw_extraction_json(one_detected_json, legacy, one_detected);
+  check(one_detected_json.str().find(
+            "\"available\":false,\"sample_count\":1,\"rms\":null,\"correlation\":null") !=
+            std::string::npos,
+        "raw spectral response JSON: unavailable qualified metrics serialize as null");
 
   const fs::path map_root = root / "raw_map";
   fs::create_directories(map_root);

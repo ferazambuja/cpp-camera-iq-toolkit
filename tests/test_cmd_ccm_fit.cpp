@@ -203,6 +203,14 @@ void TESTS() {
   check(json.find("\"baseline_cross_validation\"") != std::string::npos,
         "ccm-fit JSON: baseline CV emitted");
 
+  const std::string reference_before = read_file(reference);
+  check(run_ccm_fit({"fixture", "--config", config.string(),
+                     "--illuminant-spd", illuminant.string(), "--out",
+                     reference.string()}) == 2,
+        "ccm-fit command: output cannot alias spectral reference input");
+  check(read_file(reference) == reference_before,
+        "ccm-fit command: alias refusal preserves spectral reference bytes");
+
   const fs::path stale_config = root / "stale.local.json";
   write_file(stale_config,
              R"json({

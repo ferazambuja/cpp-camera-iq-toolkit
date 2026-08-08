@@ -583,7 +583,8 @@ int cmd_ccm_fit(int argc, char** argv) {
     }
     if (!args.out.empty() &&
         reject_output_aliasing_inputs(
-            args.out, {camera_rgb_path, args.illuminant_spd, args.config},
+            args.out,
+            {spec.path, camera_rgb_path, args.illuminant_spd, args.config},
             "ccm-fit", std::cerr)) {
       return 2;
     }

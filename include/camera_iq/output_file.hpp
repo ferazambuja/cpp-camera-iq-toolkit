@@ -25,6 +25,16 @@ bool reject_output_aliasing_inputs(
     std::string_view command_name,
     std::ostream& err);
 
+// Rejects an output placed anywhere under an input directory. This is used by
+// commands that discover their inputs by scanning a directory: comparing only
+// the explicitly named arguments would miss a measured file found later by
+// the scan.
+bool reject_output_within_input_directory(
+    const std::filesystem::path& output,
+    const std::filesystem::path& input_directory,
+    std::string_view command_name,
+    std::ostream& err);
+
 bool finish_output_stream_checked(std::ostream& os,
                                   const std::filesystem::path& path,
                                   std::string_view command_name,

@@ -74,6 +74,12 @@ int cmd_manifest(int argc, char** argv) {
       std::cerr << "camera_iq manifest: --subdir requires a relative path inside the dataset root\n";
       return 2;
     }
+    if ((!out.empty() &&
+         (reject_output_aliasing_inputs(out, {config}, "manifest", std::cerr) ||
+          reject_output_within_input_directory(out, *scan_root, "manifest",
+                                               std::cerr)))) {
+      return 2;
+    }
     const std::string root_label = dataset_scan_label(*resolved, subdir);
 
     auto entries = scan_dataset(*scan_root);

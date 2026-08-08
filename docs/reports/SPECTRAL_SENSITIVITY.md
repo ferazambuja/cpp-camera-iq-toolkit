@@ -89,16 +89,24 @@ Canon 5D2 extraction diagnostics:
 | Maximum below-dark fraction | `1.0` |
 | Samples with any below-dark tail flag | `12 / 48` |
 
-Agreement with the retained legacy curve, after the same green-peak
-normalization:
+Agreement with the retained legacy curve is reported first on the samples where
+that channel had no below-dark CFA positions. This keeps a zero introduced by
+the nonnegative physical floor from being counted as an ordinary measured tail:
 
-| Channel | RMS vs legacy | Pearson correlation |
-|---|---:|---:|
-| R | `0.0063000` | `0.9993665` |
-| G | `0.0068747` | `0.9997911` |
-| B | `0.0037980` | `0.9999076` |
+| Channel | Retained wavelengths | RMS vs legacy | Pearson correlation |
+|---|---:|---:|---:|
+| R | `48 / 48` | `0.0063000` | `0.9993665` |
+| G | `38 / 48` | `0.0077259` | `0.9997672` |
+| B | `44 / 48` | `0.0039666` | `0.9999049` |
 
-This close match shows that the new extraction recovers the retained curve; it
+For continuity with the earlier analysis, the serializer also retains the
+all-48-wavelength comparison after the nonnegative floor: RMS
+`0.0063000 / 0.0068747 / 0.0037980` and correlation
+`0.9993665 / 0.9997911 / 0.9999076` for R/G/B. It is labeled as a
+zero-floored full-axis result, not a detection-qualified comparison.
+
+This close match shows that the new extraction recovers the retained curve over
+the wavelengths that passed the single-dark screen; it
 does not establish that either curve is physically correct. That stronger test
 is closure: use the recovered sensitivities to predict an independent
 broadband chart capture from measured illuminant and reflectance data. The

@@ -232,6 +232,18 @@ void TESTS() {
                        "--oracle-dir", "outside-oracle-link"}) == 2,
         "oecf-stepchart cmd: configured oracle-directory symlink escape "
         "rejected");
+  const fs::path protected_summary = dataset / "Results" / "protected.json";
+  write_file(protected_summary, "oracle evidence");
+  check(run_stepchart({"d800_oecf_fixture", "--config", config.string(),
+                       "--oracle-dir", "Results", "--out",
+                       protected_summary.string()}) == 2,
+        "oecf-stepchart cmd: output inside dataset input tree is refused");
+  check(read_file(protected_summary) == "oracle evidence",
+        "oecf-stepchart cmd: dataset input remains intact after refusal");
+  check(run_stepchart({"d800_oecf_fixture", "--config", config.string(),
+                       "--oracle-dir", "Results", "--out",
+                       config.string()}) == 2,
+        "oecf-stepchart cmd: output cannot alias dataset configuration");
 
   // Nested --out parent directories must be created (house cmd_sfr pattern).
   const fs::path out = root / "nested" / "deep" / "out.json";

@@ -158,6 +158,12 @@ int cmd_noise(int argc, char** argv) {
       std::cerr << "camera_iq noise: --subdir requires a relative path inside the dataset root\n";
       return 2;
     }
+    if (!out.empty() &&
+        (reject_output_aliasing_inputs(out, {config}, "noise", std::cerr) ||
+         reject_output_within_input_directory(out, *scan_root, "noise",
+                                              std::cerr))) {
+      return 2;
+    }
     const std::string root_label = dataset_scan_label(*resolved, subdir);
 
     const auto scanned = scan_dataset(*scan_root);
