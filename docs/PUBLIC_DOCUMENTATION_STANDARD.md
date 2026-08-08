@@ -55,6 +55,84 @@ The normal reading order is:
    isolate and what measurement would resolve it.
 10. **Engineering companion** — link to the separate implementation document.
 
+The headings may differ, but an archive-backed or otherwise constrained study
+must also make its **study-design reality** easy to find. The reader should not
+have to infer why the preferred controlled experiment was not run or why a
+substitute was scientifically acceptable.
+
+## Archive gaps, substitutions, and scientific decisions
+
+An incomplete archive is not automatically a weakness and it is not
+automatically interesting. Discuss a gap when it changes at least one of these:
+
+- the method that could be used;
+- the interpretation or comparison class;
+- reproducibility;
+- the strength of a causal or calibration claim; or
+- the next experiment.
+
+For every material departure from the preferred controlled design, give the
+reader this chain:
+
+1. **Preferred design for this question** — name the control, reference,
+   calibration, repeated capture, or physical comparison that would answer the
+   question most directly. Avoid calling one method a universal “gold
+   standard” when its suitability depends on the question.
+2. **Available evidence** — state what the retained archive, synthetic input,
+   public reference, or current capture actually contains.
+3. **Missing or ambiguous element** — identify the absent control or uncertain
+   relationship precisely.
+4. **Decision and reason** — explain the chosen alternative, why it was more
+   defensible than the other available choices, and which quality gates or
+   cross-checks keep it useful.
+5. **Consequence for interpretation** — state what the result can still answer
+   and what it cannot answer because of that choice.
+6. **Resolving experiment** — describe the capture, calibration, or comparison
+   that would remove the ambiguity.
+
+This chain may be distributed across the inputs, method, interpretation, and
+limitations sections. Do not force six repetitive headings into every report.
+Keep the limitation beside the affected result, then summarize it once if it
+constrains the study as a whole.
+
+Separate three time layers explicitly:
+
+- the question and method used in the original study;
+- the decision made during the present reanalysis; and
+- the better experiment that could be run next.
+
+Never turn a present-day explanation into a historical motive. If the original
+rationale was not retained, say that it was not retained and explain why the
+current analysis is scientifically useful now. A later recollection may be
+identified as a recollection; it is not a contemporaneous record. Unknown is a
+valid outcome and is preferable to a polished invented origin story.
+
+Archive recovery, content-based grouping, independent recomputation, synthetic
+controls, and bounded substitutions can demonstrate engineering judgment. They
+do not replace a missing physical control, per-unit reference, calibration, or
+repeat measurement. Describe both the value recovered and the claim that stays
+blocked.
+
+### New questions asked of retained data
+
+An archive may support a useful question that was not part of the original
+exercise. Label that work as a present-day exploratory or diagnostic analysis,
+not as the original hypothesis. State the question and comparison rule before
+inspecting the answer when practical, keep sensitivity analyses distinct from
+calibration or causal tests, and retain negative results that change the next
+design.
+
+Useful archive exploration includes missingness maps, sensitivity to plausible
+metadata choices, residual localization, cross-grid comparisons, reprocessing
+with corrected admission rules, and tests of whether a result survives a
+declared alternative convention. The analysis may reveal a pattern or narrow a
+cause; it may not recover a control that was never measured.
+
+Use the [study-decision record template](STUDY_DECISION_RECORD_TEMPLATE.md)
+while a study or implementation is being designed. The working record captures
+alternatives and evidence before hindsight can simplify them; the public report
+then distills only the parts needed to understand the science.
+
 The scientific data flow describes meaning, not software structure. For
 example:
 
@@ -238,6 +316,28 @@ Use these rules throughout:
 - Make conclusions answer the original question rather than inventorying work
   performed.
 
+## Voice and personal context
+
+Professional scientific writing does not require an impersonal voice. A case
+study may briefly say what observation prompted the question, what surprised
+the author, or why a failed route led to a better one. This is most useful when
+it helps a reader follow the scientific reasoning.
+
+Personal voice is optional, not a quota. Use it only where it makes the
+reasoning clearer than neutral prose.
+
+Use first person for decisions and curiosity: “I revisited the archive to ask
+whether…”, “I kept the three quantities separate because…”, or “I would repeat
+the experiment with…”. Use measured language for results: the data show,
+support, fail to distinguish, or leave unresolved. Do not use personal voice to
+upgrade a class exercise into a publication, turn a later hypothesis into an
+original motive, or ask the reader to excuse missing evidence.
+
+Course or archive context belongs where it explains evidence identity or a
+method constraint. It does not need to lead the page, and capture age is not a
+result. A useful personal detail creates the question; a useful provenance
+detail defines the inference.
+
 ## Figures and tables
 
 A figure must be understandable without inspecting its SVG or generator. Its
@@ -285,6 +385,13 @@ Before publishing or materially revising a public portfolio document, verify:
 - [ ] Terms, symbols, units, coordinate spaces, and normalization are defined.
 - [ ] The scientific report contains the canonical formulas and scientific data
       flow.
+- [ ] Every material archive gap or departure from the preferred design states
+      the available evidence, chosen alternative and reason, interpretation
+      cost, and resolving experiment.
+- [ ] Original-study rationale, present-day reanalysis decisions, and proposed
+      follow-up work are not collapsed into one retrospective story.
+- [ ] Reconstructed rationale is labeled by its real basis; an unknown reason
+      is not silently replaced by hindsight.
 - [ ] Implementation architecture, source maps, test catalogs, schemas, and CLI
       mechanics are routed to an implementation companion.
 - [ ] Scientific reports contain no build transcript, parser/serialization
