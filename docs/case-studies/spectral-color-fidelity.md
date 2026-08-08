@@ -164,3 +164,10 @@ chart captures to 9.5–13.8% RMS per channel, which is the resolution at which
 this evidence can separate cameras at all — comfortably enough for the Canon's
 position within the shared rig, and not enough to defend a cross-rig endpoint.
 Anyone reusing these curves should carry the rig and session with them.
+
+Closing that endpoint needs one specific capture, not more analysis: measure the
+IQ3 and at least one camera from the shared run on the same monochromator in the
+same session. That single overlap turns the between-rig offset into a measured
+quantity instead of an unbounded one, and it is the only thing that does — the
+archive records no monochromator make or model for either run, so bandwidth,
+wavelength accuracy, and stray light cannot be reconciled from the files.

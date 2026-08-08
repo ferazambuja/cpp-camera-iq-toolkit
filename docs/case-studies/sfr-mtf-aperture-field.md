@@ -229,3 +229,10 @@ off-axis and whose widest aperture fell below its own f/16 result. Whether that
 D800 behaviour is optical or a focus error is exactly the question this archive
 cannot answer, which is itself the argument for measuring the field rather than
 the centre: the centre number was the one that looked normal.
+
+Two controls would separate those causes, and neither is expensive. Refocus and
+repeat each aperture so focus accuracy becomes a measured spread rather than an
+assumption, and move one lens sample between both bodies so the lens is held
+fixed by identity instead of by model label. Without them the D800/D810 gap has
+three live explanations — OLPF design, lens sample, and focus state — and this
+archive ranks none of them.

@@ -17,6 +17,11 @@ narrative with source-code detail.
 Looking for a specific report rather than a study? The
 [technical reports](#technical-reports) section indexes them by subject.
 
+The camera studies are reanalyses of 2016–2017 coursework and lab archives whose
+retention is uneven. The project overview explains
+[where the measurements come from](../README.md#where-the-measurements-come-from)
+and how each study reports the controls it does not have.
+
 ## Featured case studies
 
 ### Nikon D800/D810 + 50 mm f/1.4G SFR aperture and field analysis

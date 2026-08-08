@@ -1,10 +1,22 @@
 # Separating spectral disagreement from metadata error
 
+## What this is about
+
 Two spectral files can look comparable while answering different questions.
 Their wavelength grids may differ, overall light level can move independently
 of spectral shape, and a single wrong observer setting can dominate the final
 color difference. This study revisits retained HID-lamp and ColorChecker
 measurements with those variables separated explicitly.
+
+The question is how much a disagreement between two archived spectral series
+can be made to say when the conditions that produced it were never recorded.
+Answering it directly would mean interleaving both instruments on a monitored
+source with calibration state, geometry, wavelength accuracy, and bandpass
+preserved. The archive holds the spectra and their headers and none of those
+controls. The work is therefore to narrow the disagreement as far as the files
+allow, and to stop where a cause would have to be assumed.
+
+## Headline results
 
 The two eight-reading HID series differ by **4.327% directional relative L2**
 after both are placed on the same 380–730 nm grid. Their own maximum
@@ -76,3 +88,31 @@ accuracy or explain the physical cause of the HID difference. A controlled
 follow-up would interleave both instruments on a monitored source and preserve
 settings, calibration state, geometry, wavelength accuracy, and bandpass
 characterization.
+
+## What to take from this
+
+The opening asked how much an undocumented disagreement can be made to say. The
+answer is a great deal about *where* and nothing about *why*. Two bands at 530
+and 540 nm carry **75.9%** of the squared residual, and dropping them takes the
+comparison from **4.327%** to **2.276%** — so the difference is a localized
+feature rather than a broad scale or shape mismatch, and any explanation has to
+account for those two bands specifically.
+
+The tempting next step is the one this study declines. Fitting a reference-axis
+offset lowers the objective by **28.7%** at −0.95 nm, which reads like a
+wavelength registration error located and measured. It is not. The offset was
+fitted to the same spectra it is then scored against, so it establishes that the
+comparison is sensitive to the axis, not that either axis is wrong. Spectral
+bandwidth, source change, and unrecorded acquisition differences remain equally
+consistent with the data. Naming the cause needs the interleaved capture; no
+amount of reanalysis substitutes for a control that was never measured.
+
+The metadata half generalizes further than the HID half. One export declared two
+different observers in two fields, and recomputing the embedded Lab values
+settled it numerically — **0.0119** mean ΔE76 under the 10-degree observer
+against **3.909** under the 2-degree. One of those is agreement and the other is
+a plainly visible error, from the same file, decided by a field the file
+contradicts itself about. The observer therefore has to be recomputed against
+each declared output rather than inferred from a filename or a single header,
+and the same check applies to any reference table whose observer is asserted
+rather than demonstrated.

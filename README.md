@@ -46,6 +46,26 @@ why one acceptance criterion cannot cover both.*
 The [technical documentation index](docs/README.md) connects these case studies
 to the OECF, noise, demosaic, localization, dataset, and provenance reports.
 
+## Where the measurements come from
+
+The camera studies are present-day reanalyses of 2016–2017 captures made during
+coursework and self-directed lab sessions. Those sessions were run to produce a
+result, not to survive as calibration records, so the archive is uneven: some
+retained every input needed to close a physical loop, while others lost the
+per-unit chart measurement, the instrument identity, or the acquisition
+conditions. Re-measuring means a new capture session, not a return to the
+archive.
+
+That constraint is why each study states the experiment that would answer its
+question most directly, what the archive actually retained, and which conclusion
+stays blocked as a result. A missing control is reported as a bound on the claim
+rather than absorbed into it, and where the original reason for a choice was not
+recorded, the study says so instead of reconstructing a motive. The
+[gamut-mapping comparison](docs/case-studies/gamut-mapping.md) and the
+[CAM16 equation audit](docs/case-studies/color-model-equation-audit.md) are the
+exceptions: they run on deterministic synthetic input and published equations,
+so they carry none of these limits.
+
 ## Selected results
 
 - **Sharpness is not one number.** Slanted-edge SFR/MTF across **299 chart
