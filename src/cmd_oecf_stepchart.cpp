@@ -965,6 +965,13 @@ int cmd_oecf_stepchart(int argc, char** argv) {
                    "the configured dataset root\n";
       return 2;
     }
+    if (!args.out.empty() &&
+        (reject_output_aliasing_inputs(args.out, {args.config},
+                                      "oecf-stepchart", std::cerr) ||
+         reject_output_within_input_directory(
+             args.out, dataset->root, "oecf-stepchart", std::cerr))) {
+      return 2;
+    }
     const auto entries = scan_dataset(dataset->root);
     const auto summary_files = find_summary_files(*oracle_root);
     std::vector<SummaryGroup> groups;

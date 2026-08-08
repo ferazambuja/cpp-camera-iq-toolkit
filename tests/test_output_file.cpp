@@ -92,6 +92,31 @@ void TESTS() {
                 "output alias check catches normalized equivalent path");
     test::check(!output_path_aliases_input(root / "different.json", input),
                 "output alias check permits distinct path");
+    std::ostringstream err;
+    test::check(reject_output_aliasing_inputs(
+                    input, {std::nullopt, std::filesystem::path{}, input},
+                    "fixture", err),
+                "multi-input alias guard skips absent inputs and catches the source");
+    test::check(err.str().find(input.string()) != std::string::npos,
+                "multi-input alias guard names the protected input");
+  }
+
+  {
+    const auto scanned = root / "scanned-inputs";
+    std::filesystem::create_directories(scanned);
+    std::ostringstream inside_error;
+    test::check(reject_output_within_input_directory(
+                    scanned / "nested" / "report.json", scanned, "fixture",
+                    inside_error),
+                "directory guard catches a not-yet-created output below the input root");
+    test::check(inside_error.str().find("scanned input directory") !=
+                    std::string::npos,
+                "directory guard explains the scanned-directory boundary");
+    std::ostringstream sibling_error;
+    test::check(!reject_output_within_input_directory(
+                    root / "scanned-inputs-sibling" / "report.json", scanned,
+                    "fixture", sibling_error),
+                "directory guard does not confuse a prefix-sharing sibling with a child");
   }
 
   {

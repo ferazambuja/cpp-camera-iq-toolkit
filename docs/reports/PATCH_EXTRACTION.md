@@ -90,8 +90,13 @@ derived from RawDigger A1/A14/J14/J1 centers, it fails because:
 - patch count: 140, pass
 - max center error: **16.449 px**, fail against the 5 px gate
 - per-channel correlations: all >= 0.999, pass
-- max absolute RGB mean error: R 12.169 DN, G 20.482 DN, B 11.554 DN, pass
+- max absolute per-patch RGB error: R 12.169 DN, G 20.482 DN, B 11.554 DN, pass
 - orientation: direct, pass
+
+Those three figures are the worst single patch in each channel, not a mean. The
+gate they are compared against is a per-patch maximum, so `G 20.482 DN` against
+the `25 DN` limit describes one outlying patch and not the typical agreement —
+the signed channel bias over all 140 patches stays below `0.03 DN`.
 
 This confirms the orientation and mean extraction are close, but the generated
 projective grid fails the 5 px center-error gate and is not used as a

@@ -144,8 +144,8 @@ passes.
 
 A separate fixture in
 [`test_patches.cpp`](../../tests/test_patches.cpp) adds a uniform `30 DN`
-offset. It fails the `25 DN` absolute mean-error limit while RGB correlation
-again passes.
+offset. It fails the `25 DN` maximum per-patch mean-error limit while RGB
+correlation again passes.
 <!-- test-evidence: color_characterization_localization_offset -->
 
 The serialized `passes` verdict is pinned false for the shifted case with

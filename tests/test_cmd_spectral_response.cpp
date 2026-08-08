@@ -90,6 +90,16 @@ void TESTS() {
   check(json.find("\"line_spd\"") != std::string::npos,
         "spectral-response JSON: line SPD emitted");
 
+  const std::string response_before = read_file(response);
+  check(run_spectral_response(
+            {"--response-csv", response.string(), "--spd-csv", spd.string(),
+             "--camera-model", "Canon EOS 5D Mark II", "--dataset-id",
+             "spectral_sensitivity_2016_2017", "--archive-subset", "fixture",
+             "--out", response.string()}) == 2,
+        "spectral-response command: output cannot alias legacy response input");
+  check(read_file(response) == response_before,
+        "spectral-response command: alias refusal preserves response bytes");
+
   check(run_spectral_response({"--response-csv", response.string(),
                                "--spd-csv", spd.string()}) == 2,
         "spectral-response command: provenance args required");
@@ -112,6 +122,29 @@ void TESTS() {
              (root / "noraw.json").string()}) == 2,
         "spectral-response command: --ssf-csv-out requires --raw-dir (no "
         "toolkit SSF without extraction)");
+
+  check(run_spectral_response(
+            {"--response-csv", response.string(), "--spd-csv", spd.string(),
+             "--camera-model", "Canon EOS 5D Mark II", "--dataset-id",
+             "spectral_sensitivity_2016_2017", "--archive-subset", "fixture",
+             "--out", (root / "same-output.json").string(), "--ssf-csv-out",
+             (root / "same-output.json").string(), "--raw-dir",
+             (root / "raw").string(), "--dark-raw",
+             (root / "dark.CR2").string()}) == 2,
+        "spectral-response command: JSON and SSF CSV outputs must differ");
+  fs::create_directories(root / "raw");
+  const fs::path raw_member = root / "raw" / "would-overwrite.CR2";
+  write_file(raw_member, "measured sweep bytes");
+  check(run_spectral_response(
+            {"--response-csv", response.string(), "--spd-csv", spd.string(),
+             "--camera-model", "Canon EOS 5D Mark II", "--dataset-id",
+             "spectral_sensitivity_2016_2017", "--archive-subset", "fixture",
+             "--out", raw_member.string(), "--raw-dir",
+             (root / "raw").string(), "--dark-raw",
+             (root / "dark.CR2").string()}) == 2,
+        "spectral-response command: output inside RAW sweep directory is refused");
+  check(read_file(raw_member) == "measured sweep bytes",
+        "spectral-response command: RAW sweep input remains intact after refusal");
 
   check(run_spectral_response(
             {"--response-csv", response.string(), "--spd-csv", spd.string(),

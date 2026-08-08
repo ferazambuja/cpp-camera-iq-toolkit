@@ -330,8 +330,39 @@ double rms_error(const std::vector<double>& a, const std::vector<double>& b) {
 
 SpectralFidelityChannel compare_channel(const std::vector<double>& extracted,
                                         const std::vector<double>& legacy) {
-  return SpectralFidelityChannel{rms_error(extracted, legacy),
+  return SpectralFidelityChannel{true, extracted.size(),
+                                 rms_error(extracted, legacy),
                                  pearson(extracted, legacy)};
+}
+
+SpectralFidelityChannel compare_channel_where_detected(
+    const std::vector<double>& extracted, const std::vector<double>& legacy,
+    const std::vector<SpectralSampleDiagnostics>& samples,
+    double SpectralSampleDiagnostics::*below_dark_fraction) {
+  if (extracted.size() != legacy.size() || extracted.size() != samples.size()) {
+    throw std::runtime_error(
+        "spectral response: detection-qualified vector mismatch");
+  }
+  std::vector<double> detected_extracted;
+  std::vector<double> detected_legacy;
+  detected_extracted.reserve(extracted.size());
+  detected_legacy.reserve(legacy.size());
+  for (std::size_t i = 0; i < samples.size(); ++i) {
+    if (samples[i].*below_dark_fraction > 0.0) continue;
+    detected_extracted.push_back(extracted[i]);
+    detected_legacy.push_back(legacy[i]);
+  }
+  if (detected_extracted.size() < 2) {
+    return SpectralFidelityChannel{false, detected_extracted.size(), 0.0, 0.0};
+  }
+  try {
+    return compare_channel(detected_extracted, detected_legacy);
+  } catch (const std::runtime_error&) {
+    // A detection-qualified comparison is auxiliary evidence. Too little
+    // variance after screening makes correlation undefined; it must not turn
+    // an otherwise valid extracted response into a command failure.
+    return SpectralFidelityChannel{false, detected_extracted.size(), 0.0, 0.0};
+  }
 }
 
 std::optional<int> trailing_frame_number(const std::filesystem::path& path) {
@@ -631,6 +662,17 @@ SpectralRawExtraction extract_raw_spectral_response(
       compare_channel(out.response.response_g, legacy.response_g);
   out.tier1_legacy_fidelity.b =
       compare_channel(out.response.response_b, legacy.response_b);
+  out.detection_qualified_legacy_fidelity.sample_scope =
+      "channel_wavelengths_with_no_below_dark_samples";
+  out.detection_qualified_legacy_fidelity.r = compare_channel_where_detected(
+      out.response.response_r, legacy.response_r, out.samples,
+      &SpectralSampleDiagnostics::below_dark_fraction_r);
+  out.detection_qualified_legacy_fidelity.g = compare_channel_where_detected(
+      out.response.response_g, legacy.response_g, out.samples,
+      &SpectralSampleDiagnostics::below_dark_fraction_g);
+  out.detection_qualified_legacy_fidelity.b = compare_channel_where_detected(
+      out.response.response_b, legacy.response_b, out.samples,
+      &SpectralSampleDiagnostics::below_dark_fraction_b);
   return out;
 }
 
@@ -663,10 +705,22 @@ namespace {
 void write_fidelity_channel(JsonWriter& w,
                             const SpectralFidelityChannel& channel) {
   w.begin_object();
+  w.key("available");
+  w.value(channel.available);
+  w.key("sample_count");
+  w.value(static_cast<std::int64_t>(channel.sample_count));
   w.key("rms");
-  w.value(channel.rms);
+  if (channel.available) {
+    w.value(channel.rms);
+  } else {
+    w.null();
+  }
   w.key("correlation");
-  w.value(channel.correlation);
+  if (channel.available) {
+    w.value(channel.correlation);
+  } else {
+    w.null();
+  }
   w.end_object();
 }
 
@@ -801,12 +855,27 @@ void write_spectral_raw_extraction_json(
   w.begin_object();
   w.key("validation_tier");
   w.value(extraction.tier1_legacy_fidelity.validation_tier);
+  w.key("sample_scope");
+  w.value(extraction.tier1_legacy_fidelity.sample_scope);
   w.key("r");
   write_fidelity_channel(w, extraction.tier1_legacy_fidelity.r);
   w.key("g");
   write_fidelity_channel(w, extraction.tier1_legacy_fidelity.g);
   w.key("b");
   write_fidelity_channel(w, extraction.tier1_legacy_fidelity.b);
+  w.end_object();
+  w.key("detection_qualified_legacy_fidelity");
+  w.begin_object();
+  w.key("validation_tier");
+  w.value(extraction.detection_qualified_legacy_fidelity.validation_tier);
+  w.key("sample_scope");
+  w.value(extraction.detection_qualified_legacy_fidelity.sample_scope);
+  w.key("r");
+  write_fidelity_channel(w, extraction.detection_qualified_legacy_fidelity.r);
+  w.key("g");
+  write_fidelity_channel(w, extraction.detection_qualified_legacy_fidelity.g);
+  w.key("b");
+  write_fidelity_channel(w, extraction.detection_qualified_legacy_fidelity.b);
   w.end_object();
   w.end_object();
 }

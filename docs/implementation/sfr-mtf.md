@@ -181,6 +181,11 @@ field-map success path still requires LibRaw-backed input and has no committed
 public RAW fixture. Capture and pairing validity remain with the scientific
 report and inventory.
 
+The command writes rejection diagnostics but returns a failure status when a
+single requested ROI, or any ROI in a requested field map, is rejected. A
+machine caller therefore cannot mistake a successfully serialized refusal for
+a successful measurement.
+
 ## Source and tests
 
 - Public API: [`sfr.hpp`](../../include/camera_iq/sfr.hpp)

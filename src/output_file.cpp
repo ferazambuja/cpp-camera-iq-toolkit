@@ -67,6 +67,40 @@ bool output_path_aliases_input(const std::filesystem::path& output,
   return comparable_path(output) == comparable_path(input);
 }
 
+bool reject_output_aliasing_inputs(
+    const std::filesystem::path& output,
+    std::initializer_list<std::optional<std::filesystem::path>> inputs,
+    std::string_view command_name,
+    std::ostream& err) {
+  for (const auto& input : inputs) {
+    if (!input || input->empty()) continue;
+    if (!output_path_aliases_input(output, *input)) continue;
+    err << "camera_iq " << command_name
+        << ": output path must not alias the input " << *input << "\n";
+    return true;
+  }
+  return false;
+}
+
+bool reject_output_within_input_directory(
+    const std::filesystem::path& output,
+    const std::filesystem::path& input_directory,
+    std::string_view command_name,
+    std::ostream& err) {
+  if (output.empty() || input_directory.empty()) return false;
+  const auto comparable_output = comparable_path(output);
+  const auto comparable_directory = comparable_path(input_directory);
+  auto out_it = comparable_output.begin();
+  auto dir_it = comparable_directory.begin();
+  for (; dir_it != comparable_directory.end(); ++dir_it, ++out_it) {
+    if (out_it == comparable_output.end() || *out_it != *dir_it) return false;
+  }
+  err << "camera_iq " << command_name
+      << ": output path must not be inside the scanned input directory "
+      << input_directory << "\n";
+  return true;
+}
+
 bool finish_output_stream_checked(std::ostream& os,
                                   const std::filesystem::path& path,
                                   std::string_view command_name,

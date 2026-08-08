@@ -146,6 +146,15 @@ int cmd_spectral_smi(int argc, char** argv) {
     return 2;
   }
 
+  if (!out_path.empty() &&
+      reject_output_aliasing_inputs(
+          out_path,
+          {std::filesystem::path(ssf_csv), std::filesystem::path(cmf_csv),
+           std::filesystem::path(illum_csv), std::filesystem::path(refl_csv),
+           std::filesystem::path(refl_cgats)},
+          "spectral-smi", std::cerr)) {
+    return 2;
+  }
   if (ssf_csv.empty() || cmf_csv.empty() || illum_csv.empty() ||
       camera_model.empty() || (refl_csv.empty() && refl_cgats.empty())) {
     std::cerr

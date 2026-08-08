@@ -156,8 +156,9 @@ std::optional<RawCfaReport> raw_cfa_report_for_roi(const RawCfaImage& image,
   for (int p = 0; p < 4; ++p) {
     const Acc& a = acc[static_cast<std::size_t>(p)];
     ChannelStats& s = report.planes[static_cast<std::size_t>(p)];
-    // Matches cfa_plane_stats_strided(): an undefined threshold reports NaN
-    // whether or not the plane has samples, so the two paths cannot disagree.
+    // Matches cfa_plane_stats_strided() when the threshold is undefined. With
+    // a valid threshold, this stays NaN until at least one finite sample is
+    // observed; zero is a measured fraction, not an empty-ROI sentinel.
     s.near_ceiling_fraction = std::numeric_limits<double>::quiet_NaN();
     s.label = labels[static_cast<std::size_t>(p)];
     s.count = a.n;

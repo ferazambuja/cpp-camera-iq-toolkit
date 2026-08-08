@@ -73,7 +73,7 @@ struct PatchLocalizationValidationThresholds {
   std::size_t expected_patch_count = 140;
   double max_center_error_px = 5.0;
   double min_channel_correlation = 0.999;
-  double max_abs_mean_error_dn = 25.0;
+  double max_abs_patch_mean_error_dn = 25.0;
 };
 
 struct PatchCenterResidual {
@@ -168,7 +168,7 @@ struct PatchLocalizationValidation {
   bool patch_count_gate_passes = false;
   bool center_gate_passes = false;
   bool correlation_gate_passes = false;
-  bool mean_error_gate_passes = false;
+  bool patch_mean_error_gate_passes = false;
   bool passes = false;
   std::optional<LocalizationModelComparison> model_comparison;
   std::optional<LocalizationIndependentCenterCheck> independent_center_check;

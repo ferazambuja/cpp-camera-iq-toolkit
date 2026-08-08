@@ -581,6 +581,13 @@ int cmd_ccm_fit(int argc, char** argv) {
                    "--camera-rgb FILE\n";
       return 2;
     }
+    if (!args.out.empty() &&
+        reject_output_aliasing_inputs(
+            args.out,
+            {spec.path, camera_rgb_path, args.illuminant_spd, args.config},
+            "ccm-fit", std::cerr)) {
+      return 2;
+    }
     const auto camera_rgb = read_camera_rgb_csv(camera_rgb_path);
     const auto pairing = evaluate_reference_pairing(
         ref, camera_rgb, pairing_thresholds_from_spec(spec));

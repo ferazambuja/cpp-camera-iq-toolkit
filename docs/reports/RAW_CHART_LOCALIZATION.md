@@ -33,7 +33,7 @@ These gates were defined before this real-data run:
 | Matched patches | 140 |
 | Max generated-vs-RawDigger ROI center error | 5 px |
 | Per-channel correlation | >= 0.999 |
-| Per-channel max absolute mean error | < 25 DN |
+| Per-channel maximum absolute error among patch means | < 25 DN |
 
 Correlation is necessary but not sufficient. A shifted or oversized grid can
 preserve the SG tonal ordering while biasing every patch mean, so the center and
@@ -84,8 +84,9 @@ Patch IDs here are reference-grid IDs (`A1..N10`), not RawDigger's exported
 
 ## Oracle Validation Result
 
-Overall result: **FAIL**. The generated grid passes count, correlation, absolute
-mean-error, and orientation gates, but fails the predeclared 5 px center gate.
+Overall result: **FAIL**. The generated grid passes count, correlation,
+per-patch mean-error, and orientation gates, but fails the predeclared 5 px
+center gate.
 
 | Gate | Result | Pass |
 |---|---:|---|
@@ -93,7 +94,7 @@ mean-error, and orientation gates, but fails the predeclared 5 px center gate.
 | Max center error | 16.449 px | false |
 | RMS center error | 11.237 px | diagnostic |
 | Correlation gate | all channels >= 0.999 | true |
-| Absolute mean-error gate | all channels < 25 DN | true |
+| Maximum per-patch mean-error gate | all channels < 25 DN | true |
 
 Per-channel uncorrected RGB mean comparison:
 

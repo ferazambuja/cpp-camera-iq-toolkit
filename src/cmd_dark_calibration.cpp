@@ -126,6 +126,13 @@ int cmd_dark_calibration(int argc, char** argv) {
           << "camera_iq dark-calibration: --subdir requires a relative path inside the dataset root\n";
       return 2;
     }
+    if (!out.empty() &&
+        (reject_output_aliasing_inputs(out, {config}, "dark-calibration",
+                                      std::cerr) ||
+         reject_output_within_input_directory(
+             out, *scan_root, "dark-calibration", std::cerr))) {
+      return 2;
+    }
     const std::string root_label = dataset_scan_label(*resolved, subdir);
 
     const auto scanned = scan_dataset(*scan_root);

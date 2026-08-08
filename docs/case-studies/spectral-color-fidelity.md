@@ -91,7 +91,11 @@ Those sensitivities are then tested three ways:
 ## Cross-checks
 
 For the retained Canon 5D2 end-to-end extraction, toolkit-vs-legacy normalized
-response correlation was **0.99937 / 0.99979 / 0.99991** for R/G/B.
+response correlation was **0.99937 / 0.99977 / 0.99990** for R/G/B when each
+channel excluded wavelengths with any below-dark CFA position. That retained
+48 / 38 / 44 of the 48 wavelengths for R/G/B. The full-axis, zero-floored
+comparison remains serialized separately for continuity rather than being
+presented as equally supported evidence.
 
 The dense 140-patch closure used a toolkit-extracted Canon SSF and measured
 retained SSFs for the Nikon D810, Sony A7RII, and Sony A7SII. All four cameras

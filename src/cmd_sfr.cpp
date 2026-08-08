@@ -675,6 +675,14 @@ int cmd_sfr(int argc, char** argv) {
               std::cerr)) {
         return 1;
       }
+      const bool all_accepted = std::all_of(
+          points.begin(), points.end(),
+          [](const SfrFieldPoint& point) { return point.result.accepted; });
+      if (!all_accepted) {
+        std::cerr << "camera_iq sfr: one or more requested field regions were "
+                     "rejected; diagnostics were written\n";
+        return 1;
+      }
       return 0;
     }
 
@@ -703,6 +711,11 @@ int cmd_sfr(int argc, char** argv) {
                              oracle);
             },
             std::cerr)) {
+      return 1;
+    }
+    if (!result.accepted) {
+      std::cerr << "camera_iq sfr: measurement rejected ("
+                << result.rejection_reason << "); diagnostics were written\n";
       return 1;
     }
   } catch (const std::exception& e) {

@@ -171,7 +171,7 @@ void TESTS() {
   localization_thresholds.expected_patch_count = 3;
   localization_thresholds.max_center_error_px = 5.0;
   localization_thresholds.min_channel_correlation = 0.999;
-  localization_thresholds.max_abs_mean_error_dn = 25.0;
+  localization_thresholds.max_abs_patch_mean_error_dn = 25.0;
 
   std::vector<PatchMean> localized = {
       PatchMean{PatchCoord{1, 1, 2, 2}, 0, 0, 2, 2, 4, {10, 20, 30}},
@@ -214,8 +214,8 @@ void TESTS() {
         "localization validation: patch-count gate");
   check(localization.correlation_gate_passes,
         "localization validation: correlation gate");
-  check(localization.mean_error_gate_passes,
-        "localization validation: absolute mean gate");
+  check(localization.patch_mean_error_gate_passes,
+        "localization validation: maximum per-patch mean-error gate");
 
   // Row-stride pin: cross the SG 14-column boundary so the divisor itself is
   // constrained. Index 13 is the last cell of row 0 (N1); index 14 is the first
@@ -290,8 +290,8 @@ void TESTS() {
       offset, oracle, localization_thresholds);
   CAMERA_IQ_DOC_EVIDENCE(
       color_characterization_localization_offset,
-      check_near(localization.thresholds.max_abs_mean_error_dn, 25.0, 0.0,
-                 "localization validation: declared patch-mean error limit is 25 DN"));
+      check_near(localization.thresholds.max_abs_patch_mean_error_dn, 25.0, 0.0,
+                 "localization validation: declared per-patch mean-error limit is 25 DN"));
   CAMERA_IQ_DOC_EVIDENCE(
       color_characterization_localization_offset,
       check(std::all_of(
@@ -312,8 +312,8 @@ void TESTS() {
             "localization validation: DN offset still passes correlation"));
   CAMERA_IQ_DOC_EVIDENCE(
       color_characterization_localization_offset,
-      check(!localization.mean_error_gate_passes,
-            "localization validation: DN offset fails absolute mean gate"));
+      check(!localization.patch_mean_error_gate_passes,
+            "localization validation: DN offset fails per-patch mean-error gate"));
 
   const std::vector<camera_iq::RgbPixel> flat_image = {
       {10, 100, 1000},
@@ -507,7 +507,7 @@ void TESTS() {
   check(localization_doc.find("\"max_center_error_px\":6") !=
             std::string::npos,
         "localization report: center gate diagnostic emitted");
-  check(localization_doc.find("\"max_abs_mean_error_dn\":25") !=
+  check(localization_doc.find("\"max_abs_patch_mean_error_dn\":25") !=
             std::string::npos,
         "localization report: predeclared DN gate emitted");
   // Pin the machine-readable verdict for a FAILING run. The `passes` boolean is

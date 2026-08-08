@@ -103,6 +103,13 @@ int cmd_exposure_response(int argc, char** argv) {
           << "camera_iq exposure-response: --subdir requires a relative path inside the dataset root\n";
       return 2;
     }
+    if (!out.empty() &&
+        (reject_output_aliasing_inputs(out, {config}, "exposure-response",
+                                      std::cerr) ||
+         reject_output_within_input_directory(
+             out, *scan_root, "exposure-response", std::cerr))) {
+      return 2;
+    }
     const std::string root_label = dataset_scan_label(*resolved, subdir);
 
     auto entries = scan_dataset(*scan_root);

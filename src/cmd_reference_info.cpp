@@ -236,6 +236,15 @@ int cmd_reference_info(int argc, char** argv) {
       spec = *it->second.color_reference;
     }
 
+    const auto pairing_path = args.camera_rgb.empty() ? spec.pairing_rgb_path
+                                                      : args.camera_rgb;
+    if (!args.out.empty() &&
+        reject_output_aliasing_inputs(
+            args.out, {spec.path, pairing_path, args.config},
+            "reference-info", std::cerr)) {
+      return 2;
+    }
+
     SpectralReference ref;
     const auto provenance = provenance_from_spec(spec);
     if (spec.format == "camera_iq_spectral_csv") {
@@ -250,8 +259,6 @@ int cmd_reference_info(int argc, char** argv) {
 
     validate_spectral_reference(ref, validation_from_spec(spec));
     std::optional<SpectralReferencePairing> pairing;
-    const auto pairing_path = args.camera_rgb.empty() ? spec.pairing_rgb_path
-                                                      : args.camera_rgb;
     if (!pairing_path.empty()) {
       pairing = evaluate_reference_pairing(
           ref, read_camera_rgb_csv(pairing_path),

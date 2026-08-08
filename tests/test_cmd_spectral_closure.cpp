@@ -122,6 +122,28 @@ void TESTS() {
   check(json.find("\"patches\":[") != std::string::npos,
         "closure cmd: emits per-patch measured/predicted/residual rows");
 
+  const std::string target_before = [&] {
+    std::ifstream target_input(root / "target.txt", std::ios::binary);
+    return std::string(std::istreambuf_iterator<char>(target_input),
+                       std::istreambuf_iterator<char>());
+  }();
+  check(run_closure(
+            {"--ssf-csv", (root / "ssf.csv").string(), "--illuminant",
+             (root / "illuminant.txt").string(), "--reflectance",
+             (root / "reflectance.txt").string(), "--target-rgb",
+             (root / "target.txt").string(), "--white-rgb",
+             (root / "white.txt").string(), "--dark-rgb",
+             (root / "dark.txt").string(), "--camera-model", "TestCam",
+             "--dataset-id", "test_ds", "--archive-subset", "sub", "--out",
+             (root / "target.txt").string()}) == 2,
+        "closure cmd: output cannot alias measured target input");
+  {
+    std::ifstream target_input(root / "target.txt", std::ios::binary);
+    check(std::string(std::istreambuf_iterator<char>(target_input),
+                      std::istreambuf_iterator<char>()) == target_before,
+          "closure cmd: alias refusal preserves measured target bytes");
+  }
+
   // A mismatched illuminant makes the white ratios inconsistent -> gate fails,
   // command returns nonzero. Reuse everything but a red-skewed white card.
   write_file(root / "white_bad.txt",

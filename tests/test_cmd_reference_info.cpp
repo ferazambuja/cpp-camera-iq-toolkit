@@ -74,5 +74,12 @@ void TESTS() {
   test::check(json.find(root.string()) == std::string::npos,
               "reference-info JSON: local absolute directory is not published");
 
+  const std::string reference_before = read_file(reference);
+  test::check(run_reference_info(
+                  {reference.string(), "--out", reference.string()}) == 2,
+              "reference-info command: output cannot alias spectral reference");
+  test::check(read_file(reference) == reference_before,
+              "reference-info command: alias refusal preserves reference bytes");
+
   fs::remove_all(root);
 }

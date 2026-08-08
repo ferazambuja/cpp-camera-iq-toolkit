@@ -3,6 +3,7 @@
 #include <filesystem>
 #include <fstream>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "harness.hpp"
@@ -98,6 +99,42 @@ void TESTS() {
   check_configured_escape(camera_iq::cmd_noise, {}, "noise");
   check_configured_escape(camera_iq::cmd_exposure_response, {},
                           "exposure-response");
+
+  const auto check_scanned_output_refusal = [&](int (*cmd)(int, char**),
+                                                std::vector<std::string> tail,
+                                                const std::string& name) {
+    const fs::path protected_input = dataset / (name + "-would-overwrite.json");
+    write_file(protected_input, "measured input bytes");
+    std::vector<std::string> args{dataset.string()};
+    args.insert(args.end(), tail.begin(), tail.end());
+    args.insert(args.end(), {"--out", protected_input.string()});
+    check(run_cmd(cmd, args) == 2,
+          name + ": output inside scanned input tree is refused");
+    check(read_file(protected_input) == "measured input bytes",
+          name + ": scanned input bytes remain intact after refusal");
+  };
+  check_scanned_output_refusal(camera_iq::cmd_manifest, {"--no-exif"},
+                               "manifest");
+  check_scanned_output_refusal(camera_iq::cmd_oecf_fit, {}, "oecf-fit");
+  check_scanned_output_refusal(camera_iq::cmd_dark_calibration, {},
+                               "dark-calibration");
+  check_scanned_output_refusal(camera_iq::cmd_noise, {}, "noise");
+  check_scanned_output_refusal(camera_iq::cmd_exposure_response, {},
+                               "exposure-response");
+
+  for (const auto& [cmd, name] :
+       std::vector<std::pair<int (*)(int, char**), std::string>>{
+           {camera_iq::cmd_manifest, "manifest"},
+           {camera_iq::cmd_oecf_fit, "oecf-fit"},
+           {camera_iq::cmd_dark_calibration, "dark-calibration"},
+           {camera_iq::cmd_noise, "noise"},
+           {camera_iq::cmd_exposure_response, "exposure-response"}}) {
+    check(run_cmd(cmd, {"fixture", "--config", config.string(), "--out",
+                        config.string()}) == 2,
+          name + ": output cannot alias dataset configuration");
+    check(read_file(config).find("\"fixture\"") != std::string::npos,
+          name + ": dataset configuration remains intact after alias refusal");
+  }
 
   {
     const fs::path out = root / "oecf-fit.json";
