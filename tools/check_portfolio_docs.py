@@ -302,7 +302,6 @@ REQUIRED_IMPLEMENTATION_COMPANIONS = (
 )
 REQUIRED_PROJECT_DOCUMENTS = (
     Path("docs/README.md"),
-    Path("docs/PUBLIC_DOCUMENTATION_STANDARD.md"),
     Path("docs/implementation/README.md"),
     *REQUIRED_IMPLEMENTATION_COMPANIONS,
     Path("docs/case-studies/sfr-mtf-aperture-field.md"),

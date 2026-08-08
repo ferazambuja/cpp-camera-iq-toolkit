@@ -37,11 +37,7 @@ class PublicationLanguageTests(unittest.TestCase):
             DOCS.REQUIRED_PROJECT_DOCUMENTS,
         )
 
-    def test_documentation_standard_and_implementation_index_are_required(self) -> None:
-        self.assertIn(
-            Path("docs/PUBLIC_DOCUMENTATION_STANDARD.md"),
-            DOCS.REQUIRED_PROJECT_DOCUMENTS,
-        )
+    def test_implementation_index_is_required(self) -> None:
         self.assertIn(
             Path("docs/implementation/README.md"),
             DOCS.REQUIRED_PROJECT_DOCUMENTS,

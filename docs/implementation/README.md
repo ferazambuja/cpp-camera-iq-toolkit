@@ -6,9 +6,6 @@ written for readers who want software architecture, formula-to-code mapping,
 typed data flow, validation behavior, and direct source links without forcing
 those details into the main scientific narrative.
 
-The governing separation is defined in the
-[public documentation standard](../PUBLIC_DOCUMENTATION_STANDARD.md).
-
 | Companion | Software scope |
 |---|---|
 | [RAW foundation, calibration, exposure, and noise](raw-foundation.md) | LibRaw boundary, active Bayer data, black subtraction, demosaic, dark/noise calculations, exposure response, OECF, and Stepchart flow |

@@ -25,9 +25,7 @@
   headroom and finite-coverage evidence before publication.
 - [`check_portfolio_docs.py`](check_portfolio_docs.py) validates the public
   Markdown link graph, claim-to-test evidence attribution, report-index
-  coverage, project-centered language, and
-  the report-layer provenance relationships needed to interpret public case
-  studies without forcing capture dates into their summaries.
+  coverage, and report-layer provenance relationships.
 - [`run_doc_evidence_test.py`](run_doc_evidence_test.py) supervises the
   dedicated claim-evidence CTest runs and requires a fresh nonce receipt that
   the C++ harness writes only after all registered execution counts verify.
@@ -35,62 +33,6 @@
   for machine-specific path leakage.
 - [`check_sample_fixtures.sh`](check_sample_fixtures.sh) keeps committed fixtures
   small and visibly synthetic.
-
-### Registering a claim-to-test evidence contract
-
-Which documentation claims deserve this treatment, and how their prose must be
-worded, are editorial decisions defined in the
-[public documentation standard](../docs/PUBLIC_DOCUMENTATION_STANDARD.md). What
-follows is the mechanical protocol for a claim that standard has selected.
-
-Register the claim in `EVIDENCE_ATTRIBUTION_CONTRACTS` in
-[`check_portfolio_docs.py`](check_portfolio_docs.py), then place its marker on
-its own line immediately after the claim's paragraph:
-
-```html
-<!-- test-evidence: identifier -->
-```
-
-In the registered C++ test, wrap every `check()` or `check_near()` assertion
-that constitutes the claim with `CAMERA_IQ_DOC_EVIDENCE(identifier, assertion)`.
-The macro expands to the assertion followed by the recorder, so it evaluates the
-assertion exactly once and records the identifier only after that assertion
-returns normally.
-
-The static guard requires exactly one document marker, the registered number of
-wrappers in the registered source, a default-harness `TESTS()` entry point, and
-a matching top-level CTest target/source registration. It ignores wrappers in
-comments, strings, Markdown examples, preprocessor definitions, and
-conditionally compiled regions.
-
-Each registered source also gets a dedicated CTest run from
-`camera_iq_expect_doc_evidence`, which passes exact identifier/count
-expectations and compares them against the wrappers actually reached. Wrapper
-counts and execution counts are recorded separately when a fixed loop runs one
-wrapper more than once; a loop-amplified count deliberately proves every
-declared fixture iteration, so changing that loop is a review gate rather than a
-reason to lower the expected count. A wrapper moved into a called helper stays
-valid; one in an uncalled helper, a false branch, or code after an early return
-fails the run.
-
-Evidence targets and their expectation registrations are unconditional: calls
-inside CMake conditionals, function or macro bodies, or loop blocks do not
-satisfy the contract. The evidence checks are registered after other CTest
-property assignments, and later mutations that would disable, skip, or invert
-them are refused.
-
-`run_doc_evidence_test.py` supervises each evidence binary. It creates a unique
-receipt path and random nonce, and accepts success only when the child exits
-zero and leaves a receipt containing that exact nonce and expectation set. The
-harness writes the receipt only after every expected count verifies, so a
-dependency or global initializer that exits zero before the protocol completes
-leaves no valid receipt and fails the run. This is a freshness and reachability
-check, not a defense against deliberately hostile test code: the child
-necessarily receives the receipt path and nonce. Registered test sources may not
-start a nested harness run, reset failure state, invoke process termination
-directly, or reach the recorder and run state except through
-`CAMERA_IQ_DOC_EVIDENCE`. The harness self-test exercises these mechanics and
-for that reason cannot itself be registered as evidence.
 
 ## Reference preparation and verification
 
