@@ -33,7 +33,6 @@ analysis choices and are not presented as a firm ranking.
 
 [Documentation index](../README.md) ·
 [detailed report](../reports/SPECTRAL_SENSITIVITY.md) ·
-[measurement inventory](../reports/SPECTRAL_ARCHIVE_INVENTORY.md) ·
 [aggregate CSV](../data/spectral_color_fidelity.csv) ·
 [implementation companion](../implementation/spectral-fidelity.md)
 
@@ -68,8 +67,11 @@ the same laboratory run and retained in the archive.*
 A monochromator steps a narrow band of light across the visible range while the
 camera photographs each step. Dark-subtracted response per color channel, read
 from the RAW captures, gives that camera's spectral sensitivity functions — how
-strongly each channel answers at every wavelength. Saturated and below-dark
-samples are excluded rather than fitted.
+strongly each channel answers at every wavelength. Saturated pixels are
+excluded before averaging. A nonpositive light-minus-dark residual is recorded
+as below-dark and set to zero because a physical sensitivity cannot be
+negative; with no repeated low-signal sweep, that zero is a detection-limit
+statement, not proof of exactly zero response.
 
 Those sensitivities are then tested three ways:
 
@@ -140,11 +142,10 @@ reflectance, so it is valid for an SSF-only comparison but not physical closure.
 
 Instrument identity is bounded by what the archive records. The chart
 reflectance CGATS.17 files declare `INSTRUMENTATION i1Pro`; their paired native
-SpectraShop projects also record `i1Pro` and probable unit identifier `1001351`.
+SpectraShop projects also record `i1Pro`.
 The text illuminant SPD carries no header, but its paired native project records
 `PR-655`. No file identifies the monochromator by make or model, leaving its
-bandwidth, wavelength accuracy, and stray-light behavior uncharacterized. See the
-[archive map](../reports/SPECTRAL_ARCHIVE_INVENTORY.md#instrument-identity-as-the-files-record-it).
+bandwidth, wavelength accuracy, and stray-light behavior uncharacterized.
 The shared four-camera rig improves within-set comparability but does not make
 relative ordering immune to those systematics; the separate Phase One IQ3
 session is a cross-rig comparison.

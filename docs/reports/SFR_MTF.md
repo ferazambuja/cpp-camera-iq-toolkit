@@ -13,8 +13,7 @@ sensor sampling, and processing together, so every value below is a
 capture-system result rather than a camera-body or lens property.
 
 [Case study](../case-studies/sfr-mtf-aperture-field.md) ·
-[aggregate results CSV](../data/sfr_aperture_summary.csv) ·
-[archive and oracle contract](SFR_MTF_ARCHIVE_INVENTORY.md)
+[aggregate results CSV](../data/sfr_aperture_summary.csv)
 
 ![D800 and D810 SFR aperture and field summary](../figures/sfr_aperture_field.svg)
 
@@ -28,9 +27,8 @@ negative value means the corner measured sharper than the center.*
 ## Recorded capture configuration
 
 All 18 sweep files record the same AF-S Nikkor 50mm f/1.4G lens model at 50 mm,
-an approximate 0.84 m focus distance, and ISO 100. The
-[capture-metadata audit](SFR_MTF_ARCHIVE_INVENTORY.md#capture-metadata-audit)
-separates archive observations from manufacturer specifications.
+an approximate 0.84 m focus distance, and ISO 100. Archive observations and
+manufacturer specifications remain separate evidence layers.
 
 | Property | D810 set | D800 set |
 |---|---|---|
@@ -68,6 +66,7 @@ RAW Bayer mosaic
   -> black-subtracted native green samples
   -> per-line edge positions and fitted edge
   -> 0.25 px edge-spread function
+  -> two-sided support gate and symmetric line-spread interval
   -> line-spread function and window
   -> Fourier magnitude and sampling correction
   -> MTF50, MTF at Nyquist, and 10–90% rise distance
@@ -95,10 +94,15 @@ first falling crossing of `MTF = 0.5`; MTF at sensor Nyquist is interpolated at
 ESF's 0.1 and 0.9 crossings.
 
 The edge position is estimated independently on each scan line and fitted by
-least squares before projection. Regions with invalid geometry, non-finite
+least squares before projection. After the 10–90% crossings are found, the
+analysis keeps the largest interval with equal measured support on both sides
+of the transition. A region is refused if its shorter side has less than half
+the support of its longer side; a window cannot reconstruct the missing side of
+a badly placed ROI. This is a declared screening rule for this implementation,
+not an ISO-conformance threshold. Regions with invalid geometry, non-finite
 samples, weak contrast, excessive near-saturation, incomplete ESF support, or
-missing MTF crossings are rejected rather than converted into plausible-looking
-sharpness values.
+missing MTF crossings are rejected rather than converted into
+plausible-looking sharpness values.
 
 For field analysis, the same estimator is applied to all 23 regions of interest
 from one coherent per-file advisory table. Each row retains its grid position,
@@ -109,7 +113,8 @@ values.
 
 ## D810 50 mm center sweep
 
-Dataset label: `archive:2016_esensi_images/2016_12_09_D810_SFR/`
+Input set: nine D810 aperture-sweep RAW captures with their matched advisory
+tables.
 
 The advisory rows come from one 10-Dec-2016 per-file batch; that is the Imatest
 run date, not the capture date, which is 09-Dec-2016 for both sweeps. The center
@@ -117,23 +122,23 @@ edge is near-vertical in the analysis convention.
 
 | Aperture | Accepted | Angle deg | Sensor-linear MTF50 | Advisory MTF50 | Delta | MTF@Nyq | R1090 px |
 |---|---:|---:|---:|---:|---:|---:|---:|
-| f/1.4 | true | -6.320 | 0.1074 | 0.1158 | -0.0084 | 0.0210 | 5.142 |
-| f/1.8 | true | -6.320 | 0.0837 | 0.0899 | -0.0062 | 0.0802 | 6.852 |
-| f/2 | true | -6.326 | 0.1085 | 0.1121 | -0.0036 | 0.0271 | 5.311 |
-| f/2.8 | true | -6.428 | 0.1992 | 0.1707 | +0.0285 | 0.0928 | 2.727 |
-| f/4 | true | -6.528 | 0.2000 | 0.1949 | +0.0051 | 0.0894 | 2.639 |
-| f/5.6 | true | -6.423 | 0.2714 | 0.2400 | +0.0314 | 0.1727 | 2.249 |
-| f/8 | true | -6.438 | 0.2218 | 0.2388 | -0.0170 | 0.1682 | 2.703 |
-| f/11 | true | -6.419 | 0.2049 | 0.1989 | +0.0060 | 0.0862 | 3.060 |
-| f/16 | true | -6.431 | 0.1666 | 0.1735 | -0.0069 | 0.0237 | 3.560 |
+| f/1.4 | true | -6.320 | 0.1075 | 0.1158 | -0.0083 | 0.0226 | 5.142 |
+| f/1.8 | true | -6.320 | 0.0840 | 0.0899 | -0.0059 | 0.0806 | 6.852 |
+| f/2 | true | -6.326 | 0.1081 | 0.1121 | -0.0040 | 0.0269 | 5.311 |
+| f/2.8 | true | -6.428 | 0.1992 | 0.1707 | +0.0285 | 0.0971 | 2.727 |
+| f/4 | true | -6.528 | 0.1997 | 0.1949 | +0.0048 | 0.0898 | 2.639 |
+| f/5.6 | true | -6.423 | 0.2713 | 0.2400 | +0.0313 | 0.1730 | 2.249 |
+| f/8 | true | -6.438 | 0.2202 | 0.2388 | -0.0186 | 0.1715 | 2.703 |
+| f/11 | true | -6.419 | 0.2048 | 0.1989 | +0.0059 | 0.0819 | 3.060 |
+| f/16 | true | -6.431 | 0.1668 | 0.1735 | -0.0067 | 0.0242 | 3.560 |
 
 The predeclared D810 center trend passed:
 
 ```text
-min(f/4,f/5.6,f/8,f/11) = 0.2000
-f/16                    = 0.1666
-max(f/1.4,f/1.8,f/2)    = 0.1085
-argmax                  = f/5.6 at 0.2714
+min(f/4,f/5.6,f/8,f/11) = 0.1997
+f/16                    = 0.1668
+max(f/1.4,f/1.8,f/2)    = 0.1081
+argmax                  = f/5.6 at 0.2713
 ```
 
 ## D810 field result
@@ -144,10 +149,10 @@ not used as a substitute for pixel measurement.
 
 | Aperture | ROIs | Center MTF50 | Physical-corner max | Center − corner |
 |---|---:|---:|---:|---:|
-| f/4 | 23 | 0.2000 | 0.2005 | -0.0005 |
-| f/5.6 | 23 | 0.2714 | 0.2001 | +0.0712 |
-| f/8 | 23 | 0.2218 | 0.1955 | +0.0263 |
-| f/11 | 23 | 0.2049 | 0.1830 | +0.0219 |
+| f/4 | 23 | 0.1997 | 0.2008 | -0.0011 |
+| f/5.6 | 23 | 0.2713 | 0.1998 | +0.0715 |
+| f/8 | 23 | 0.2202 | 0.1958 | +0.0244 |
+| f/11 | 23 | 0.2048 | 0.1823 | +0.0225 |
 
 The f/4 near tie is retained. A strict center-above-corner rule would
 misrepresent both the pixels and the advisory comparison.
@@ -160,15 +165,15 @@ near-vertical.
 
 | Aperture | Advisory center | Sensor-linear center | Delta | Sensor-linear corner max | Center > corner (advisory / sensor-linear) | Argmax N (advisory / sensor-linear) |
 |---|---:|---:|---:|---:|---|---|
-| f/1.4 | 0.1029 | 0.1082 | +0.0053 | 0.0978 | true / true | 1 / 1 |
-| f/1.8 | 0.1204 | 0.1304 | +0.0100 | 0.1058 | true / true | 1 / 1 |
-| f/2 | 0.1377 | 0.1439 | +0.0062 | 0.1113 | true / true | 1 / 1 |
-| f/2.8 | 0.1395 | 0.1447 | +0.0052 | 0.1535 | true / false | 12 / 8 |
-| f/4 | 0.1385 | 0.1428 | +0.0043 | 0.1885 | false / false | 12 / 12 |
-| f/5.6 | 0.1649 | 0.1647 | -0.0002 | 0.1886 | false / false | 12 / 12 |
-| f/8 | 0.1831 | 0.1684 | -0.0147 | 0.1849 | true / false | 12 / 12 |
+| f/1.4 | 0.1029 | 0.1082 | +0.0053 | 0.0971 | true / true | 1 / 1 |
+| f/1.8 | 0.1204 | 0.1307 | +0.0103 | 0.1056 | true / true | 1 / 1 |
+| f/2 | 0.1377 | 0.1445 | +0.0068 | 0.1109 | true / true | 1 / 1 |
+| f/2.8 | 0.1395 | 0.1443 | +0.0048 | 0.1529 | true / false | 12 / 8 |
+| f/4 | 0.1385 | 0.1426 | +0.0041 | 0.1883 | false / false | 12 / 12 |
+| f/5.6 | 0.1649 | 0.1648 | -0.0001 | 0.1886 | false / false | 12 / 12 |
+| f/8 | 0.1831 | 0.1684 | -0.0147 | 0.1786 | true / false | 12 / 12 |
 | f/11 | 0.1707 | 0.1674 | -0.0033 | 0.1592 | true / true | 12 / 12 |
-| f/16 | 0.1583 | 0.1478 | -0.0105 | 0.1367 | true / true | 1 / 13 |
+| f/16 | 0.1583 | 0.1477 | -0.0106 | 0.1364 | true / true | 1 / 13 |
 
 Load-bearing findings:
 
@@ -200,27 +205,27 @@ Load-bearing findings:
 
   | Pair (upper / lower) | Position (x, y) px | Radius px | Radius mismatch | `\|x\|/r` mismatch | f/4 MTF50 | f/8 MTF50 |
   |---|---|---|---:|---:|---|---|
-  | N=14 / N=16 | (-2797, -706) / (-2804, +608) | 2885 / 2869 | 0.54% | 0.80% | 0.1403 / 0.1054 (1.33x) | 0.1566 / 0.1399 (1.12x) |
-  | N=2 / N=4 | (-2788, -1354) / (-2801, +1270) | 3099 / 3075 | 0.76% | 1.24% | 0.1647 / 0.0945 (1.74x) | 0.1618 / 0.1365 (1.19x) |
-  | N=18 / N=20 | (-1504, -1387) / (-1499, +1266) | 2046 / 1963 | 4.06% | 3.78% | 0.1878 / 0.1055 (1.78x) | 0.1889 / 0.1507 (1.25x) |
+  | N=14 / N=16 | (-2797, -706) / (-2804, +608) | 2885 / 2869 | 0.54% | 0.80% | 0.1701 / 0.1175 (1.45x) | 0.1736 / 0.1536 (1.13x) |
+  | N=2 / N=4 | (-2788, -1354) / (-2801, +1270) | 3099 / 3075 | 0.76% | 1.24% | 0.1883 / 0.1018 (1.85x) | 0.1737 / 0.1448 (1.20x) |
+  | N=18 / N=20 | (-1504, -1387) / (-1499, +1266) | 2046 / 1963 | 4.06% | 3.78% | 0.1947 / 0.1102 (1.77x) | 0.1910 / 0.1529 (1.25x) |
 
   All three favor the upper field, at three radii and two apertures. The
-  tightest pair — 0.54% in radius and 0.80% in mixture — still differs by 33% in
+  tightest pair — 0.54% in radius and 0.80% in mixture — still differs by 45% in
   MTF50. The residual mismatch also runs *against* the observed sign: in every
   pair the upper site sits at the larger radius, so a centered profile that
   falls with radius predicts the opposite ordering.
 
   This is strong evidence, not a formal exclusion. At the tightest pair, MTF50
-  changes by 33% while nominal radius and `|x|/r` differ by only 0.54% and
+  changes by 45% while nominal radius and `|x|/r` differ by only 0.54% and
   0.80%. But the archive records the edges only as near-vertical, so a centered
   radius-plus-orientation response could distribute the MTF50 difference across
-  both variables; the data cannot assign all 33% to radial slope. A formal
+  both variables; the data cannot assign all 45% to radial slope. A formal
   exclusion needs controlled radial/tangential edge orientations or a fitted
   radial-plus-orientation baseline, which this archive does not contain.
 
   The cause is separately unresolved. Target, sensor or focus-plane tilt,
   decentering, and capture alignment all produce an upper/lower imbalance, and
-  the imbalance falling from 1.78x to 1.25x between f/4 and f/8 does not
+  the imbalance falling from 1.77x to 1.25x between f/4 and f/8 does not
   separate them: stopping down reduces coma, astigmatism, spherical aberration
   and decentering signatures as well as widening depth-of-field tolerance.
 - **Off-axis reference deltas are larger.** Green-linear CFA SFR and

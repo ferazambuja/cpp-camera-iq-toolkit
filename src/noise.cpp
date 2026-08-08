@@ -4,6 +4,7 @@
 #include <cmath>
 #include <cstdint>
 #include <ostream>
+#include <stdexcept>
 #include <string>
 #include <utility>
 
@@ -197,17 +198,19 @@ NoisePairEstimate compute_noise_pair_estimate(
   }
 
   const auto labels = channel_labels(first.cdesc, first.color_at_position);
-  const int x0 = requested_roi ? requested_roi->x : 0;
-  const int y0 = requested_roi ? requested_roi->y : 0;
-  const int width = requested_roi ? requested_roi->width : first.width;
-  const int height = requested_roi ? requested_roi->height : first.height;
-  const int x1 = std::min(first.width, x0 + width);
-  const int y1 = std::min(first.height, y0 + height);
+  const RoiRect requested =
+      requested_roi.value_or(RoiRect{0, 0, first.width, first.height});
+  const auto actual = cfa_balanced_roi(requested, first.width, first.height);
+  if (!actual) {
+    throw std::runtime_error(
+        "noise pair: measurement ROI has no complete CFA block");
+  }
+  if (requested_roi) out.measurement_roi = *actual;
 
   std::array<std::vector<double>, 4> diffs;
   std::array<std::vector<double>, 4> means;
-  for (int r = std::max(0, y0); r < y1; ++r) {
-    for (int c = std::max(0, x0); c < x1; ++c) {
+  for (int r = actual->y; r < actual->y + actual->height; ++r) {
+    for (int c = actual->x; c < actual->x + actual->width; ++c) {
       const std::size_t p = static_cast<std::size_t>((r & 1) * 2 + (c & 1));
       const std::size_t idx = static_cast<std::size_t>(r) *
                                   static_cast<std::size_t>(first.row_stride_pixels) +

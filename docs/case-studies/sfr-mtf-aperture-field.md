@@ -22,7 +22,6 @@ ranking.
 
 [Documentation index](../README.md) ·
 [detailed report](../reports/SFR_MTF.md) ·
-[capture inventory](../reports/SFR_MTF_ARCHIVE_INVENTORY.md) ·
 [aggregate CSV](../data/sfr_aperture_summary.csv) ·
 [implementation companion](../implementation/sfr-mtf.md)
 
@@ -90,10 +89,8 @@ is not an analysis input.*
 ### Recorded capture configuration
 
 All 18 aperture-sweep files record the same AF-S Nikkor 50mm f/1.4G lens
-model at 50 mm, an approximate 0.84 m focus distance, and ISO 100. The
-full per-file metadata audit is in the
-[archive inventory](../reports/SFR_MTF_ARCHIVE_INVENTORY.md#capture-metadata-audit).
-The two sets differ in ways that matter:
+model at 50 mm, an approximate 0.84 m focus distance, and ISO 100. The two sets
+differ in ways that matter:
 
 | Property | D810 set | D800 set |
 |---|---|---|
@@ -126,7 +123,7 @@ trends and plausible scale rather than exact equality.
 
 The two sweeps do not support one universal aperture conclusion:
 
-- The D810 capture system peaked at **0.2714 cycles/pixel at f/5.6** in center
+- The D810 capture system peaked at **0.2713 cycles/pixel at f/5.6** in center
   MTF50. That location is consistent with the usual balance between residual
   lens aberrations wide open and diffraction on stopping down, but it is a
   property of this system and setup, not of the camera or the lens alone.
@@ -160,22 +157,22 @@ therefore give nearly equal MTF50 at the two sites, even if it is astigmatic.
 
 | Pair | Difference in radius | Difference in `\|x\|/r` mixture | f/4 MTF50 upper / lower | f/8 MTF50 upper / lower |
 |---|---:|---:|---|---|
-| N=14 / N=16 | 0.54% | 0.80% | 0.1403 / 0.1054 (1.33×) | 0.1566 / 0.1399 (1.12×) |
-| N=2 / N=4 | 0.76% | 1.24% | 0.1647 / 0.0945 (1.74×) | 0.1618 / 0.1365 (1.19×) |
-| N=18 / N=20 | 4.06% | 3.78% | 0.1878 / 0.1055 (1.78×) | 0.1889 / 0.1507 (1.25×) |
+| N=14 / N=16 | 0.54% | 0.80% | 0.1701 / 0.1175 (1.45×) | 0.1736 / 0.1536 (1.13×) |
+| N=2 / N=4 | 0.76% | 1.24% | 0.1883 / 0.1018 (1.85×) | 0.1737 / 0.1448 (1.20×) |
+| N=18 / N=20 | 4.06% | 3.78% | 0.1947 / 0.1102 (1.77×) | 0.1910 / 0.1529 (1.25×) |
 
 MTF50 is in cycles/pixel; the mixture column is the mismatch in `|x|/r`, which
 sets how much of each measurement is sagittal versus tangential.
 
 All three pairs favor the upper field at both apertures, but the imbalance is
-much weaker stopped down — falling from 1.78× to 1.25× on the widest pair. That
+much weaker stopped down — falling from 1.77× to 1.25× on the widest pair. That
 falloff does not identify a cause: stopping down reduces coma, astigmatism,
 spherical aberration and decentering signatures while also widening
 depth-of-field tolerance, so it is equally consistent with an aberration and
 with a focus or tilt error. In
 every pair, the stronger upper site is also slightly farther from center—the
 opposite ordering from a centered response that simply falls with radius. In
-the closest pair, MTF50 changes by 33% while radius and orientation mixture
+the closest pair, MTF50 changes by 45% while radius and orientation mixture
 differ by only 0.54% and 0.80%.
 
 This is strong evidence against centered rotational symmetry, but not a formal

@@ -32,9 +32,9 @@ CSV/XLSX reference sidecars stay under `data/private/...`.
 Public commands and reports should use dataset IDs:
 
 ```bash
-./build/camera_iq manifest clrs589_project_camera --out out/clrs589_manifest.json
-./build/camera_iq raw-stats --dataset clrs589_project_camera \
-  "Images/CCSG/CCSG_f9.0_1:100_ISO200_DSCF0299.RAF"
+./build/camera_iq manifest example_camera_set --out out/manifest.json
+./build/camera_iq raw-stats --dataset example_camera_set \
+  "captures/chart/frame_001.RAW"
 ```
 
 The JSON output labels those sources as `dataset:<id>` or

@@ -55,13 +55,11 @@ Result summary:
 | PTC candidate | false |
 | DR candidate | false |
 
-The only clean matched pair is the f/8, 1/60 s, ISO 200 pair:
+The only clean matched pair is the f/8, 1/60 s, ISO 200 pair, published as
+`dark_pair_1-60_01` and `dark_pair_1-60_02`.
 
-- `Dark_Frame_f8.0_1:60_ISO200_DSCF0269.RAF`
-- `Dark_Frame_f8.0_1:60_ISO200_DSCF0276.RAF`
-
-The apparent 1/1000 s pair is intentionally not used:
-`Dark_Frame_f8.0_1:1000_DSCF0434.RAF` is the dark-calibration outlier already
+The apparent 1/1000 s pair is intentionally not used: its first candidate,
+published as `dark_outlier_1-1000_01`, is the dark-calibration outlier already
 reported in `DARK_CALIBRATION.md` (`max_abs_mean_residual` =
 81.2448 DN), so it is excluded before pairing.
 

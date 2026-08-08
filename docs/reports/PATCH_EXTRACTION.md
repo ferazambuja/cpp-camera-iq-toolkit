@@ -104,14 +104,16 @@ artifact or simple global offset.
 
 ## Important Negative Finding
 
-`Images/coord.csv` is valid for the historical MATLAB TIFF/rendered workflow,
+The retained rendered-pipeline coordinate table is valid for the historical
+MATLAB TIFF workflow,
 but it is **not** a RAW-space coordinate source for LibRaw patch extraction. On
-the same RAW series, using `coord.csv` against the RAW image gives only about
-`0.30 / 0.31 / 0.36` correlation against `ccsg_matlab.csv`. This is not a color
-failure; it is a coordinate-domain mismatch.
+the same RAW series, using the rendered-pipeline coordinate table against the
+RAW image gives only about `0.30 / 0.31 / 0.36` correlation against the
+historical rendered camera table. This is not a color failure; it is a
+coordinate-domain mismatch.
 
-Use RawDigger coordinates for RAW-space validation. Treat `ccsg_matlab.csv` as a
-historical rendered/TIFF pipeline target until the C++ tool has an explicit
+Use RawDigger coordinates for RAW-space validation. Treat the historical camera
+table as a rendered/TIFF pipeline target until the C++ tool has an explicit
 TIFF/flat-field parity path or an automatic chart-localization step.
 
 RawDigger's `Sample_Name` labels are coordinate-grid labels, not the same label
@@ -151,13 +153,13 @@ oracle only for the uncorrected mode above.
 
 The same-aperture `Sphere_f8.0_1:10` through `1:500` frames are too near the
 signal ceiling for meaningful flat-field correction. The validation run
-uses `Sphere_f8.0_1:1000_DSCF0387.RAF`, whose CFA means are well below the
+uses `sphere_f8.0_1-1000_02`, whose CFA means are well below the
 ceiling and preserve spatial variation. The shorter `1:10` flat is rejected
 because it is too close to the sensor ceiling for correction.
 
 The guard measures two regions, not one. A whole-frame near-ceiling fraction
 cannot protect a flat whose brightest region is central: the darker surround
-keeps the frame-wide fraction small. `Sphere_f8.0_1:500_DSCF0386.RAF` is the
+keeps the frame-wide fraction small. `sphere_f8.0_1-500_01` is the
 measured case —
 [11.6319% of its center gate near ceiling against 0.4964% frame-wide](FLAT_FIELD_RESPONSE.md#the-shared-gate-protects-correction-inputs) —
 and the old pooled post-demosaic whole-frame implementation accepted it.
@@ -191,7 +193,7 @@ Remeasurement requires the private RAW files; the public table preserves the
 Same-aperture flat coverage is not available for the f/9 CCSG series in the
 private dataset. The f/9 sphere folder contains 13 frames (`1:10` through `1:180`);
 all 13 are rejected by the near-ceiling guard, including the shortest
-exposure, `Sphere_f9.0_1:180_DSCF0400.RAF`. The f/8 folder has four
+exposure, `sphere_f9.0_1-180_01`. The f/8 group has four
 same-aperture candidates: `1:500`, two `1:1000` frames, and `1:1600`. The
 shared gate rejects `1:500`, leaving the other three usable. The current
 flat-fielded RAW patch extraction is therefore scoped to the f/8 series; using

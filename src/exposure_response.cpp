@@ -73,13 +73,14 @@ void recompute_point_averages(ExposureResponsePoint& point) {
         point.has_valid_signal_range = true;
         if (!have_fraction) {
           point.min_mean_fraction_of_range = mean_fraction;
+          point.max_mean_fraction_of_range = mean_fraction;
           have_fraction = true;
         } else {
           point.min_mean_fraction_of_range = std::min(
               point.min_mean_fraction_of_range, mean_fraction);
+          point.max_mean_fraction_of_range = std::max(
+              point.max_mean_fraction_of_range, mean_fraction);
         }
-        point.max_mean_fraction_of_range = std::max(
-            point.max_mean_fraction_of_range, mean_fraction);
         if (frame.measurement_roi) {
           point.max_spatial_stddev_fraction_of_range = std::max(
               point.max_spatial_stddev_fraction_of_range,

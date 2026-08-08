@@ -245,9 +245,10 @@ Resolving the systematic interior bow requires:
 
 ## Limitations
 
-- Validation is scoped to the f/8 CCSG `1:10` RAW and uncorrected RGB means.
-- The available RawDigger oracle export covers only
-  `CCSG_f8.0_1:10_DSCF0402.RAF`. Other CLRS-589 CCSG RAW exposures exist in the
+- Validation is scoped to the f/8 CCSG `1:10` RAW, published as
+  `chart_f8.0_1-10_01`, and uncorrected RGB means.
+- The available RawDigger oracle export covers only that capture. Other
+  CLRS-589 CCSG RAW exposures exist in the
   private validation cache, but this report has no matching per-frame RawDigger oracle
   export or off-center capture proof to use for disambiguation.
 - The f/9 CCSG series still lacks a usable same-aperture flat-field frame.

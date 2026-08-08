@@ -7,8 +7,7 @@
 [dark noise](../reports/DARK_FRAME_NOISE.md) ·
 [exposure response](../reports/EXPOSURE_RESPONSE.md) ·
 [relative OECF](../reports/OECF_FIT.md) ·
-[Stepchart report](../reports/OECF_STEPCHART.md) ·
-[dataset manifest](../reports/FUJI_XT100_CCSG_MANIFEST.md)
+[Stepchart report](../reports/OECF_STEPCHART.md)
 
 ## Software boundary
 

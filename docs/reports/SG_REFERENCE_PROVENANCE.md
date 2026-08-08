@@ -1,244 +1,95 @@
-# ColorChecker-SG Reference Provenance (dataset: clrs589_project_camera)
+# ColorChecker-SG reference scope
 
-A chart-based color fit needs to know what each photographed patch should have
-measured under the test illuminant. The exact per-unit spectral measurement of
-this ColorChecker-SG did not survive, so the workflow uses a compatible
-140-patch workbook verified against manufacturer nominal values at mean CIE76
-color difference 1.34, where lower means closer agreement. This report
-establishes that reference and keeps the resulting color difference scoped to a
-compatible chart, not the exact physical unit.
+A chart-based color fit needs a target value for every photographed patch. The
+best reference for this capture would be a spectral measurement of the exact
+physical ColorChecker-SG used in the session. That measurement was not retained.
+This report explains the bounded substitute used by the color-characterization
+study and what the resulting color differences can—and cannot—mean.
 
-Analysis date: 2026-07-04
-Purpose: establish the colorimetric ground truth used by the SG white-balance,
-CCM, and Delta E workflow. All source data is private and gitignored. Heavy image
-captures are read through the configured private dataset root; small
-sidecar/reference files may remain local. This report records provenance and
-numbers only, not the data.
+[Patch extraction](PATCH_EXTRACTION.md) ·
+[CCM fit](CCM_FIT.md) ·
+[implementation companion](../implementation/color-characterization.md)
 
-## Summary
+## What was available
 
-The CLRS-589 spectroradiometry inside the project folder is **neutral-only**: a
-grayscale luminance ramp (`Old/`, 15 steps) and a Perfect Reflecting Diffuser
-(`PRD measurments/`, 45 readings), under two distinct illuminant conditions. That
-project folder still has no measured colored-patch SG reference. However,
-archived reference workbooks include a compatible 2019 ColorChecker-SG workbook:
-`ccsg.xlsx`, sheet `ccsg_2_FIXED_ref`, with 140 cell-labeled spectral
-reflectances (380-730 nm @ 10 nm). Its native workbook order is
-`A1, B1, ... N1, A2, ... N10` and aligns strongly with the CLRS-589 camera
-extraction order. The local export helper writes `ccsg_2_FIXED_ref.csv`, the stable
-text format consumed by the C++ toolkit.
+The retained project spectroradiometry covers neutral material: a 15-step
+luminance ramp and repeated Perfect Reflecting Diffuser measurements under two
+illuminant conditions. Those measurements are useful for studying neutral
+response and spectral-record ingestion, but they cannot supply expected values
+for the colored chart patches.
 
-Reference scope: `ccsg.xlsx` is a compatible, standard full-gamut SG
-reflectance reference. As of 2026-07-05 it is **verified against the X-Rite
-manufacturer nominal at mean ΔE76 1.34** (see "Verification vs X-Rite
-manufacturer reference" below). This establishes manufacturer consistency, not
-a per-unit measurement of the exact physical SG chart used in the CLRS-589 Fuji
-capture.
+A separate compatible ColorChecker-SG reference contains all 140 patch spectra
+from 380–730 nm at 10 nm intervals. It represents the same chart product and
+edition class, but the archive does not establish that it came from the physical
+chart photographed in this study.
 
-## Inventory
+## Why the compatible reference was accepted
 
-| Role | File(s) | Coverage | Chroma | Content |
-|---|---|---|---|---|
-| Neutral ramp reference (SPD) | `Old/Patches_SPD.xlsx`, `Old/SPD_all.csv` | 15 steps + 1 PRD row | neutral | radiance SPD, 380–780 nm @ 2 nm |
-| Neutral ramp reference (XYZ, derived) | `Old/Patches_XYZ.xlsx`, `Old/XYZ_all.csv` | same 16 rows | neutral | absolute XYZ, CIE 1931 2° |
-| Ramp trials | `Old/{1 to 6,7 to 9,10 to 15}/patch_Ntrail_M.mat` | steps **1–15** | neutral | spectroradiometer `measurements{wl,radiance,XYZ,totalRadiance,CCT,Duv}` |
-| PRD (white ref) | `Old/prd/prd_{1,2}.mat`; `PRD measurments/PRD_NN.mat` (+`PRD_SPD_all.csv`,`XYZ_all.csv`) | 2 + 45 readings | neutral | Perfect Reflecting Diffuser radiance/XYZ |
-| Measurement identity ledger | [`data/spectro_identity_ledger.csv`](../../data/spectro_identity_ledger.csv) | 89 distinct readings, 45 byte-identical aliases, 40 measurement groups (37 repeated, 3 singleton) | neutral | source-relative paths and SHA-256 identities; no spectra |
-| Illuminant SPD | three configured sphere-SPD files | 3 | — | integrating-sphere spectral radiance (W/m²·µm·sr) |
-| Camera measurement | `Images/ccsg_matlab.csv` | **140 patches** | colored | linear camera RGB (dark-subtracted + sphere vignette-corrected) |
-| Camera measurement (alt) | `Images/CCSG_rawdigger.csv` (A1… labels), `ccsg_matlab_dark_frame_corrected.csv` | 140 | colored | RawDigger export / dark-corrected |
-| Compatible colored SG reference | `data/private/references/ccsg_2019_workbook/ccsg.xlsx`, sheet `ccsg_2_FIXED_ref`; exported to `ccsg_2_FIXED_ref.csv` | **140 patches** | colored | spectral reflectance, 380-730 nm @ 10 nm, cell-labeled A1..N10 |
-| Derived compatible-reference exports checked | local `spectral-diversity-toolkit/data/ccsg_*_spectral.csv` | 24 / 96 / 140 / multi-measure subsets | colored | same `ccsg.xlsx` source, sometimes reordered/subsetted; not a newer or independent chart measurement |
-| Worked color-pipeline precedent | private compatible SG pipeline artifact set (`Xopt.mat`, mask, rendered previews) | 140-patch workflow artifacts | colored | prior MATLAB CCM / ΔE-style pipeline artifacts for validation precedent |
-| Manufacturer nominal SG reference (edition-split) | `data/private/references/xrite_colorchecker_sg_2016_zenodo/extracted/ColorCheckerSG_{Before,After}_Nov2014.txt`; layout key `.../sg_2016_archive/color_management_color/ColorChecker SG by rows.txt` | **140 patches** each | colored | X-Rite official Lab (i1Pro 2, M0); SpectraShop geometry key proves letter=column, number=row |
+Three checks were kept separate:
 
-Build pipeline confirmed by `Old/load_all.m` + `PRD measurments/create_single_file.m`
-(per-folder averaging/merge) and `Images/patch_extract.m`
-(`checker2colors(..., [10,14], roisize 70)`).
+1. **Shape and completeness.** The reference contains 140 labeled patches and
+   36 spectral bands on the declared wavelength grid.
+2. **Manufacturer consistency.** Rendering the spectra under the declared D50,
+   CIE 1931 2° conditions and comparing them with the edition-matched
+   manufacturer nominal values gives mean CIE76 color difference **1.34** over
+   all 140 patches. This supports product-level compatibility, not per-unit
+   identity.
+3. **Physical ordering.** Broadband proxies derived from the reference agree
+   with the retained camera-patch sweep: luminance correlation **0.9775**,
+   red-to-green correlation **0.9498**, and blue-to-green correlation **0.9617**.
+   The configured pairing gate passes. Alternate row, column, and 180-degree
+   orderings are substantially worse, which protects against using the right
+   spectra in the wrong patch order.
 
-## Numerical verification
+The camera extraction and an independent ROI export also agree at **0.99984**
+green-channel correlation in the retained physical order. This checks the
+camera-table handoff; it does not turn either table into chart ground truth.
 
-| Claim | Method | Result |
-|---|---|---|
-| All measured spectra are neutral | chromaticity (x,y) of all 150 `.mat` (134 raw `measurements` structs + 16 legacy averaged in `Old/Old code/`) | max chroma radius **0.011** (ramp) / **0.004** (PRD); averaged rows Y 166→679, raw trials Y 131→679, x,y ≈ const → grayscale, not color |
-| Recorded XYZ is numerically consistent with integration of the same SPD | compare recorded XYZ with `2 nm · Σ(SPD · CMF₂°)` | equal-weight sample summation is consistent with the records up to one archive-derived scale; fitting the canonical measurements gives **683.016758**, while using the historical rounded factor **683.017** leaves a constant signed residual of **3.5397e-05%** |
-| Ramp rows 1–15 = trial averages | mean of `patch_Ntrail_M.mat` XYZ vs xlsx | max\|Δ\| ≈ **4e-13** every row |
-| Row 16 = mean(prd_1, prd_2), not a chart patch | mean of `prd_{1,2}.mat` XYZ vs xlsx row 16 | max\|Δ\| = **4.55e-13**; no `patch_16*` file exists |
-| Camera order ≠ reference order | corr(camera green[:16], reference Y[:16]) | **−0.07**, ratio CV 126% |
-| `ccsg.xlsx` copies are identical | SHA-256 across three archived compatible-reference workbook copies | **8c067562f16f8340b4d980e787703e250915d6c8d7b0f769c7e6154c3998a52a** |
-| Additional reference workbooks checked | original `all_1nm_data.xlsx` copies in related archive folders | CMF/illuminant support data; not a 140-patch SG reference and not a replacement for `ccsg.xlsx` |
-| `ccsg.xlsx` shape/order | openpyxl read of `ccsg_2_FIXED_ref` | 140 rows × 40 columns; labels `A1,B1,...N1,A2,...N10`; 36 spectral bands, 380-730 nm @ 10 nm |
-| `ccsg.xlsx` order matches camera extraction | corr(`ccsg_matlab.csv` green, workbook luminance proxies) | L*-proxy **0.915**, Y-proxy **0.972**, 550/560-nm proxy **0.963** |
-| RawDigger and MATLAB extraction agree | corr(`CCSG_rawdigger.csv` Gavg, `ccsg_matlab.csv` green) in current row order | **0.99984** for f/8 `1:10`; confirms RawDigger values are faithful to the MATLAB patch order |
-| RawDigger label convention is transposed relative to reference IDs | compare RawDigger labels and workbook labels | RawDigger row order `A1,A2,...A14,B1...` maps to reference order `A1,B1,...N1,A2...`; literal label matching over shared IDs gives only **0.407** corr, while current physical order gives **0.958** corr against 560-nm proxy |
-| SG orientation sanity check | current physical order vs reference-grid column flip, row flip, and 180° rotation, using RawDigger green vs 560-nm proxy | current **0.958**; reference-grid column/row/180 flips **0.327 / 0.433 / 0.353** — the current sweep direction is the only plausible orientation |
-| Local `spectral-diversity-toolkit` exports checked | inspect CSV headers and source fields | `ccsg_measured_140patch_spectral.csv` and subsets cite `source_file=ccsg.xlsx`, `source_sheet=ccsg_2_FIXED_ref`; they are derivative order/subset exports, not missed newer measurements |
-| Reference ingestion | workbook export and structured validation | 140 patches × 36 bands; A1..N10; 380-730 nm |
-| Camera/reference pairing gate | broadband proxy correlations against the retained camera table | luminance **0.9775**, red-green **0.9498**, blue-green **0.9617**; configured gate passes |
+## How the reference is used
 
-Illuminant conditions (verified): ramp trials (n=42) **CCT mean 5984 K
-[5845–6157], Duv mean −0.0023**; PRD (n=45) **CCT mean ~5510 K, Duv ~−0.0009**
-(the `Old/prd` pair reads ~5612 K). PRD is a distinct condition from the ramp.
-Absolute radiance XYZ (Y in cd/m²) — needs a white point to reach Lab/ΔE. **Not
-D50.**
+Each patch reflectance is integrated with the selected illuminant and the CIE
+1931 2° color-matching functions, then normalized by the illuminant white to
+produce reference XYZ. The patch order follows the verified physical sweep
+rather than assuming that two tools use the same label convention.
 
-For the same-spectrum comparison, each unscaled channel value is
-`qᵢ꜀ = 2 nm · Σλ SPDᵢ(λ) · CMF꜀(λ)`. The reported proportional factor is the
-zero-intercept least-squares estimate
-`k = Σᵢ꜀ qᵢ꜀ XYZᵢ꜀ / Σᵢ꜀ qᵢ꜀²` over 89 canonical readings × 3 channels
-(267 terms). The committed identity ledger and observer table specify the
-population and reference data; recomputing the fit still requires the private
-spectra.
+The resulting reference is declared as:
 
-## Verification vs X-Rite manufacturer reference (2026-07-05)
+- **role:** compatible SG spectral reference;
+- **physical identity:** compatible chart product, exact unit not proven; and
+- **scope:** suitable for demonstrating patch extraction, matrix fitting,
+  held-out evaluation, and residual analysis, but not a calibration certificate
+  for the photographed chart.
 
-The compatible-scope claim was independently tested against the X-Rite official
-ColorChecker-SG nominal Lab tables (Zenodo mirror, i1Pro 2 / M0), which ship both
-the `Before_Nov2014` and `After_Nov2014` pigment editions. The toolkit's
-`ccsg_2_FIXED_ref.csv` reflectance was rendered to CIELAB (D50 / CIE 1931 2°,
-perfect-diffuser white Y=100) and compared **by label** to the manufacturer Lab.
-The independent manufacturer comparison uses the same CIE 1931 2-degree
-observer and D50 tables declared here; its software path is documented in the
-[color-characterization implementation companion](../implementation/color-characterization.md).
+The CCM output carries that scope explicitly. The software refuses other
+reference roles until their scientific meaning and output scope are defined;
+changing a metadata label cannot silently upgrade the evidence.
 
-**Render self-check (checks the neutral anchors before any chromatic comparison):**
-all six column-A neutral patches pass the declared `|ΔL*| ≤ 2.5` gate. The
-shown A1/A2/A3 values render L = 96.5 / 8.9 / 50.8 vs X-Rite
-96.7 / 8.1 / 49.8, with a,b within ~1 unit of zero. This establishes the
-declared neutral-anchor check, not general correctness of the render pipeline.
+## Interpretation boundary
 
-| Comparison | mean ΔE76 | median | max (worst patch) |
-|---|---|---|---|
-| ours vs X-Rite **After_Nov2014** | **1.34** | 1.03 | 11.35 (B4) |
-| ours vs X-Rite **Before_Nov2014** | **1.36** | 1.09 | 7.84 (B4) |
-| ours vs X-Rite **column-mirrored** (orientation control) | **47.49** | — | — |
+The reported CIEDE2000 and CIE76 values answer: how well does this capture fit a
+compatible full-chart spectral reference under the declared processing and
+validation split? They do not establish the error against the exact physical
+chart unit. A portion of the dark-patch residual may therefore come from
+capture flare, reference-unit variation, or both.
 
-**Findings:**
+The missing per-unit reference does not make the exercise meaningless. The
+study still tests the complete data flow, patch ordering, flat-field and white-
+balance handling, held-out matrix behavior, and residual localization. It does
+set the ceiling on the claim: this is a characterization demonstration using a
+compatible reference, not a traceable per-unit camera calibration.
 
-1. **The workbook matches the X-Rite manufacturer nominal closely.** Mean ΔE76
-   1.34 across all 140 patches supports using `ccsg.xlsx` as
-   manufacturer-consistent, compatible SG reference data rather than an
-   unverified table. The saturated violet B4 is the largest residual (11.4
-   After / 7.8 Before) and is also where the two nominal editions differ most.
-   Edition or lot sensitivity is plausible, but this comparison has no
-   uncertainty model and cannot identify whether edition, lot, measurement,
-   10 nm sampling, or a source-data issue produced that residual. Every other
-   patch is below 5.6 and the median is approximately 1.
-2. **Labels are physically correct and correctly oriented** (letter = column,
-   number = row). Proven two independent ways in the reproducible comparison
-   documented by the implementation companion: (a) the SpectraShop geometry key
-   `ColorChecker SG by rows.txt` — the tool asserts `PATCH_LEFT` is strictly
-   monotonic in the letter (A..N, 0.00→22.75 cm) and `PATCH_TOP` strictly
-   monotonic in the number (1..10, 0.00→15.75 cm), i.e. letter = column,
-   number = row; (b) the column-mirror control scores ΔE76 47.49, 35× the
-   direct-align 1.34. A transposed or mis-oriented label set could not produce
-   that separation.
-3. **Edition indeterminate at this precision.** After (1.34) ≈ Before (1.36); B4
-   leans Before but weakly. The physical CLRS-589 chart is one of these editions;
-   this comparison cannot split them.
+## Resolving measurement
 
-**Limitation.** A 1.34 mean ΔE76 difference from the manufacturer **nominal**
-establishes manufacturer consistency under this comparison; it does **not**
-establish the accuracy of the physical chart reference or identify the exact
-CLRS-589 chart per unit. Lot variation may be plausible, but it is not measured
-here. The **compatible SG spectral reference, not exact per-unit reference**
-scope stays — but "compatible" now
-means "manufacturer-consistent," not "unverified." The agreement makes a gross
-reference-table or label error less likely, but it does not rule out the
-compatible reference as one contributor to the dark-patch discrepancy in
-`CCM_FIT.md`. The two independent camera extractions make an import error less
-likely, and the lifted dark signals are consistent with veiling glare or other
-scene-capture effects, but this comparison does not isolate their cause.
-
-## Consequences
-
-1. **The spectrum is the primary signal for recomputation.** Retain the recorded
-   XYZ as same-spectrum closure metadata, not as an independent reference. The
-   fitted proportional factor is specific to these records; it is not the SI
-   value `Kcd = 683 lm/W` or the CIE photopic maximum `Km ≈ 683.002 lm/W`, and
-   the agreement does not identify undocumented instrument software.
-2. **The project spectroradiometry is neutral-only, but the toolkit has a compatible
-   colored spectral reference.** Use `ccsg.xlsx` for the colored CCM/ΔE demo and
-   label it as compatible/standard until physical chart identity is proven.
-3. **PRD = white/illuminant reference** (candidate white point), not a color
-   chart; the `Old/` ramp row 16 is a PRD average, not a 16th patch.
-4. **Patch identity for `ccsg.xlsx` is resolvable, but labels must be read
-   carefully.** The neutral ramp is not a 140-patch chart reference (corr
-   −0.07 against the first 16 camera rows). The workbook order aligns with the
-   camera extraction order, but RawDigger's grid labels are transposed relative
-   to workbook/reference patch IDs. Report `ccm-fit` exclusions as
-   **reference patch IDs**, not RawDigger grid labels.
-   Standalone `spectral-diversity-toolkit` columns named `patch_row` and
-   `patch_col` are parsed from the reference label text and should not be treated
-   as authoritative physical SG geometry.
-
-## Implemented reference contract
-
-Reference ingestion uses typed provenance:
-`ColorReference { source, illuminant, observer, patch_count, numbering_order,
-unit, white_reference }`. No hardcoded reference table.
-
-`reference-info` implements the validation contract; `ccm-fit` consumes it for
-the bounded linear CCM reported in [CCM_FIT.md](CCM_FIT.md).
-
-- **Primary colored spectral demo reference:** ingest local
-  `ccsg_2019_workbook/ccsg_2_FIXED_ref.csv`, exported from `ccsg.xlsx` sheet
-  `ccsg_2_FIXED_ref`. It has cell labels, full spectral reflectance, and
-  verified native-order alignment to `ccsg_matlab.csv` and RawDigger row order.
-  Report ΔE/CCM as
-  **vs compatible SG spectral reference**, not exact per-unit chart truth.
-- **Pairing acceptance gate:** do not rely only on the reference's internal
-  workbook label order. The configured CLRS reference must also pass the
-  `reference-info` camera/reference pairing gate against `ccsg_matlab.csv`.
-  The gate uses coarse broadband luminance and red-green / blue-green chroma
-  proxy correlations, so it validates row pairing only; it is not a substitute
-  for CCM residuals or DeltaE.
-- **Old archive reference policy:** 2016/2017 camera-characterization datasets
-  should select the 2016 SG measurement bundle by project provenance. Do not use
-  the 2019 CLRS workbook for old archives unless a specific mapping proves that
-  is the correct chart reference. The 2016 PatchTool file order is
-  `A1..A10`, then `B1..B10`, ...; any future old-archive color consumer must
-  respect or remap that order before pairing it to camera patches.
-- **Manufacturer SG reference, edition-specific.** The SG pigment set changed in
-  Nov 2014, so the file must be tagged `Before_Nov2014` or `After_Nov2014` and
-  matched to the physical chart used for the capture when known. Public files are
-  **Lab / cell-reference tables, not spectral 140-patch data** — do not describe
-  them as measured spectra.
-- **White point — condition-matched only.** The PRD is the standard reflectance
-  reference, but the local PRD readings sit at ~5510 K (numbered/copy) / ~5612 K
-  (`Old/prd`) while the ramp is ~5984 K — different illuminant conditions. Do not
-  treat "PRD = white point" blindly. The white point for the SG camera color
-  workflow must come from the illuminant **under the same capture condition** —
-  prefer the `Sphere` illuminant SPD (the flat-field/vignetting source actually
-  used on the CCSG capture) or a proven neutral/white measured under that
-  condition. Use PRD only when paired to a matching condition.
-- **Neutral validation (buildable now):** the 15-step ramp is an
-  instrument-traceable **grayscale tone / neutrality** anchor — usable for OECF /
-  white-balance / gray-axis ΔE without any colored reference.
-
-**ΔE reporting:**
-- **Coverage (colored):** fit the linear 3×3 CCM on the 140 exported
-  `ccsg.xlsx` spectral patches rendered under the selected illuminant; report
-  full-chart ΔE labeled "vs compatible SG spectral reference; not exact per-unit
-  measured chart."
-- **Model expansion:** add root-polynomial or exposure-normalized color models
-  only when deterministic held-out / cross-validation metrics show improvement;
-  training-only ΔE reductions against a compatible-not-exact reference are not
-  sufficient evidence.
-- **Public-standard comparison:** optionally repeat against the edition-matched
-  manufacturer Lab table and label it "vs manufacturer nominal (edition X);
-  includes per-chart manufacturing + illuminant-adaptation error."
-- **Neutral spot-check (traceable):** gray-axis ΔE + neutrality against the
-  measured ramp — this is the only measured-reference ΔE the dataset supports.
-
-Exact measured-reference ΔE for the physical CLRS-589 chart requires proven
-chart identity or a new measurement of that chart. The current comparison
-supports a neutral local measurement anchor, a compatible colored spectral SG
-reference, and an optional manufacturer-nominal comparison.
+The stronger experiment is direct and specific: measure the exact chart unit's
+140 patch reflectances with recorded instrument mode, geometry, calibration
+state, wavelength grid, and uncertainty; photograph that same chart in the
+camera session with matched dark and flat controls; then rerun the identical
+fit and held-out evaluation. That would replace the compatibility assumption
+with a measured physical link and show how much of the current residual belongs
+to the reference substitution.
 
 ## Engineering companion
 
 The [color-characterization implementation companion](../implementation/color-characterization.md)
-explains how the reference enters the C++ analysis and routes readers to the
-public source and tests. The reader-first result is the
-[ColorChecker/CCM case study](../case-studies/colorchecker-ccm.md).
+explains how the reference role, patch ordering, integration, fit, and output
+scope are represented in software and verified by focused tests.

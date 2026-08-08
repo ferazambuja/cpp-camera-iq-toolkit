@@ -44,27 +44,27 @@
   <text x="537.75" y="543" text-anchor="middle" class="axis">f/11</text>
   <text x="604.00" y="543" text-anchor="middle" class="axis">f/16</text>
   <text x="22" y="336.5" text-anchor="middle" class="axis" transform="rotate(-90 22 336)">MTF50 (cycles/pixel)</text>
-  <path d="M74.00,388.31 L140.25,417.15 L206.50,387.01 L272.75,276.61 L339.00,275.62 L405.25,188.84 L471.50,249.11 L537.75,269.65 L604.00,316.25" fill="none" stroke="#2563eb" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>
-  <circle cx="74.00" cy="388.31" r="3.5" fill="#2563eb"/>
-  <circle cx="140.25" cy="417.15" r="3.5" fill="#2563eb"/>
-  <circle cx="206.50" cy="387.01" r="3.5" fill="#2563eb"/>
-  <circle cx="272.75" cy="276.61" r="3.5" fill="#2563eb"/>
-  <circle cx="339.00" cy="275.62" r="3.5" fill="#2563eb"/>
-  <circle cx="405.25" cy="188.84" r="3.5" fill="#2563eb"/>
-  <circle cx="471.50" cy="249.11" r="3.5" fill="#2563eb"/>
-  <circle cx="537.75" cy="269.65" r="3.5" fill="#2563eb"/>
-  <circle cx="604.00" cy="316.25" r="3.5" fill="#2563eb"/>
+  <path d="M74.00,388.23 L140.25,416.80 L206.50,387.50 L272.75,276.68 L339.00,276.05 L405.25,188.88 L471.50,251.14 L537.75,269.80 L604.00,316.12" fill="none" stroke="#2563eb" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>
+  <circle cx="74.00" cy="388.23" r="3.5" fill="#2563eb"/>
+  <circle cx="140.25" cy="416.80" r="3.5" fill="#2563eb"/>
+  <circle cx="206.50" cy="387.50" r="3.5" fill="#2563eb"/>
+  <circle cx="272.75" cy="276.68" r="3.5" fill="#2563eb"/>
+  <circle cx="339.00" cy="276.05" r="3.5" fill="#2563eb"/>
+  <circle cx="405.25" cy="188.88" r="3.5" fill="#2563eb"/>
+  <circle cx="471.50" cy="251.14" r="3.5" fill="#2563eb"/>
+  <circle cx="537.75" cy="269.80" r="3.5" fill="#2563eb"/>
+  <circle cx="604.00" cy="316.12" r="3.5" fill="#2563eb"/>
   <path d="M74.00,378.11 L140.25,409.62 L206.50,382.61 L272.75,311.32 L339.00,281.87 L405.25,227.00 L471.50,228.46 L537.75,277.00 L604.00,307.91" fill="none" stroke="#60a5fa" stroke-width="2.5" stroke-dasharray="7 5" stroke-linejoin="round" stroke-linecap="round"/>
-  <path d="M74.00,387.40 L140.25,360.37 L206.50,343.87 L272.75,343.01 L339.00,345.26 L405.25,318.67 L471.50,314.14 L537.75,315.38 L604.00,339.19" fill="none" stroke="#c2410c" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>
-  <circle cx="74.00" cy="387.40" r="3.5" fill="#c2410c"/>
-  <circle cx="140.25" cy="360.37" r="3.5" fill="#c2410c"/>
-  <circle cx="206.50" cy="343.87" r="3.5" fill="#c2410c"/>
-  <circle cx="272.75" cy="343.01" r="3.5" fill="#c2410c"/>
-  <circle cx="339.00" cy="345.26" r="3.5" fill="#c2410c"/>
-  <circle cx="405.25" cy="318.67" r="3.5" fill="#c2410c"/>
-  <circle cx="471.50" cy="314.14" r="3.5" fill="#c2410c"/>
-  <circle cx="537.75" cy="315.38" r="3.5" fill="#c2410c"/>
-  <circle cx="604.00" cy="339.19" r="3.5" fill="#c2410c"/>
+  <path d="M74.00,387.32 L140.25,360.00 L206.50,343.16 L272.75,343.37 L339.00,345.53 L405.25,318.48 L471.50,314.13 L537.75,315.32 L604.00,339.24" fill="none" stroke="#c2410c" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>
+  <circle cx="74.00" cy="387.32" r="3.5" fill="#c2410c"/>
+  <circle cx="140.25" cy="360.00" r="3.5" fill="#c2410c"/>
+  <circle cx="206.50" cy="343.16" r="3.5" fill="#c2410c"/>
+  <circle cx="272.75" cy="343.37" r="3.5" fill="#c2410c"/>
+  <circle cx="339.00" cy="345.53" r="3.5" fill="#c2410c"/>
+  <circle cx="405.25" cy="318.48" r="3.5" fill="#c2410c"/>
+  <circle cx="471.50" cy="314.13" r="3.5" fill="#c2410c"/>
+  <circle cx="537.75" cy="315.32" r="3.5" fill="#c2410c"/>
+  <circle cx="604.00" cy="339.24" r="3.5" fill="#c2410c"/>
   <path d="M74.00,393.81 L140.25,372.51 L206.50,351.47 L272.75,349.27 L339.00,350.49 L405.25,318.37 L471.50,296.23 L537.75,311.32 L604.00,326.40" fill="none" stroke="#fb923c" stroke-width="2.5" stroke-dasharray="7 5" stroke-linejoin="round" stroke-linecap="round"/>
   <line x1="82" y1="557" x2="110" y2="557" stroke="#2563eb" stroke-width="2.5"/>
   <text x="118" y="561" class="legend">D810 toolkit</text>
@@ -91,17 +91,17 @@
   <line x1="684" y1="164.00" x2="930" y2="164.00" stroke="#d8dee8" stroke-width="1"/>
   <text x="676" y="168.00" text-anchor="end" class="axis">+0.08</text>
   <text x="714.75" y="531" text-anchor="middle" class="axis">f/4</text>
-  <rect x="694.75" y="361.14" width="18" height="1.13" rx="2" fill="#2563eb"/>
-  <rect x="716.75" y="361.14" width="18" height="112.71" rx="2" fill="#c2410c"/>
+  <rect x="694.75" y="361.14" width="18" height="2.78" rx="2" fill="#2563eb"/>
+  <rect x="716.75" y="361.14" width="18" height="112.72" rx="2" fill="#c2410c"/>
   <text x="776.25" y="531" text-anchor="middle" class="axis">f/5.6</text>
-  <rect x="756.25" y="185.64" width="18" height="175.50" rx="2" fill="#2563eb"/>
-  <rect x="778.25" y="361.14" width="18" height="58.93" rx="2" fill="#c2410c"/>
+  <rect x="756.25" y="184.85" width="18" height="176.29" rx="2" fill="#2563eb"/>
+  <rect x="778.25" y="361.14" width="18" height="58.57" rx="2" fill="#c2410c"/>
   <text x="837.75" y="531" text-anchor="middle" class="axis">f/8</text>
-  <rect x="817.75" y="296.21" width="18" height="64.93" rx="2" fill="#2563eb"/>
-  <rect x="839.75" y="361.14" width="18" height="40.69" rx="2" fill="#c2410c"/>
+  <rect x="817.75" y="300.99" width="18" height="60.15" rx="2" fill="#2563eb"/>
+  <rect x="839.75" y="361.14" width="18" height="25.09" rx="2" fill="#c2410c"/>
   <text x="899.25" y="531" text-anchor="middle" class="axis">f/11</text>
-  <rect x="879.25" y="307.08" width="18" height="54.06" rx="2" fill="#2563eb"/>
-  <rect x="901.25" y="341.02" width="18" height="20.12" rx="2" fill="#c2410c"/>
+  <rect x="879.25" y="305.64" width="18" height="55.50" rx="2" fill="#2563eb"/>
+  <rect x="901.25" y="341.01" width="18" height="20.13" rx="2" fill="#c2410c"/>
   <rect x="704" y="548" width="10" height="10" rx="2" fill="#2563eb"/>
   <text x="720" y="557" class="legend">D810</text>
   <rect x="790" y="548" width="10" height="10" rx="2" fill="#c2410c"/>

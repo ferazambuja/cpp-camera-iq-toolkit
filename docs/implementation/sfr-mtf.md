@@ -2,8 +2,7 @@
 
 [Implementation index](README.md) ·
 [case study](../case-studies/sfr-mtf-aperture-field.md) ·
-[scientific report](../reports/SFR_MTF.md) ·
-[archive contract](../reports/SFR_MTF_ARCHIVE_INVENTORY.md)
+[scientific report](../reports/SFR_MTF.md)
 
 ## Software boundary
 
@@ -135,7 +134,13 @@ two different sampling models, not interchangeable general guarantees.
 
 Refusal fixtures cover flat/low-contrast input, a `0.4°` edge against the
 default `2°` minimum, saturation, non-finite options and samples, insufficient
-edge centroids, and bounded ESF interpolation. Reusing that same
+edge centroids, bounded ESF interpolation, and asymmetric transition support.
+A translated Gaussian edge remains stable while both sides retain comparable
+support; an edge pushed far enough toward the boundary that its shorter side
+falls below half the longer side is refused as `insufficient_edge_support`.
+Accepted data is cropped to its largest transition-centered symmetric interval
+before the Hamming window is applied. The half-support ratio is an explicit
+implementation screen, not an ISO-conformance threshold. Reusing that same
 `160 × 144`, `sigma = 1.25`, `-6°` point-sampled fixture and ROI, `0.02 px`
 bins remain accepted within `0.02 cycles/pixel` of the default MTF50, while
 `0.015 px` refuses as `underfilled_esf` and `0.01 px` refuses as
