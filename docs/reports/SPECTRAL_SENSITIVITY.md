@@ -20,7 +20,6 @@ residuals, and an ISO 17321-style SMI approximation.
 
 [Case study](../case-studies/spectral-color-fidelity.md) ·
 [aggregate results CSV](../data/spectral_color_fidelity.csv) ·
-[archive role map](SPECTRAL_ARCHIVE_INVENTORY.md) ·
 [implementation companion](../implementation/spectral-fidelity.md)
 
 The source archive was read only. The tracked repository records relative
@@ -33,9 +32,7 @@ The evidence-complete portion is a four-camera laboratory run in which each
 camera has a monochromator sweep, a same-session broadband chart capture, a
 measured illuminant, and measured chart reflectance. A Phase One IQ3 sweep from
 a separate rig has no matching broadband target and therefore enters only the
-spectral-sensitivity comparison, not physical closure. Exact file roles and
-session pairings are recorded in the
-[spectral archive inventory](SPECTRAL_ARCHIVE_INVENTORY.md).
+spectral-sensitivity comparison, not physical closure.
 
 The Canon 5D2 is the retained end-to-end RAW extraction case. Its sweep contains
 48 wavelengths from 360 to 830 nm in 10 nm steps, one matched dark frame, and a
@@ -70,6 +67,17 @@ and remain counted as diagnostics. The Canon extraction uses the central 50%
 of the active mosaic, rounded to complete Bayer blocks, so red, both greens,
 and blue are sampled without demosaic.
 
+The preferred low-signal treatment would repeat the dark and monochromator
+measurements, estimate uncertainty and a detection limit at each wavelength,
+and retain signed residuals inside that uncertainty model. This archive has one
+matched dark measurement and no repeated spectral sweep. Because physical
+sensitivity is nonnegative, the reconstruction clamps a nonpositive residual to
+zero instead of publishing negative sensitivity, but that zero means “not
+resolved above this dark estimate,” not proven absence of response. The
+`12 / 48` flagged wavelengths below are therefore a limit on the recovered
+tails and one reason this extraction is treated as legacy-fidelity evidence
+rather than an absolute SSF calibration.
+
 Canon 5D2 extraction diagnostics:
 
 | Field | Value |
@@ -100,28 +108,24 @@ demosaic—so it remains method context rather than the measurement definition.
 
 ## Physical closure against an independent chart capture
 
-The `2016_Monochromator` archive contains a same-session Canon 5D2 broadband
-target set. The RAW frames live in the top-level
-`2016_11_21_5D2_Target/` session folder, their per-frame patch-extraction
-sidecars are mirrored under
-`Data_Collected/Canon 5D Mk II/Target/`, and the shared illuminant and chart
-reflectance files sit under `Data_Collected/Light Source/` and
-`Data_Collected/Color Checker/`. The analysis reads these inputs through the
-configured dataset root.
+The retained Canon 5D2 session contains a broadband target, white-card frame,
+dark frame, patch-coordinate sidecars, measured illuminant, and measured chart
+reflectance. The analysis reads them through the private configured dataset
+root; public identity is expressed by measurement role rather than archive
+filename.
 
-| Input | Archive file | Verified role |
-|---|---|---|
-| Target RAW | `2016_11_21_5D2_Target_1_Target_0116.CR2` | Canon EOS 5D Mark II, EF50mm f/2.5 Compact Macro, ISO 100, 1/200 s, f/5.6, 50 mm, 5616 x 3744 |
-| White RAW | `2016_11_21_5D2_Target_1_WhiteCard_0117.CR2` | Same camera/lens/exposure metadata as target |
-| Dark RAW | `2016_11_21_5D2_Target_1_DarkFrame_0118.CR2` | Same camera/lens/exposure metadata as target |
-| Patch coordinates | `*_CR2_SG.txt` sidecars | RawDigger SG exports for the target, white, and dark frames |
-| Illuminant SPD | `PR655_HID_avg.txt` | PR-655 HID average, 101 samples, 380-780 nm at 4 nm |
-| SG reflectance | `SGMeasurements_CGATS.txt` | i1Pro / SpectraShop SG measurement, 140 patches A1..N10, 380-730 nm at 10 nm |
+| Input | Verified role |
+|---|---|
+| Target RAW | Canon EOS 5D Mark II, EF50mm f/2.5 Compact Macro, ISO 100, 1/200 s, f/5.6, 50 mm, 5616 x 3744 |
+| White RAW | Same camera, lens, and exposure metadata as the target |
+| Dark RAW | Same camera, lens, and exposure metadata as the target |
+| Patch coordinates | Retained RawDigger SG exports for the target, white, and dark frames |
+| Illuminant SPD | PR-655 HID average, 101 samples, 380–780 nm at 4 nm |
+| SG reflectance | i1Pro / SpectraShop SG measurement, 140 patches A1–N10, 380–730 nm at 10 nm |
 
-The text illuminant export has no header, but its paired native
-`PR655_HID.spectrashop` project records `PR-655`. The SG and CC24 native projects
-both record `i1Pro` and probable unit identifier `1001351`; their CGATS exports
-record the shared 45:0/source-A/2-degree/D50 conditions. No archive file names
+The text illuminant export has no header, but its paired native project records
+`PR-655`. The SG and CC24 native projects both record `i1Pro`; their CGATS
+exports record the shared 45:0/source-A/2-degree/D50 conditions. No archive file names
 the monochromator. Unknown wavelength, bandpass, and stray-light behavior can
 affect relative curves and rankings as well as absolute SSF values; the 2017 IQ3
 session below is a separate rig and timeline.
@@ -169,16 +173,16 @@ uses the single global `k` above.
 The four-camera Target set 1 comparison uses the shared PR-655 HID illuminant,
 SG reflectance, and per-camera dark measurements. This retained closure table is a
 mixed-source baseline: the Canon row uses the toolkit RAW-derived SSF; the other
-three rows use their legacy `*_mono.csv` SSFs. Toolkit-SSF closure artifacts
+three rows use their retained 2016 SSFs. Toolkit-SSF closure artifacts
 for the Nikon D810, Sony A7RII, and Sony A7SII are not retained in this table,
 so it remains a mixed-source comparison:
 
 | Camera | SSF source | Gate-1 max ratio error | Patches | Target saturated / below-dark exclusions | R/G/B relative RMS | Minimum channel correlation |
 |---|---|---:|---:|---:|---:|---:|
 | Canon 5D2 | toolkit RAW extraction | 1.351% | 140/140 | 0 / 0 | 9.539% / 9.840% / 11.618% | 0.994328 |
-| Nikon D810 | legacy `mono.csv` | 2.949% | 140/140 | 0 / 0 | 10.802% / 11.069% / 13.802% | 0.992676 |
-| Sony A7RII | legacy `mono.csv` | 2.103% | 140/140 | 0 / 0 | 10.803% / 11.149% / 13.349% | 0.992517 |
-| Sony A7SII | legacy `mono.csv` | 1.284% | 140/140 | 0 / 0 | 9.901% / 9.917% / 11.252% | 0.993567 |
+| Nikon D810 | retained 2016 SSF | 2.949% | 140/140 | 0 / 0 | 10.802% / 11.069% / 13.802% | 0.992676 |
+| Sony A7RII | retained 2016 SSF | 2.103% | 140/140 | 0 / 0 | 10.803% / 11.149% / 13.349% | 0.992517 |
+| Sony A7SII | retained 2016 SSF | 1.284% | 140/140 | 0 / 0 | 9.901% / 9.917% / 11.252% | 0.993567 |
 
 All four 2016 cameras pass the illuminant-pairing gate and close with
 high patch-order correlation (minimum channel correlation >0.992). This is a
@@ -251,10 +255,10 @@ closure calculation. Results use the 380–730 nm common grid:
 | Rank | Camera | SSF source | xbar residual | ybar residual | zbar residual | Combined residual | Quality index |
 |---|---|---|---:|---:|---:|---:|---:|
 | 1 | Canon 5D2 | toolkit RAW extraction | 0.173 | 0.211 | 0.270 | 0.222 | 0.778 |
-| 2 (tie) | Nikon D810 | legacy `mono.csv` | 0.348 | 0.225 | 0.311 | 0.299 | 0.701 |
-| 2 (tie) | Sony A7RII | legacy `mono.csv` | 0.342 | 0.198 | 0.335 | 0.299 | 0.701 |
-| 4 | Sony A7SII | legacy `mono.csv` | 0.353 | 0.196 | 0.355 | 0.310 | 0.690 |
-| 5 | Phase One IQ3 100 | legacy `Spectral_Sensitivity_Data.csv` (2017 camSPECS) | 0.358 | 0.304 | 0.377 | 0.348 | 0.652 |
+| 2 (tie) | Nikon D810 | retained 2016 SSF | 0.348 | 0.225 | 0.311 | 0.299 | 0.701 |
+| 2 (tie) | Sony A7RII | retained 2016 SSF | 0.342 | 0.198 | 0.335 | 0.299 | 0.701 |
+| 4 | Sony A7SII | retained 2016 SSF | 0.353 | 0.196 | 0.355 | 0.310 | 0.690 |
+| 5 | Phase One IQ3 100 | retained 2017 camSPECS SSF | 0.358 | 0.304 | 0.377 | 0.348 | 0.652 |
 
 Canon 5D2 has the lowest residual in this comparison; the medium-format Phase One
 IQ3 100 has the highest. Nikon D810 and Sony A7RII are effectively tied at the
@@ -271,8 +275,8 @@ IQ3 provenance caveats (distinct from the four 2016 cameras):
   SSF-only comparison. That does not make the extracted SSF independent of its
   measurement session or rig, and it would be invalid to pool the IQ3 into any
   closure comparison.
-- **Legacy SSF, SSF-only**: the IQ3 uses its retained
-  `Spectral_Sensitivity_Data.csv`. Its session has no broadband target capture
+- **Legacy SSF, SSF-only**: the IQ3 uses its retained 2017 camSPECS sensitivity
+  table. Its session has no broadband target capture
   or measured chart reflectance, so it cannot participate in physical closure.
 
 Caveats shared with the four-camera table: this is a Luther-condition CMF-fit
@@ -310,10 +314,10 @@ ColorChecker SG.
 | Rank | Camera | SSF source | mean dE*ab (1976) | mean dE2000 | SMI |
 |---|---|---|---:|---:|---:|
 | 1 | Canon 5D2 | toolkit RAW extraction | 1.69 | 0.93 | 90.7 |
-| 2 | Sony A7RII | legacy `mono.csv` | 1.81 | 0.97 | 90.0 |
-| 3 | Sony A7SII | legacy `mono.csv` | 1.86 | 0.88 | 89.8 |
-| 4 | Nikon D810 | legacy `mono.csv` | 1.93 | 1.07 | 89.4 |
-| 5 | Phase One IQ3 100 | legacy `Spectral_Sensitivity_Data.csv` (2017) | 2.13 | 1.10 | 88.3 |
+| 2 | Sony A7RII | retained 2016 SSF | 1.81 | 0.97 | 90.0 |
+| 3 | Sony A7SII | retained 2016 SSF | 1.86 | 0.88 | 89.8 |
+| 4 | Nikon D810 | retained 2016 SSF | 1.93 | 1.07 | 89.4 |
+| 5 | Phase One IQ3 100 | retained 2017 camSPECS SSF | 2.13 | 1.10 | 88.3 |
 
 **SMI across all three test sets under D55 (stability check):**
 
@@ -385,11 +389,11 @@ read-only):
 
 | Camera | Session | SSF source | Target capture | Illuminant SPD | Chart reflectance | Physical closure |
 |---|---|---|---|---|---|---|
-| Canon 5D2 | 2016 | sweeps + `mono.csv` | `_Target` (5 sets) | HID (PR655) | SGMeasurements | Target set 1 closure run; gate PASS |
-| Nikon D810 | 2016 | sweeps + `mono.csv` | `_Target` (5 sets) | HID (shared) | SGMeasurements (shared) | Target set 1 closure run; gate PASS |
-| Sony A7RII | 2016 | sweeps + `mono.csv` | `_Target` (5 sets) | HID (shared) | SGMeasurements (shared) | Target set 1 closure run; gate PASS |
-| Sony A7SII | 2016 | sweeps + `mono.csv` | `_Target` (5 sets) | HID (shared) | SGMeasurements (shared) | Target set 1 closure run; gate PASS |
-| Phase One IQ3 | 2017 | sweeps + `Spectral_Sensitivity_Data.csv` | none | `Lamp_SPD` xlsx (camSPECS) | none | blocked |
+| Canon 5D2 | 2016 | sweeps + retained SSF | five broadband target sets | HID (PR-655) | measured SG reflectance | Target set 1 closure run; gate PASS |
+| Nikon D810 | 2016 | sweeps + retained SSF | five broadband target sets | HID (shared) | measured SG reflectance (shared) | Target set 1 closure run; gate PASS |
+| Sony A7RII | 2016 | sweeps + retained SSF | five broadband target sets | HID (shared) | measured SG reflectance (shared) | Target set 1 closure run; gate PASS |
+| Sony A7SII | 2016 | sweeps + retained SSF | five broadband target sets | HID (shared) | measured SG reflectance (shared) | Target set 1 closure run; gate PASS |
+| Phase One IQ3 | 2017 | sweeps + retained camSPECS SSF | none | camSPECS lamp SPD workbook | none | blocked |
 
 Only the Phase One IQ3 is missing measurements: its 2017 camSPECS session has
 spectral sweeps and a lamp SPD but no broadband Target capture and no chart

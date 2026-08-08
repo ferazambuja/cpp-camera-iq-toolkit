@@ -41,10 +41,10 @@ The `d800_oecf_2016` dataset points at the `2016_12_10_D800_OECF` archive
 directory and contains:
 
 - 94 NEF files.
-- 8 `Results/*_summary.csv` Imatest Stepchart summaries.
+- 8 retained Imatest Stepchart summaries.
 - 10 listed NEFs per summary, all joined at the dataset root.
 - 11 ISO25600 NEFs with no summary.
-- 3 `2016_12_09_OECF_D800_test_0148..0150.NEF` unmatched test files.
+- 3 unmatched test captures.
 
 ISO25600 is diagnostic-only. It reuses `s1-5000`, the same shutter as ISO12800,
 because the D800 capture set has no `s1-10000` frame; it is one stop brighter
@@ -102,9 +102,9 @@ is the accepted RAW-DN extraction path for this archive.
 samples the discrete tonal zones around the measured ring; the reduced image is
 not used for measurement.*
 
-Raw-mosaic analysis of the actual scene (2026-07-09, `NIKON
-D800_i100_s1-40_2.NEF` dumped via `unprocessed_raw` and scanned for uniform
-patches) shows an ISO 14524-style layout: ~300x300 px gray patches arranged
+Raw-mosaic analysis of a representative ISO 100, 1/40 s capture (2026-07-09,
+dumped via `unprocessed_raw` and scanned for uniform patches) shows an ISO
+14524-style layout: ~300x300 px gray patches arranged
 in a RING at roughly 1200-1400 px radius around the chart center, in
 scrambled density order, plus a continuous V-shaped sweep and auxiliary patch
 rows. The ring-patch green medians match the oracle's relative-exposure

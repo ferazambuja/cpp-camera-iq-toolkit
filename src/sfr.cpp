@@ -500,9 +500,41 @@ SfrResult analyze_green_sfr(const RawCfaImage& image, const RoiRect& requested,
 
   const double x10 = interpolate_crossing(x, esf, 0.1);
   const double x90 = interpolate_crossing(x, esf, 0.9);
-  if (std::isfinite(x10) && std::isfinite(x90)) {
-    result.r1090_px = std::abs(x90 - x10);
+  if (!std::isfinite(x10) || !std::isfinite(x90)) {
+    return reject_result(std::move(result), "rise_distance_not_found");
   }
+  result.r1090_px = std::abs(x90 - x10);
+  const double edge_center = 0.5 * (x10 + x90);
+  const double left_support = edge_center - x.front();
+  const double right_support = x.back() - edge_center;
+  const double symmetric_half_support = std::min(left_support, right_support);
+  const double longer_support = std::max(left_support, right_support);
+  // A Fourier estimate needs measured plateaus on both sides of the edge.
+  // Refuse a transition whose shorter side has less than half the support of
+  // its longer side; windowing cannot recover the omitted side of a badly
+  // placed ROI. Crop accepted data to the largest symmetric interval so the
+  // Hamming window is centered on the measured transition rather than on an
+  // arbitrary ROI.
+  if (!std::isfinite(symmetric_half_support) ||
+      !std::isfinite(longer_support) || longer_support <= 0.0 ||
+      2.0 * symmetric_half_support < longer_support) {
+    return reject_result(std::move(result), "insufficient_edge_support");
+  }
+  const auto symmetric_begin = std::lower_bound(
+      x.begin(), x.end(), edge_center - symmetric_half_support);
+  const auto symmetric_end = std::upper_bound(
+      x.begin(), x.end(), edge_center + symmetric_half_support);
+  const std::size_t symmetric_size =
+      static_cast<std::size_t>(std::distance(symmetric_begin, symmetric_end));
+  if (symmetric_size < 32) {
+    return reject_result(std::move(result), "insufficient_edge_support");
+  }
+  const std::size_t symmetric_offset =
+      static_cast<std::size_t>(std::distance(x.begin(), symmetric_begin));
+  x = std::vector<double>(symmetric_begin, symmetric_end);
+  esf = std::vector<double>(
+      esf.begin() + static_cast<long>(symmetric_offset),
+      esf.begin() + static_cast<long>(symmetric_offset + symmetric_size));
 
   std::vector<double> lsf;
   lsf.reserve(esf.size() - 1);

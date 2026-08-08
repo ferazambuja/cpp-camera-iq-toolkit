@@ -407,7 +407,6 @@ IMPLEMENTATION_COMPANION_LINKS = {
     Path("docs/reports/DARK_FRAME_NOISE.md"): "../implementation/raw-foundation.md",
     Path("docs/reports/EXPOSURE_RESPONSE.md"): "../implementation/raw-foundation.md",
     Path("docs/reports/FLAT_FIELD_RESPONSE.md"): "../implementation/flat-field.md",
-    Path("docs/reports/FUJI_XT100_CCSG_MANIFEST.md"): "../implementation/raw-foundation.md",
     Path("docs/reports/GAMUT_MAPPING.md"): "../implementation/gamut-mapping.md",
     Path("docs/reports/OECF_FIT.md"): "../implementation/raw-foundation.md",
     Path("docs/reports/OECF_STEPCHART.md"): "../implementation/raw-foundation.md",
@@ -415,9 +414,7 @@ IMPLEMENTATION_COMPANION_LINKS = {
     Path("docs/reports/RAW_CHART_LOCALIZATION.md"): "../implementation/color-characterization.md",
     Path("docs/reports/RAW_STATS.md"): "../implementation/raw-foundation.md",
     Path("docs/reports/SFR_MTF.md"): "../implementation/sfr-mtf.md",
-    Path("docs/reports/SFR_MTF_ARCHIVE_INVENTORY.md"): "../implementation/sfr-mtf.md",
     Path("docs/reports/SG_REFERENCE_PROVENANCE.md"): "../implementation/color-characterization.md",
-    Path("docs/reports/SPECTRAL_ARCHIVE_INVENTORY.md"): "../implementation/spectral-fidelity.md",
     Path("docs/reports/SPECTRAL_SENSITIVITY.md"): "../implementation/spectral-fidelity.md",
     Path("docs/reports/SPECTRORADIOMETER_INGEST.md"): "../implementation/spectroradiometer.md",
     Path("docs/reports/SPECTRAL_CROSSCHECK_2017.md"): "../implementation/spectral-crosscheck.md",
@@ -644,42 +641,6 @@ PROVENANCE_CONTRACTS = {
         (
             "capture versus advisory-run date distinction",
             re.compile(r"run date, not the capture date", re.IGNORECASE),
-        ),
-    ),
-    Path("docs/reports/SFR_MTF_ARCHIVE_INVENTORY.md"): (
-        (
-            "camera-local timestamp classification",
-            re.compile(
-                r"\|\s*Camera-clock window\s*\|[^|]+\|[^|]+\|"
-                r"\s*Camera-local timestamps\s*\|",
-                re.IGNORECASE,
-            ),
-        ),
-        (
-            "archive clock-synchronization boundary",
-            re.compile(
-                r"different camera bodies.{0,120}no record that their clocks "
-                r"were synchronized",
-                re.IGNORECASE,
-            ),
-        ),
-    ),
-    Path("docs/reports/SPECTRAL_ARCHIVE_INVENTORY.md"): (
-        (
-            "canonical four-camera archive identity",
-            re.compile(r"`archive:2016_Monochromator/`"),
-        ),
-        (
-            "separate IQ3 archive identity",
-            re.compile(r"`archive:2017_camspec/`"),
-        ),
-        (
-            "same-session SSF and target pairing",
-            re.compile(r"same-session SSF\+capture pairing", re.IGNORECASE),
-        ),
-        (
-            "separate-rig IQ3 relationship",
-            re.compile(r"distinct rig and timeline", re.IGNORECASE),
         ),
     ),
     Path("docs/reports/CCM_FIT.md"): (

@@ -33,7 +33,7 @@
         "last_wavelength_nm": 730,
         "min_reflectance": 0,
         "max_reflectance": 1,
-        "pairing_rgb_path": "data/private/datasets/clrs589_project_camera/Images/ccsg_matlab.csv",
+        "pairing_rgb_path": "data/private/measurements/chart_rgb.csv",
         "pairing_min_luminance_correlation": 0.90,
         "pairing_min_red_green_correlation": 0.80,
         "pairing_min_blue_green_correlation": 0.90

@@ -29,7 +29,7 @@ unity. The brightest-to-darkest corner-block spread was 19.65% of their
 average, well above the 5% project policy.
 
 "Primary" here means the first frame of the documented pair run
-(`Sphere_f8.0_1:1000_DSCF0368.RAF`) and nothing more. The label carries no
+(`sphere_f8.0_1-1000_01`) and nothing more. The label carries no
 evidential weight: both 1/1000 s frames support the same qualitative result, and
 the repeat carries marginally more signal (green center 0.4942 against 0.4876 of
 ceiling). Both frames' statistics are published, including both `A` values. No
@@ -49,7 +49,7 @@ configuration: aperture varies, and focus distance is absent.
 |---|---|
 | Camera body | Fujifilm X-T100 (APS-C) |
 | Lens | Fujinon XF 14 mm f/2.8 R |
-| Lens serial number | `56A00213` |
+| Lens sample identity | Recorded consistently; value withheld |
 | Focal length | 14.0 mm (21 mm 35 mm-equivalent, 1.5x) |
 | ISO | 200 |
 | Focus mode / distance | Manual / not recorded |
@@ -57,11 +57,9 @@ configuration: aperture varies, and focus distance is absent.
 
 The lens is an ultra-wide on APS-C. That is the context required to read the
 falloff magnitude below, where green response reaches roughly one-half of its
-center value. It also fixes a provenance asymmetry with the
-[SFR archive](SFR_MTF_ARCHIVE_INVENTORY.md#capture-metadata-audit), whose
-captures record no lens serial: here the serial is present and identical in
-every audited file, so lens *sample* identity is verified rather than inferred
-from a matching model name.
+center value. Unlike the SFR captures, this set records one consistent lens
+sample identity across every audited file; the identifier itself is not needed
+to interpret the result and is not published.
 
 Naming the lens does not attribute the measured field to it. The
 integrating-sphere field is itself visibly nonuniform, and the archive contains
@@ -250,7 +248,7 @@ population estimate or a substitute for a larger repeatability study.
 
 ## Transfer to the flat-field-corrected CCM path
 
-The repeat frame of this pair, `Sphere_f8.0_1:1000_DSCF0387.RAF`, is also the
+The repeat frame of this pair, `sphere_f8.0_1-1000_02`, is also the
 flat that corrects the ColorChecker-SG patches in the [CCM fit](CCM_FIT.md) and
 [patch extraction](PATCH_EXTRACTION.md) reports. The numbers above therefore
 characterize the exact frame that path divides by. Two of them bound the
@@ -312,7 +310,7 @@ consumers rather than two independently implemented tests that happen to agree.
 Its remaining columns describe map-specific coverage, dark-control, and
 asymmetry analysis.
 
-The selected `Sphere_f8.0_1:1000_DSCF0387.RAF` flat is accepted because it
+The selected `sphere_f8.0_1-1000_02` flat is accepted because it
 measures 0% near ceiling at every CFA position in both regions. Its full-frame
 valid-sample mean supplies the correction normalization. The available
 aggregate evidence does not support a quantitative correction comparison with

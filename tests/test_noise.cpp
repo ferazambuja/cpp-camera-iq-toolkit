@@ -3,6 +3,7 @@
 #include <array>
 #include <cmath>
 #include <sstream>
+#include <stdexcept>
 #include <string>
 #include <vector>
 
@@ -156,6 +157,17 @@ void TESTS() {
   mismatched.samples.pop_back();
   check(validate_noise_pair_compatibility(identical, mismatched).has_value(),
         "sample buffer mismatch is rejected");
+
+  bool invalid_roi_threw = false;
+  try {
+    (void)compute_noise_pair_estimate(
+        identical, identical, "same1.RAF", "same2.RAF", "1:60",
+        1.0 / 60.0, 200, 8.0, RoiRect{100, 100, 4, 4});
+  } catch (const std::runtime_error&) {
+    invalid_roi_threw = true;
+  }
+  check(invalid_roi_threw,
+        "noise ROI outside the image is refused instead of reporting zero DN");
 
   const auto fits = fit_dark_current_diagnostic(
       {{0.01, {0.02, 0.03, 0.04, 0.05}},

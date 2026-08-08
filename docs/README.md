@@ -218,7 +218,6 @@ details.
 | Report | Status and purpose |
 |---|---|
 | [Spectral sensitivity](reports/SPECTRAL_SENSITIVITY.md) | RAW extraction, physical closure, Luther residuals, and SMI-style analysis |
-| [Spectral archive inventory](reports/SPECTRAL_ARCHIVE_INVENTORY.md) | Camera/session/file-role map and measurement hazards |
 | [Spectroradiometer ingest](reports/SPECTRORADIOMETER_INGEST.md) | Content-bound measurement recovery, group analysis, chromaticity, and same-record XYZ closure |
 | [Spectral measurement and reference-data cross-check](reports/SPECTRAL_CROSSCHECK_2017.md) | Repeated HID series, cross-grid residual localization, CGATS interchange, and observer selection |
 
@@ -235,13 +234,11 @@ details.
 | Report | Status and purpose |
 |---|---|
 | [SFR/MTF result](reports/SFR_MTF.md) | D800/D810 center, aperture, and field analysis |
-| [SFR/MTF archive inventory](reports/SFR_MTF_ARCHIVE_INVENTORY.md) | Input/advisory batch selection, field identity, and metadata limits |
 
-### Dataset and provenance references
+### Data access and aggregate references
 
 | Report | Status and purpose |
 |---|---|
-| [Fujifilm X-T100 ColorChecker-SG manifest](reports/FUJI_XT100_CCSG_MANIFEST.md) | Dataset enumeration, CFA/black verification, and caveats |
 | [Dataset handling](DATASETS.md) | Public/private data boundary and local configuration |
 | [Aggregate result tables](data/README.md) | Figure inputs and regeneration |
 

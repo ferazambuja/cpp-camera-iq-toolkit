@@ -25,7 +25,8 @@ double erf_edge(double distance, double sigma) {
 }
 
 RawCfaImage synthetic_green_edge(int width, int height, double angle_deg,
-                                 double sigma, bool horizontal) {
+                                 double sigma, bool horizontal,
+                                 double edge_offset_px = 0.0) {
   RawCfaImage image;
   image.width = width;
   image.height = height;
@@ -42,11 +43,13 @@ RawCfaImage synthetic_green_edge(int width, int height, double angle_deg,
     for (int x = 0; x < width; ++x) {
       double distance = 0.0;
       if (horizontal) {
-        const double edge_y = cy + slope * (static_cast<double>(x) - cx);
+        const double edge_y =
+            cy + edge_offset_px + slope * (static_cast<double>(x) - cx);
         distance =
             (static_cast<double>(y) - edge_y) / std::sqrt(1.0 + slope * slope);
       } else {
-        const double edge_x = cx + slope * (static_cast<double>(y) - cy);
+        const double edge_x =
+            cx + edge_offset_px + slope * (static_cast<double>(y) - cy);
         distance =
             (static_cast<double>(x) - edge_x) / std::sqrt(1.0 + slope * slope);
       }
@@ -408,6 +411,35 @@ void TESTS() {
         test::check(result.mtf_at_nyquist > 0.0 &&
                         result.mtf_at_nyquist < 0.01,
                     "broad Gaussian strongly suppresses Nyquist response"));
+  }
+
+  {
+    constexpr double sigma = 1.25;
+    const auto centered = camera_iq::analyze_green_sfr(
+        synthetic_green_edge(160, 144, -6.0, sigma, true),
+        RoiRect{20, 16, 120, 112});
+    const auto upper = camera_iq::analyze_green_sfr(
+        synthetic_green_edge(160, 144, -6.0, sigma, true, -18.0),
+        RoiRect{20, 16, 120, 112});
+    const auto lower = camera_iq::analyze_green_sfr(
+        synthetic_green_edge(160, 144, -6.0, sigma, true, 18.0),
+        RoiRect{20, 16, 120, 112});
+    test::check(centered.accepted && upper.accepted && lower.accepted,
+                "translated synthetic edges are accepted");
+    test::check_near(upper.mtf50_cy_per_px, centered.mtf50_cy_per_px, 0.003,
+                     "MTF50 is stable when the edge moves toward the ROI top");
+    test::check_near(lower.mtf50_cy_per_px, centered.mtf50_cy_per_px, 0.003,
+                     "MTF50 is stable when the edge moves toward the ROI bottom");
+  }
+
+  {
+    constexpr double sigma = 5.0;
+    const auto truncated = camera_iq::analyze_green_sfr(
+        synthetic_green_edge(160, 144, -6.0, sigma, true, 44.0),
+        RoiRect{20, 16, 120, 112});
+    test::check(!truncated.accepted &&
+                    truncated.rejection_reason == "insufficient_edge_support",
+                "an edge without two-sided transition support is rejected");
   }
 
   {

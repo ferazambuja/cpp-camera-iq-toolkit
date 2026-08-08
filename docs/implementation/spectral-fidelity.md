@@ -2,8 +2,7 @@
 
 [Implementation index](README.md) ·
 [case study](../case-studies/spectral-color-fidelity.md) ·
-[scientific report](../reports/SPECTRAL_SENSITIVITY.md) ·
-[archive contract](../reports/SPECTRAL_ARCHIVE_INVENTORY.md)
+[scientific report](../reports/SPECTRAL_SENSITIVITY.md)
 
 ## Software boundary
 

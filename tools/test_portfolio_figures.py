@@ -39,19 +39,32 @@ class PortfolioFigureTests(unittest.TestCase):
 
     def test_sfr_rejects_center_outside_displayed_axis(self) -> None:
         path = self.data / "sfr_aperture_summary.csv"
-        text = path.read_text(encoding="utf-8").replace(
-            "0.10742023", "0.30000001", 1
-        )
-        path.write_text(text, encoding="utf-8")
+        with path.open(newline="", encoding="utf-8") as handle:
+            rows = list(csv.DictReader(handle))
+            fieldnames = list(rows[0])
+        rows[0]["toolkit_center_mtf50"] = "0.30000001"
+        with path.open("w", newline="", encoding="utf-8") as handle:
+            writer = csv.DictWriter(handle, fieldnames=fieldnames, lineterminator="\n")
+            writer.writeheader()
+            writer.writerows(rows)
         with self.assertRaises(ValueError):
             FIGURES.generate_sfr(self.data)
 
     def test_sfr_rejects_margin_outside_displayed_axis(self) -> None:
         path = self.data / "sfr_aperture_summary.csv"
-        text = path.read_text(encoding="utf-8").replace(
-            "0.20014470", "0.19000000", 1
+        with path.open(newline="", encoding="utf-8") as handle:
+            rows = list(csv.DictReader(handle))
+            fieldnames = list(rows[0])
+        row = next(
+            row
+            for row in rows
+            if row["camera"] == "D810" and row["aperture"] == "4"
         )
-        path.write_text(text, encoding="utf-8")
+        row["toolkit_corner_max_mtf50"] = "0.30000000"
+        with path.open("w", newline="", encoding="utf-8") as handle:
+            writer = csv.DictWriter(handle, fieldnames=fieldnames, lineterminator="\n")
+            writer.writeheader()
+            writer.writerows(rows)
         with self.assertRaises(ValueError):
             FIGURES.generate_sfr(self.data)
 

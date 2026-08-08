@@ -180,7 +180,7 @@ used for this result.
 
 ### What the correction frame itself measures
 
-`Sphere_f8.0_1:1000_DSCF0387.RAF` is not only an input here. It is also the
+`sphere_f8.0_1-1000_02` is not only an input here. It is also the
 repeat frame of the pair characterized in the
 [flat-field response report](FLAT_FIELD_RESPONSE.md#transfer-to-the-flat-field-corrected-ccm-path),
 so its own field is measured rather than assumed:

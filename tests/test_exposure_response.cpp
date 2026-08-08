@@ -157,6 +157,10 @@ void TESTS() {
       {"Sphere_f8.0_1:25_DSCF0004.RAF", report(-3, -3, -3, -3)},
   };
   const auto dark = summarize_exposure_response(series, entries, dark_reports);
+  check(dark.points.size() == 3 &&
+            dark.points[0].max_mean_fraction_of_range < 0.0,
+        "all-negative signal maxima remain negative rather than defaulting to "
+        "zero");
   check(dark.usable_oecf_points == 0,
         "below-black frames are not usable OECF points");
   check(!dark.oecf_candidate, "below-black ladder is not candidate-ready");

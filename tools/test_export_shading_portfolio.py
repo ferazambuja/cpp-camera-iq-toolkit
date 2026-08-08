@@ -424,7 +424,11 @@ def main() -> None:
             row["comparison_file"] for row in summary_rows if row["comparison_file"]
         )
         for identity in published_identities:
-            if EXPORT.NAME_RE.search(identity) or "/" in identity:
+            if (
+                EXPORT.NAME_RE.search(identity)
+                or "/" in identity
+                or "\\" in identity
+            ):
                 raise AssertionError(
                     f"summary publishes the archive path or filename: {identity}"
                 )

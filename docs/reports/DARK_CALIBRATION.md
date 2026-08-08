@@ -72,7 +72,7 @@ Outlier:
 
 | File | Shutter | Max abs residual | Residuals by plane |
 |---|---:|---:|---:|
-| `Dark_Frame_f8.0_1:1000_DSCF0434.RAF` | 1:1000 | 81.2448 DN | [44.770, 81.115, 81.245, 49.969] DN |
+| `dark_outlier_1-1000_01` | 1:1000 | 81.2448 DN | [44.770, 81.115, 81.245, 49.969] DN |
 
 The outlier should not be used as a black/noise/dynamic-range calibration frame
 until the capture provenance is resolved. The analysis keeps it visible instead of
