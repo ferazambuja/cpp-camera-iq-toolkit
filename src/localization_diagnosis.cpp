@@ -1,6 +1,7 @@
 #include "camera_iq/localization_diagnosis.hpp"
 
 #include <algorithm>
+#include <array>
 #include <cmath>
 #include <functional>
 #include <limits>
@@ -61,10 +62,13 @@ double patch_center_y(const PatchCoord& coord) {
 
 std::vector<Sample> make_samples(
     const std::vector<PatchCenterResidual>& residuals, Point2d stated_center) {
-  if (residuals.size() < static_cast<std::size_t>(kRows * kColumns)) {
+  constexpr std::size_t kPatchCount =
+      static_cast<std::size_t>(kRows * kColumns);
+  if (residuals.size() != kPatchCount) {
     throw std::runtime_error(
-        "localization diagnosis requires a complete 140-patch residual set");
+        "localization diagnosis requires exactly 140 patch residuals");
   }
+  std::array<bool, kPatchCount> seen{};
   double max_abs_x = 0;
   double max_abs_y = 0;
   for (const auto& r : residuals) {
@@ -73,6 +77,18 @@ std::vector<Sample> make_samples(
       throw std::runtime_error(
           "localization diagnosis requires finite residual values");
     }
+    if (r.row < 0 || r.row >= kRows || r.column < 0 ||
+        r.column >= kColumns) {
+      throw std::runtime_error(
+          "localization diagnosis residual coordinate is outside the 10x14 grid");
+    }
+    const std::size_t index = static_cast<std::size_t>(
+        r.row * kColumns + r.column);
+    if (seen[index]) {
+      throw std::runtime_error(
+          "localization diagnosis residual coordinate appears twice");
+    }
+    seen[index] = true;
     max_abs_x =
         std::max(max_abs_x, std::abs(r.generated_center_x - stated_center.x));
     max_abs_y =
@@ -84,8 +100,10 @@ std::vector<Sample> make_samples(
         "localization diagnosis requires a non-degenerate center basis");
   }
 
-  std::vector<Sample> samples;
-  samples.reserve(residuals.size());
+  // Normalize the accepted set to chart order. The public API does not require
+  // callers to supply row-major input, while adjacency metrics below use
+  // row-major neighbours.
+  std::vector<Sample> samples(kPatchCount);
   for (const auto& r : residuals) {
     Sample s;
     s.residual = r;
@@ -96,7 +114,9 @@ std::vector<Sample> make_samples(
     // toward one, which is exactly the false discriminator this slice avoids.
     s.nx = (r.generated_center_x - stated_center.x) / radial_scale;
     s.ny = (r.generated_center_y - stated_center.y) / radial_scale;
-    samples.push_back(s);
+    const std::size_t index = static_cast<std::size_t>(
+        r.row * kColumns + r.column);
+    samples[index] = std::move(s);
   }
   return samples;
 }
