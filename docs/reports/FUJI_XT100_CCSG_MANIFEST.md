@@ -31,22 +31,27 @@ inspection was done with a Python helper; results are recorded below.
 
 690 files total: 480 RAF, 150 MAT, 16 CSV, 23 TIF, 8 MATLAB scripts, misc.
 
-| Directory | RAF count |
+| Capture group | RAF count |
 |---|---|
-| `Images/CCSG` | 16 |
-| `Images/CCSG_f8` | 17 |
-| `Images/Dark Frame` | 21 |
-| `Images/Sphere` | 52 |
-| `Images/Non_Unifform_f8` | 16 |
-| `Images/Flat Image` | 2 |
-| `Images/PRD` | 23 |
-| `Images/Validation Images` | 18 (15 `Validation_CC`, 3 `Validation_Paint`) |
-| `1st Try` | 274 |
-| `Old/0418measuremnt` | 41 |
+| ColorChecker-SG chart | 16 |
+| ColorChecker-SG chart, f/8 series | 17 |
+| Dark frames | 21 |
+| Integrating sphere | 52 |
+| Non-uniform field, f/8 | 16 |
+| Flat field | 2 |
+| PRD series | 23 |
+| Validation captures | 18 (15 chart, 3 painted target) |
+| First session, superseded | 274 |
+| Earlier measurement session | 41 |
 | **Total** | **480** |
 
-`Images/Validation Images/untitled folder` is empty. `Validation_CC` and
-`Validation_Paint` are tracked as separate groups throughout.
+Group names here are this report's own labels for capture intent. The archive's
+directory names are not reproduced: they are private organization, they carry no
+measurement evidence, and two of them are misspelled in ways that would
+propagate into anything citing them.
+
+The validation captures split into two tracked groups — chart and painted target
+— throughout this report.
 
 ## Camera and CFA (verified, not hardcoded)
 

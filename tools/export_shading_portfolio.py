@@ -35,6 +35,41 @@ EXPECTED_OPTIONS: dict[str, float | int] = {
 }
 
 
+def publication_label(aperture: str, shutter: str, ordinal: int) -> str:
+    """Publication identity for one sphere frame.
+
+    The archive filename encodes the source dataset, its directory tree, and the
+    camera's own frame counter. None of that is measurement evidence, and the
+    published tables already carry aperture and shutter as their own columns, so
+    the label repeats those two and adds a stable ordinal within the condition.
+    """
+    return f"sphere_f{aperture}_{shutter.replace(':', '-')}_{ordinal:02d}"
+
+
+def publication_labels(inventory_dir: Path) -> dict[str, str]:
+    """Map every inventory frame to its publication label.
+
+    Built in one pass over the whole sorted inventory so that the summary and
+    response tables agree, and so a frame's label never depends on which subset
+    of frames a given table happens to publish.
+    """
+    census: dict[tuple[str, str], int] = {}
+    labels: dict[str, str] = {}
+    for path in sorted(inventory_dir.glob("*.json")):
+        file_value = load(path).get("file")
+        if not isinstance(file_value, str) or not file_value:
+            raise ValueError(f"{path}: missing file label")
+        match = NAME_RE.search(file_value)
+        if match is None:
+            raise ValueError(f"{path}: filename does not encode aperture/shutter")
+        if file_value in labels:
+            raise ValueError(f"{path}: duplicate inventory file label {file_value}")
+        key = (match.group("aperture"), match.group("shutter"))
+        census[key] = census.get(key, 0) + 1
+        labels[file_value] = publication_label(*key, census[key])
+    return labels
+
+
 def load(path: Path) -> dict[str, Any]:
     with path.open(encoding="utf-8") as handle:
         value = json.load(handle)
@@ -483,7 +518,8 @@ def write_summary(
     detailed: dict[str, dict[str, Any]],
     comparison: dict[str, Any] | None,
     output: Path,
-) -> dict[str, dict[str, Any]]:
+) -> tuple[dict[str, dict[str, Any]], dict[str, str]]:
+    labels = publication_labels(inventory_dir)
     rows: list[list[str]] = []
     seen_files: set[str] = set()
     accepted_files: set[str] = set()
@@ -551,12 +587,12 @@ def write_summary(
         max_delta = ""
         rms_delta = ""
         if comparison and file_label == comparison["primary_file"]:
-            comparison_file = str(comparison["repeat_file"])
+            comparison_file = labels[comparison["repeat_file"]]
             max_delta = f"{finite(comparison['max_corner_delta_pp'], 'max delta'):.8f}"
             rms_delta = f"{finite(comparison['rms_corner_delta_pp'], 'RMS delta'):.8f}"
         rows.append(
             [
-                file_label,
+                labels[file_label],
                 validated["aperture"],
                 validated["shutter"],
                 str(accepted).lower(),
@@ -638,11 +674,14 @@ def write_summary(
             ]
         )
         writer.writerows(rows)
-    return accepted_evidence
+    return accepted_evidence, labels
 
 
 def write_response(
-    inputs: list[Path], output: Path, accepted_evidence: dict[str, dict[str, Any]]
+    inputs: list[Path],
+    output: Path,
+    accepted_evidence: dict[str, dict[str, Any]],
+    labels: dict[str, str],
 ) -> None:
     rows: list[list[str]] = []
     accepted_items: dict[str, dict[str, Any]] = {}
@@ -694,7 +733,7 @@ def write_response(
                 values = {name: finite(data[index], name) for name, data in maps.items()}
                 rows.append(
                     [
-                        file_label,
+                        labels[file_label],
                         str(index // cols),
                         str(index % cols),
                         f"{values['r']:.8f}",
@@ -758,10 +797,10 @@ def main() -> int:
                 "primary_file": document["primary"]["file"],
                 "repeat_file": document["repeat"]["file"],
             }
-    accepted_evidence = write_summary(
+    accepted_evidence, labels = write_summary(
         args.inventory_dir, detailed, comparison, args.summary_out
     )
-    write_response(args.response, args.response_out, accepted_evidence)
+    write_response(args.response, args.response_out, accepted_evidence, labels)
     print(f"wrote {args.summary_out}")
     print(f"wrote {args.response_out}")
     return 0

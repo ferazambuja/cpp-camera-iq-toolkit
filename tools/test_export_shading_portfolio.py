@@ -391,7 +391,7 @@ def main() -> None:
             "repeat_file": repeat["file"],
         }
         detailed = {item["file"]: item for item in (primary, repeat, third)}
-        accepted = EXPORT.write_summary(
+        accepted, labels = EXPORT.write_summary(
             inventory, detailed, comparison, root / "summary.csv"
         )
         with (root / "summary.csv").open(newline="", encoding="utf-8") as handle:
@@ -419,12 +419,25 @@ def main() -> None:
             raise AssertionError("summary omits or misorders per-CFA gate evidence")
         if first.get("analysis_policy") != "shading-v2-grid16x12-screening-coverage":
             raise AssertionError("summary does not identify the schema-3 screening policy")
+        published_identities = {row["file"] for row in summary_rows}
+        published_identities.update(
+            row["comparison_file"] for row in summary_rows if row["comparison_file"]
+        )
+        for identity in published_identities:
+            if EXPORT.NAME_RE.search(identity) or "/" in identity:
+                raise AssertionError(
+                    f"summary publishes the archive path or filename: {identity}"
+                )
+            if not identity.startswith("sphere_f"):
+                raise AssertionError(f"summary identity is not a publication label: {identity}")
+        if len(published_identities) != len({row["file"] for row in summary_rows}):
+            raise AssertionError("comparison_file must reuse a published frame label")
         response_paths: list[Path] = []
         for number, item in enumerate((primary, repeat, third)):
             path = root / f"response-{number}.json"
             write_json(path, item)
             response_paths.append(path)
-        EXPORT.write_response(response_paths, root / "response.csv", accepted)
+        EXPORT.write_response(response_paths, root / "response.csv", accepted, labels)
 
         bad_comparison = dict(comparison, measured=False)
         expect_error(
@@ -585,13 +598,14 @@ def main() -> None:
                 [inconsistent_response_path, *response_paths[1:]],
                 root / "inconsistent-response.csv",
                 accepted,
+                labels,
             ),
             "response and detailed relative_response disagree",
         )
 
         expect_error(
             lambda: EXPORT.write_response(
-                response_paths[:2], root / "missing-response.csv", accepted
+                response_paths[:2], root / "missing-response.csv", accepted, labels
             ),
             "does not match accepted inventory set",
         )
