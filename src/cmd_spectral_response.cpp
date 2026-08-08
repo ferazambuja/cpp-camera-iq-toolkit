@@ -122,6 +122,14 @@ int cmd_spectral_response(int argc, char** argv) {
   }
 
   try {
+    for (const auto& output : {args.out, args.ssf_csv_out}) {
+      if (output.empty()) continue;
+      if (reject_output_aliasing_inputs(
+              output, {args.response_csv, args.spd_csv, args.dark_raw},
+              "spectral-response", std::cerr)) {
+        return 2;
+      }
+    }
     const auto response =
         parse_spectral_response(args.response_csv, args.spd_csv,
                                 args.provenance);

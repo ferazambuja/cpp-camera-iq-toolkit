@@ -359,6 +359,16 @@ int cmd_spectral_closure(int argc, char** argv) {
       return 2;
     }
   }
+  if (!out_path.empty() &&
+      reject_output_aliasing_inputs(
+          out_path,
+          {std::filesystem::path(ssf_csv), std::filesystem::path(illuminant),
+           std::filesystem::path(reflectance),
+           std::filesystem::path(target_rgb), std::filesystem::path(white_rgb),
+           std::filesystem::path(dark_rgb)},
+          "spectral-closure", std::cerr)) {
+    return 2;
+  }
   if (ssf_csv.empty() || illuminant.empty() || reflectance.empty() ||
       target_rgb.empty() || white_rgb.empty() || camera_model.empty() ||
       dataset_id.empty() || archive_subset.empty()) {

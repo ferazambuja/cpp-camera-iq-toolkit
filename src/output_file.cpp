@@ -67,6 +67,21 @@ bool output_path_aliases_input(const std::filesystem::path& output,
   return comparable_path(output) == comparable_path(input);
 }
 
+bool reject_output_aliasing_inputs(
+    const std::filesystem::path& output,
+    std::initializer_list<std::optional<std::filesystem::path>> inputs,
+    std::string_view command_name,
+    std::ostream& err) {
+  for (const auto& input : inputs) {
+    if (!input || input->empty()) continue;
+    if (!output_path_aliases_input(output, *input)) continue;
+    err << "camera_iq " << command_name
+        << ": output path must not alias the input " << *input << "\n";
+    return true;
+  }
+  return false;
+}
+
 bool finish_output_stream_checked(std::ostream& os,
                                   const std::filesystem::path& path,
                                   std::string_view command_name,

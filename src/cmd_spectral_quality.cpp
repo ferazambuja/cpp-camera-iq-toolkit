@@ -130,6 +130,12 @@ int cmd_spectral_quality(int argc, char** argv) {
       return 2;
     }
   }
+  if (!out_path.empty() &&
+      reject_output_aliasing_inputs(out_path, {std::filesystem::path(ssf_csv),
+                                               std::filesystem::path(cmf_csv)},
+                                    "spectral-quality", std::cerr)) {
+    return 2;
+  }
   if (ssf_csv.empty() || cmf_csv.empty() || camera_model.empty()) {
     std::cerr
         << "Usage: camera_iq spectral-quality --ssf-csv F --cmf F "
