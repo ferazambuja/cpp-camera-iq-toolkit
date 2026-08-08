@@ -156,7 +156,7 @@ corrected reference RGB table is supplied. RawDigger's `Ravg/Gavg/Bavg` values
 are uncorrected RAW rectangle means, so they are valid as a geometry/extraction
 oracle only for the uncorrected mode above.
 
-The same-aperture `Sphere_f8.0_1:10` through `1:500` frames are too near the
+The same-aperture f/8 sphere frames from `1:10` through `1:500` are too near the
 signal ceiling for meaningful flat-field correction. The validation run
 uses `sphere_f8.0_1-1000_02`, whose CFA means are well below the
 ceiling and preserve spatial variation. The shorter `1:10` flat is rejected

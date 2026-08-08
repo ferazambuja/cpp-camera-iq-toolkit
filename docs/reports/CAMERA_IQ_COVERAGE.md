@@ -84,7 +84,7 @@ turning this scientific coverage map into a software inventory.
 | 2016 monochromator / ColorChecker target sessions | Canon/Nikon/Sony SSF extraction, physical closure, SMI/Luther ranking, CC-24 and SG-140 target-set evidence. |
 | 2017 camSPECS / Phase One IQ3 | IQ3 SSF and color-fidelity ranking; closure blocked by missing same-session target/reflectance. |
 | Retained coursework spectral text set | Two repeated HID series, four ColorChecker interchange exports (created in 2016 and retained under the 2017 archive grouping), explicit-observer colorimetry, and one candidate paired chart comparison. |
-| 2016 esensi D810/D800 SFR | Center and field SFR/MTF, aperture trend gates, Imatest `_Y_multi.csv` oracle comparisons. |
+| 2016 D810/D800 SFR | Center and field SFR/MTF, aperture trend gates, Imatest `_Y_multi.csv` oracle comparisons. |
 | 2016 D800 OECF Stepchart | Imatest oracle parsing, raw ring-zone extraction, DN-referred per-pixel temporal variance diagnostics. |
 
 ## Scope and limitations
