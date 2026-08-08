@@ -53,7 +53,10 @@ coordinates rather than only rectangles. `extract_patch_means()` checks geometry
 samples the demosaiced linear-DN image, and keeps chart order explicit. The
 localization diagnosis fits several residual models and performs held-out
 scoring; high RGB correlation cannot override a failed coordinate-distance
-threshold.
+threshold. That diagnosis accepts exactly one complete 10 by 14 coordinate
+set, rejects duplicate or out-of-range cells, and normalizes the set to chart
+order before computing adjacency metrics. Its result therefore does not depend
+on the caller's vector order.
 
 When a flat field is supplied, its near-ceiling and geometry gates run on the
 source CFA before correction. A per-channel full-frame mean normalizes the

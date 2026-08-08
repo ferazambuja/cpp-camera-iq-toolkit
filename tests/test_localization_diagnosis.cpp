@@ -150,6 +150,52 @@ void TESTS() {
             std::string::npos,
         "diagnosis: centered-capture confound is reported");
 
+  auto shuffled_residuals = residuals;
+  std::reverse(shuffled_residuals.begin(), shuffled_residuals.end());
+  const auto shuffled = analyze_localization_residual_models(
+      shuffled_residuals, Point2d{3008.0, 2007.0});
+  check_near(find_model(shuffled, "corner_seeded_homography_baseline")
+                 .in_sample.adjacent_vector_cosine,
+             zero.in_sample.adjacent_vector_cosine, 1e-12,
+             "diagnosis: adjacency metric is independent of input order");
+
+  auto duplicate_coordinate = residuals;
+  duplicate_coordinate.back().row = duplicate_coordinate.front().row;
+  duplicate_coordinate.back().column = duplicate_coordinate.front().column;
+  bool duplicate_threw = false;
+  try {
+    (void)analyze_localization_residual_models(
+        duplicate_coordinate, Point2d{3008.0, 2007.0});
+  } catch (const std::runtime_error&) {
+    duplicate_threw = true;
+  }
+  check(duplicate_threw,
+        "diagnosis: duplicate chart coordinates are rejected");
+
+  auto outside_grid = residuals;
+  outside_grid.back().column = 14;
+  bool outside_threw = false;
+  try {
+    (void)analyze_localization_residual_models(
+        outside_grid, Point2d{3008.0, 2007.0});
+  } catch (const std::runtime_error&) {
+    outside_threw = true;
+  }
+  check(outside_threw,
+        "diagnosis: coordinates outside the 10x14 chart are rejected");
+
+  auto extra_residual = residuals;
+  extra_residual.push_back(residuals.front());
+  bool extra_threw = false;
+  try {
+    (void)analyze_localization_residual_models(
+        extra_residual, Point2d{3008.0, 2007.0});
+  } catch (const std::runtime_error&) {
+    extra_threw = true;
+  }
+  check(extra_threw,
+        "diagnosis: residual sets larger than the 10x14 chart are rejected");
+
   camera_iq::LocalizationIndependentCenterCheck unresolved;
   unresolved.attempted = true;
   unresolved.valid_count = 140;
