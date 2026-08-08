@@ -3,10 +3,7 @@
 This index connects concise case studies to scientific reports, implementation
 companions, aggregate tables, dataset notes, and provenance records. The
 [project overview](../README.md) summarizes the implemented measurement areas
-and principal results. The
-[public documentation standard](PUBLIC_DOCUMENTATION_STANDARD.md) defines how
-those layers stay readable and technically complete without mixing scientific
-narrative with source-code detail.
+and principal results.
 
 **Jump to:** [featured case studies](#featured-case-studies) ·
 [implementation architecture](#implementation-architecture) ·
